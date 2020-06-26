@@ -17,7 +17,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   displayName: 'Gitops Service by Red Hat'
-  image: 'quay.io/redhat-developer/helm-chart-repository-configuration-api-index:0.0.1'
+  image: 'quay.io/redhat-developer/gitops-backend-operator-index:0.0.1'
   publisher: 'Red Hat Developer'
   sourceType: grpc
 ```
