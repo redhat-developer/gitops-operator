@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: gitops-operator
+subjects:
+- kind: ServiceAccount
+  name: gitops-operator
+roleRef:
+  kind: Role
+  name: gitops-operator
+  apiGroup: rbac.authorization.k8s.io
