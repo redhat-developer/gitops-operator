@@ -1,0 +1,7 @@
+apiVersion: pipelines.openshift.io/v1alpha1
+kind: GitopsService
+metadata:
+  name: example-gitopsservice
+spec:
+  # Add fields here
+  size: 3
