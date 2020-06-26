@@ -32,7 +32,7 @@ var log = logf.Log.WithName("controller_gitopsservice")
 var (
 	port      int32  = 8080
 	image     string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	namespace        = "openshift-app-gitops"
+	namespace        = "pipelines-app-delivery"
 	name             = "cluster"
 )
 
@@ -213,7 +213,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 		Containers: []corev1.Container{
 			{
 				Name:  cr.Name,
-				Image: "quay.io/kmcdermo/gitops-backend:latest",
+				Image: image,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
@@ -283,6 +283,10 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 		},
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.IntOrString{IntVal: port},
+		},
+		TLS: &routev1.TLSConfig{
+			Termination:                   routev1.TLSTerminationEdge,
+			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
 		},
 	}
 
