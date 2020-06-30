@@ -66,15 +66,15 @@ docker push quay.io/redhat-developer/gitops-backend-operator:v0.0.1
 2. Build the Bundle image ( operator + OLM manifests )
 
 ```
-operator-sdk bundle create quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.3
-docker push quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.3
+operator-sdk bundle create quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1
+docker push quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1
 ```
 
 3. Build the Index image
 
 ```
-opm index add --bundles quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.3  --tag quay.io/redhat-developer/gitops-backend-operator-index:v0.0.3 --build-tool=docker
-docker push quay.io/redhat-developer/gitops-backend-operator-index:v0.0.3
+opm index add --bundles quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1  --tag quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1 --build-tool=docker
+docker push quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1
 ```
 
 The Index image powers the listing of the Operator on OperatorHub.
