@@ -30,10 +30,12 @@ var log = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
 var (
-	port      int32  = 8080
-	image     string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	namespace        = "pipelines-app-delivery"
-	name             = "cluster"
+	port                int32  = 8080
+	image               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	namespace                  = "pipelines-app-delivery"
+	name                       = "cluster"
+	insecureEnvVar             = "INSECURE"
+	insecureEnvVarValue        = "true"
 )
 
 // Add creates a new GitopsService Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -171,7 +173,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	existingServiceRef := &corev1.Service{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingServiceRef)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Serviec", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), serviceRef)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -219,6 +221,12 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 						Name:          "http",
 						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: port, // should come from flag
+					},
+				},
+				Env: []corev1.EnvVar{
+					{
+						Name:  insecureEnvVar,
+						Value: insecureEnvVarValue,
 					},
 				},
 			},
