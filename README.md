@@ -32,7 +32,7 @@ spec:
 
 ![a relative link](docs/assets/installed-operator.png)
 
-4. To validate if the installation was successful, look for the route named `cluster` in the `pipelines-app-delivery` namespace. Note, the namespace doesn't have to exist in advance, the operator creates it for you.
+4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-pipelines-app-delivery` namespace. Note, the namespace doesn't have to exist in advance, the operator creates it for you.
 
 That's it, your API `route` should be created for you. You don't need to expliclty create any operand/CR.
 
@@ -41,7 +41,7 @@ That's it, your API `route` should be created for you. You don't need to explicl
 
 1. Clone the repository.
 2. Login to a cluster on your command-line.
-3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-pipelines-app-delivery`
+3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch=openshift-pipelines-app-delivery`
 
 
 ## Re-build and Deploy
