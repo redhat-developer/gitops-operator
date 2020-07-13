@@ -32,7 +32,7 @@ var log = logf.Log.WithName("controller_gitopsservice")
 var (
 	port                int32  = 8080
 	image               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	namespace                  = "pipelines-app-delivery"
+	namespace                  = "openshift-pipelines-app-delivery"
 	name                       = "cluster"
 	insecureEnvVar             = "INSECURE"
 	insecureEnvVarValue        = "true"
