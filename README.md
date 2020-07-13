@@ -58,7 +58,7 @@ mode. You could update your image "payload" and re-install the operator.
 * Build the operator image.
 
 ```
-docker build -t quay.io/redhat-developer/gitops-backend-operator-bundle
+docker build -t quay.io/redhat-developer/gitops-backend-operator:v0.0.1
 docker push quay.io/redhat-developer/gitops-backend-operator:v0.0.1
 ```
 
