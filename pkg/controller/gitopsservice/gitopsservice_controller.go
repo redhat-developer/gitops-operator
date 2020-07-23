@@ -201,16 +201,18 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
-func objectMeta(resourceName string, namespace string) metav1.ObjectMeta {
-	ObjectMeta := metav1.ObjectMeta{
+func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
+	objectMeta := metav1.ObjectMeta{
 		Name:      resourceName,
 		Namespace: namespace,
 	}
-	return ObjectMeta
+	for _, o := range opts {
+		o(&objectMeta)
+	}
+	return objectMeta
 }
 
 func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment {
-
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
@@ -227,6 +229,23 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 					{
 						Name:  insecureEnvVar,
 						Value: insecureEnvVarValue,
+					},
+				},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						MountPath: "/etc/gitops/ssl",
+						Name:      "backend-ssl",
+						ReadOnly:  true,
+					},
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			{
+				Name: "backend-ssl",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: cr.Name,
 					},
 				},
 			},
@@ -276,14 +295,17 @@ func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace),
-		Spec:       spec,
+		ObjectMeta: objectMeta(cr.Name, cr.Namespace, func(o *metav1.ObjectMeta) {
+			o.Annotations = map[string]string{
+				"service.beta.openshift.io/serving-cert-secret-name": cr.Name,
+			}
+		}),
+		Spec: spec,
 	}
 	return svc
 }
 
 func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
-
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
