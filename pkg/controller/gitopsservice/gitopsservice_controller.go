@@ -315,7 +315,7 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 			TargetPort: intstr.IntOrString{IntVal: port},
 		},
 		TLS: &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationEdge,
+			Termination:                   routev1.TLSTerminationReencrypt,
 			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
 		},
 	}
