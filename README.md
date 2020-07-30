@@ -44,6 +44,12 @@ That's it, your API `route` should be created for you. You don't need to explicl
 3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-namespace=openshift-pipelines-app-delivery`
 
 
+## Tests
+
+```
+operator-sdk test local ./test/e2e --operator-namespace gitops-test --up-local
+```
+
 ## Re-build and Deploy
 
 This operator currently deploys the following payload.
