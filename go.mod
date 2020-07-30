@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/openshift/api v3.9.0+incompatible
 	github.com/operator-framework/operator-sdk v0.18.2
+	github.com/prometheus/common v0.9.1
 	github.com/spf13/pflag v1.0.5
 	k8s.io/api v0.18.2
 	k8s.io/apimachinery v0.18.2
