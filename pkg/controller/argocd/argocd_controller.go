@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -23,6 +24,13 @@ import (
 )
 
 var log = logf.Log.WithName("controller_argocd")
+
+const (
+	argocdNS        = "argocd"
+	consoleLink     = "argocd-application"
+	argocdInstance  = "argocd"
+	argocdRouteName = "argocd-server"
+)
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -54,6 +62,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch for changes to argocd-server route
+	// The ConsoleLink holds the route URL and should be regenerated when route is updated
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &argoprojv1alpha1.ArgoCD{},
+	}, argocdPredicate())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -61,15 +79,19 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func argocdPredicate() predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return e.MetaNew.GetNamespace() == "argocd"
+			return assertArgoCD(types.NamespacedName{Namespace: e.MetaNew.GetNamespace(), Name: e.MetaNew.GetName()})
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			return e.Meta.GetNamespace() == "argocd"
+			return assertArgoCD(types.NamespacedName{Namespace: e.Meta.GetNamespace(), Name: e.Meta.GetName()})
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			return e.Meta.GetNamespace() == "argocd"
+			return assertArgoCD(types.NamespacedName{Namespace: e.Meta.GetNamespace(), Name: e.Meta.GetName()})
 		},
 	}
+}
+
+func assertArgoCD(n types.NamespacedName) bool {
+	return n.Namespace == argocdNS && n.Name == argocdInstance
 }
 
 // blank assignment to verify that ReconcileArgoCD implements reconcile.Reconciler
@@ -112,11 +134,16 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	reqLogger.Info("ArgoCD instance found", "ArgoCD.Namespace:", instance.Namespace, "ArgoCD.Name", instance.Name)
 
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, newArgoCDRoute(), r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	argoCDRoute := &routev1.Route{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: "argocd-server", Namespace: "argocd"}, argoCDRoute)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", "argocd")
+			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
 			return reconcile.Result{}, deleteConsoleLinkIfExists(r.client, reqLogger)
 		}
 		return reconcile.Result{}, err
@@ -151,7 +178,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 func newConsoleLink(href, text string) *console.ConsoleLink {
 	return &console.ConsoleLink{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-application",
+			Name: consoleLink,
 		},
 		Spec: console.ConsoleLinkSpec{
 			Link: console.Link{
@@ -164,13 +191,22 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 }
 
 func deleteConsoleLinkIfExists(c client.Client, log logr.Logger) error {
-	err := c.Get(context.TODO(), types.NamespacedName{Name: "argocd-application"}, &console.ConsoleLink{})
+	err := c.Get(context.TODO(), types.NamespacedName{Name: consoleLink}, &console.ConsoleLink{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", "argocd-application")
-	return c.Delete(context.TODO(), &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application"}})
+	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLink)
+	return c.Delete(context.TODO(), &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLink}})
+}
+
+func newArgoCDRoute() *routev1.Route {
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocdRouteName,
+			Namespace: argocdNS,
+		},
+	}
 }
