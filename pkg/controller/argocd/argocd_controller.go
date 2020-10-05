@@ -27,7 +27,7 @@ var log = logf.Log.WithName("controller_argocd")
 
 const (
 	argocdNS           = "argocd"
-	consoleLink        = "argocd-application"
+	consoleLinkName    = "argocd-application"
 	argocdInstanceName = "argocd"
 	argocdRouteName    = "argocd-server"
 )
@@ -73,7 +73,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 func filterPredicate(assert func(namespace, name string) bool) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return assert(e.MetaNew.GetNamespace(), e.MetaNew.GetName())
+			return assert(e.MetaNew.GetNamespace(), e.MetaNew.GetName()) &&
+				e.MetaNew.GetResourceVersion() != e.MetaOld.GetResourceVersion()
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
 			return assert(e.Meta.GetNamespace(), e.Meta.GetName())
@@ -147,7 +148,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD dashboard")
+	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD Dashboard")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
@@ -171,7 +172,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 func newConsoleLink(href, text string) *console.ConsoleLink {
 	return &console.ConsoleLink{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: consoleLink,
+			Name: consoleLinkName,
 		},
 		Spec: console.ConsoleLinkSpec{
 			Link: console.Link{
@@ -184,15 +185,15 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 }
 
 func (r *ReconcileArgoCD) deleteConsoleLinkIfPresent(ctx context.Context, log logr.Logger) error {
-	err := r.client.Get(ctx, types.NamespacedName{Name: consoleLink}, &console.ConsoleLink{})
+	err := r.client.Get(ctx, types.NamespacedName{Name: consoleLinkName}, &console.ConsoleLink{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLink)
-	return r.client.Delete(ctx, &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLink}})
+	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLinkName)
+	return r.client.Delete(ctx, &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLinkName}})
 }
 
 func newArgoCDRoute() *routev1.Route {
