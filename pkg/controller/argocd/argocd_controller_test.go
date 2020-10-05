@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	"github.com/google/go-cmp/cmp"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,10 +50,8 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	fakeClient := fake.NewFakeClient(argoCD, argoCDRoute)
 
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
-	want := console.Link{
-		Text: "ArgoCD dashboard",
-		Href: "https://test.com",
-	}
+	want := newConsoleLink("https://test.com", "ArgoCD Dashboard")
+
 	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
 	assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, want)
 }
@@ -118,7 +117,7 @@ func getConsoleLink(c client.Client) (*console.ConsoleLink, error) {
 	return cl, nil
 }
 
-func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, want console.Link) {
+func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, want *console.ConsoleLink) {
 	t.Helper()
 	assertNoError(t, r.err)
 
@@ -126,12 +125,10 @@ func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, w
 		t.Fatalf("Expected ConsoleLink to be deleted without requeuing")
 	}
 
-	cl, err := getConsoleLink(c)
+	got, err := getConsoleLink(c)
 	assertNoError(t, err)
-
-	got := cl.Spec.Link
-	if got != want {
-		t.Fatalf("got %v, want %v", got, want)
+	if diff := cmp.Diff(want.Spec, got.Spec); diff != "" {
+		t.Fatalf("ConsoleLink mismatch: %v", diff)
 	}
 }
 
