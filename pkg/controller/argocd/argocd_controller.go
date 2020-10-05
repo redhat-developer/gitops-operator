@@ -179,7 +179,11 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 				Text: text,
 				Href: href,
 			},
-			Location: console.HelpMenu,
+			Location: console.ApplicationMenu,
+			ApplicationMenu: &console.ApplicationMenuSpec{
+				Section:  "Application Stages",
+				ImageURL: "https://raw.githubusercontent.com/argoproj/argo-cd/master/ui/src/assets/images/argo.png",
+			},
 		},
 	}
 }
