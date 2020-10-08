@@ -50,7 +50,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	fakeClient := fake.NewFakeClient(argoCD, argoCDRoute)
 
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
-	want := newConsoleLink("https://test.com", "ArgoCD Dashboard")
+	want := newConsoleLink("https://test.com", "ArgoCD")
 
 	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
 	assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, want)
@@ -142,7 +142,7 @@ func assertConsoleLinkDeletion(t *testing.T, c client.Client, r reconcileResult)
 
 	_, err := getConsoleLink(c)
 
-	wantErr := `consolelinks.console.openshift.io "argocd-application" not found`
+	wantErr := `consolelinks.console.openshift.io "argocd" not found`
 	if err == nil {
 		t.Fatalf("was expecting an error %s, but got nil", wantErr)
 	}

@@ -27,7 +27,7 @@ var log = logf.Log.WithName("controller_argocd")
 
 const (
 	argocdNS           = "argocd"
-	consoleLinkName    = "argocd-application"
+	consoleLinkName    = "argocd"
 	argocdInstanceName = "argocd"
 	argocdRouteName    = "argocd-server"
 )
@@ -148,7 +148,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD Dashboard")
+	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
