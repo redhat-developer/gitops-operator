@@ -9,6 +9,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/dependency"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,6 +151,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		return reconcile.Result{}, err
+	}
+
+	// TODO: Accept the prefix from the CR spec
+	dc := dependency.NewClient(r.client, "")
+	err = dc.Install()
+	if err != nil {
+		reqLogger.Error(err, "Failed to install GitOps dependencies")
 		return reconcile.Result{}, err
 	}
 

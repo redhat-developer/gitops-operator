@@ -17,6 +17,7 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc9 // indirect
 	github.com/opencontainers/runtime-spec v0.1.2-0.20190618234442-a950415649c7 // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
+	github.com/operator-framework/api v0.3.8
 	github.com/operator-framework/operator-sdk v0.18.2
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/pflag v1.0.5
