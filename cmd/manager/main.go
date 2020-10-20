@@ -18,6 +18,8 @@ import (
 	"github.com/redhat-developer/gitops-operator/pkg/controller"
 	"github.com/redhat-developer/gitops-operator/version"
 
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -143,6 +145,9 @@ func main() {
 	}
 
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
+
+	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
+	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)

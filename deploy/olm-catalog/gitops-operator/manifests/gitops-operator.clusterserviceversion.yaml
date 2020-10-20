@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+    containerImage: quay.io/cbanavik/gitops-backend-operator:dep
     description: A web service for rendering the GitOps UI on OpenShift
     createdAt: "2020-06-25T19:44:21Z"
     alm-examples: |-
@@ -28,6 +28,17 @@ spec:
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
       displayName: GitOps Service
+    required:
+    - description: A Kubernetes controller and tool for one-way encrypted Secrets
+      kind: SealedSecretController
+      name: sealedsecretcontrollers.bitnami.com
+      version: v1alpha1
+      displayName: Sealed Secrets Operator
+    - description: OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton
+      kind: Config
+      name: config.operator.tekton.dev
+      version: v1alpha1
+      displayName: OpenShift Pipelines Operator
   description: A web service for rendering the GitOps UI on OpenShift
   displayName: GitOps Service
   icon:
@@ -62,7 +73,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+                image: quay.io/cbanavik/gitops-backend-operator:dep
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
@@ -159,9 +170,9 @@ spec:
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
