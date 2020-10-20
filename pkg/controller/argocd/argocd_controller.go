@@ -2,6 +2,10 @@ package argocd
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"github.com/go-logr/logr"
@@ -10,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -30,6 +35,9 @@ const (
 	consoleLinkName    = "argocd"
 	argocdInstanceName = "argocd"
 	argocdRouteName    = "argocd-server"
+	argocdKind         = "ArgoCD"
+	argocdGroup        = "argoproj.io"
+	iconFilePath       = "pkg/controller/argocd/img/argo.png"
 )
 
 // Add creates a new ArgoCD Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -40,11 +48,25 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileArgoCD{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileArgoCD{client: mgr.GetClient(), scheme: mgr.GetScheme(), iconFile: iconFilePath}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+
+	reqLogger := log.WithValues()
+	reqLogger.Info("Watching ArgoCD")
+
+	// Skip controller creation if ArgoCD CRD is not present
+	_, err := mgr.GetRESTMapper().RESTMapping(schema.GroupKind{
+		Group: argocdGroup,
+		Kind:  argocdKind,
+	})
+	if err != nil {
+		reqLogger.Error(err, "Unable to find ArgoCD CRD")
+		return nil
+	}
+
 	// Create a new controller
 	c, err := controller.New("argocd-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -100,8 +122,9 @@ var _ reconcile.Reconciler = &ReconcileArgoCD{}
 type ReconcileArgoCD struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client   client.Client
+	scheme   *runtime.Scheme
+	iconFile string
 }
 
 // Reconcile reads that state of the cluster for a ArgoCD object and makes changes based on the state read
@@ -148,7 +171,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD")
+	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD", r.iconFile)
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
@@ -169,7 +192,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 	return reconcile.Result{}, nil
 }
 
-func newConsoleLink(href, text string) *console.ConsoleLink {
+func newConsoleLink(href, text, file string) *console.ConsoleLink {
 	return &console.ConsoleLink{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: consoleLinkName,
@@ -182,7 +205,7 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 			Location: console.ApplicationMenu,
 			ApplicationMenu: &console.ApplicationMenuSpec{
 				Section:  "Application Stages",
-				ImageURL: "https://raw.githubusercontent.com/argoproj/argo-cd/master/ui/src/assets/images/argo.png",
+				ImageURL: encodeImage(file),
 			},
 		},
 	}
@@ -207,4 +230,17 @@ func newArgoCDRoute() *routev1.Route {
 			Namespace: argocdNS,
 		},
 	}
+}
+
+func encodeImage(file string) string {
+	image, err := ioutil.ReadFile(file)
+	if err != nil {
+		logf.Log.Error(err, "Failed to read ArgoCD icon file")
+		os.Exit(1)
+	}
+	return imageDataURL(base64.StdEncoding.EncodeToString(image))
+}
+
+func imageDataURL(data string) string {
+	return fmt.Sprintf("data:image/png;base64,%s", data)
 }
