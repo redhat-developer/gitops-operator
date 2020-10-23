@@ -85,3 +85,4 @@ docker push quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1
 ```
 
 The Index image powers the listing of the Operator on OperatorHub.
+Just a small addition
