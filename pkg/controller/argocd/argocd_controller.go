@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
+	"io/ioutil"
+	"log"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"github.com/go-logr/logr"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/rakyll/statik/fs"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,9 +27,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	// register the statik zip content data
+	_ "github.com/redhat-developer/gitops-operator/pkg/controller/argocd/statik"
 )
 
-var log = logf.Log.WithName("controller_argocd")
+var logs = logf.Log.WithName("controller_argocd")
 
 const (
 	argocdNS           = "argocd"
@@ -36,8 +41,15 @@ const (
 	argocdRouteName    = "argocd-server"
 	argocdKind         = "ArgoCD"
 	argocdGroup        = "argoproj.io"
-	iconFilePath       = "img/argo.png"
+	iconFilePath       = "/argo.png"
 )
+
+//go:generate statik --src ./img -f
+var image string
+
+func init() {
+	image = imageDataURL(base64.StdEncoding.EncodeToString(readStatikImage()))
+}
 
 // Add creates a new ArgoCD Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -47,13 +59,13 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileArgoCD{client: mgr.GetClient(), scheme: mgr.GetScheme(), iconFile: iconFilePath}
+	return &ReconcileArgoCD{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
-	reqLogger := log.WithValues()
+	reqLogger := logs.WithValues()
 	reqLogger.Info("Watching ArgoCD")
 
 	// Skip controller creation if ArgoCD CRD is not present
@@ -121,9 +133,8 @@ var _ reconcile.Reconciler = &ReconcileArgoCD{}
 type ReconcileArgoCD struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client   client.Client
-	scheme   *runtime.Scheme
-	iconFile string
+	client client.Client
+	scheme *runtime.Scheme
 }
 
 // Reconcile reads that state of the cluster for a ArgoCD object and makes changes based on the state read
@@ -132,7 +143,7 @@ type ReconcileArgoCD struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD")
 
 	ctx := context.Background()
@@ -170,7 +181,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD", r.iconFile)
+	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
@@ -191,7 +202,7 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 	return reconcile.Result{}, nil
 }
 
-func newConsoleLink(href, text, file string) *console.ConsoleLink {
+func newConsoleLink(href, text string) *console.ConsoleLink {
 	return &console.ConsoleLink{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: consoleLinkName,
@@ -204,7 +215,7 @@ func newConsoleLink(href, text, file string) *console.ConsoleLink {
 			Location: console.ApplicationMenu,
 			ApplicationMenu: &console.ApplicationMenuSpec{
 				Section:  "Application Stages",
-				ImageURL: encodeImage(file),
+				ImageURL: image,
 			},
 		},
 	}
@@ -231,13 +242,21 @@ func newArgoCDRoute() *routev1.Route {
 	}
 }
 
-func encodeImage(file string) string {
-	data, err := Asset(file)
+func readStatikImage() []byte {
+	statikFs, err := fs.New()
 	if err != nil {
-		logf.Log.Error(err, "Failed to read ArgoCD icon file")
-		os.Exit(1)
+		log.Fatalf("Failed to create a new statik filesystem: %v", err)
 	}
-	return imageDataURL(base64.StdEncoding.EncodeToString(data))
+	file, err := statikFs.Open(iconFilePath)
+	if err != nil {
+		log.Fatalf("Failed to open ArgoCD icon file: %v", err)
+	}
+	defer file.Close()
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Fatalf("Failed to read ArgoCD icon file: %v", err)
+	}
+	return data
 }
 
 func imageDataURL(data string) string {

@@ -50,7 +50,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	fakeClient := fake.NewFakeClient(argoCD, argoCDRoute)
 
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
-	want := newConsoleLink("https://test.com", "ArgoCD", reconcileArgoCD.iconFile)
+	want := newConsoleLink("https://test.com", "ArgoCD")
 
 	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
 	assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, want)
@@ -81,9 +81,8 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 
 func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *ReconcileArgoCD {
 	return &ReconcileArgoCD{
-		client:   client,
-		scheme:   scheme,
-		iconFile: "img/argo.png",
+		client: client,
+		scheme: scheme,
 	}
 }
 
