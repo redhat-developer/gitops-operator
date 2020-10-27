@@ -1,11 +1,12 @@
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: gitops-operator
 subjects:
 - kind: ServiceAccount
   name: gitops-operator
+  namespace: openshift-operators
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: gitops-operator
   apiGroup: rbac.authorization.k8s.io
