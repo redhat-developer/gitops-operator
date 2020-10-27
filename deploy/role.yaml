@@ -5,6 +5,15 @@ metadata:
   name: gitops-operator
 rules:
 - apiGroups:
+  - operators.coreos.com
+  resources:
+  - "*"
+  verbs:
+  - get
+  - create
+  - patch
+  - list
+- apiGroups:
   - route.openshift.io
   resources:
   - "*"

@@ -28,6 +28,12 @@ spec:
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
       displayName: GitOps Service
+      specDescriptors:
+      - description: 'The prefix of the namespace desired to be used'
+        displayName: Prefix
+        path: prefix
+        x-descriptors:
+        - 'urn:alm:descriptor:com.tectonic.ui:text'
     required:
     - description: A Kubernetes controller and tool for one-way encrypted Secrets
       kind: SealedSecretController

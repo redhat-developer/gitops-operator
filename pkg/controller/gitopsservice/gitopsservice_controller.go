@@ -155,7 +155,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// TODO: Accept the prefix from the CR spec
-	dc := dependency.NewClient(r.client, "")
+	dc := dependency.NewClient(r.client, instance.Spec.Prefix)
 	err = dc.Install()
 	if err != nil {
 		reqLogger.Error(err, "Failed to install GitOps dependencies")
