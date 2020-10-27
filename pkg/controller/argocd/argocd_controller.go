@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
@@ -37,7 +36,7 @@ const (
 	argocdRouteName    = "argocd-server"
 	argocdKind         = "ArgoCD"
 	argocdGroup        = "argoproj.io"
-	iconFilePath       = "pkg/controller/argocd/img/argo.png"
+	iconFilePath       = "img/argo.png"
 )
 
 // Add creates a new ArgoCD Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -233,12 +232,12 @@ func newArgoCDRoute() *routev1.Route {
 }
 
 func encodeImage(file string) string {
-	image, err := ioutil.ReadFile(file)
+	data, err := Asset(file)
 	if err != nil {
 		logf.Log.Error(err, "Failed to read ArgoCD icon file")
 		os.Exit(1)
 	}
-	return imageDataURL(base64.StdEncoding.EncodeToString(image))
+	return imageDataURL(base64.StdEncoding.EncodeToString(data))
 }
 
 func imageDataURL(data string) string {

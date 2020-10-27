@@ -83,7 +83,7 @@ func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *Recon
 	return &ReconcileArgoCD{
 		client:   client,
 		scheme:   scheme,
-		iconFile: "./img/argo.png",
+		iconFile: "img/argo.png",
 	}
 }
 
