@@ -106,10 +106,16 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	client := mgr.GetClient()
 
 	namespaceRef := newNamespace()
-	client.Create(context.TODO(), namespaceRef)
+	err = client.Create(context.TODO(), namespaceRef)
+	if err != nil {
+		reqLogger.Error(err, "Failed to create namespace", "Namespace", namespace)
+	}
 
 	gitopsServiceRef := newGitopsService(name)
-	client.Create(context.TODO(), gitopsServiceRef)
+	err = client.Create(context.TODO(), gitopsServiceRef)
+	if err != nil {
+		reqLogger.Error(err, "Failed to create GitOps service instance")
+	}
 
 	return nil
 }

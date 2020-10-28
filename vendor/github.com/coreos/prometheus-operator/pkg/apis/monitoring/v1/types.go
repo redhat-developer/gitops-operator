@@ -45,25 +45,6 @@ const (
 	PrometheusRuleKindKey = "prometheusrule"
 )
 
-// PodMeta is a subset of k8s.io/apimachinery/pkg/apis/meta/v1/ObjectMeta which only
-// includes fields applicable to the generated stateful set pod template of the
-// custom resource types.
-type PodMeta struct {
-	// Map of string keys and values that can be used to organize and categorize
-	// (scope and select) objects. May match selectors of replication controllers
-	// and services.
-	// More info: http://kubernetes.io/docs/user-guide/labels
-	// +optional
-	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,11,rep,name=labels"`
-
-	// Annotations is an unstructured key value map stored with a resource that may be
-	// set by external tools to store and retrieve arbitrary metadata. They are not
-	// queryable and should be preserved when modifying objects.
-	// More info: http://kubernetes.io/docs/user-guide/annotations
-	// +optional
-	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,12,rep,name=annotations"`
-}
-
 // Prometheus defines a Prometheus deployment.
 // +genclient
 // +k8s:openapi-gen=true
@@ -99,13 +80,17 @@ type PrometheusList struct {
 // +k8s:openapi-gen=true
 type PrometheusSpec struct {
 	// PodMetadata configures Labels and Annotations which are propagated to the prometheus pods.
-	PodMetadata *PodMeta `json:"podMetadata,omitempty"`
-	// ServiceMonitors to be selected for target discovery.
+	PodMetadata *EmbeddedObjectMetadata `json:"podMetadata,omitempty"`
+	// ServiceMonitors to be selected for target discovery. *Deprecated:* if
+	// neither this nor podMonitorSelector are specified, configuration is
+	// unmanaged.
 	ServiceMonitorSelector *metav1.LabelSelector `json:"serviceMonitorSelector,omitempty"`
 	// Namespaces to be selected for ServiceMonitor discovery. If nil, only
 	// check own namespace.
 	ServiceMonitorNamespaceSelector *metav1.LabelSelector `json:"serviceMonitorNamespaceSelector,omitempty"`
 	// *Experimental* PodMonitors to be selected for target discovery.
+	// *Deprecated:* if neither this nor serviceMonitorSelector are specified,
+	// configuration is unmanaged.
 	PodMonitorSelector *metav1.LabelSelector `json:"podMonitorSelector,omitempty"`
 	// Namespaces to be selected for PodMonitor discovery. If nil, only
 	// check own namespace.
@@ -159,6 +144,8 @@ type PrometheusSpec struct {
 	LogFormat string `json:"logFormat,omitempty"`
 	// Interval between consecutive scrapes.
 	ScrapeInterval string `json:"scrapeInterval,omitempty"`
+	// Number of seconds to wait for target to respond before erroring.
+	ScrapeTimeout string `json:"scrapeTimeout,omitempty"`
 	// Interval between consecutive evaluations.
 	EvaluationInterval string `json:"evaluationInterval,omitempty"`
 	// /--rules.*/ command-line arguments.
@@ -321,6 +308,10 @@ type PrometheusSpec struct {
 	// and metric that is user created. The label value will always be the namespace of the object that is
 	// being created.
 	EnforcedNamespaceLabel string `json:"enforcedNamespaceLabel,omitempty"`
+	// PrometheusRulesExcludedFromEnforce - list of prometheus rules to be excluded from enforcing
+	// of adding namespace labels. Works only if enforcedNamespaceLabel set to true.
+	// Make sure both ruleNamespace and ruleName are set for each pair
+	PrometheusRulesExcludedFromEnforce []PrometheusRuleExcludeConfig `json:"prometheusRulesExcludedFromEnforce,omitempty"`
 	// QueryLogFile specifies the file to which PromQL queries are logged.
 	// Note that this location must be writable, and can be persisted using an attached volume.
 	// Alternatively, the location can be set to a stdout location such as `/dev/stdout` to log
@@ -328,6 +319,22 @@ type PrometheusSpec struct {
 	// This is only available in versions of Prometheus >= 2.16.0.
 	// For more details, see the Prometheus docs (https://prometheus.io/docs/guides/query-log/)
 	QueryLogFile string `json:"queryLogFile,omitempty"`
+	// EnforcedSampleLimit defines global limit on number of scraped samples
+	// that will be accepted. This overrides any SampleLimit set per
+	// ServiceMonitor or/and PodMonitor. It is meant to be used by admins to
+	// enforce the SampleLimit to keep overall number of samples/series under
+	// the desired limit.
+	// Note that if SampleLimit is lower that value will be taken instead.
+	EnforcedSampleLimit *uint64 `json:"enforcedSampleLimit,omitempty"`
+}
+
+// PrometheusRuleExcludeConfig enables users to configure excluded PrometheusRule names and their namespaces
+// to be ignored while enforcing namespace label for alerts and metrics.
+type PrometheusRuleExcludeConfig struct {
+	// RuleNamespace - namespace of excluded rule
+	RuleNamespace string `json:"ruleNamespace"`
+	// RuleNamespace - name of excluded rule
+	RuleName string `json:"ruleName"`
 }
 
 // ArbitraryFSAccessThroughSMsConfig enables users to configure, whether
@@ -382,7 +389,54 @@ type StorageSpec struct {
 	// info: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir
 	EmptyDir *v1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
 	// A PVC spec to be used by the Prometheus StatefulSets.
-	VolumeClaimTemplate v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate EmbeddedPersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+}
+
+// EmbeddedPersistentVolumeClaim is an embedded version of k8s.io/api/core/v1.PersistentVolumeClaim.
+// It contains TypeMeta and a reduced ObjectMeta.
+type EmbeddedPersistentVolumeClaim struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// EmbeddedMetadata contains metadata relevant to an EmbeddedResource.
+	EmbeddedObjectMetadata `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// Spec defines the desired characteristics of a volume requested by a pod author.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	Spec v1.PersistentVolumeClaimSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
+
+	// Status represents the current information/status of a persistent volume claim.
+	// Read-only.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	Status v1.PersistentVolumeClaimStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+// EmbeddedObjectMetadata contains a subset of the fields included in k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta
+// Only fields which are relevant to embedded resources are included.
+type EmbeddedObjectMetadata struct {
+	// Name must be unique within a namespace. Is required when creating resources, although
+	// some resources may allow a client to request the generation of an appropriate name
+	// automatically. Name is primarily intended for creation idempotence and configuration
+	// definition.
+	// Cannot be updated.
+	// More info: http://kubernetes.io/docs/user-guide/identifiers#names
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// and services.
+	// More info: http://kubernetes.io/docs/user-guide/labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,11,rep,name=labels"`
+
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: http://kubernetes.io/docs/user-guide/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,12,rep,name=annotations"`
 }
 
 // QuerySpec defines the query command line flags when starting Prometheus.
@@ -436,6 +490,8 @@ type ThanosSpec struct {
 	LogLevel string `json:"logLevel,omitempty"`
 	// LogFormat for Thanos sidecar to be configured with.
 	LogFormat string `json:"logFormat,omitempty"`
+	// MinTime for Thanos sidecar to be configured with. Option can be a constant time in RFC3339 format or time duration relative to current time, such as -1d or 2h45m. Valid duration units are ms, s, m, h, d, w, y.
+	MinTime string `json:"minTime,omitempty"`
 }
 
 // RemoteWriteSpec defines the remote_write configuration for prometheus.
@@ -912,7 +968,7 @@ type Alertmanager struct {
 // +k8s:openapi-gen=true
 type AlertmanagerSpec struct {
 	// PodMetadata configures Labels and Annotations which are propagated to the alertmanager pods.
-	PodMetadata *PodMeta `json:"podMetadata,omitempty"`
+	PodMetadata *EmbeddedObjectMetadata `json:"podMetadata,omitempty"`
 	// Image if specified has precedence over baseImage, tag and sha
 	// combinations. Specifying the version is still necessary to ensure the
 	// Prometheus Operator knows what version of Alertmanager is being
@@ -1012,6 +1068,10 @@ type AlertmanagerSpec struct {
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 	// AdditionalPeers allows injecting a set of additional Alertmanagers to peer with to form a highly available cluster.
 	AdditionalPeers []string `json:"additionalPeers,omitempty"`
+	// ClusterAdvertiseAddress is the explicit address to advertise in cluster.
+	// Needs to be provided for non RFC1918 [1] (public) addresses.
+	// [1] RFC1918: https://tools.ietf.org/html/rfc1918
+	ClusterAdvertiseAddress string `json:"clusterAdvertiseAddress,omitempty"`
 	// Port name used for the pods and governing service.
 	// This defaults to web
 	PortName string `json:"portName,omitempty"`
