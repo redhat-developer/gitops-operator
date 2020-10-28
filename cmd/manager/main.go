@@ -14,10 +14,12 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
+	argocd "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	"github.com/redhat-developer/gitops-operator/pkg/controller"
 	"github.com/redhat-developer/gitops-operator/version"
 
+	console "github.com/openshift/api/console/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -135,6 +137,9 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+
+	registerComponentOrExit(mgr, argocd.AddToScheme)
+	registerComponentOrExit(mgr, console.AddToScheme)
 
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
