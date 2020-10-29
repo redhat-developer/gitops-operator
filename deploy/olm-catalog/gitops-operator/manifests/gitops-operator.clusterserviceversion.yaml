@@ -156,12 +156,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - argocds
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consolelinks
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
@@ -173,9 +193,9 @@ spec:
   - pipelines
   links:
   - name: Day 1 Operations
-    url: https://github.com/rhd-gitops-example/docs/tree/master/journey/day1
+    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day1
   - name: Day 2 Operations
-    url: https://github.com/rhd-gitops-example/docs/tree/master/journey/day2
+    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day2
   maintainers:
   - email: shbose@redhat.com
     name: shoubhik
