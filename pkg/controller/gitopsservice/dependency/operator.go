@@ -10,6 +10,7 @@ type operatorResource struct {
 	namespace     string
 	subscription  string
 	operatorGroup string
+	csv           string
 }
 
 func (o *operatorResource) GetSubscription() *v1alpha1.Subscription {
@@ -29,6 +30,7 @@ func newArgoCDOperator(prefix string) operatorResource {
 		namespace:     addPrefixIfNecessary(prefix, "argocd"),
 		subscription:  "argocd-operator",
 		operatorGroup: "argocd-operator-group",
+		csv:           "argocd-operator.v0.0.14",
 	}
 }
 
@@ -37,5 +39,6 @@ func newSealedSecretsOperator(prefix string) operatorResource {
 		namespace:     addPrefixIfNecessary(prefix, "cicd"),
 		subscription:  "sealed-secrets-operator-helm",
 		operatorGroup: "sealed-secrets-operator-group",
+		csv:           "sealed-secrets-operator-helm.v0.0.2",
 	}
 }

@@ -2,6 +2,8 @@ package dependency
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/go-logr/logr"
 	v1 "github.com/operator-framework/api/pkg/operators/v1"
@@ -11,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -27,9 +30,10 @@ var log = logf.Log.WithName("gitops_dependencies")
 
 // Dependency represents an instance of GitOps dependency
 type Dependency struct {
-	client client.Client
-	prefix string
-	log    logr.Logger
+	client  client.Client
+	prefix  string
+	isReady wait.ConditionFunc
+	log     logr.Logger
 }
 
 // NewClient create a new instance of GitOps dependencies
@@ -71,12 +75,42 @@ func (d *Dependency) Install() error {
 			return err
 		}
 
-		// TODO: Wait for the operator to install ie. check if operator CSV has success status(csv.spec.phase == Succeeded)
-
-		// TODO: Create the operator CR
+		d.log.Info("Waiting for operator to install", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
+		err = waitForOperator(ctx, d.client, types.NamespacedName{Name: operator.csv, Namespace: operator.namespace}, d.isReady)
+		if err != nil {
+			return err
+		}
+		d.log.Info("Operator installed successfully", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
 	}
 
 	return nil
+}
+
+func isOperatorReady(ctx context.Context, client client.Client, ns types.NamespacedName) wait.ConditionFunc {
+	return func() (bool, error) {
+		csv := &v1alpha1.ClusterServiceVersion{}
+		err := client.Get(ctx, ns, csv)
+		if err != nil && !errors.IsNotFound(err) {
+			return false, err
+		}
+
+		switch csv.Status.Phase {
+		case v1alpha1.CSVPhaseFailed:
+			return false, fmt.Errorf("Operator installation failed: %s", csv.Status.Reason)
+		case v1alpha1.CSVPhaseSucceeded:
+			return true, nil
+		}
+
+		return false, nil
+	}
+}
+
+func waitForOperator(ctx context.Context, client client.Client, ns types.NamespacedName, waitFunc wait.ConditionFunc) error {
+	if waitFunc == nil {
+		waitFunc = isOperatorReady(ctx, client, ns)
+	}
+	// poll until waitFunc returns true, error or the timeout is reached
+	return wait.PollImmediate(1*time.Second, 1*time.Minute, waitFunc)
 }
 
 func (d *Dependency) createResourceIfAbsent(ctx context.Context, obj runtime.Object, ns types.NamespacedName) error {
