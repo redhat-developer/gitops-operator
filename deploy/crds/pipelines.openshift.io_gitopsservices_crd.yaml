@@ -32,10 +32,8 @@ spec:
           description: GitopsServiceSpec defines the desired state of GitopsService
           properties:
             prefix:
-              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                Important: Run "operator-sdk generate k8s" to regenerate code after
-                modifying this file Add custom validation using kubebuilder tags:
-                https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
+              description: Add a prefix to environment names(dev,stage,prod,etc.)
+                to distinguish and identify individual environments
               type: string
           type: object
         status:

@@ -116,7 +116,8 @@ func waitForOperator(ctx context.Context, client client.Client, ns types.Namespa
 func (d *Dependency) createResourceIfAbsent(ctx context.Context, obj runtime.Object, ns types.NamespacedName) error {
 	err := d.client.Get(ctx, ns, obj)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		switch errors.ReasonForError(err) {
+		case metav1.StatusReasonNotFound:
 			err = d.client.Create(ctx, obj)
 			if err != nil {
 				d.log.Error(err, "Unable to create resource", "Resource.Kind", obj.GetObjectKind(), "Resource.Name", ns.
@@ -125,9 +126,9 @@ func (d *Dependency) createResourceIfAbsent(ctx context.Context, obj runtime.Obj
 			}
 			d.log.Info("Successfully created resource", "Resource.Kind", obj.GetObjectKind(), "Resource.Name", ns.Name, "Resource.Namespace", ns.
 				Namespace)
-		} else if errors.IsAlreadyExists(err) {
+		case metav1.StatusReasonAlreadyExists:
 			d.log.Info("Resource already exists", "Resource.Kind", obj.GetObjectKind(), "Resource.Name", ns.Name)
-		} else {
+		default:
 			return err
 		}
 	}
