@@ -101,6 +101,8 @@ github.com/openshift/api/route/v1
 # github.com/operator-framework/api v0.3.8
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators
+github.com/operator-framework/api/pkg/operators/v1
+github.com/operator-framework/api/pkg/operators/v1alpha1
 # github.com/operator-framework/operator-registry v1.12.6-0.20200611222234-275301b779f8
 github.com/operator-framework/operator-registry/pkg/api
 github.com/operator-framework/operator-registry/pkg/image
