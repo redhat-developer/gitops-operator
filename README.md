@@ -13,7 +13,7 @@ The service would be available at a well-known UI location.
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: Gitops-service-source
+  name: gitops-service-source
   namespace: openshift-marketplace
 spec:
   displayName: 'Gitops Service by Red Hat'
