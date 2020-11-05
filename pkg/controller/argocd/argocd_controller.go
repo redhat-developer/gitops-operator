@@ -37,6 +37,7 @@ const (
 	argocdInstanceName = "argocd"
 	argocdRouteName    = "argocd-server"
 	iconFilePath       = "/argo.png"
+	argocdVersion      = "argoproj.io/v1alpha1"
 )
 
 //go:generate statik --src ./img -f
@@ -68,6 +69,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch for changes to primary resource ArgoCD route
 	// Watch for changes to argocd-server route in argocd namespace
 	// The ConsoleLink holds the route URL and should be regenerated when route is updated
 	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, filterPredicate(filterArgoCDRoute))
@@ -75,6 +77,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	reqLogger.Info("Created controller for ArgoCD server route")
 	return nil
 }
 
@@ -207,4 +210,8 @@ func readStatikImage() []byte {
 
 func imageDataURL(data string) string {
 	return fmt.Sprintf("data:image/png;base64,%s", data)
+}
+
+func compareRoute(consoleLink, route string) bool {
+	return fmt.Sprintf("https://%s", route) == consoleLink
 }
