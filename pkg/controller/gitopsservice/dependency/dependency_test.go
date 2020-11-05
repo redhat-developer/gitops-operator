@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	argo "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	v1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -135,6 +136,7 @@ func assertResourceExists(t *testing.T, client client.Client, ns types.Namespace
 }
 
 func addDependencyTypesToScheme(scheme *runtime.Scheme) {
+	scheme.AddKnownTypes(argo.SchemeGroupVersion, &argo.ArgoCD{})
 	scheme.AddKnownTypes(v1.GroupVersion, &v1.OperatorGroup{})
 	scheme.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.Subscription{})
 	scheme.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ClusterServiceVersion{})
@@ -157,6 +159,10 @@ func assertOperatorCreation(t *testing.T, client client.Client, operator operato
 
 	sub := operator.GetSubscription()
 	assertResourceExists(t, client, types.NamespacedName{Name: sub.Name, Namespace: sub.Namespace}, sub)
+
+	cr, name, err := operator.createCR(operator.namespace)
+	assertNoError(t, err)
+	assertResourceExists(t, client, types.NamespacedName{Name: name, Namespace: operator.namespace}, cr)
 }
 
 func fakeDependencyClient(client client.Client, prefix string) *Dependency {

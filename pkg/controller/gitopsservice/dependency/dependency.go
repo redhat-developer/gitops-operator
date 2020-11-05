@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"github.com/go-logr/logr"
 	v1 "github.com/operator-framework/api/pkg/operators/v1"
 	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -34,6 +37,13 @@ type Dependency struct {
 	prefix  string
 	isReady wait.ConditionFunc
 	log     logr.Logger
+}
+
+// resource exclusions for the ArgoCD CR.
+type resource struct {
+	APIGroups []string `json:"apiGroups"`
+	Kinds     []string `json:"kinds"`
+	Clusters  []string `json:"clusters"`
 }
 
 // NewClient create a new instance of GitOps dependencies
@@ -81,6 +91,14 @@ func (d *Dependency) Install() error {
 			return err
 		}
 		d.log.Info("Operator installed successfully", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
+
+		cr, name, err := operator.createCR(operator.namespace)
+		d.log.Info("Creating the Operator instance", "CR.Name", name, "CR.Namespace", operator.namespace)
+		if err != nil {
+			return err
+		}
+		err = d.createResourceIfAbsent(context.TODO(), cr, types.NamespacedName{Name: name, Namespace: operator.namespace})
+		d.log.Info("Operator instance created sucessfully", "CR.Name", name, "CR.Namespace", operator.namespace)
 	}
 
 	return nil
@@ -100,7 +118,6 @@ func isOperatorReady(ctx context.Context, client client.Client, ns types.Namespa
 		case v1alpha1.CSVPhaseSucceeded:
 			return true, nil
 		}
-
 		return false, nil
 	}
 }
@@ -175,4 +192,48 @@ func addPrefixIfNecessary(prefix, name string) string {
 		return prefix + "-" + name
 	}
 	return name
+}
+
+func argoCDCr(ns string) (runtime.Object, string, error) {
+	name := "argocd"
+	b, err := yaml.Marshal([]resource{
+		{
+			APIGroups: []string{"tekton.dev"},
+			Kinds:     []string{"TaskRun", "PipelineRun"},
+			Clusters:  []string{"*"},
+		},
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	return &argoapp.ArgoCD{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ArgoCD",
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Spec: argoapp.ArgoCDSpec{
+			ResourceExclusions: string(b),
+			Server: argoapp.ArgoCDServerSpec{
+				Route: argoapp.ArgoCDRouteSpec{Enabled: true},
+			},
+		},
+	}, name, nil
+}
+
+func sealedSecretsCR(ns string) (runtime.Object, string, error) {
+	name := "sealedsecretcontroller"
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "bitnami.com/v1alpha1",
+			"kind":       "SealedSecretController",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": ns,
+			},
+		},
+	}, name, nil
 }
