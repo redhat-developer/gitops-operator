@@ -56,7 +56,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
-	reqLogger := log.WithValues("Request.Namespace", namespace)
+	reqLogger := log.WithValues()
 	reqLogger.Info("Watching GitopsService")
 
 	pred := predicate.Funcs{
@@ -112,7 +112,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	namespaceRef := newNamespace()
 	err = client.Create(context.TODO(), namespaceRef)
 	if err != nil {
-		reqLogger.Error(err, "Failed to create namespace", "Namespace", namespace)
+		reqLogger.Error(err, "Failed to create namespace", "Namespace", serviceNamespace)
 	}
 	return nil
 }
@@ -160,7 +160,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Define a new Pod object
-	deploymentObj := newDeploymentForCR(instance)
+	deploymentObj := newDeploymentForCR()
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -177,7 +177,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newServiceForCR(instance)
+	serviceRef := newServiceForCR()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -194,7 +194,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newRouteForCR(instance)
+	routeRef := newRouteForCR()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -234,7 +234,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  cr.Name,
+				Name:  serviceName,
 				Image: image,
 				Ports: []corev1.ContainerPort{
 					{
@@ -263,7 +263,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 				Name: "backend-ssl",
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: cr.Name,
+						SecretName: serviceName,
 					},
 				},
 			},
@@ -273,7 +273,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app": cr.Name,
+				"app": serviceName,
 			},
 		},
 		Spec: podSpec,
@@ -284,21 +284,21 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": cr.Name,
+				"app": serviceName,
 			},
 		},
 		Template: template,
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace),
+		ObjectMeta: objectMeta(serviceName, serviceNamespace),
 		Spec:       deploymentSpec,
 	}
 
 	return deploymentObj
 }
 
-func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
+func newServiceForCR() *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -309,13 +309,13 @@ func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app": cr.Name,
+			"app": serviceName,
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace, func(o *metav1.ObjectMeta) {
+		ObjectMeta: objectMeta(serviceName, serviceNamespace, func(o *metav1.ObjectMeta) {
 			o.Annotations = map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": cr.Name,
+				"service.beta.openshift.io/serving-cert-secret-name": serviceName,
 			}
 		}),
 		Spec: spec,
@@ -323,11 +323,11 @@ func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 	return svc
 }
 
-func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
+func newRouteForCR() *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
-			Name: cr.Name,
+			Name: serviceName,
 		},
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.IntOrString{IntVal: port},
@@ -339,7 +339,7 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 	}
 
 	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace),
+		ObjectMeta: objectMeta(serviceName, serviceNamespace),
 		Spec:       routeSpec,
 	}
 
@@ -348,20 +348,10 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 
 func newNamespace() *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
-		Name: namespace,
+		Name: serviceNamespace,
 	}
 	return &corev1.Namespace{
 		ObjectMeta: objectMeta,
-	}
-}
-
-func newGitopsService(name string) *pipelinesv1alpha1.GitopsService {
-	return &pipelinesv1alpha1.GitopsService{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
 	}
 }
 

@@ -106,10 +106,10 @@ func (d *Dependency) installOperator(ctx context.Context, operator operatorResou
 
 	cr, name, err := operator.createCR(operator.namespace)
 	d.log.Info("Creating the Operator instance", "CR.Name", name, "CR.Namespace", operator.namespace)
+	err = d.createResourceIfAbsent(context.TODO(), cr, types.NamespacedName{Name: name, Namespace: operator.namespace})
 	if err != nil {
 		return err
 	}
-	err = d.createResourceIfAbsent(context.TODO(), cr, types.NamespacedName{Name: name, Namespace: operator.namespace})
 	d.log.Info("Operator instance created sucessfully", "CR.Name", name, "CR.Namespace", operator.namespace)
 
 	return nil
