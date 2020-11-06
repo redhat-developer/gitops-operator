@@ -35,11 +35,6 @@ spec:
         x-descriptors:
         - 'urn:alm:descriptor:com.tectonic.ui:text'
     required:
-    - description: A Kubernetes controller and tool for one-way encrypted Secrets
-      kind: SealedSecretController
-      name: sealedsecretcontrollers.bitnami.com
-      version: v1alpha1
-      displayName: Sealed Secrets Operator
     - description: OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton
       kind: Config
       name: config.operator.tekton.dev

@@ -16,7 +16,7 @@ spec:
       containers:
         - name: gitops-operator
           # Replace this with the built image name
-          image: quay.io/cbanavik/gitops-operator:role
+          image: REPLACE_IMAGE
           command:
           - gitops-operator
           imagePullPolicy: Always
