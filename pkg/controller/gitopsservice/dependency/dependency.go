@@ -235,6 +235,24 @@ func sealedSecretsCR(ns string) (runtime.Object, string, error) {
 				"name":      name,
 				"namespace": ns,
 			},
+			"spec": map[string]interface{}{
+				"image": map[string]interface{}{
+					"repository": "quay.io/bitnami/sealed-secrets-controller@sha256:8e9a37bb2e1a6f3a8bee949e3af0e9dab0d7dca618f1a63048dc541b5d554985",
+					"pullPolicy": "IfNotPresent",
+				},
+				"controller": map[string]interface{}{
+					"create": true,
+				},
+				"serviceAccount": map[string]interface{}{
+					"create": true,
+					"name":   "",
+				},
+				"rbac": map[string]interface{}{
+					"create":     true,
+					"pspenabled": false,
+				},
+				"secretName": "sealed-secrets-key",
+			},
 		},
 	}, name, nil
 }
