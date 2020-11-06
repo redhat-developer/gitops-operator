@@ -21,7 +21,7 @@ type GitopsServiceStatus struct {
 
 // GitopsService is the Schema for the gitopsservices API
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=gitopsservices,scope=Namespaced
+// +kubebuilder:resource:path=gitopsservices,scope=Cluster
 type GitopsService struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
