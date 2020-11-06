@@ -3,6 +3,7 @@ package gitopsservice
 import (
 	"context"
 	"os"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -147,8 +148,11 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	// TODO: Accept the prefix from the CR spec
-	dc := dependency.NewClient(r.client, instance.Spec.Prefix)
+	timeout, err := getTimeout(instance.Labels)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	dc := dependency.NewClient(r.client, instance.Spec.Prefix, timeout)
 	err = dc.Install()
 	if err != nil {
 		reqLogger.Error(err, "Failed to install GitOps dependencies")
@@ -359,4 +363,13 @@ func newGitopsService(name string) *pipelinesv1alpha1.GitopsService {
 		},
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
 	}
+}
+
+func getTimeout(labels map[string]string) (time.Duration, error) {
+	for k, v := range labels {
+		if k == "operator.wait.timeout" {
+			return time.ParseDuration(v)
+		}
+	}
+	return 2 * time.Minute, nil
 }

@@ -35,6 +35,7 @@ var log = logf.Log.WithName("gitops_dependencies")
 type Dependency struct {
 	client  client.Client
 	prefix  string
+	timeout time.Duration
 	isReady wait.ConditionFunc
 	log     logr.Logger
 }
@@ -47,11 +48,12 @@ type resource struct {
 }
 
 // NewClient create a new instance of GitOps dependencies
-func NewClient(client client.Client, prefix string) *Dependency {
+func NewClient(client client.Client, prefix string, timeout time.Duration) *Dependency {
 	return &Dependency{
-		client: client,
-		prefix: prefix,
-		log:    log.WithName("GitOps Dependencies"),
+		client:  client,
+		prefix:  prefix,
+		timeout: timeout,
+		log:     log.WithName("GitOps Dependencies"),
 	}
 }
 
@@ -62,7 +64,6 @@ func (d *Dependency) Install() error {
 
 	operators := []operatorResource{newSealedSecretsOperator(d.prefix), newArgoCDOperator(d.prefix)}
 
-	// TODO: Install each operator using a separate goroutine to improve installation performance
 	for _, operator := range operators {
 		ns := operator.GetNamespace()
 		d.log.Info("Creating Namespace", "Namespace.Name", ns.Name)
@@ -86,7 +87,7 @@ func (d *Dependency) Install() error {
 		}
 
 		d.log.Info("Waiting for operator to install", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
-		err = waitForOperator(ctx, d.client, types.NamespacedName{Name: operator.csv, Namespace: operator.namespace}, d.isReady)
+		err = waitForOperator(ctx, d.client, d.timeout, types.NamespacedName{Name: operator.csv, Namespace: operator.namespace}, d.isReady)
 		if err != nil {
 			return err
 		}
@@ -122,12 +123,12 @@ func isOperatorReady(ctx context.Context, client client.Client, ns types.Namespa
 	}
 }
 
-func waitForOperator(ctx context.Context, client client.Client, ns types.NamespacedName, waitFunc wait.ConditionFunc) error {
+func waitForOperator(ctx context.Context, client client.Client, timeout time.Duration, ns types.NamespacedName, waitFunc wait.ConditionFunc) error {
 	if waitFunc == nil {
 		waitFunc = isOperatorReady(ctx, client, ns)
 	}
 	// poll until waitFunc returns true, error or the timeout is reached
-	return wait.PollImmediate(1*time.Second, 1*time.Minute, waitFunc)
+	return wait.PollImmediate(1*time.Second, timeout, waitFunc)
 }
 
 func (d *Dependency) createResourceIfAbsent(ctx context.Context, obj runtime.Object, ns types.NamespacedName) error {
