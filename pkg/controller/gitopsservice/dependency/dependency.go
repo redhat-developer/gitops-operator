@@ -63,44 +63,54 @@ func (d *Dependency) Install() error {
 	ctx := context.Background()
 
 	operators := []operatorResource{newSealedSecretsOperator(d.prefix), newArgoCDOperator(d.prefix)}
+	errs := make(chan error)
 
 	for _, operator := range operators {
-		ns := operator.GetNamespace()
-		d.log.Info("Creating Namespace", "Namespace.Name", ns.Name)
-		err := d.createResourceIfAbsent(ctx, operator.GetNamespace(), types.NamespacedName{Name: ns.Name})
-		if err != nil {
-			return err
-		}
-
-		operatorGroup := operator.GetOperatorGroup()
-		d.log.Info("Creating OperatorGroup", "OperatorGroup.Name", operatorGroup.Name)
-		err = d.createResourceIfAbsent(ctx, operator.GetOperatorGroup(), types.NamespacedName{Name: operatorGroup.Name, Namespace: operatorGroup.Namespace})
-		if err != nil {
-			return err
-		}
-
-		subscription := operator.GetSubscription()
-		d.log.Info("Creating Subscription", "Subscription.Name", subscription.Name)
-		err = d.createResourceIfAbsent(ctx, operator.GetSubscription(), types.NamespacedName{Name: subscription.Name, Namespace: subscription.Namespace})
-		if err != nil {
-			return err
-		}
-
-		d.log.Info("Waiting for operator to install", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
-		err = waitForOperator(ctx, d.client, d.timeout, types.NamespacedName{Name: operator.csv, Namespace: operator.namespace}, d.isReady)
-		if err != nil {
-			return err
-		}
-		d.log.Info("Operator installed successfully", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
-
-		cr, name, err := operator.createCR(operator.namespace)
-		d.log.Info("Creating the Operator instance", "CR.Name", name, "CR.Namespace", operator.namespace)
-		if err != nil {
-			return err
-		}
-		err = d.createResourceIfAbsent(context.TODO(), cr, types.NamespacedName{Name: name, Namespace: operator.namespace})
-		d.log.Info("Operator instance created sucessfully", "CR.Name", name, "CR.Namespace", operator.namespace)
+		// handle each operator installation by a separate goroutine
+		go func(operator operatorResource) {
+			err := d.installOperator(ctx, operator)
+			errs <- err
+		}(operator)
 	}
+	return <-errs
+}
+
+func (d *Dependency) installOperator(ctx context.Context, operator operatorResource) error {
+	ns := operator.GetNamespace()
+	d.log.Info("Creating Namespace", "Namespace.Name", ns.Name)
+	err := d.createResourceIfAbsent(ctx, operator.GetNamespace(), types.NamespacedName{Name: ns.Name})
+	if err != nil {
+		return err
+	}
+
+	operatorGroup := operator.GetOperatorGroup()
+	d.log.Info("Creating OperatorGroup", "OperatorGroup.Name", operatorGroup.Name)
+	err = d.createResourceIfAbsent(ctx, operator.GetOperatorGroup(), types.NamespacedName{Name: operatorGroup.Name, Namespace: operatorGroup.Namespace})
+	if err != nil {
+		return err
+	}
+
+	subscription := operator.GetSubscription()
+	d.log.Info("Creating Subscription", "Subscription.Name", subscription.Name)
+	err = d.createResourceIfAbsent(ctx, operator.GetSubscription(), types.NamespacedName{Name: subscription.Name, Namespace: subscription.Namespace})
+	if err != nil {
+		return err
+	}
+
+	d.log.Info("Waiting for operator to install", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
+	err = waitForOperator(ctx, d.client, d.timeout, types.NamespacedName{Name: operator.csv, Namespace: operator.namespace}, d.isReady)
+	if err != nil {
+		return err
+	}
+	d.log.Info("Operator installed successfully", "Operator.Name", operator.subscription, "Operator.Namespace", operator.namespace)
+
+	cr, name, err := operator.createCR(operator.namespace)
+	d.log.Info("Creating the Operator instance", "CR.Name", name, "CR.Namespace", operator.namespace)
+	if err != nil {
+		return err
+	}
+	err = d.createResourceIfAbsent(context.TODO(), cr, types.NamespacedName{Name: name, Namespace: operator.namespace})
+	d.log.Info("Operator instance created sucessfully", "CR.Name", name, "CR.Namespace", operator.namespace)
 
 	return nil
 }
