@@ -27,7 +27,7 @@ func (o *operatorResource) GetNamespace() *corev1.Namespace {
 	return newNamespace(o.namespace)
 }
 
-func newArgoCDOperator(prefix string) operatorResource {
+func newArgoCDOperator() operatorResource {
 	return operatorResource{
 		namespace:     "argocd",
 		subscription:  "argocd-operator",

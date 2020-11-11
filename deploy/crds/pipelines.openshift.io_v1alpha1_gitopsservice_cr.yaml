@@ -3,4 +3,3 @@ kind: GitopsService
 metadata:
   name: example-gitopsservice
 spec:
-  prefix: test

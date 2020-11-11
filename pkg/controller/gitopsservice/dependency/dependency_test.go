@@ -23,17 +23,20 @@ func TestInstall(t *testing.T) {
 	s := scheme.Scheme
 	addDependencyTypesToScheme(s)
 	fc := fake.NewFakeClient()
-	dependency := fakeDependencyClient(fc, "test")
+	dependency := fakeDependencyClient(fc, "")
 
-	err := dependency.Install()
+	err := dependency.Install([]string{"alpha", "beta"})
 	assertNoError(t, err)
 
 	// Check if namepace, operatorGroup and subscription is created for argocd operator
-	argocdOperator := newArgoCDOperator("test")
+	argocdOperator := newArgoCDOperator()
 	assertOperatorCreation(t, fc, argocdOperator)
 
 	// Check if namepace, operatorGroup and subscription is created for sealed-secrets operator
-	sealedSecretsOperator := newSealedSecretsOperator("test")
+	sealedSecretsOperator := newSealedSecretsOperator("alpha")
+	assertOperatorCreation(t, fc, sealedSecretsOperator)
+
+	sealedSecretsOperator = newSealedSecretsOperator("beta")
 	assertOperatorCreation(t, fc, sealedSecretsOperator)
 }
 
@@ -171,7 +174,6 @@ func fakeDependencyClient(client client.Client, prefix string) *Dependency {
 		isReady: func() (bool, error) {
 			return true, nil
 		},
-		log:    log.WithName("GitOps Dependencies"),
-		prefix: prefix,
+		log: log.WithName("GitOps Dependencies"),
 	}
 }

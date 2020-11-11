@@ -3,13 +3,13 @@ package gitopsservice
 import (
 	"context"
 	"os"
-	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/config"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/dependency"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -107,12 +107,26 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &pipelinesv1alpha1.GitopsService{},
+	})
+	if err != nil {
+		return err
+	}
+
 	client := mgr.GetClient()
 
 	namespaceRef := newNamespace()
 	err = client.Create(context.TODO(), namespaceRef)
 	if err != nil {
 		reqLogger.Error(err, "Failed to create namespace", "Namespace", serviceNamespace)
+	}
+
+	gitopsServiceRef := newGitopsService()
+	err = client.Create(context.TODO(), gitopsServiceRef)
+	if err != nil {
+		reqLogger.Error(err, "Failed to create GitOps service instance")
 	}
 	return nil
 }
@@ -148,12 +162,29 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	timeout, err := getTimeout(instance.Labels)
+	cm := config.NewGitOpsConfig()
+	// Set GitopsService instance as the owner and controller of gitops configmap
+	if err := controllerutil.SetControllerReference(instance, &cm.ConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = cm.GetLatest(context.TODO(), r.client)
+	if err != nil && errors.IsNotFound(err) {
+		err = cm.Create(context.TODO(), r.client)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	timeout, err := cm.GetTimeout()
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	dc := dependency.NewClient(r.client, instance.Spec.Prefix, timeout)
-	err = dc.Install()
+
+	dc := dependency.NewClient(r.client, timeout)
+	err = dc.Install(cm.ExtractPrefixes())
 	if err != nil {
 		reqLogger.Error(err, "Failed to install GitOps dependencies")
 		return reconcile.Result{}, err
@@ -355,11 +386,11 @@ func newNamespace() *corev1.Namespace {
 	}
 }
 
-func getTimeout(labels map[string]string) (time.Duration, error) {
-	for k, v := range labels {
-		if k == "operator.wait.timeout" {
-			return time.ParseDuration(v)
-		}
+func newGitopsService() *pipelinesv1alpha1.GitopsService {
+	return &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
 	}
-	return 2 * time.Minute, nil
 }

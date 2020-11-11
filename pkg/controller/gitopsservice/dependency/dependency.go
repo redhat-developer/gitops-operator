@@ -34,7 +34,6 @@ var log = logf.Log.WithName("gitops_dependencies")
 // Dependency represents an instance of GitOps dependency
 type Dependency struct {
 	client  client.Client
-	prefix  string
 	timeout time.Duration
 	isReady wait.ConditionFunc
 	log     logr.Logger
@@ -48,23 +47,25 @@ type resource struct {
 }
 
 // NewClient create a new instance of GitOps dependencies
-func NewClient(client client.Client, prefix string, timeout time.Duration) *Dependency {
+func NewClient(client client.Client, timeout time.Duration) *Dependency {
 	return &Dependency{
 		client:  client,
-		prefix:  prefix,
 		timeout: timeout,
 		log:     log.WithName("GitOps Dependencies"),
 	}
 }
 
 // Install the dependencies required by GitOps
-func (d *Dependency) Install() error {
-	d.log.Info("Installing GitOps dependencies")
+func (d *Dependency) Install(prefixes []string) error {
 	ctx := context.Background()
+	operators := []operatorResource{}
 
-	operators := []operatorResource{newSealedSecretsOperator(d.prefix), newArgoCDOperator(d.prefix)}
+	for _, prefix := range prefixes {
+		operators = append(operators, newSealedSecretsOperator(prefix))
+	}
+	operators = append(operators, newArgoCDOperator())
+
 	errs := make(chan error)
-
 	for _, operator := range operators {
 		// handle each operator installation by a separate goroutine
 		go func(operator operatorResource) {

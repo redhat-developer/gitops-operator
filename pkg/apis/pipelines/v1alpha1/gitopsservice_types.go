@@ -6,8 +6,6 @@ import (
 
 // GitopsServiceSpec defines the desired state of GitopsService
 type GitopsServiceSpec struct {
-	// Add a prefix to environment names(dev,stage,prod,etc.) to distinguish and identify individual environments
-	Prefix string `json:"prefix,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService
