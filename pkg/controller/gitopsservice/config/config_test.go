@@ -27,10 +27,7 @@ func TestExtractPrefixes(t *testing.T) {
 				Name: "gitops-config",
 			},
 			Data: map[string]string{
-				"gitops-repo-1_prefix": "",
-				"gitops-repo-2_prefix": "alpha",
-				"gitops-repo-3_prefix": "beta",
-				"gitops-repo-4_prefix": "gamma",
+				"gitops-prefixes": ",alpha,beta,gamma",
 			},
 		}
 		config := Config{cm}

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	gitopsSuffix   = "prefix"
+	gitopsPrefix   = "gitops-prefixes"
 	timeoutKey     = "timeout"
 	defaultTimeout = "2m"
 )
@@ -39,10 +39,8 @@ func NewGitOpsConfig() Config {
 // ExtractPrefixes will extract the prefixes list from config
 func (c *Config) ExtractPrefixes() []string {
 	prefixes := []string{}
-	for k, v := range c.Data {
-		if strings.HasSuffix(k, gitopsSuffix) {
-			prefixes = append(prefixes, v)
-		}
+	if prefixString, ok := c.Data[gitopsPrefix]; ok {
+		prefixes = append(prefixes, strings.Split(prefixString, ",")...)
 	}
 	return prefixes
 }
