@@ -40,9 +40,9 @@ func NewGitOpsConfig() Config {
 func (c *Config) ExtractPrefixes() []string {
 	prefixes := []string{}
 	if prefixString, ok := c.Data[gitopsPrefix]; ok {
-		prefixes = append(prefixes, strings.Split(prefixString, ",")...)
+		return strings.Split(prefixString, ",")
 	}
-	return prefixes
+	return []string{}
 }
 
 // GetTimeout will return the timeout threshold for operator
