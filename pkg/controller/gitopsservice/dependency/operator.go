@@ -33,7 +33,7 @@ func newArgoCDOperator() operatorResource {
 		subscription:  "argocd-operator",
 		operatorGroup: "argocd-operator-group",
 		csv:           "argocd-operator.v0.0.14",
-		createCR:      argoCDCr,
+		createCR:      argoCDCR,
 	}
 }
 

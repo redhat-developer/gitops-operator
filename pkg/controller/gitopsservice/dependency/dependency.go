@@ -206,7 +206,7 @@ func addPrefixIfNecessary(prefix, name string) string {
 	return name
 }
 
-func argoCDCr(ns string) (runtime.Object, string, error) {
+func argoCDCR(ns string) (runtime.Object, string, error) {
 	name := "argocd"
 	b, err := yaml.Marshal([]resource{
 		{
