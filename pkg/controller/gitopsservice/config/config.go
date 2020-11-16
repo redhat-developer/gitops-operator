@@ -38,7 +38,6 @@ func NewGitOpsConfig() Config {
 
 // ExtractPrefixes will extract the prefixes list from config
 func (c *Config) ExtractPrefixes() []string {
-	prefixes := []string{}
 	if prefixString, ok := c.Data[gitopsPrefix]; ok {
 		return strings.Split(prefixString, ",")
 	}

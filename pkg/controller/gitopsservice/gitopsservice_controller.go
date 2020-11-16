@@ -36,8 +36,8 @@ var (
 	port                int32  = 8080
 	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName        = "BACKEND_IMAGE"
-	namespace                  = "openshift-pipelines-app-delivery"
-	name                       = "cluster"
+	serviceName                = "cluster"
+	serviceNamespace           = "openshift-pipelines-app-delivery"
 	insecureEnvVar             = "INSECURE"
 	insecureEnvVarValue        = "true"
 )

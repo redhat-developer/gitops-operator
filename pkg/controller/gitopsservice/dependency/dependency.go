@@ -3,6 +3,7 @@ package dependency
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
@@ -27,6 +28,7 @@ const (
 	argocdSubName          = "argocd-operator"
 	sealedSecretsGroupName = "sealed-secrets-operator-group"
 	argocdGroupName        = "argocd-operator-group"
+	sealedSecretsImage     = "quay.io/bitnami/sealed-secrets-controller@sha256:8e9a37bb2e1a6f3a8bee949e3af0e9dab0d7dca618f1a63048dc541b5d554985"
 )
 
 var log = logf.Log.WithName("gitops_dependencies")
@@ -238,6 +240,10 @@ func argoCDCR(ns string) (runtime.Object, string, error) {
 
 func sealedSecretsCR(ns string) (runtime.Object, string, error) {
 	name := "sealedsecretcontroller"
+	image := os.Getenv("SEALED_SECRETS_IMAGE")
+	if image == "" {
+		image = sealedSecretsImage
+	}
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "bitnami.com/v1alpha1",
