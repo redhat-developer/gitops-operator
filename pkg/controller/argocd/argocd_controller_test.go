@@ -2,9 +2,9 @@ package argocd
 
 import (
 	"context"
+	"net/url"
 	"testing"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -18,13 +18,6 @@ import (
 )
 
 var (
-	argoCD = &argoprojv1alpha1.ArgoCD{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      argocdInstanceName,
-			Namespace: argocdNS,
-		},
-	}
-
 	argoCDRoute = &routev1.Route{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      argocdRouteName,
@@ -47,7 +40,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(argoCD, argoCDRoute)
+	fakeClient := fake.NewFakeClient(argoCDRoute)
 
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
 	want := newConsoleLink("https://test.com", "ArgoCD")
@@ -60,23 +53,36 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(argoCD, argoCDRoute, consoleLink)
+	fakeClient := fake.NewFakeClient(argoCDRoute, consoleLink)
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
 
-	t.Run("Deletion of ConsoleLink because of ArgoCD", func(t *testing.T) {
-		err := fakeClient.Delete(context.TODO(), &argoprojv1alpha1.ArgoCD{ObjectMeta: v1.ObjectMeta{Name: argocdInstanceName, Namespace: argocdNS}})
-		assertNoError(t, err)
+	err := fakeClient.Delete(context.TODO(), &routev1.Route{ObjectMeta: v1.ObjectMeta{Name: argocdRouteName, Namespace: argocdNS}})
+	assertNoError(t, err)
 
-		result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
-		assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
-	})
-	t.Run("Deletion of ConsoleLink because of Route", func(t *testing.T) {
-		err := fakeClient.Delete(context.TODO(), &routev1.Route{ObjectMeta: v1.ObjectMeta{Name: argocdRouteName, Namespace: argocdNS}})
-		assertNoError(t, err)
+	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdRouteName))
+	assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
+}
 
-		result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdRouteName))
-		assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
-	})
+func TestReconcile_update_consolelink(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	fakeClient := fake.NewFakeClient(argoCDRoute, consoleLink)
+	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
+
+	argoCDRoute.Spec.Host = "updated-test.com"
+	err := fakeClient.Update(context.TODO(), argoCDRoute)
+	assertNoError(t, err)
+
+	_, err = reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdRouteName))
+	assertNoError(t, err)
+
+	cl, err := getConsoleLink(fakeClient)
+	assertNoError(t, err)
+	url, err := url.Parse(cl.Spec.Href)
+	assertNoError(t, err)
+	if diff := cmp.Diff(argoCDRoute.Spec.Host, url.Hostname()); diff != "" {
+		t.Fatalf("ConsoleLink URL mismatch: %v", diff)
+	}
 }
 
 func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *ReconcileArgoCD {
@@ -94,7 +100,6 @@ func assertNoError(t *testing.T, err error) {
 }
 
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
-	scheme.AddKnownTypes(argoprojv1alpha1.SchemeGroupVersion, &argoprojv1alpha1.ArgoCD{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	scheme.AddKnownTypes(console.GroupVersion, &console.ConsoleLink{})
 }
