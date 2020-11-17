@@ -85,8 +85,8 @@ func TestReconcile_update_consolelink(t *testing.T) {
 	}
 }
 
-func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *ReconcileArgoCD {
-	return &ReconcileArgoCD{
+func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *ReconcileArgoCDRoute {
+	return &ReconcileArgoCDRoute{
 		client: client,
 		scheme: scheme,
 	}
