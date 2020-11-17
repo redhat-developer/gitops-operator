@@ -140,15 +140,11 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-		err = r.client.Create(ctx, consoleLink)
-		if err != nil {
-			return reconcile.Result{}, err
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+			return reconcile.Result{}, r.client.Create(ctx, consoleLink)
 		}
-		// ConsoleLink created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
 		reqLogger.Error(err, "Failed to create ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
 		return reconcile.Result{}, err
 	}
