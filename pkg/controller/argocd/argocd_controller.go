@@ -70,7 +70,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to argocd-server route in argocd namespace
 	// The ConsoleLink holds the route URL and should be regenerated when route is updated
-	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, filterPredicate(argocdRouteFilter))
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, filterPredicate(filterArgoCDRoute))
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func filterPredicate(assert func(namespace, name string) bool) predicate.Funcs {
 	}
 }
 
-func argocdRouteFilter(namespace, name string) bool {
+func filterArgoCDRoute(namespace, name string) bool {
 	return namespace == argocdNS && argocdRouteName == name
 }
 
