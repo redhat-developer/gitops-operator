@@ -2,6 +2,7 @@ package gitopsservice
 
 import (
 	"context"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -31,7 +32,8 @@ var log = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                int32  = 8080
-	image               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImageEnvName        = "BACKEND_IMAGE"
 	namespace                  = "openshift-pipelines-app-delivery"
 	name                       = "cluster"
 	insecureEnvVar             = "INSECURE"
@@ -219,6 +221,10 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 }
 
 func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment {
+	image := os.Getenv(backendImageEnvName)
+	if image == "" {
+		image = backendImage
+	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
