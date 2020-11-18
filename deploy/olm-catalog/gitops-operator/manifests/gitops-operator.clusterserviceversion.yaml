@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
     description: A web service for rendering the GitOps UI on OpenShift
     createdAt: "2020-06-25T19:44:21Z"
     alm-examples: |-
@@ -17,7 +17,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: gitops-operator.v0.0.1
+  name: gitops-operator.v0.0.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -62,7 +62,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
@@ -157,14 +157,6 @@ spec:
           - update
           - watch
         - apiGroups:
-          - argoproj.io
-          resources:
-          - argocds
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
           - console.openshift.io
           resources:
           - consolelinks
@@ -202,4 +194,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  version: 0.0.1
+  replaces: gitops-operator.v0.0.1
+  version: 0.0.2

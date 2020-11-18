@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"github.com/go-logr/logr"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -15,11 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -32,15 +29,13 @@ import (
 	_ "github.com/redhat-developer/gitops-operator/pkg/controller/argocd/statik"
 )
 
-var logs = logf.Log.WithName("controller_argocd")
+var logs = logf.Log.WithName("controller_argocd_route")
 
 const (
 	argocdNS           = "argocd"
 	consoleLinkName    = "argocd"
 	argocdInstanceName = "argocd"
 	argocdRouteName    = "argocd-server"
-	argocdKind         = "ArgoCD"
-	argocdGroup        = "argoproj.io"
 	iconFilePath       = "/argo.png"
 )
 
@@ -59,43 +54,23 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileArgoCD{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileArgoCDRoute{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	reqLogger := logs.WithValues()
-	reqLogger.Info("Watching ArgoCD")
+	reqLogger.Info("Watching ArgoCD Server Route")
 
-	// Skip controller creation if ArgoCD CRD is not present
-	_, err := mgr.GetRESTMapper().RESTMapping(schema.GroupKind{
-		Group: argocdGroup,
-		Kind:  argocdKind,
-	})
-	if err != nil {
-		reqLogger.Error(err, "Unable to find ArgoCD CRD")
-		return nil
-	}
-
-	// Create a new controller
-	c, err := controller.New("argocd-controller", mgr, controller.Options{Reconciler: r})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to primary resource ArgoCD
-	err = c.Watch(&source.Kind{Type: &argoprojv1alpha1.ArgoCD{}}, &handler.EnqueueRequestForObject{}, filterPredicate(assertArgoCD))
+	c, err := controller.New("argocd-route-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
 	// Watch for changes to argocd-server route in argocd namespace
 	// The ConsoleLink holds the route URL and should be regenerated when route is updated
-	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &argoprojv1alpha1.ArgoCD{},
-	}, filterPredicate(assertArgoCDRoute))
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, filterPredicate(filterArgoCDRoute))
 	if err != nil {
 		return err
 	}
@@ -118,58 +93,35 @@ func filterPredicate(assert func(namespace, name string) bool) predicate.Funcs {
 	}
 }
 
-func assertArgoCD(namespace, name string) bool {
-	return namespace == argocdNS && argocdInstanceName == name
-}
-
-func assertArgoCDRoute(namespace, name string) bool {
+func filterArgoCDRoute(namespace, name string) bool {
 	return namespace == argocdNS && argocdRouteName == name
 }
 
-// blank assignment to verify that ReconcileArgoCD implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileArgoCD{}
+// blank assignment to verify that ReconcileArgoCDRoute implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileArgoCDRoute{}
 
-// ReconcileArgoCD reconciles a ArgoCD object
-type ReconcileArgoCD struct {
+// ReconcileArgoCDRoute reconciles a ArgoCD Route object
+type ReconcileArgoCDRoute struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a ArgoCD object and makes changes based on the state read
-// and what is in the ArgoCD.Spec
+// Reconcile reads that state of the cluster for a ArgoCD Route object and makes changes based on the state read
+// and what is in the Route.Spec
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling ArgoCD")
+	reqLogger.Info("Reconciling ArgoCD Route")
 
 	ctx := context.Background()
 
-	// Fetch the ArgoCD instance
-	argocdInstance := &argoprojv1alpha1.ArgoCD{}
-	err := r.client.Get(ctx, request.NamespacedName, argocdInstance)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("ArgoCD instance not found")
-			// if argocd instance is deleted, remove the ConsoleLink if present
-			return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
-		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
-	}
-
-	reqLogger.Info("ArgoCD instance found", "ArgoCD.Namespace:", argocdInstance.Namespace, "ArgoCD.Name", argocdInstance.Name)
-
-	// Set ArgoCD instance as the owner
-	if err := controllerutil.SetControllerReference(argocdInstance, newArgoCDRoute(), r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
+	// Fetch ArgoCD server route
 	argoCDRoute := &routev1.Route{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
+	err := r.client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
@@ -178,24 +130,27 @@ func (r *ReconcileArgoCD) Reconcile(request reconcile.Request) (reconcile.Result
 		}
 		return reconcile.Result{}, err
 	}
-
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink("https://"+argoCDRoute.Spec.Host, "ArgoCD")
+	argocCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
+
+	consoleLink := newConsoleLink(argocCDRouteURL, "ArgoCD")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-		err = r.client.Create(ctx, consoleLink)
-		if err != nil {
-			return reconcile.Result{}, err
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+			return reconcile.Result{}, r.client.Create(ctx, consoleLink)
 		}
-		// ConsoleLink created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
 		reqLogger.Error(err, "Failed to create ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
 		return reconcile.Result{}, err
+	}
+
+	if found.Spec.Href != argocCDRouteURL {
+		reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+		found.Spec.Href = argocCDRouteURL
+		return reconcile.Result{}, r.client.Update(ctx, found)
 	}
 
 	reqLogger.Info("Skip reconcile: ConsoleLink already exists", "ConsoleLink.Name", consoleLink.Name)
@@ -221,7 +176,7 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 	}
 }
 
-func (r *ReconcileArgoCD) deleteConsoleLinkIfPresent(ctx context.Context, log logr.Logger) error {
+func (r *ReconcileArgoCDRoute) deleteConsoleLinkIfPresent(ctx context.Context, log logr.Logger) error {
 	err := r.client.Get(ctx, types.NamespacedName{Name: consoleLinkName}, &console.ConsoleLink{})
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -231,15 +186,6 @@ func (r *ReconcileArgoCD) deleteConsoleLinkIfPresent(ctx context.Context, log lo
 	}
 	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLinkName)
 	return r.client.Delete(ctx, &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLinkName}})
-}
-
-func newArgoCDRoute() *routev1.Route {
-	return &routev1.Route{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      argocdRouteName,
-			Namespace: argocdNS,
-		},
-	}
 }
 
 func readStatikImage() []byte {
