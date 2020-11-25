@@ -14,7 +14,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
-	argocd "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	"github.com/redhat-developer/gitops-operator/pkg/controller"
 	"github.com/redhat-developer/gitops-operator/version"
@@ -138,7 +137,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	registerComponentOrExit(mgr, argocd.AddToScheme)
 	registerComponentOrExit(mgr, console.AddToScheme)
 
 	// Setup all Controllers
