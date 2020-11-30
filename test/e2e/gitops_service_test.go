@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	goctx "context"
+	"context"
 
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -63,7 +63,7 @@ func validateGitOpsBackend(t *testing.T) {
 		Spec: operator.GitopsServiceSpec{},
 	}
 	// use TestCtx's create helper to create the object and add a cleanup function for the new object
-	err = f.Client.Create(goctx.TODO(), cr, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	err = f.Client.Create(context.TODO(), cr, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	assertNoError(t, err)
 
 	// check backend deployment
@@ -71,11 +71,11 @@ func validateGitOpsBackend(t *testing.T) {
 	assertNoError(t, err)
 
 	// check backend service
-	err = f.Client.Get(goctx.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &corev1.Service{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &corev1.Service{})
 	assertNoError(t, err)
 
 	// check backend route
-	err = f.Client.Get(goctx.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &routev1.Route{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &routev1.Route{})
 	assertNoError(t, err)
 }
 
@@ -85,12 +85,12 @@ func validateConsoleLink(t *testing.T) {
 	f := framework.Global
 
 	route := &routev1.Route{}
-	err := f.Client.Get(goctx.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 	assertNoError(t, err)
 
 	// check ConsoleLink
 	consoleLink := &console.ConsoleLink{}
-	err = f.Client.Get(goctx.TODO(), types.NamespacedName{Name: consoleLinkName}, consoleLink)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: consoleLinkName}, consoleLink)
 	assertNoError(t, err)
 
 	got := strings.TrimLeft(consoleLink.Spec.Href, "https://")

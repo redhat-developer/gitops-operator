@@ -13,7 +13,13 @@ then
     exit
 fi
 
-# Install ArgoCD operators
+operator_sdk_version=$(operator-sdk version | grep -Po '[0-9][^.]+' | head -1)
+if [ $operator_sdk_version -gt "17" ]; then
+    echo "Install operator-sdk with version less than 0.18.0"
+    exit
+fi
+
+# Install ArgoCD operator
 sh ./scripts/install_argocd.sh
 
 # Create a new namespace for e2e tests
