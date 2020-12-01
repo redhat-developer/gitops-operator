@@ -36,13 +36,3 @@ func newArgoCDOperator() operatorResource {
 		createCR:      argoCDCR,
 	}
 }
-
-func newSealedSecretsOperator(prefix string) operatorResource {
-	return operatorResource{
-		namespace:     addPrefixIfNecessary(prefix, "cicd"),
-		subscription:  "sealed-secrets-operator-helm",
-		operatorGroup: "sealed-secrets-operator-group",
-		csv:           "sealed-secrets-operator-helm.v0.0.2",
-		createCR:      sealedSecretsCR,
-	}
-}

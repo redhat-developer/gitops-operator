@@ -184,7 +184,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	dc := dependency.NewClient(r.client, timeout)
-	err = dc.Install(cm.ExtractPrefixes())
+	err = dc.Install()
 	if err != nil {
 		reqLogger.Error(err, "Failed to install GitOps dependencies")
 		return reconcile.Result{}, err
@@ -257,7 +257,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment {
+func newDeploymentForCR() *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage

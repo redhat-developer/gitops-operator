@@ -71,7 +71,7 @@ spec:
                 name: gitops-operator
                 resources: {}
               serviceAccountName: gitops-operator
-      clusterPermissions:
+      permissions:
       - rules:
         - apiGroups:
           - route.openshift.io
@@ -187,15 +187,6 @@ spec:
           - operatorgroups
           - subscriptions
           - clusterserviceversions
-          verbs:
-          - create
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - bitnami.com
-          resources:
-          - sealedsecretcontrollers
           verbs:
           - create
           - get

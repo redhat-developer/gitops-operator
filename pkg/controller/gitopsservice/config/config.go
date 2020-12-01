@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,7 +11,6 @@ import (
 )
 
 const (
-	gitopsPrefix   = "gitops-prefixes"
 	timeoutKey     = "timeout"
 	defaultTimeout = "2m"
 )
@@ -34,14 +32,6 @@ func NewGitOpsConfig() Config {
 		},
 	}
 	return Config{c}
-}
-
-// ExtractPrefixes will extract the prefixes list from config
-func (c *Config) ExtractPrefixes() []string {
-	if prefixString, ok := c.Data[gitopsPrefix]; ok {
-		return strings.Split(prefixString, ",")
-	}
-	return []string{}
 }
 
 // GetTimeout will return the timeout threshold for operator

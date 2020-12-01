@@ -3,7 +3,6 @@ package dependency
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
@@ -14,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -23,12 +21,8 @@ import (
 )
 
 const (
-	cicdNs                 = "cicd"
-	sealedSecretsSubName   = "sealed-secrets-operator-helm"
-	argocdSubName          = "argocd-operator"
-	sealedSecretsGroupName = "sealed-secrets-operator-group"
-	argocdGroupName        = "argocd-operator-group"
-	sealedSecretsImage     = "quay.io/bitnami/sealed-secrets-controller@sha256:8e9a37bb2e1a6f3a8bee949e3af0e9dab0d7dca618f1a63048dc541b5d554985"
+	argocdSubName   = "argocd-operator"
+	argocdGroupName = "argocd-operator-group"
 )
 
 var log = logf.Log.WithName("gitops_dependencies")
@@ -58,24 +52,20 @@ func NewClient(client client.Client, timeout time.Duration) *Dependency {
 }
 
 // Install the dependencies required by GitOps
-func (d *Dependency) Install(prefixes []string) error {
+func (d *Dependency) Install() error {
 	ctx := context.Background()
 	operators := []operatorResource{}
 
-	for _, prefix := range prefixes {
-		operators = append(operators, newSealedSecretsOperator(prefix))
-	}
+	// add dependent operators here
 	operators = append(operators, newArgoCDOperator())
 
-	errs := make(chan error)
 	for _, operator := range operators {
-		// handle each operator installation by a separate goroutine
-		go func(operator operatorResource) {
-			err := d.installOperator(ctx, operator)
-			errs <- err
-		}(operator)
+		err := d.installOperator(ctx, operator)
+		if err != nil {
+			return err
+		}
 	}
-	return <-errs
+	return nil
 }
 
 func (d *Dependency) installOperator(ctx context.Context, operator operatorResource) error {
@@ -233,42 +223,6 @@ func argoCDCR(ns string) (runtime.Object, string, error) {
 			ResourceExclusions: string(b),
 			Server: argoapp.ArgoCDServerSpec{
 				Route: argoapp.ArgoCDRouteSpec{Enabled: true},
-			},
-		},
-	}, name, nil
-}
-
-func sealedSecretsCR(ns string) (runtime.Object, string, error) {
-	name := "sealedsecretcontroller"
-	image := os.Getenv("SEALED_SECRETS_IMAGE")
-	if image == "" {
-		image = sealedSecretsImage
-	}
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "bitnami.com/v1alpha1",
-			"kind":       "SealedSecretController",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": ns,
-			},
-			"spec": map[string]interface{}{
-				"image": map[string]interface{}{
-					"repository": "quay.io/bitnami/sealed-secrets-controller@sha256:8e9a37bb2e1a6f3a8bee949e3af0e9dab0d7dca618f1a63048dc541b5d554985",
-					"pullPolicy": "IfNotPresent",
-				},
-				"controller": map[string]interface{}{
-					"create": true,
-				},
-				"serviceAccount": map[string]interface{}{
-					"create": true,
-					"name":   "",
-				},
-				"rbac": map[string]interface{}{
-					"create":     true,
-					"pspenabled": false,
-				},
-				"secretName": "sealed-secrets-key",
 			},
 		},
 	}, name, nil

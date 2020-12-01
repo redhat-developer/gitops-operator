@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
+	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
@@ -131,9 +132,9 @@ func main() {
 	}
 
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
-
 	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
+	registerComponentOrExit(mgr, argoapi.AddToScheme)
 
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)

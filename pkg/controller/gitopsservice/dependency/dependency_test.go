@@ -25,19 +25,12 @@ func TestInstall(t *testing.T) {
 	fc := fake.NewFakeClient()
 	dependency := fakeDependencyClient(fc, "")
 
-	err := dependency.Install([]string{"alpha", "beta"})
+	err := dependency.Install()
 	assertNoError(t, err)
 
 	// Check if namepace, operatorGroup and subscription is created for argocd operator
 	argocdOperator := newArgoCDOperator()
 	assertOperatorCreation(t, fc, argocdOperator)
-
-	// Check if namepace, operatorGroup and subscription is created for sealed-secrets operator
-	sealedSecretsOperator := newSealedSecretsOperator("alpha")
-	assertOperatorCreation(t, fc, sealedSecretsOperator)
-
-	sealedSecretsOperator = newSealedSecretsOperator("beta")
-	assertOperatorCreation(t, fc, sealedSecretsOperator)
 }
 
 func TestCreateResourceIfAbsent(t *testing.T) {
