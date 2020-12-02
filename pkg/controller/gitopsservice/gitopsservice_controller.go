@@ -191,7 +191,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Define a new Pod object
-	deploymentObj := newDeploymentForCR()
+	deploymentObj := newBackendDeployment()
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -208,7 +208,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newServiceForCR()
+	serviceRef := newBackendService()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -225,7 +225,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newRouteForCR()
+	routeRef := newBackendRoute()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -257,7 +257,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newDeploymentForCR() *appsv1.Deployment {
+func newBackendDeployment() *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -329,7 +329,7 @@ func newDeploymentForCR() *appsv1.Deployment {
 	return deploymentObj
 }
 
-func newServiceForCR() *corev1.Service {
+func newBackendService() *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -354,7 +354,7 @@ func newServiceForCR() *corev1.Service {
 	return svc
 }
 
-func newRouteForCR() *routev1.Route {
+func newBackendRoute() *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
