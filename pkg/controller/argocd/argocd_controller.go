@@ -75,6 +75,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	reqLogger.Info("Created controller for ArgoCD server route")
 	return nil
 }
 
