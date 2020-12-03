@@ -9,7 +9,7 @@ spec:
     listKind: GitopsServiceList
     plural: gitopsservices
     singular: gitopsservice
-  scope: Namespaced
+  scope: Cluster
   subresources:
     status: {}
   validation:

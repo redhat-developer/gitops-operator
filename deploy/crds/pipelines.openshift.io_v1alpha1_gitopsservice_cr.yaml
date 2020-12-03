@@ -3,5 +3,3 @@ kind: GitopsService
 metadata:
   name: example-gitopsservice
 spec:
-  # Add fields here
-  size: 3
