@@ -7,11 +7,12 @@ import (
 
 	"context"
 
+	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -43,39 +44,27 @@ func TestGitOpsService(t *testing.T) {
 	// run subtests
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
+	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 }
 
 func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
-	namespace, err := ctx.GetNamespace()
-	assertNoError(t, err)
+	namespace := "openshift-pipelines-app-delivery"
+	name := "cluster"
 	f := framework.Global
 
-	// create custom resource
-	crName := "example-gitops-service"
-	cr := &operator.GitopsService{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      crName,
-			Namespace: namespace,
-		},
-		Spec: operator.GitopsServiceSpec{},
-	}
-	// use TestCtx's create helper to create the object and add a cleanup function for the new object
-	err = f.Client.Create(context.TODO(), cr, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
-	assertNoError(t, err)
-
 	// check backend deployment
-	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, crName, 1, retryInterval, timeout)
+	err := e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
 	assertNoError(t, err)
 
 	// check backend service
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &corev1.Service{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &corev1.Service{})
 	assertNoError(t, err)
 
 	// check backend route
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: crName, Namespace: namespace}, &routev1.Route{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &routev1.Route{})
 	assertNoError(t, err)
 }
 
@@ -112,6 +101,23 @@ func deployOperator(t *testing.T) {
 	assertNoError(t, err)
 
 	err = e2eutil.WaitForOperatorDeployment(t, framework.Global.KubeClient, namespace, operatorName, 1, retryInterval, timeout)
+	assertNoError(t, err)
+}
+
+func validateArgoCDInstallation(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	f := framework.Global
+
+	// Check if argocd namespace is created
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
+	assertNoError(t, err)
+
+	// Check if ArgoCD operator is installed
+	err = e2eutil.WaitForDeployment(t, f.KubeClient, argoCDNamespace, "argocd-operator", 1, retryInterval, timeout)
+	assertNoError(t, err)
+
+	// Check if ArgoCD instance is created
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd", Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
 }
 
