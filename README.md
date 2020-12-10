@@ -13,7 +13,7 @@ The service would be available at a well-known UI location.
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: Gitops-service-source
+  name: gitops-service-source
   namespace: openshift-marketplace
 spec:
   displayName: 'Gitops Service by Red Hat'
@@ -43,6 +43,7 @@ That's it, your API `route` should be created for you. You don't need to explicl
 2. Login to a cluster on your command-line.
 3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-namespace=openshift-pipelines-app-delivery`
 
+**Note:** Please check that you're using [operator-sdk]( https://github.com/operator-framework/operator-sdk/releases/tag/v0.17.2) version 0.17 or earlier. Since the community-operators do not support `v1` version of `CustomResourceDefinition`, the operator is using `v1beta1` version of `CustomResourceDefinition`.
 
 ## Tests
 

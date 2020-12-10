@@ -2,12 +2,15 @@ package gitopsservice
 
 import (
 	"context"
+	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
 
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/config"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/dependency"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,9 +34,10 @@ var log = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                int32  = 8080
-	image               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	namespace                  = "openshift-pipelines-app-delivery"
-	name                       = "cluster"
+	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImageEnvName        = "BACKEND_IMAGE"
+	serviceName                = "cluster"
+	serviceNamespace           = "openshift-pipelines-app-delivery"
 	insecureEnvVar             = "INSECURE"
 	insecureEnvVarValue        = "true"
 )
@@ -52,7 +56,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
-	reqLogger := log.WithValues("Request.Namespace", namespace)
+	reqLogger := log.WithValues()
 	reqLogger.Info("Watching GitopsService")
 
 	pred := predicate.Funcs{
@@ -103,14 +107,27 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &pipelinesv1alpha1.GitopsService{},
+	})
+	if err != nil {
+		return err
+	}
+
 	client := mgr.GetClient()
 
 	namespaceRef := newNamespace()
-	client.Create(context.TODO(), namespaceRef)
+	err = client.Create(context.TODO(), namespaceRef)
+	if err != nil {
+		reqLogger.Error(err, "Failed to create namespace", "Namespace", serviceNamespace)
+	}
 
-	gitopsServiceRef := newGitopsService(name)
-	client.Create(context.TODO(), gitopsServiceRef)
-
+	gitopsServiceRef := newGitopsService()
+	err = client.Create(context.TODO(), gitopsServiceRef)
+	if err != nil {
+		reqLogger.Error(err, "Failed to create GitOps service instance")
+	}
 	return nil
 }
 
@@ -145,8 +162,36 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	cm := config.NewGitOpsConfig()
+	// Set GitopsService instance as the owner and controller of gitops configmap
+	if err := controllerutil.SetControllerReference(instance, &cm.ConfigMap, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = cm.GetLatest(context.TODO(), r.client)
+	if err != nil && errors.IsNotFound(err) {
+		err = cm.Create(context.TODO(), r.client)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	} else if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	timeout, err := cm.GetTimeout()
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	dc := dependency.NewClient(r.client, timeout)
+	err = dc.Install()
+	if err != nil {
+		reqLogger.Error(err, "Failed to install GitOps dependencies")
+		return reconcile.Result{}, err
+	}
+
 	// Define a new Pod object
-	deploymentObj := newDeploymentForCR(instance)
+	deploymentObj := newBackendDeployment()
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -163,7 +208,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newServiceForCR(instance)
+	serviceRef := newBackendService()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -180,7 +225,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newRouteForCR(instance)
+	routeRef := newBackendRoute()
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -212,11 +257,15 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment {
+func newBackendDeployment() *appsv1.Deployment {
+	image := os.Getenv(backendImageEnvName)
+	if image == "" {
+		image = backendImage
+	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  cr.Name,
+				Name:  serviceName,
 				Image: image,
 				Ports: []corev1.ContainerPort{
 					{
@@ -245,7 +294,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 				Name: "backend-ssl",
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: cr.Name,
+						SecretName: serviceName,
 					},
 				},
 			},
@@ -255,7 +304,7 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app": cr.Name,
+				"app": serviceName,
 			},
 		},
 		Spec: podSpec,
@@ -266,21 +315,21 @@ func newDeploymentForCR(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment 
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": cr.Name,
+				"app": serviceName,
 			},
 		},
 		Template: template,
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace),
+		ObjectMeta: objectMeta(serviceName, serviceNamespace),
 		Spec:       deploymentSpec,
 	}
 
 	return deploymentObj
 }
 
-func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
+func newBackendService() *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -291,13 +340,13 @@ func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app": cr.Name,
+			"app": serviceName,
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace, func(o *metav1.ObjectMeta) {
+		ObjectMeta: objectMeta(serviceName, serviceNamespace, func(o *metav1.ObjectMeta) {
 			o.Annotations = map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": cr.Name,
+				"service.beta.openshift.io/serving-cert-secret-name": serviceName,
 			}
 		}),
 		Spec: spec,
@@ -305,11 +354,11 @@ func newServiceForCR(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 	return svc
 }
 
-func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
+func newBackendRoute() *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
-			Name: cr.Name,
+			Name: serviceName,
 		},
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.IntOrString{IntVal: port},
@@ -321,7 +370,7 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 	}
 
 	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(cr.Name, cr.Namespace),
+		ObjectMeta: objectMeta(serviceName, serviceNamespace),
 		Spec:       routeSpec,
 	}
 
@@ -330,18 +379,17 @@ func newRouteForCR(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
 
 func newNamespace() *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
-		Name: namespace,
+		Name: serviceNamespace,
 	}
 	return &corev1.Namespace{
 		ObjectMeta: objectMeta,
 	}
 }
 
-func newGitopsService(name string) *pipelinesv1alpha1.GitopsService {
+func newGitopsService() *pipelinesv1alpha1.GitopsService {
 	return &pipelinesv1alpha1.GitopsService{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name: serviceName,
 		},
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
 	}

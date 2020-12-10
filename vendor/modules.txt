@@ -123,10 +123,13 @@ github.com/modern-go/reflect2
 github.com/onsi/gomega/gstruct/errors
 github.com/onsi/gomega/types
 # github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
+github.com/openshift/api/console/v1
 github.com/openshift/api/route/v1
-# github.com/operator-framework/api v0.3.8
+# github.com/operator-framework/api v0.3.18
 github.com/operator-framework/api/pkg/lib/version
 github.com/operator-framework/api/pkg/operators
+github.com/operator-framework/api/pkg/operators/v1
+github.com/operator-framework/api/pkg/operators/v1alpha1
 # github.com/operator-framework/operator-registry v1.12.6-0.20200611222234-275301b779f8
 github.com/operator-framework/operator-registry/pkg/api
 github.com/operator-framework/operator-registry/pkg/image
@@ -166,6 +169,8 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
+# github.com/rakyll/statik v0.1.7
+github.com/rakyll/statik/fs
 # github.com/rogpeppe/go-internal v1.5.0
 github.com/rogpeppe/go-internal/modfile
 github.com/rogpeppe/go-internal/module
