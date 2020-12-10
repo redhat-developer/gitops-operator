@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
+    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: A web service for rendering the GitOps UI on OpenShift
     createdAt: "2020-06-25T19:44:21Z"
     alm-examples: |-
@@ -17,7 +17,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: gitops-operator.v0.0.2
+  name: gitops-operator.v0.0.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -34,6 +34,144 @@ spec:
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
       displayName: GitOps Service
+    - kind: Application
+      name: applications.argoproj.io
+      version: v1alpha1
+      displayName: Application
+      description: An Application is a group of Kubernetes resources as defined by a manifest.
+    - kind: AppProject
+      name: appprojects.argoproj.io
+      version: v1alpha1
+      displayName: AppProject
+      description: An AppProject is a logical grouping of Argo CD Applications.
+    - kind: ArgoCDExport
+      name: argocdexports.argoproj.io
+      version: v1alpha1
+      displayName: ArgoCDExport
+      description: ArgoCDExport describes the desired state for the export of a given Argo CD cluster.
+      resources:
+      - kind: ArgoCD
+        name: ''
+        version: v1alpha1
+      - kind: ArgoCDExport
+        name: ''
+        version: v1alpha1
+      - kind: ConfigMap
+        name: ''
+        version: v1
+      - kind: CronJob
+        name: ''
+        version: v1beta1
+      - kind: Deployment
+        name: ''
+        version: v1
+      - kind: Ingress
+        name: ''
+        version: v1beta1
+      - kind: Job
+        name: ''
+        version: v1
+      - kind: PersistentVolumeClaim
+        name: ''
+        version: v1
+      - kind: Pod
+        name: ''
+        version: v1
+      - kind: Prometheus
+        name: ''
+        version: v1
+      - kind: ReplicaSet
+        name: ''
+        version: v1
+      - kind: Route
+        name: ''
+        version: v1
+      - kind: Secret
+        name: ''
+        version: v1
+      - kind: Service
+        name: ''
+        version: v1
+      - kind: ServiceMonitor
+        name: ''
+        version: v1
+      - kind: StatefulSet
+        name: ''
+        version: v1
+      specDescriptors:
+      - description: The name of the ArgoCD instance to export.
+        displayName: ArgoCD
+        path: argocd
+        x-descriptors:
+        - 'urn:alm:descriptor:com.tectonic.ui:text'
+      - description: The schedule for the export in Cron format, see https://en.wikipedia.org/wiki/Cron.
+        displayName: Schedule
+        path: schedule
+        x-descriptors:
+        - 'urn:alm:descriptor:com.tectonic.ui:text'
+      - description: The storage configuration options for the export.
+        displayName: Storage
+        path: storage
+      statusDescriptors:
+      - description: Phase is a simple, high-level summary of where the ArgoCDExport is in its lifecycle.
+        displayName: Phase
+        path: phase
+        x-descriptors:
+        - 'urn:alm:descriptor:com.tectonic.ui:text'
+    - kind: ArgoCD
+      name: argocds.argoproj.io
+      version: v1alpha1
+      displayName: ArgoCD
+      description: ArgoCD is the representation of an Argo CD deployment.
+      resources:
+      - kind: ArgoCD
+        name: ''
+        version: v1alpha1
+      - kind: ArgoCDExport
+        name: ''
+        version: v1alpha1
+      - kind: ConfigMap
+        name: ''
+        version: v1
+      - kind: CronJob
+        name: ''
+        version: v1beta1
+      - kind: Deployment
+        name: ''
+        version: v1
+      - kind: Ingress
+        name: ''
+        version: v1beta1
+      - kind: Job
+        name: ''
+        version: v1
+      - kind: PersistentVolumeClaim
+        name: ''
+        version: v1
+      - kind: Pod
+        name: ''
+        version: v1
+      - kind: Prometheus
+        name: ''
+        version: v1
+      - kind: ReplicaSet
+        name: ''
+        version: v1
+      - kind: Route
+        name: ''
+        version: v1
+      - kind: Secret
+        name: ''
+        version: v1
+      - kind: Service
+        name: ''
+        version: v1
+      - kind: ServiceMonitor
+        name: ''
+        version: v1
+      - kind: StatefulSet
+        name: ''
+        version: v1
     required:
     - description: OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton
       kind: Config
@@ -72,12 +210,228 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
+                image: quay.io/shbose/gitops-backend-operator:v0.0.3
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
               serviceAccountName: gitops-operator
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - '*'
+          resources:
+          - '*'
+          verbs:
+          - get
+          - list
+          - watch
+        - nonResourceURLs:
+          - '*'
+          verbs:
+          - get
+          - list
+        serviceAccountName: argocd-application-controller
+      - rules:
+        - apiGroups:
+          - '*'
+          resources:
+          - '*'
+          verbs:
+          - get
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - list
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - pods/log
+          verbs:
+          - get
+        serviceAccountName: argocd-server
       permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - endpoints
+          - events
+          - persistentvolumeclaims
+          - pods
+          - secrets
+          - serviceaccounts
+          - services
+          - services/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - replicasets
+          - statefulsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resourceNames:
+          - argocd-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - argocds
+          - argocds/finalizers
+          - argocds/status
+          - argocdexports
+          - argocdexports/finalizers
+          - argocdexports/status
+          verbs:
+          - '*'
+        - apiGroups:
+          - autoscaling
+          resources:
+          - horizontalpodautoscalers
+          verbs:
+          - '*'
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          - jobs
+          verbs:
+          - '*'
+        - apiGroups:
+          - extensions
+          resources:
+          - ingresses
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - prometheuses
+          - servicemonitors
+          verbs:
+          - '*'
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          - routes/custom-host
+          verbs:
+          - '*'
+        serviceAccountName: argocd-operator
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - services/finalizers
+          - endpoints
+          - events
+          - configmaps
+          - secrets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          - deployments
+          - replicasets
+          verbs:
+          - '*'
+        - apiGroups:
+          - batch
+          resources:
+          - cronjobs
+          - jobs
+          verbs:
+          - '*'
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - applications
+          - appprojects
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - list
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - routes
+          verbs:
+          - '*'
+        serviceAccountName: argocd-application-controller
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - configmaps
+          verbs:
+          - get
+          - list
+          - watch
+        serviceAccountName: argocd-dex-server
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - endpoints
+          verbs:
+          - get
+        serviceAccountName: argocd-redis-ha
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          - configmaps
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - update
+          - patch
+          - delete
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - applications
+          - appprojects
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+          - update
+          - delete
+          - patch
+        - apiGroups:
+          - ""
+          resources:
+          - events
+          verbs:
+          - create
+          - list
+        serviceAccountName: argocd-server
       - rules:
         - apiGroups:
           - route.openshift.io
@@ -224,5 +578,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  replaces: gitops-operator.v0.0.1
-  version: 0.0.2
+  version: 0.3.0
