@@ -22,6 +22,12 @@ metadata:
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
+    required:
+    - name: config.operator.tekton.dev
+      version: v1alpha1
+      kind: Config
+      displayName: OpenShift Pipelines Config
+      description: Represents Installation of Tekton.
     owned:
     - description: GitOpsService configures a web service for rendering the GitOps UI on OpenShift
       kind: GitopsService
