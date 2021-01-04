@@ -275,7 +275,7 @@ func (r *ReconcileArgoCD) reconcileConfigMaps(cr *argoprojv1a1.ArgoCD) error {
 		return err
 	}
 
-	return nil
+	return r.reconcileGPGKeysConfigMap(cr)
 }
 
 // reconcileCAConfigMap will ensure that the Certificate Authority ConfigMap is present.
@@ -318,7 +318,7 @@ func (r *ReconcileArgoCD) reconcileArgoConfigMap(cr *argoprojv1a1.ArgoCD) error 
 
 	cm.Data[common.ArgoCDKeyApplicationInstanceLabelKey] = getApplicationInstanceLabelKey(cr)
 	cm.Data[common.ArgoCDKeyConfigManagementPlugins] = getConfigManagementPlugins(cr)
-	cm.Data[common.ArgoCDKeyDexConfig] = getDexConfig(cr)
+	cm.Data[common.ArgoCDKeyAdminEnabled] = fmt.Sprintf("%t", !cr.Spec.DisableAdmin)
 	cm.Data[common.ArgoCDKeyGATrackingID] = getGATrackingID(cr)
 	cm.Data[common.ArgoCDKeyGAAnonymizeUsers] = fmt.Sprint(cr.Spec.GAAnonymizeUsers)
 	cm.Data[common.ArgoCDKeyHelpChatURL] = getHelpChatURL(cr)
@@ -336,15 +336,17 @@ func (r *ReconcileArgoCD) reconcileArgoConfigMap(cr *argoprojv1a1.ArgoCD) error 
 	cm.Data[common.ArgoCDKeyServerURL] = r.getArgoServerURI(cr)
 	cm.Data[common.ArgoCDKeyUsersAnonymousEnabled] = fmt.Sprint(cr.Spec.UsersAnonymousEnabled)
 
-	dexConfig := getDexConfig(cr)
-	if len(dexConfig) <= 0 && cr.Spec.Dex.OpenShiftOAuth {
-		cfg, err := r.getOpenShiftDexConfig(cr)
-		if err != nil {
-			return err
+	if !isDexDisabled() {
+		dexConfig := getDexConfig(cr)
+		if dexConfig == "" && cr.Spec.Dex.OpenShiftOAuth {
+			cfg, err := r.getOpenShiftDexConfig(cr)
+			if err != nil {
+				return err
+			}
+			dexConfig = cfg
 		}
-		dexConfig = cfg
+		cm.Data[common.ArgoCDKeyDexConfig] = dexConfig
 	}
-	cm.Data[common.ArgoCDKeyDexConfig] = dexConfig
 
 	if err := controllerutil.SetControllerReference(cr, cm, r.scheme); err != nil {
 		return err
@@ -386,6 +388,11 @@ func (r *ReconcileArgoCD) reconcileDexConfiguration(cm *corev1.ConfigMap, cr *ar
 
 func (r *ReconcileArgoCD) reconcileExistingArgoConfigMap(cm *corev1.ConfigMap, cr *argoprojv1a1.ArgoCD) error {
 	changed := false
+
+	if cm.Data[common.ArgoCDKeyAdminEnabled] == fmt.Sprintf("%t", cr.Spec.DisableAdmin) {
+		cm.Data[common.ArgoCDKeyAdminEnabled] = fmt.Sprintf("%t", !cr.Spec.DisableAdmin)
+		changed = true
+	}
 
 	if cm.Data[common.ArgoCDKeyApplicationInstanceLabelKey] != cr.Spec.ApplicationInstanceLabelKey {
 		cm.Data[common.ArgoCDKeyApplicationInstanceLabelKey] = cr.Spec.ApplicationInstanceLabelKey
@@ -643,6 +650,18 @@ func (r *ReconcileArgoCD) reconcileTLSCerts(cr *argoprojv1a1.ArgoCD) error {
 
 	if argoutil.IsObjectFound(r.client, cr.Namespace, cm.Name, cm) {
 		return r.client.Update(context.TODO(), cm)
+	}
+	return r.client.Create(context.TODO(), cm)
+}
+
+// reconcileGPGKeysConfigMap creates a gpg-keys config map
+func (r *ReconcileArgoCD) reconcileGPGKeysConfigMap(cr *argoprojv1a1.ArgoCD) error {
+	cm := newConfigMapWithName(common.ArgoCDGPGKeysConfigMapName, cr)
+	if argoutil.IsObjectFound(r.client, cr.Namespace, cm.Name, cm) {
+		return nil
+	}
+	if err := controllerutil.SetControllerReference(cr, cm, r.scheme); err != nil {
+		return err
 	}
 	return r.client.Create(context.TODO(), cm)
 }
