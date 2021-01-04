@@ -253,14 +253,6 @@ spec:
           - '*'
           verbs:
           - '*'
-#        - apiGroups:
-#          - '*'
-#          resources:
-#          - '*'
-#          verbs:
-#          - list
-#          - watch
-#          - get
         - apiGroups:
           - ""
           resources:
