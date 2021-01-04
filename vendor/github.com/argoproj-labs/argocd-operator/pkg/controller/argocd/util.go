@@ -34,6 +34,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
+	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -49,7 +50,7 @@ type DexConnector struct {
 	Type   string                 `yaml:"type"`
 }
 
-// getGrafanaAdminPassword will generate and return the admin password for Argo CD.
+// generateArgoAdminPassword will generate and return the admin password for Argo CD.
 func generateArgoAdminPassword() ([]byte, error) {
 	pass, err := password.Generate(
 		common.ArgoCDDefaultAdminPasswordLength,
@@ -73,17 +74,6 @@ func generateArgoServerSessionKey() ([]byte, error) {
 
 // getArgoApplicationControllerResources will return the ResourceRequirements for the Argo CD application controller container.
 func getArgoApplicationControllerResources(cr *argoprojv1a1.ArgoCD) corev1.ResourceRequirements {
-	// resources := corev1.ResourceRequirements{
-	// 	Limits: corev1.ResourceList{
-	// 		corev1.ResourceCPU:    resource.MustParse(common.ArgoCDDefaultControllerResourceLimitCPU),
-	// 		corev1.ResourceMemory: resource.MustParse(common.ArgoCDDefaultControllerResourceLimitMemory),
-	// 	},
-	// 	Requests: corev1.ResourceList{
-	// 		corev1.ResourceCPU:    resource.MustParse(common.ArgoCDDefaultControllerResourceRequestCPU),
-	// 		corev1.ResourceMemory: resource.MustParse(common.ArgoCDDefaultControllerResourceRequestMemory),
-	// 	},
-	// }
-
 	resources := corev1.ResourceRequirements{}
 
 	// Allow override of resource requirements from CR
@@ -96,14 +86,20 @@ func getArgoApplicationControllerResources(cr *argoprojv1a1.ArgoCD) corev1.Resou
 
 // getArgoContainerImage will return the container image for ArgoCD.
 func getArgoContainerImage(cr *argoprojv1a1.ArgoCD) string {
+	defaultTag, defaultImg := false, false
 	img := cr.Spec.Image
-	if len(img) <= 0 {
+	if img == "" {
 		img = common.ArgoCDDefaultArgoImage
+		defaultImg = true
 	}
 
 	tag := cr.Spec.Version
-	if len(tag) <= 0 {
+	if tag == "" {
 		tag = common.ArgoCDDefaultArgoVersion
+		defaultTag = true
+	}
+	if e := os.Getenv(common.ArgoCDImageEnvName); e != "" && (defaultTag && defaultImg) {
+		return e
 	}
 
 	return argoutil.CombineImageTag(img, tag)
@@ -212,35 +208,33 @@ func getArgoServerStatusProcessors(cr *argoprojv1a1.ArgoCD) int32 {
 }
 
 // getDexContainerImage will return the container image for the Dex server.
+//
+// There are three possible options for configuring the image, and this is the
+// order of preference.
+//
+// 1. from the Spec, the spec.dex field has an image and version to use for
+// generating an image reference.
+// 2. from the Environment, this looks for the `ARGOCD_DEX_IMAGE` field and uses
+// that if the spec is not configured.
+// 3. the default is configured in common.ArgoCDDefaultDexVersion and
+// common.ArgoCDDefaultDexImage.
 func getDexContainerImage(cr *argoprojv1a1.ArgoCD) string {
+	defaultImg, defaultTag := false, false
 	img := cr.Spec.Dex.Image
-	if len(img) <= 0 {
+	if img == "" {
 		img = common.ArgoCDDefaultDexImage
+		defaultImg = true
 	}
 
 	tag := cr.Spec.Dex.Version
-	if len(tag) <= 0 {
+	if tag == "" {
 		tag = common.ArgoCDDefaultDexVersion
+		defaultTag = true
+	}
+	if e := os.Getenv(common.ArgoCDDexImageEnvName); e != "" && (defaultTag && defaultImg) {
+		return e
 	}
 	return argoutil.CombineImageTag(img, tag)
-}
-
-// getDexInitContainers will return the init-containers for the Dex server.
-func getDexInitContainers(cr *argoprojv1a1.ArgoCD) []corev1.Container {
-	return []corev1.Container{{
-		Command: []string{
-			"cp",
-			"/usr/local/bin/argocd-util",
-			"/shared",
-		},
-		Image:           getArgoContainerImage(cr),
-		ImagePullPolicy: corev1.PullAlways,
-		Name:            "copyutil",
-		VolumeMounts: []corev1.VolumeMount{{
-			Name:      "static-files",
-			MountPath: "/shared",
-		}},
-	}}
 }
 
 // getDexOAuthClientID will return the OAuth client ID for the given ArgoCD.
@@ -292,14 +286,20 @@ func getDexResources(cr *argoprojv1a1.ArgoCD) corev1.ResourceRequirements {
 
 // getGrafanaContainerImage will return the container image for the Grafana server.
 func getGrafanaContainerImage(cr *argoprojv1a1.ArgoCD) string {
+	defaultTag, defaultImg := false, false
 	img := cr.Spec.Grafana.Image
-	if len(img) <= 0 {
+	if img == "" {
 		img = common.ArgoCDDefaultGrafanaImage
+		defaultImg = true
 	}
 
 	tag := cr.Spec.Grafana.Version
-	if len(tag) <= 0 {
+	if tag == "" {
 		tag = common.ArgoCDDefaultGrafanaVersion
+		defaultTag = true
+	}
+	if e := os.Getenv(common.ArgoCDGrafanaImageEnvName); e != "" && (defaultTag && defaultImg) {
+		return e
 	}
 	return argoutil.CombineImageTag(img, tag)
 }
@@ -369,28 +369,38 @@ func getRedisConf(cr *argoprojv1a1.ArgoCD) string {
 
 // getRedisContainerImage will return the container image for the Redis server.
 func getRedisContainerImage(cr *argoprojv1a1.ArgoCD) string {
+	defaultImg, defaultTag := false, false
 	img := cr.Spec.Redis.Image
-	if len(img) <= 0 {
+	if img == "" {
 		img = common.ArgoCDDefaultRedisImage
+		defaultImg = true
 	}
-
 	tag := cr.Spec.Redis.Version
-	if len(tag) <= 0 {
+	if tag == "" {
 		tag = common.ArgoCDDefaultRedisVersion
+		defaultTag = true
+	}
+	if e := os.Getenv(common.ArgoCDRedisImageEnvName); e != "" && (defaultTag && defaultImg) {
+		return e
 	}
 	return argoutil.CombineImageTag(img, tag)
 }
 
 // getRedisHAContainerImage will return the container image for the Redis server in HA mode.
 func getRedisHAContainerImage(cr *argoprojv1a1.ArgoCD) string {
+	defaultImg, defaultTag := false, false
 	img := cr.Spec.Redis.Image
-	if len(img) <= 0 {
+	if img == "" {
 		img = common.ArgoCDDefaultRedisImage
+		defaultImg = true
 	}
-
 	tag := cr.Spec.Redis.Version
-	if len(tag) <= 0 {
+	if tag == "" {
 		tag = common.ArgoCDDefaultRedisVersionHA
+		defaultTag = true
+	}
+	if e := os.Getenv(common.ArgoCDRedisHAImageEnvName); e != "" && (defaultTag && defaultImg) {
+		return e
 	}
 	return argoutil.CombineImageTag(img, tag)
 }
@@ -639,14 +649,17 @@ func labelsForCluster(cr *argoprojv1a1.ArgoCD) map[string]string {
 	return labels
 }
 
-// setDefaults sets the default vaules for the spec and returns true if the spec was changed.
-func setDefaults(cr *argoprojv1a1.ArgoCD) bool {
-	changed := false
-	return changed
+// annotationsForCluster returns the annotations for all cluster resources.
+func annotationsForCluster(cr *argoprojv1a1.ArgoCD) map[string]string {
+	annotations := argoutil.DefaultAnnotations(cr)
+	for key, val := range cr.ObjectMeta.Annotations {
+		annotations[key] = val
+	}
+	return annotations
 }
 
 // watchResources will register Watches for each of the supported Resources.
-func watchResources(c controller.Controller) error {
+func watchResources(c controller.Controller, clusterRoleBindingMapper handler.ToRequestsFunc) error {
 	// Watch for changes to primary resource ArgoCD
 	if err := c.Watch(&source.Kind{Type: &argoprojv1a1.ArgoCD{}}, &handler.EnqueueRequestForObject{}); err != nil {
 		return err
@@ -674,6 +687,21 @@ func watchResources(c controller.Controller) error {
 
 	// Watch for changes to Ingress sub-resources owned by ArgoCD instances.
 	if err := watchOwnedResource(c, &extv1beta1.Ingress{}); err != nil {
+		return err
+	}
+
+	if err := watchOwnedResource(c, &v1.Role{}); err != nil {
+		return err
+	}
+
+	if err := watchOwnedResource(c, &v1.RoleBinding{}); err != nil {
+		return err
+	}
+
+	handlerClusterRoleBinding := &handler.EnqueueRequestsFromMapFunc{
+		ToRequests: clusterRoleBindingMapper,
+	}
+	if err := c.Watch(&source.Kind{Type: &v1.ClusterRoleBinding{}}, handlerClusterRoleBinding); err != nil {
 		return err
 	}
 
