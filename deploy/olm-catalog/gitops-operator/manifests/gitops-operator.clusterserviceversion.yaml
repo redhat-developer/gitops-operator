@@ -135,6 +135,15 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterroles
+          - clusterrolebindings
+          verbs:
+          - '*'
+        serviceAccountName: gitops-operator
+      - rules:
+        - apiGroups:
           - '*'
           resources:
           - '*'
@@ -199,6 +208,8 @@ spec:
           - argocds
           - argocds/finalizers
           - argocds/status
+          - applications
+          - appprojects
           verbs:
           - '*'
         - apiGroups:
@@ -237,107 +248,27 @@ spec:
         serviceAccountName: gitops-operator
       - rules:
         - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
+#        - apiGroups:
+#          - '*'
+#          resources:
+#          - '*'
+#          verbs:
+#          - list
+#          - watch
+#          - get
+        - apiGroups:
           - ""
           resources:
           - pods
-          - services
-          - services/finalizers
-          - endpoints
-          - events
-          - configmaps
-          - secrets
-          verbs:
-          - '*'
-        - apiGroups:
-          - apps
-          resources:
-          - daemonsets
-          - deployments
-          - replicasets
-          verbs:
-          - '*'
-        - apiGroups:
-          - batch
-          resources:
-          - cronjobs
-          - jobs
-          verbs:
-          - '*'
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - applications
-          - appprojects
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - list
-        - apiGroups:
-          - route.openshift.io
-          resources:
-          - routes
-          verbs:
-          - '*'
-        serviceAccountName: argocd-application-controller
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          - configmaps
+          - pods/log
           verbs:
           - get
-          - list
-          - watch
-        serviceAccountName: argocd-dex-server
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - endpoints
-          verbs:
-          - get
-        serviceAccountName: argocd-redis-ha
-      - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - secrets
-          - configmaps
-          verbs:
-          - create
-          - get
-          - list
-          - watch
-          - update
-          - patch
-          - delete
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - applications
-          - appprojects
-          verbs:
-          - create
-          - get
-          - list
-          - watch
-          - update
-          - delete
-          - patch
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - create
-          - list
-        serviceAccountName: argocd-server
+        serviceAccountName: gitops-operator
       - rules:
         - apiGroups:
           - route.openshift.io
@@ -484,4 +415,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  version: 0.3.0
+  #replaces: gitops-operator.v0.0.2
+  version: 0.0.3
