@@ -120,8 +120,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.15-0.20201230111111-8aa649dfc626 h1:ulzaWjbd4vSTN4eNXvp60Ei3Lu7uRpq9ie7nRcG1hh0=
-github.com/argoproj-labs/argocd-operator v0.0.15-0.20201230111111-8aa649dfc626/go.mod h1:FnnHlU59v18bhT0cC8eeEWSXhxzvGulJvjOpGqozeTE=
+github.com/argoproj-labs/argocd-operator v0.0.15-0.20210106112435-26f43ea58b99 h1:8k/GVVcuLLvcm5O83SEL2bbfAcaL+/5gEwz3npvDK1Y=
+github.com/argoproj-labs/argocd-operator v0.0.15-0.20210106112435-26f43ea58b99/go.mod h1:FnnHlU59v18bhT0cC8eeEWSXhxzvGulJvjOpGqozeTE=
 github.com/argoproj/argo-cd v1.5.8 h1:fmJP50W48OVGeDMZlbYBG0SMHY50wsEETvOx8IhHi/Q=
 github.com/argoproj/argo-cd v1.5.8/go.mod h1:UPOPiF6Y1y/oTL3X1KcuLbu7ljD7f4+SIaXvlowBmhE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

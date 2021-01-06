@@ -127,7 +127,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/shbose/gitops-backend-operator:v0.0.3
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
@@ -142,42 +142,6 @@ spec:
           verbs:
           - '*'
         serviceAccountName: gitops-operator
-      - rules:
-        - apiGroups:
-          - '*'
-          resources:
-          - '*'
-          verbs:
-          - get
-          - list
-          - watch
-        - nonResourceURLs:
-          - '*'
-          verbs:
-          - get
-          - list
-        serviceAccountName: argocd-application-controller
-      - rules:
-        - apiGroups:
-          - '*'
-          resources:
-          - '*'
-          verbs:
-          - get
-        - apiGroups:
-          - ""
-          resources:
-          - events
-          verbs:
-          - list
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - pods/log
-          verbs:
-          - get
-        serviceAccountName: argocd-server
       permissions:
       - rules:
         - apiGroups:
@@ -407,5 +371,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  #replaces: gitops-operator.v0.0.2
+  replaces: gitops-operator.v0.0.2
   version: 0.0.3
