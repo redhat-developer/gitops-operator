@@ -21,7 +21,7 @@ import (
 
 const cliName = "kam"
 const cliLongName = "GitOps Application Manager"
-const cliImage = "quay.io/shbose/kam-service:v0.1" //TODO, use quay.io/redhat-developer
+const cliImage = "quay.io/redhat-developer/kam:1d0ef5"
 const cliImageEnvName = "KAM_IMAGE"
 
 func newDeploymentForCLI() *appsv1.Deployment {
