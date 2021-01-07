@@ -2,8 +2,12 @@ package gitopsservice
 
 import (
 	"context"
+	"fmt"
+	"os"
 
+	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -16,9 +20,15 @@ import (
 )
 
 const cliName = "kam"
-const cliImage = "quay.io/shbose/kam-service:v0.1"
+const cliLongName = "GitOps Application Manager"
+const cliImage = "quay.io/shbose/kam-service:v0.1" //TODO, use quay.io/redhat-developer
+const cliImageEnvName = "KAM_IMAGE"
 
-func newDeploymentForCLI(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment {
+func newDeploymentForCLI() *appsv1.Deployment {
+	image := os.Getenv(cliImageEnvName)
+	if image == "" {
+		image = cliImage
+	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
@@ -29,29 +39,6 @@ func newDeploymentForCLI(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment
 						Name:          "http",
 						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: port, // should come from flag
-					},
-				},
-				Env: []corev1.EnvVar{
-					{
-						Name:  insecureEnvVar,
-						Value: insecureEnvVarValue,
-					},
-				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						MountPath: "/etc/gitops/ssl",
-						Name:      "backend-ssl",
-						ReadOnly:  true,
-					},
-				},
-			},
-		},
-		Volumes: []corev1.Volume{
-			{
-				Name: "backend-ssl",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: cliName,
 					},
 				},
 			},
@@ -79,21 +66,28 @@ func newDeploymentForCLI(cr *pipelinesv1alpha1.GitopsService) *appsv1.Deployment
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(cliName, cr.Namespace),
+		ObjectMeta: objectMeta(cliName, serviceNamespace),
 		Spec:       deploymentSpec,
 	}
 
 	return deploymentObj
 }
 
-func newServiceForCLI(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
+func newServiceForCLI() *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
 			{
+				Name:       "tcp-8080",
 				Port:       port,
 				Protocol:   corev1.ProtocolTCP,
 				TargetPort: intstr.FromInt(int(port)),
+			},
+			{
+				Name:       "tcp-8443",
+				Port:       portSSL,
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(int(8443)),
 			},
 		},
 		Selector: map[string]string{
@@ -101,50 +95,66 @@ func newServiceForCLI(cr *pipelinesv1alpha1.GitopsService) *corev1.Service {
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(cliName, cr.Namespace, func(o *metav1.ObjectMeta) {
-			o.Annotations = map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": cliName,
-			}
-		}),
-		Spec: spec,
+		ObjectMeta: objectMeta(cliName, serviceNamespace, func(o *metav1.ObjectMeta) {}),
+		Spec:       spec,
 	}
 	return svc
 }
 
-func newRouteForCLI(cr *pipelinesv1alpha1.GitopsService) *routev1.Route {
+func newRouteForCLI() *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
 			Name: cliName,
 		},
 		Port: &routev1.RoutePort{
-			TargetPort: intstr.IntOrString{IntVal: port},
+			TargetPort: intstr.IntOrString{IntVal: portSSL},
 		},
 		TLS: &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationReencrypt,
-			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
+			Termination:                   routev1.TLSTerminationPassthrough,
+			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
 		},
 	}
 
 	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(cliName, cr.Namespace),
+		ObjectMeta: objectMeta(cliName, serviceNamespace),
 		Spec:       routeSpec,
 	}
 
 	return routeObj
 }
 
-func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsService) (reconcile.Result, error) {
+func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleCLIDownload {
+	return &console.ConsoleCLIDownload{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: consoleLinkName,
+		},
+		Spec: console.ConsoleCLIDownloadSpec{
+			Links: []console.Link{
+				{
+					Text: text,
+					Href: href,
+				},
+			},
+			DisplayName: text,
+		},
+	}
+}
 
-	deploymentObj := newDeploymentForCLI(cr)
+func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 
-	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
+	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger.Info("Reconciling GitopsService")
+
+	deploymentObj := newDeploymentForCLI()
+
+	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Check if this Deployment already exists
 	found := &appsv1.Deployment{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), deploymentObj)
@@ -152,8 +162,8 @@ func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsServic
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newServiceForCLI(cr)
-	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
+	serviceRef := newServiceForCLI()
+	if err := controllerutil.SetControllerReference(cr, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -168,8 +178,8 @@ func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsServic
 		}
 	}
 
-	routeRef := newRouteForCLI(cr)
-	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
+	routeRef := newRouteForCLI()
+	if err := controllerutil.SetControllerReference(cr, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -184,5 +194,21 @@ func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsServic
 		}
 		return reconcile.Result{}, nil
 	}
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, routeRef)
+	kamDownloadURLgo := fmt.Sprintf("https://%s/kam/", routeRef.Spec.Host)
+	consoleCLIDownload := newConsoleCLIDownload(cliName, kamDownloadURLgo, cliLongName)
+
+	existingConsoleCLIDownload := &console.ConsoleCLIDownload{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: consoleCLIDownload.Name}, existingConsoleCLIDownload)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new ConsoleDownload", "ConsoleDownload.Name", consoleCLIDownload.Name)
+			return reconcile.Result{}, r.client.Create(context.TODO(), consoleCLIDownload)
+		}
+		reqLogger.Error(err, "Failed to create ConsoleDownload", "ConsoleDownload.Name", consoleCLIDownload.Name)
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }

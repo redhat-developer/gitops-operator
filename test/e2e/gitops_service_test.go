@@ -42,6 +42,7 @@ func TestGitOpsService(t *testing.T) {
 	deployOperator(t)
 
 	// run subtests
+	t.Run("Validate kam service", validateKamService)
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)

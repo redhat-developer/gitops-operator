@@ -34,6 +34,7 @@ var log = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                int32  = 8080
+	portSSL             int32  = 8443
 	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName        = "BACKEND_IMAGE"
 	serviceName                = "cluster"
@@ -244,7 +245,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Setup the CLI service
-	return r.reconcileCLI(cr)
+	return r.reconcileCLI(instance, request)
 }
 
 func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
