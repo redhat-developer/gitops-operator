@@ -198,7 +198,8 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, nil
 	}
 
-	return reconcile.Result{}, nil
+	// Setup the CLI service
+	return r.reconcileCLI(cr)
 }
 
 func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
