@@ -136,6 +136,7 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 					Href: href,
 				},
 			},
+			Description: text,
 			DisplayName: text,
 		},
 	}
