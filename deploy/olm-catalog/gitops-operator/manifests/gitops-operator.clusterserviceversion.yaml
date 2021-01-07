@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
     description: A web service for rendering the GitOps UI on OpenShift
     createdAt: "2020-06-25T19:44:21Z"
     alm-examples: |-
@@ -17,7 +17,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: gitops-operator.v0.0.1
+  name: gitops-operator.v0.0.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -28,6 +28,12 @@ spec:
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
       displayName: GitOps Service
+    required:
+    - description: OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton
+      kind: Config
+      name: config.operator.tekton.dev
+      version: v1alpha1
+      displayName: OpenShift Pipelines Operator
   description: A web service for rendering the GitOps UI on OpenShift
   displayName: GitOps Service
   icon:
@@ -53,16 +59,14 @@ spec:
                 - gitops-operator
                 env:
                 - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                  value: ""
                 - name: POD_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.2
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
@@ -156,12 +160,44 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - argocds
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consolelinks
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - operators.coreos.com
+          resources:
+          - operatorgroups
+          - subscriptions
+          - clusterserviceversions
+          verbs:
+          - create
+          - get
+          - list
+          - watch
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
@@ -173,13 +209,14 @@ spec:
   - pipelines
   links:
   - name: Day 1 Operations
-    url: https://github.com/rhd-gitops-example/docs/tree/master/journey/day1
+    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day1
   - name: Day 2 Operations
-    url: https://github.com/rhd-gitops-example/docs/tree/master/journey/day2
+    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day2
   maintainers:
   - email: shbose@redhat.com
     name: shoubhik
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  version: 0.0.1
+  replaces: gitops-operator.v0.0.1
+  version: 0.0.2

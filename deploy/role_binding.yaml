@@ -5,6 +5,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: gitops-operator
+  namespace: openshift-operators
 roleRef:
   kind: Role
   name: gitops-operator

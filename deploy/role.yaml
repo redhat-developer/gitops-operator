@@ -91,3 +91,35 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - argocds
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+- apiGroups:
+  - console.openshift.io
+  resources:
+  - consolelinks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - operators.coreos.com
+  resources:
+  - operatorgroups
+  - subscriptions
+  - clusterserviceversions
+  verbs:
+  - create
+  - get
+  - list
+  - watch

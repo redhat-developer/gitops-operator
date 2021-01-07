@@ -4,14 +4,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // GitopsServiceSpec defines the desired state of GitopsService
 type GitopsServiceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService
@@ -25,7 +19,7 @@ type GitopsServiceStatus struct {
 
 // GitopsService is the Schema for the gitopsservices API
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=gitopsservices,scope=Namespaced
+// +kubebuilder:resource:path=gitopsservices,scope=Cluster
 type GitopsService struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
