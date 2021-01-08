@@ -15,9 +15,14 @@ github.com/Azure/go-autorest/tracing
 github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 github.com/PuerkitoBio/urlesc
-# github.com/argoproj-labs/argocd-operator v0.0.14
+# github.com/argoproj-labs/argocd-operator v0.0.15-0.20210106112435-26f43ea58b99
 github.com/argoproj-labs/argocd-operator/pkg/apis
 github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1
+github.com/argoproj-labs/argocd-operator/pkg/common
+github.com/argoproj-labs/argocd-operator/pkg/controller/argocd
+github.com/argoproj-labs/argocd-operator/pkg/controller/argoutil
+# github.com/argoproj/argo-cd v1.5.8
+github.com/argoproj/argo-cd/util/password
 # github.com/beorn7/perks v1.0.1
 github.com/beorn7/perks/quantile
 # github.com/blang/semver v3.5.1+incompatible
@@ -144,6 +149,7 @@ github.com/operator-framework/operator-sdk/pkg/log/zap
 github.com/operator-framework/operator-sdk/pkg/metrics
 github.com/operator-framework/operator-sdk/pkg/test
 github.com/operator-framework/operator-sdk/pkg/test/e2eutil
+github.com/operator-framework/operator-sdk/pkg/tls
 github.com/operator-framework/operator-sdk/version
 # github.com/pborman/uuid v1.2.0
 github.com/pborman/uuid
@@ -169,6 +175,8 @@ github.com/rakyll/statik/fs
 github.com/rogpeppe/go-internal/modfile
 github.com/rogpeppe/go-internal/module
 github.com/rogpeppe/go-internal/semver
+# github.com/sethvargo/go-password v0.2.0
+github.com/sethvargo/go-password/password
 # github.com/sirupsen/logrus v1.5.0
 github.com/sirupsen/logrus
 # github.com/spf13/afero v1.2.2
@@ -190,6 +198,8 @@ go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
 # golang.org/x/crypto v0.0.0-20200422194213-44a606286825
+golang.org/x/crypto/bcrypt
+golang.org/x/crypto/blowfish
 golang.org/x/crypto/ssh/terminal
 # golang.org/x/mod v0.2.0
 golang.org/x/mod/module
@@ -327,6 +337,12 @@ gopkg.in/fsnotify.v1
 gopkg.in/inf.v0
 # gopkg.in/yaml.v2 v2.3.0
 gopkg.in/yaml.v2
+# gotest.tools v2.2.0+incompatible
+gotest.tools/assert
+gotest.tools/assert/cmp
+gotest.tools/internal/difflib
+gotest.tools/internal/format
+gotest.tools/internal/source
 # k8s.io/api v0.18.3
 k8s.io/api/admission/v1beta1
 k8s.io/api/admissionregistration/v1
@@ -547,6 +563,7 @@ sigs.k8s.io/controller-runtime/pkg/ratelimiter
 sigs.k8s.io/controller-runtime/pkg/reconcile
 sigs.k8s.io/controller-runtime/pkg/recorder
 sigs.k8s.io/controller-runtime/pkg/runtime/inject
+sigs.k8s.io/controller-runtime/pkg/runtime/log
 sigs.k8s.io/controller-runtime/pkg/runtime/scheme
 sigs.k8s.io/controller-runtime/pkg/scheme
 sigs.k8s.io/controller-runtime/pkg/source
