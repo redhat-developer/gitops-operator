@@ -120,8 +120,9 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.14 h1:nmDXrIg+DHsvg7xwCF/kQTmb+wuf3n477K6lLn3RbPo=
-github.com/argoproj-labs/argocd-operator v0.0.14/go.mod h1:Or5hzki93IimfFZl6VC6VvTWcdaqa1/HpAEwGNF14R8=
+github.com/argoproj-labs/argocd-operator v0.0.15-0.20210106112435-26f43ea58b99 h1:8k/GVVcuLLvcm5O83SEL2bbfAcaL+/5gEwz3npvDK1Y=
+github.com/argoproj-labs/argocd-operator v0.0.15-0.20210106112435-26f43ea58b99/go.mod h1:FnnHlU59v18bhT0cC8eeEWSXhxzvGulJvjOpGqozeTE=
+github.com/argoproj/argo-cd v1.5.8 h1:fmJP50W48OVGeDMZlbYBG0SMHY50wsEETvOx8IhHi/Q=
 github.com/argoproj/argo-cd v1.5.8/go.mod h1:UPOPiF6Y1y/oTL3X1KcuLbu7ljD7f4+SIaXvlowBmhE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
@@ -1037,6 +1038,7 @@ github.com/segmentio/kafka-go v0.1.0/go.mod h1:X6itGqS9L4jDletMsxZ7Dz+JFWxM6JHfP
 github.com/segmentio/kafka-go v0.2.0/go.mod h1:X6itGqS9L4jDletMsxZ7Dz+JFWxM6JHfPOCvTvk+EJo=
 github.com/sergi/go-diff v1.0.0 h1:Kpca3qRNrduNnOQeazBd0ysaKrUJiIuISHxogkT9RPQ=
 github.com/sergi/go-diff v1.0.0/go.mod h1:0CfEIISq7TuYL3j771MWULgwwjU+GofnZX9QAmXWZgo=
+github.com/sethvargo/go-password v0.2.0 h1:BTDl4CC/gjf/axHMaDQtw507ogrXLci6XRiLc7i/UHI=
 github.com/sethvargo/go-password v0.2.0/go.mod h1:Ym4Mr9JXLBycr02MFuVQ/0JHidNetSgbzutTr3zsYXE=
 github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24/go.mod h1:M+9NzErvs504Cn4c5DxATwIqPbtswREoFCre64PpcG4=
 github.com/shurcooL/httpfs v0.0.0-20171119174359-809beceb2371/go.mod h1:ZY1cvUeJuFPAdZ/B6v7RHavJWZn2YPVFQ1OSXhCGOkg=
