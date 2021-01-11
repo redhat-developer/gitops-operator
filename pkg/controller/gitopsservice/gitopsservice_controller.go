@@ -9,8 +9,6 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/config"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice/dependency"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,34 +158,6 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
-	}
-
-	cm := config.NewGitOpsConfig()
-	// Set GitopsService instance as the owner and controller of gitops configmap
-	if err := controllerutil.SetControllerReference(instance, &cm.ConfigMap, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = cm.GetLatest(context.TODO(), r.client)
-	if err != nil && errors.IsNotFound(err) {
-		err = cm.Create(context.TODO(), r.client)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	timeout, err := cm.GetTimeout()
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	dc := dependency.NewClient(r.client, timeout)
-	err = dc.Install()
-	if err != nil {
-		reqLogger.Error(err, "Failed to install GitOps dependencies")
 		return reconcile.Result{}, err
 	}
 
