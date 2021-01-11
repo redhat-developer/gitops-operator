@@ -23,6 +23,7 @@ const cliName = "kam"
 const cliLongName = "GitOps Application Manager"
 const cliImage = "quay.io/redhat-developer/kam:1d0ef5"
 const cliImageEnvName = "KAM_IMAGE"
+const kubeAppLabelName = "app.kubernetes.io/name"
 
 func newDeploymentForCLI() *appsv1.Deployment {
 	image := os.Getenv(cliImageEnvName)
@@ -48,7 +49,7 @@ func newDeploymentForCLI() *appsv1.Deployment {
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app": cliName,
+				kubeAppLabelName: cliName,
 			},
 		},
 		Spec: podSpec,
@@ -59,7 +60,7 @@ func newDeploymentForCLI() *appsv1.Deployment {
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": cliName,
+				kubeAppLabelName: cliName,
 			},
 		},
 		Template: template,
@@ -85,17 +86,17 @@ func newServiceForCLI() *corev1.Service {
 			},
 			{
 				Name:       "tcp-8443",
-				Port:       portSSL,
+				Port:       portTLS,
 				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(8443)),
+				TargetPort: intstr.FromInt(int(portTLS)),
 			},
 		},
 		Selector: map[string]string{
-			"app": cliName,
+			kubeAppLabelName: cliName,
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(cliName, serviceNamespace, func(o *metav1.ObjectMeta) {}),
+		ObjectMeta: objectMeta(cliName, serviceNamespace),
 		Spec:       spec,
 	}
 	return svc
@@ -108,7 +109,7 @@ func newRouteForCLI() *routev1.Route {
 			Name: cliName,
 		},
 		Port: &routev1.RoutePort{
-			TargetPort: intstr.IntOrString{IntVal: portSSL},
+			TargetPort: intstr.IntOrString{IntVal: portTLS},
 		},
 		TLS: &routev1.TLSConfig{
 			Termination:                   routev1.TLSTerminationPassthrough,
@@ -116,12 +117,10 @@ func newRouteForCLI() *routev1.Route {
 		},
 	}
 
-	routeObj := &routev1.Route{
+	return &routev1.Route{
 		ObjectMeta: objectMeta(cliName, serviceNamespace),
 		Spec:       routeSpec,
 	}
-
-	return routeObj
 }
 
 func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleCLIDownload {
@@ -142,10 +141,9 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 	}
 }
 
-func (r *ReconcileGitopsService) reconcileCLI(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling GitopsService")
 
 	deploymentObj := newDeploymentForCLI()
 

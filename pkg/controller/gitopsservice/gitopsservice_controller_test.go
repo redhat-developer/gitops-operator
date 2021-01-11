@@ -29,8 +29,8 @@ func TestImageFromEnvVariable(t *testing.T) {
 
 	t.Run("Kam Image present as env variable", func(t *testing.T) {
 		image := "quay.io/org/test"
-		os.Setenv(kamImageEnvName, image)
-		defer os.Unsetenv(kamImageEnvName)
+		os.Setenv(cliImageEnvName, image)
+		defer os.Unsetenv(cliImageEnvName)
 
 		deployment := newDeploymentForCLI()
 
