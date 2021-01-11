@@ -37,6 +37,8 @@ import (
 
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
+	argocd "github.com/argoproj-labs/argocd-operator/pkg/apis"
+
 	routev1 "github.com/openshift/api/route/v1"
 )
 
@@ -116,6 +118,8 @@ func main() {
 	}
 
 	log.Info("Registering Components.")
+
+	registerComponentOrExit(mgr, argocd.AddToScheme)
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
