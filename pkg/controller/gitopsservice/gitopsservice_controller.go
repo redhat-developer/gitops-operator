@@ -372,7 +372,7 @@ func newBackendRoute(name, namespace string) *routev1.Route {
 func newNamespace() *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
 		Name: serviceNamespace,
-		Annotations: map[string]string{
+		Labels: map[string]string{
 			// Enable full-fledged support for integration with cluster monitoring.
 			"openshift.io/cluster-monitoring": "true",
 		},
