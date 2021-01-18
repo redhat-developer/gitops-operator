@@ -6,9 +6,11 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -160,8 +162,28 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	defaultArgoCDInstance, err := argoCDCR(request.Name, request.Namespace)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	existingArgoCD := &argoapp.ArgoCD{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
+		err = r.client.Create(context.TODO(), existingArgoCD)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Define a new Pod object
-	deploymentObj := newBackendDeployment()
+	deploymentObj := newBackendDeployment(request.Name, request.Namespace)
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -178,7 +200,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newBackendService()
+	serviceRef := newBackendService(request.Name, request.Namespace)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -186,7 +208,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if this Service already exists
 	existingServiceRef := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingServiceRef)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, existingServiceRef)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), serviceRef)
@@ -195,7 +217,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newBackendRoute()
+	routeRef := newBackendRoute(request.Name, request.Namespace)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -203,7 +225,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingRoute := &routev1.Route{}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingRoute)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, existingRoute)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
 		err = r.client.Create(context.TODO(), routeRef)
@@ -227,7 +249,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment() *appsv1.Deployment {
+func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -285,21 +307,21 @@ func newBackendDeployment() *appsv1.Deployment {
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": serviceName,
+				"app": name,
 			},
 		},
 		Template: template,
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(serviceName, serviceNamespace),
+		ObjectMeta: objectMeta(name, namespace),
 		Spec:       deploymentSpec,
 	}
 
 	return deploymentObj
 }
 
-func newBackendService() *corev1.Service {
+func newBackendService(name, namespace string) *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -310,13 +332,13 @@ func newBackendService() *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app": serviceName,
+			"app": name,
 		},
 	}
 	svc := &corev1.Service{
 		ObjectMeta: objectMeta(serviceName, serviceNamespace, func(o *metav1.ObjectMeta) {
 			o.Annotations = map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": serviceName,
+				"service.beta.openshift.io/serving-cert-secret-name": namespace,
 			}
 		}),
 		Spec: spec,
@@ -324,11 +346,11 @@ func newBackendService() *corev1.Service {
 	return svc
 }
 
-func newBackendRoute() *routev1.Route {
+func newBackendRoute(name, namespace string) *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
-			Name: serviceName,
+			Name: name,
 		},
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.IntOrString{IntVal: port},
@@ -340,7 +362,7 @@ func newBackendRoute() *routev1.Route {
 	}
 
 	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(serviceName, serviceNamespace),
+		ObjectMeta: objectMeta(name, namespace),
 		Spec:       routeSpec,
 	}
 
@@ -350,6 +372,10 @@ func newBackendRoute() *routev1.Route {
 func newNamespace() *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
 		Name: serviceNamespace,
+		Annotations: map[string]string{
+			// Enable full-fledged support for integration with cluster monitoring.
+			"openshift.io/cluster-monitoring": "true",
+		},
 	}
 	return &corev1.Namespace{
 		ObjectMeta: objectMeta,

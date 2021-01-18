@@ -11,7 +11,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		os.Setenv(backendImageEnvName, image)
 		defer os.Unsetenv(backendImageEnvName)
 
-		deployment := newBackendDeployment()
+		deployment := newBackendDeployment(serviceName, serviceNamespace)
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -19,7 +19,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment()
+		deployment := newBackendDeployment(serviceName, serviceNamespace)
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
