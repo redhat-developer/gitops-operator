@@ -32,7 +32,7 @@ spec:
 
 ![a relative link](docs/assets/installed-operator.png)
 
-4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-pipelines-app-delivery` namespace. Note, the namespace doesn't have to exist in advance, the operator creates it for you.
+4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-gitops` namespace. Note, the namespace doesn't have to exist in advance, the operator creates it for you.
 
 That's it, your API `route` should be created for you. You don't need to expliclty create any operand/CR.
 
@@ -41,7 +41,7 @@ That's it, your API `route` should be created for you. You don't need to explicl
 
 1. Clone the repository.
 2. Login to a cluster on your command-line.
-3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-namespace=openshift-pipelines-app-delivery`
+3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-namespace=openshift-gitops`
 
 **Note:** Please check that you're using [operator-sdk]( https://github.com/operator-framework/operator-sdk/releases/tag/v0.17.2) version 0.17 or earlier. Since the community-operators do not support `v1` version of `CustomResourceDefinition`, the operator is using `v1beta1` version of `CustomResourceDefinition`.
 
