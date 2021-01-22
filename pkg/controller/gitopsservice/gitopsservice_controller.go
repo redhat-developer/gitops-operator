@@ -162,7 +162,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	defaultArgoCDInstance, err := argoCDCR(request.Name, request.Namespace)
+	defaultArgoCDInstance, err := argoCDCR(request.Name, serviceNamespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -173,17 +173,17 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	existingArgoCD := &argoapp.ArgoCD{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name, Namespace: serviceNamespace}, existingArgoCD)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
-		err = r.client.Create(context.TODO(), existingArgoCD)
+		err = r.client.Create(context.TODO(), defaultArgoCDInstance)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	// Define a new Pod object
-	deploymentObj := newBackendDeployment(request.Name, request.Namespace)
+	deploymentObj := newBackendDeployment(request.Name, serviceNamespace)
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -200,7 +200,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newBackendService(request.Name, request.Namespace)
+	serviceRef := newBackendService(request.Name, serviceNamespace)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -217,7 +217,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newBackendRoute(request.Name, request.Namespace)
+	routeRef := newBackendRoute(request.Name, serviceNamespace)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
