@@ -35,7 +35,7 @@ var (
 	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName        = "BACKEND_IMAGE"
 	serviceName                = "cluster"
-	serviceNamespace           = "openshift-pipelines-app-delivery"
+	serviceNamespace           = "openshift-gitops"
 	insecureEnvVar             = "INSECURE"
 	insecureEnvVarValue        = "true"
 )
