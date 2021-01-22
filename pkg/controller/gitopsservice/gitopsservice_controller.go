@@ -259,7 +259,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  serviceName,
+				Name:  name,
 				Image: image,
 				Ports: []corev1.ContainerPort{
 					{
@@ -288,7 +288,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 				Name: "backend-ssl",
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: serviceName,
+						SecretName: serviceNamespace,
 					},
 				},
 			},
