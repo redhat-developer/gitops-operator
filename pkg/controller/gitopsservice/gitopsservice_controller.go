@@ -2,6 +2,7 @@ package gitopsservice
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -162,7 +163,8 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	defaultArgoCDInstance, err := argoCDCR(request.Name, serviceNamespace)
+	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
+	defaultArgoCDInstance, err := argoCDCR(argoCDIdentifier, serviceNamespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -173,7 +175,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	existingArgoCD := &argoapp.ArgoCD{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name, Namespace: serviceNamespace}, existingArgoCD)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: serviceNamespace}, existingArgoCD)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
 		err = r.client.Create(context.TODO(), defaultArgoCDInstance)

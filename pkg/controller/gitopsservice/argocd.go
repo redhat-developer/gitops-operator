@@ -23,7 +23,6 @@ func argoCDCR(name, ns string) (*argoapp.ArgoCD, error) {
 		},
 	})
 	if err != nil {
-		// could use fmt.Errorf( ) but wouldn't make much of a difference I suppose.
 		return nil, err
 	}
 	return &argoapp.ArgoCD{
