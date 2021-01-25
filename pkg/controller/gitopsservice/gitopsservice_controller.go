@@ -299,7 +299,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app": serviceName,
+				"app.kubernetes.io/name": serviceName,
 			},
 		},
 		Spec: podSpec,
@@ -310,7 +310,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": name,
+				"app.kubernetes.io/name": name,
 			},
 		},
 		Template: template,
@@ -335,7 +335,7 @@ func newBackendService(name, namespace string) *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app": name,
+			"app.kubernetes.io/name": name,
 		},
 	}
 	svc := &corev1.Service{
