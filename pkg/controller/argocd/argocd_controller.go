@@ -32,11 +32,10 @@ import (
 var logs = logf.Log.WithName("controller_argocd_route")
 
 const (
-	argocdNS           = "argocd"
-	consoleLinkName    = "argocd"
-	argocdInstanceName = "argocd"
-	argocdRouteName    = "argocd-server"
-	iconFilePath       = "/argo.png"
+	argocdNS        = "openshift-gitops"
+	consoleLinkName = "argocd"
+	argocdRouteName = "argocd-cluster-server"
+	iconFilePath    = "/argo.png"
 )
 
 //go:generate statik --src ./img -f

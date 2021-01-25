@@ -1,4 +1,4 @@
-package gitopsservice
+package argocd
 
 import (
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
@@ -14,7 +14,9 @@ type resource struct {
 	Clusters  []string `json:"clusters"`
 }
 
-func argoCDCR(name, ns string) (*argoapp.ArgoCD, error) {
+// NewCR returns an ArgoCD reference optimized for use in OpenShift
+// with Tekton
+func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{
 		{
 			APIGroups: []string{"tekton.dev"},

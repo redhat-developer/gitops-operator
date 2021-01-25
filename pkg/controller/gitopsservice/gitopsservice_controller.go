@@ -11,6 +11,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -164,7 +165,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
-	defaultArgoCDInstance, err := argoCDCR(argoCDIdentifier, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, serviceNamespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

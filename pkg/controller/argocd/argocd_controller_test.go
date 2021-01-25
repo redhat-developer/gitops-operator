@@ -17,6 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	argocdInstanceName = "argocd"
+)
+
 var (
 	argoCDRoute = &routev1.Route{
 		ObjectMeta: v1.ObjectMeta{
