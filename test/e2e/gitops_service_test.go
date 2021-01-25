@@ -52,7 +52,7 @@ func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
-	namespace := "openshift-pipelines-app-delivery"
+	namespace := "openshift-gitops"
 	name := "cluster"
 	f := framework.Global
 
