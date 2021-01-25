@@ -152,8 +152,7 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	}
 
 	// Check if this Deployment already exists
-	found := &appsv1.Deployment{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, found)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, &appsv1.Deployment{})
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), deploymentObj)
@@ -167,8 +166,7 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	}
 
 	// Check if this Service already exists
-	existingServiceRef := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingServiceRef)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, &corev1.Service{})
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), serviceRef)
@@ -182,9 +180,7 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 		return reconcile.Result{}, err
 	}
 
-	existingRoute := &routev1.Route{}
-
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingRoute)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, &routev1.Route{})
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
 		err = r.client.Create(context.TODO(), routeRef)
@@ -194,12 +190,15 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 		return reconcile.Result{}, nil
 	}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, routeRef)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, routeRef)
 	kamDownloadURLgo := fmt.Sprintf("https://%s/kam/", routeRef.Spec.Host)
-	consoleCLIDownload := newConsoleCLIDownload(cliName, kamDownloadURLgo, cliLongName)
 
-	existingConsoleCLIDownload := &console.ConsoleCLIDownload{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: consoleCLIDownload.Name}, existingConsoleCLIDownload)
+	consoleCLIDownload := newConsoleCLIDownload(cliName, kamDownloadURLgo, cliLongName)
+	if err := controllerutil.SetControllerReference(cr, consoleCLIDownload, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: consoleCLIDownload.Name}, &console.ConsoleCLIDownload{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new ConsoleDownload", "ConsoleDownload.Name", consoleCLIDownload.Name)

@@ -9,6 +9,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
+	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -18,7 +19,7 @@ func validateKamService(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
-	namespace := "openshift-pipelines-app-delivery"
+	namespace := "openshift-gitops"
 	name := "kam"
 	f := framework.Global
 
@@ -44,4 +45,6 @@ func validateKamService(t *testing.T) {
 	if got != route.Spec.Host {
 		t.Fatalf("Host mismatch: got %s, want %s", got, route.Spec.Host)
 	}
+
+	assert.Equal(t, consoleCLIDownoad.OwnerReferences[0].Name, route.OwnerReferences[0].Name)
 }
