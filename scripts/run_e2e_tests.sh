@@ -5,7 +5,7 @@ set -x
 E2E_TEST_NS="gitops-test"
 E2E_TEST_DIR=./test/e2e
 ARGOCD_NS="argocd"
-GITOPS_BACKEND_NS="openshift-pipelines-app-delivery"
+GITOPS_BACKEND_NS="openshift-gitops"
 CONSOLE_LINK="argocd"
 
 echo "Checking if operator-sdk is installed"
