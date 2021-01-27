@@ -39,6 +39,7 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
 	argocd "github.com/argoproj-labs/argocd-operator/pkg/apis"
+	_ "github.com/argoproj-labs/argocd-operator/pkg/reconciler/openshift"
 
 	routev1 "github.com/openshift/api/route/v1"
 )
