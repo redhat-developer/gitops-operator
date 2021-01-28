@@ -243,7 +243,10 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 func getClusterVersion(client client.Client) (string, error) {
 	clusterVersion := &configv1.ClusterVersion{}
 	err := client.Get(context.TODO(), types.NamespacedName{Name: clusterVersionName}, clusterVersion)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return "", nil
+		}
 		return "", err
 	}
 	return clusterVersion.Status.Desired.Version, nil

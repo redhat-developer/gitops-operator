@@ -98,6 +98,30 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	assertNoError(t, err)
 }
 
+func TestGetClusterVersion(t *testing.T) {
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	t.Run("Valid Cluster Version", func(t *testing.T) {
+		version := "4.7.1"
+		fakeClient := fake.NewFakeClient(newClusterVersion(version))
+		clusterVersion, err := getClusterVersion(fakeClient)
+		assertNoError(t, err)
+		if clusterVersion != version {
+			t.Fatalf("got %s, want %s", clusterVersion, version)
+		}
+	})
+	t.Run("Cluster Version not found", func(t *testing.T) {
+		fakeClient := fake.NewFakeClient()
+		clusterVersion, err := getClusterVersion(fakeClient)
+		assertNoError(t, err)
+		if clusterVersion != "" {
+			t.Fatalf("got %s, want %s", clusterVersion, "")
+		}
+	})
+}
+
 func newClusterVersion(version string) *configv1.ClusterVersion {
 	return &configv1.ClusterVersion{
 		ObjectMeta: metav1.ObjectMeta{
