@@ -345,6 +345,13 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - clusterversions
+          verbs:
+          - get
+          - list
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
@@ -371,5 +378,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  replaces: gitops-operator.v0.0.2
+  # replaces: gitops-operator.v0.0.2
   version: 0.0.3
