@@ -378,5 +378,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc.
-  # replaces: gitops-operator.v0.0.2
+  replaces: gitops-operator.v0.0.2
   version: 0.0.3
