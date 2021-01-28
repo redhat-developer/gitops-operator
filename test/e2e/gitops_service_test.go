@@ -31,7 +31,7 @@ var (
 const (
 	operatorName    = "gitops-operator"
 	argoCDRouteName = "argocd-server"
-	argoCDNamespace = "argocd"
+	argoCDNamespace = "openshift-gitops"
 	consoleLinkName = "argocd"
 )
 
@@ -112,12 +112,8 @@ func validateArgoCDInstallation(t *testing.T) {
 	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	// Check if ArgoCD operator is installed
-	err = e2eutil.WaitForDeployment(t, f.KubeClient, argoCDNamespace, "argocd-operator", 1, retryInterval, timeout)
-	assertNoError(t, err)
-
 	// Check if ArgoCD instance is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd", Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
 }
 
