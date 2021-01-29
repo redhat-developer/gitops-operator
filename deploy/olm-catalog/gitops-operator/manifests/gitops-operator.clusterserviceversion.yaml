@@ -374,6 +374,13 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - config.openshift.io
+          resources:
+          - clusterversions
+          verbs:
+          - get
+          - list
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
