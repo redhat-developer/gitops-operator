@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 
+	configv1 "github.com/openshift/api/config/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 
@@ -34,14 +36,16 @@ import (
 var log = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
-var (
-	port                int32  = 8080
-	backendImage        string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	backendImageEnvName        = "BACKEND_IMAGE"
-	serviceName                = "cluster"
-	serviceNamespace           = "openshift-gitops"
-	insecureEnvVar             = "INSECURE"
-	insecureEnvVarValue        = "true"
+const (
+	port                       int32  = 8080
+	backendImage               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImageEnvName               = "BACKEND_IMAGE"
+	serviceName                       = "cluster"
+	serviceNamespace                  = "openshift-gitops"
+	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
+	insecureEnvVar                    = "INSECURE"
+	insecureEnvVarValue               = "true"
+	clusterVersionName                = "version"
 )
 
 // Add creates a new GitopsService Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -119,12 +123,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	client := mgr.GetClient()
 
-	namespaceRef := newNamespace()
-	err = client.Create(context.TODO(), namespaceRef)
-	if err != nil {
-		reqLogger.Error(err, "Failed to create namespace", "Namespace", serviceNamespace)
-	}
-
 	gitopsServiceRef := newGitopsService()
 	err = client.Create(context.TODO(), gitopsServiceRef)
 	if err != nil {
@@ -152,7 +150,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	// Fetch the GitopsService instance
 	instance := &pipelinesv1alpha1.GitopsService{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -164,11 +162,33 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
-	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, serviceNamespace)
+	clusterVersion, err := getClusterVersion(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
+
+	namespace := serviceNamespace
+	if strings.HasPrefix(clusterVersion, "4.6") {
+		namespace = depracatedServiceNamespace
+	}
+
+	namespaceRef := newNamespace(namespace)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Namespace", "Name", namespace)
+		err = r.client.Create(context.TODO(), namespaceRef)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	serviceNamespacedName := types.NamespacedName{
+		Name:      serviceName,
+		Namespace: namespace,
+	}
+
+	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
+	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, namespace)
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.scheme); err != nil {
@@ -186,7 +206,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Define a new Pod object
-	deploymentObj := newBackendDeployment(request.Name, serviceNamespace)
+	deploymentObj := newBackendDeployment(serviceNamespacedName)
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
@@ -203,7 +223,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			return reconcile.Result{}, err
 		}
 	}
-	serviceRef := newBackendService(request.Name, serviceNamespace)
+	serviceRef := newBackendService(serviceNamespacedName)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -220,7 +240,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	routeRef := newBackendRoute(request.Name, serviceNamespace)
+	routeRef := newBackendRoute(serviceNamespacedName)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -241,6 +261,18 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
+func getClusterVersion(client client.Client) (string, error) {
+	clusterVersion := &configv1.ClusterVersion{}
+	err := client.Get(context.TODO(), types.NamespacedName{Name: clusterVersionName}, clusterVersion)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return clusterVersion.Status.Desired.Version, nil
+}
+
 func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
 	objectMeta := metav1.ObjectMeta{
 		Name:      resourceName,
@@ -252,7 +284,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(name, namespace string) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -260,7 +292,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  name,
+				Name:  ns.Name,
 				Image: image,
 				Ports: []corev1.ContainerPort{
 					{
@@ -289,7 +321,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 				Name: "backend-ssl",
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: serviceNamespace,
+						SecretName: ns.Name,
 					},
 				},
 			},
@@ -299,7 +331,7 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app.kubernetes.io/name": serviceName,
+				"app.kubernetes.io/name": ns.Name,
 			},
 		},
 		Spec: podSpec,
@@ -310,21 +342,21 @@ func newBackendDeployment(name, namespace string) *appsv1.Deployment {
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app.kubernetes.io/name": name,
+				"app.kubernetes.io/name": ns.Name,
 			},
 		},
 		Template: template,
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(name, namespace),
+		ObjectMeta: objectMeta(ns.Name, ns.Namespace),
 		Spec:       deploymentSpec,
 	}
 
 	return deploymentObj
 }
 
-func newBackendService(name, namespace string) *corev1.Service {
+func newBackendService(ns types.NamespacedName) *corev1.Service {
 
 	spec := corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -335,13 +367,13 @@ func newBackendService(name, namespace string) *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app.kubernetes.io/name": name,
+			"app.kubernetes.io/name": ns.Name,
 		},
 	}
 	svc := &corev1.Service{
-		ObjectMeta: objectMeta(serviceName, serviceNamespace, func(o *metav1.ObjectMeta) {
+		ObjectMeta: objectMeta(ns.Name, ns.Namespace, func(o *metav1.ObjectMeta) {
 			o.Annotations = map[string]string{
-				"service.beta.openshift.io/serving-cert-secret-name": namespace,
+				"service.beta.openshift.io/serving-cert-secret-name": ns.Name,
 			}
 		}),
 		Spec: spec,
@@ -349,11 +381,11 @@ func newBackendService(name, namespace string) *corev1.Service {
 	return svc
 }
 
-func newBackendRoute(name, namespace string) *routev1.Route {
+func newBackendRoute(ns types.NamespacedName) *routev1.Route {
 	routeSpec := routev1.RouteSpec{
 		To: routev1.RouteTargetReference{
 			Kind: "Service",
-			Name: name,
+			Name: ns.Name,
 		},
 		Port: &routev1.RoutePort{
 			TargetPort: intstr.IntOrString{IntVal: port},
@@ -365,16 +397,16 @@ func newBackendRoute(name, namespace string) *routev1.Route {
 	}
 
 	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(name, namespace),
+		ObjectMeta: objectMeta(ns.Name, ns.Namespace),
 		Spec:       routeSpec,
 	}
 
 	return routeObj
 }
 
-func newNamespace() *corev1.Namespace {
+func newNamespace(ns string) *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
-		Name: serviceNamespace,
+		Name: ns,
 		Labels: map[string]string{
 			// Enable full-fledged support for integration with cluster monitoring.
 			"openshift.io/cluster-monitoring": "true",

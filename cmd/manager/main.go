@@ -18,6 +18,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/pkg/controller"
 	"github.com/redhat-developer/gitops-operator/version"
 
+	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -139,6 +140,7 @@ func main() {
 	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argoapi.AddToScheme)
+	registerComponentOrExit(mgr, configv1.AddToScheme)
 
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)
