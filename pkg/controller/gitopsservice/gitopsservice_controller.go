@@ -149,7 +149,6 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("sndksndskndksnd")
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
