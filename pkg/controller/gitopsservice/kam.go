@@ -21,7 +21,7 @@ import (
 
 const cliName = "kam"
 const cliLongName = "GitOps Application Manager"
-const cliImage = "quay.io/redhat-developer/kam:1d0ef5"
+const cliImage = "registry.redhat.io/openshift-gitops-1-tech-preview/kam-delivery-rhel8:1.0-tech-preview"
 const cliImageEnvName = "KAM_IMAGE"
 const kubeAppLabelName = "app.kubernetes.io/name"
 
