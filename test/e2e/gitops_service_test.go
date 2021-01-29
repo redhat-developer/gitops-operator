@@ -12,6 +12,7 @@ import (
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
+	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -30,7 +31,7 @@ var (
 
 const (
 	operatorName    = "gitops-operator"
-	argoCDRouteName = "argocd-server"
+	argoCDRouteName = "argocd-cluster-server"
 	argoCDNamespace = "openshift-gitops"
 	consoleLinkName = "argocd"
 )
@@ -113,8 +114,30 @@ func validateArgoCDInstallation(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check if ArgoCD instance is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+	existingArgoInstance := &argoapp.ArgoCD{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
+
+	// modify the ArgoCD instance "manually"
+	// and ensure that a manual modification of the
+	// ArgoCD CR is allowed, and not overwritten
+	// by the reconciler
+
+	existingArgoInstance.Spec.DisableAdmin = true
+	err = f.Client.Update(context.TODO(), existingArgoInstance)
+
+	// assumption that an attempt to reconcile would have happened within 5 seconds.
+	// This can definitely be improved.
+	time.Sleep(5 * time.Second)
+
+	// Check if ArgoCD CR was overwritten
+	existingArgoInstance = &argoapp.ArgoCD{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
+	assertNoError(t, err)
+
+	// check that this has not been overwritten
+	assert.Equal(t, existingArgoInstance.Spec.DisableAdmin, true)
+
 }
 
 func assertNoError(t *testing.T, err error) {
