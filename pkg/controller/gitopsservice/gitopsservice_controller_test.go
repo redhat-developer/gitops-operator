@@ -8,9 +8,9 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -95,7 +95,7 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(newClusterVersion("4.6.15"), newGitopsService())
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.6.15"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(newRequest("test", "test"))
@@ -110,7 +110,7 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(newClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(newRequest("test", "test"))
@@ -118,46 +118,6 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
-}
-
-func TestGetClusterVersion(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
-
-	t.Run("Valid Cluster Version", func(t *testing.T) {
-		version := "4.7.1"
-		fakeClient := fake.NewFakeClient(newClusterVersion(version))
-		clusterVersion, err := getClusterVersion(fakeClient)
-		assertNoError(t, err)
-		if clusterVersion != version {
-			t.Fatalf("got %s, want %s", clusterVersion, version)
-		}
-	})
-	t.Run("Cluster Version not found", func(t *testing.T) {
-		fakeClient := fake.NewFakeClient()
-		clusterVersion, err := getClusterVersion(fakeClient)
-		assertNoError(t, err)
-		if clusterVersion != "" {
-			t.Fatalf("got %s, want %s", clusterVersion, "")
-		}
-	})
-}
-
-func newClusterVersion(version string) *configv1.ClusterVersion {
-	return &configv1.ClusterVersion{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: clusterVersionName,
-		},
-		Spec: configv1.ClusterVersionSpec{
-			Channel: "stable",
-		},
-		Status: configv1.ClusterVersionStatus{
-			Desired: configv1.Update{
-				Version: version,
-			},
-		},
-	}
 }
 
 func addKnownTypesToScheme(scheme *runtime.Scheme) {

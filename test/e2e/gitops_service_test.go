@@ -9,9 +9,11 @@ import (
 
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
+	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -19,6 +21,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 )
 
 var (
@@ -29,10 +32,11 @@ var (
 )
 
 const (
-	operatorName    = "gitops-operator"
-	argoCDRouteName = "argocd-server"
-	argoCDNamespace = "argocd"
-	consoleLinkName = "argocd"
+	operatorName              = "gitops-operator"
+	argoCDRouteName           = "argocd-cluster-server"
+	argoCDNamespace           = "openshift-gitops"
+	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
+	consoleLinkName           = "argocd"
 )
 
 func TestGitOpsService(t *testing.T) {
@@ -50,14 +54,17 @@ func TestGitOpsService(t *testing.T) {
 
 func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
-	namespace := "openshift-gitops"
+
 	name := "cluster"
 	f := framework.Global
+	namespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	assertNoError(t, err)
 
 	// check backend deployment
-	err := e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
+	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
 	assertNoError(t, err)
 
 	// check backend service
@@ -72,10 +79,14 @@ func validateGitOpsBackend(t *testing.T) {
 func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleLink{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	f := framework.Global
 
+	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	assertNoError(t, err)
+
 	route := &routev1.Route{}
-	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 	assertNoError(t, err)
 
 	// check ConsoleLink
@@ -107,19 +118,42 @@ func deployOperator(t *testing.T) {
 
 func validateArgoCDInstallation(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+
 	f := framework.Global
 
-	// Check if argocd namespace is created
-	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
+	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
 	assertNoError(t, err)
 
-	// Check if ArgoCD operator is installed
-	err = e2eutil.WaitForDeployment(t, f.KubeClient, argoCDNamespace, "argocd-operator", 1, retryInterval, timeout)
+	// Check if argocd namespace is created
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 	// Check if ArgoCD instance is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd", Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+	existingArgoInstance := &argoapp.ArgoCD{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
+
+	// modify the ArgoCD instance "manually"
+	// and ensure that a manual modification of the
+	// ArgoCD CR is allowed, and not overwritten
+	// by the reconciler
+
+	existingArgoInstance.Spec.DisableAdmin = true
+	err = f.Client.Update(context.TODO(), existingArgoInstance)
+
+	// assumption that an attempt to reconcile would have happened within 5 seconds.
+	// This can definitely be improved.
+	time.Sleep(5 * time.Second)
+
+	// Check if ArgoCD CR was overwritten
+	existingArgoInstance = &argoapp.ArgoCD{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
+	assertNoError(t, err)
+
+	// check that this has not been overwritten
+	assert.Equal(t, existingArgoInstance.Spec.DisableAdmin, true)
+
 }
 
 func assertNoError(t *testing.T, err error) {
@@ -128,3 +162,4 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+

@@ -4,8 +4,8 @@ set -x
 
 E2E_TEST_NS="gitops-test"
 E2E_TEST_DIR=./test/e2e
-ARGOCD_NS="argocd"
-GITOPS_BACKEND_NS="openshift-gitops"
+ARGOCD_NS="openshift-gitops"
+DEPRACATED_ARGOCD_NS="openshift-pipelines-app-delivery"
 CONSOLE_LINK="argocd"
 
 echo "Checking if operator-sdk is installed"
@@ -30,5 +30,5 @@ operator-sdk test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-
 echo "Cleaning e2e test resources"
 oc delete project $E2E_TEST_NS
 oc delete project $ARGOCD_NS
-oc delete project $GITOPS_BACKEND_NS
+oc delete project $DEPRACATED_ARGOCD_NS
 oc delete consolelink $CONSOLE_LINK
