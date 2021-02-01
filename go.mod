@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.0.15-0.20210129140555-ecd523a33d34
+	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.4.0
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
