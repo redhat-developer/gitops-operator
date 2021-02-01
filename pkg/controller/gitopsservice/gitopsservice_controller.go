@@ -2,15 +2,18 @@ package gitopsservice
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 
 	configv1 "github.com/openshift/api/config/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -158,14 +161,9 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	clusterVersion, err := getClusterVersion(r.client)
+	namespace, err := argocd.GetArgoCDNamespace(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
-	}
-
-	namespace := serviceNamespace
-	if strings.HasPrefix(clusterVersion, "4.6") {
-		namespace = depracatedServiceNamespace
 	}
 
 	namespaceRef := newNamespace(namespace)
@@ -181,6 +179,24 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	serviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: namespace,
+	}
+
+	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
+	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, namespace)
+
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	existingArgoCD := &argoapp.ArgoCD{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: namespace}, existingArgoCD)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
+		err = r.client.Create(context.TODO(), defaultArgoCDInstance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	// Define a new Pod object
@@ -209,7 +225,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	// Check if this Service already exists
 	existingServiceRef := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingServiceRef)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, existingServiceRef)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
 		err = r.client.Create(context.TODO(), serviceRef)
@@ -226,7 +242,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingRoute := &routev1.Route{}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingRoute)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, existingRoute)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
 		err = r.client.Create(context.TODO(), routeRef)
@@ -309,7 +325,7 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
-				"app": ns.Name,
+				"app.kubernetes.io/name": ns.Name,
 			},
 		},
 		Spec: podSpec,
@@ -320,7 +336,7 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": ns.Name,
+				"app.kubernetes.io/name": ns.Name,
 			},
 		},
 		Template: template,
@@ -345,7 +361,7 @@ func newBackendService(ns types.NamespacedName) *corev1.Service {
 			},
 		},
 		Selector: map[string]string{
-			"app": ns.Name,
+			"app.kubernetes.io/name": ns.Name,
 		},
 	}
 	svc := &corev1.Service{
@@ -385,6 +401,10 @@ func newBackendRoute(ns types.NamespacedName) *routev1.Route {
 func newNamespace(ns string) *corev1.Namespace {
 	objectMeta := metav1.ObjectMeta{
 		Name: ns,
+		Labels: map[string]string{
+			// Enable full-fledged support for integration with cluster monitoring.
+			"openshift.io/cluster-monitoring": "true",
+		},
 	}
 	return &corev1.Namespace{
 		ObjectMeta: objectMeta,
