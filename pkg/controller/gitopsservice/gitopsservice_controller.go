@@ -35,15 +35,17 @@ import (
 var log = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
-const (
+var (
 	port                       int32  = 8080
+	portTLS                    int32  = 8443
 	backendImage               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName               = "BACKEND_IMAGE"
 	serviceName                       = "cluster"
 	serviceNamespace                  = "openshift-gitops"
-	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
 	insecureEnvVar                    = "INSECURE"
 	insecureEnvVarValue               = "true"
+	serviceNamespace                  = "openshift-gitops"
+	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
 	clusterVersionName                = "version"
 )
 
@@ -252,7 +254,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, nil
 	}
 
-	return reconcile.Result{}, nil
+	return r.reconcileCLIServer(instance, request)
 }
 
 func getClusterVersion(client client.Client) (string, error) {
