@@ -42,6 +42,28 @@ func TestImageFromEnvVariable(t *testing.T) {
 			t.Errorf("Image mismatch: got %s, want %s", got, backendImage)
 		}
 	})
+
+	t.Run("Kam Image present as env variable", func(t *testing.T) {
+		image := "quay.io/org/test"
+		os.Setenv(cliImageEnvName, image)
+		defer os.Unsetenv(cliImageEnvName)
+
+		deployment := newDeploymentForCLI()
+
+		got := deployment.Spec.Template.Spec.Containers[0].Image
+		if got != image {
+			t.Errorf("Image mismatch: got %s, want %s", got, image)
+		}
+	})
+	t.Run("env variable for Kam image not found", func(t *testing.T) {
+		deployment := newDeploymentForCLI()
+
+		got := deployment.Spec.Template.Spec.Containers[0].Image
+		if got != cliImage {
+			t.Errorf("Image mismatch: got %s, want %s", got, cliImage)
+		}
+	})
+
 }
 
 func TestReconcile(t *testing.T) {
