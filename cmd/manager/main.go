@@ -40,6 +40,7 @@ import (
 
 	argocd "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	_ "github.com/argoproj-labs/argocd-operator/pkg/reconciler/openshift"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 
 	routev1 "github.com/openshift/api/route/v1"
 )
@@ -142,6 +143,7 @@ func main() {
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argoapi.AddToScheme)
 	registerComponentOrExit(mgr, configv1.AddToScheme)
+	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 
 	// Add the Metrics Service
 	addMetrics(ctx, cfg)
