@@ -9,6 +9,7 @@ import (
 
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
@@ -20,6 +21,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 )
 
 var (
@@ -30,10 +32,11 @@ var (
 )
 
 const (
-	operatorName    = "gitops-operator"
-	argoCDRouteName = "argocd-cluster-server"
-	argoCDNamespace = "openshift-gitops"
-	consoleLinkName = "argocd"
+	operatorName              = "gitops-operator"
+	argoCDRouteName           = "argocd-cluster-server"
+	argoCDNamespace           = "openshift-gitops"
+	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
+	consoleLinkName           = "argocd"
 )
 
 func TestGitOpsService(t *testing.T) {
@@ -50,14 +53,17 @@ func TestGitOpsService(t *testing.T) {
 
 func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
-	namespace := "openshift-gitops"
+
 	name := "cluster"
 	f := framework.Global
+	namespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	assertNoError(t, err)
 
 	// check backend deployment
-	err := e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
+	err = e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
 	assertNoError(t, err)
 
 	// check backend service
@@ -72,10 +78,14 @@ func validateGitOpsBackend(t *testing.T) {
 func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleLink{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	f := framework.Global
 
+	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	assertNoError(t, err)
+
 	route := &routev1.Route{}
-	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 	assertNoError(t, err)
 
 	// check ConsoleLink
@@ -107,10 +117,15 @@ func deployOperator(t *testing.T) {
 
 func validateArgoCDInstallation(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+
 	f := framework.Global
 
+	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	assertNoError(t, err)
+
 	// Check if argocd namespace is created
-	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 	// Check if ArgoCD instance is created
@@ -146,3 +161,4 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+

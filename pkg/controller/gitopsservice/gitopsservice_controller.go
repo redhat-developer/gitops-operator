@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -162,14 +161,9 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	clusterVersion, err := getClusterVersion(r.client)
+	namespace, err := argocd.GetArgoCDNamespace(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
-	}
-
-	namespace := serviceNamespace
-	if strings.HasPrefix(clusterVersion, "4.6") {
-		namespace = depracatedServiceNamespace
 	}
 
 	namespaceRef := newNamespace(namespace)
@@ -196,7 +190,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	existingArgoCD := &argoapp.ArgoCD{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: serviceNamespace}, existingArgoCD)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: namespace}, existingArgoCD)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
 		err = r.client.Create(context.TODO(), defaultArgoCDInstance)

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -106,6 +107,7 @@ func assertNoError(t *testing.T, err error) {
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	scheme.AddKnownTypes(console.GroupVersion, &console.ConsoleLink{})
+	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 }
 
 func newRequest(namespace, name string) reconcile.Request {
