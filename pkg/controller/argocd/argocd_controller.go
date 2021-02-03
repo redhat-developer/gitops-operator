@@ -95,7 +95,7 @@ func filterPredicate(assert func(namespace, name string) bool) predicate.Funcs {
 }
 
 func filterArgoCDRoute(namespace, name string) bool {
-	return (namespace == argocdNS || namespace == depracatedArgoCDNS) && argocdRouteName == name
+	return namespace == argocdNS && argocdRouteName == name
 }
 
 // blank assignment to verify that ReconcileArgoCDRoute implements reconcile.Reconciler
@@ -120,14 +120,9 @@ func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.R
 
 	ctx := context.Background()
 
-	argocdNS, err := GetArgoCDNamespace(r.client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	// Fetch ArgoCD server route
 	argoCDRoute := &routev1.Route{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
+	err := r.client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
