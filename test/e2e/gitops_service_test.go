@@ -21,7 +21,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
 )
 
 var (
@@ -60,7 +60,7 @@ func validateGitOpsBackend(t *testing.T) {
 
 	name := "cluster"
 	f := framework.Global
-	namespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	namespace, err := gitopsservice.GetGitOpsServiceNamespace(f.Client.Client)
 	assertNoError(t, err)
 
 	// check backend deployment
