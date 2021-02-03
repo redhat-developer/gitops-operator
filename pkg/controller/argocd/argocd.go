@@ -1,13 +1,9 @@
 package argocd
 
 import (
-	"strings"
-
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
@@ -47,16 +43,4 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			},
 		},
 	}, nil
-}
-
-// GetArgoCDNamespace returns the argocd installation namespace based on OpenShift Cluster version
-func GetArgoCDNamespace(client client.Client) (string, error) {
-	version, err := util.GetClusterVersion(client)
-	if err != nil {
-		return "", err
-	}
-	if strings.HasPrefix(version, "4.6") {
-		return depracatedArgoCDNS, nil
-	}
-	return argocdNS, nil
 }

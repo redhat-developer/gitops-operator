@@ -21,7 +21,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
 )
 
 var (
@@ -60,7 +60,7 @@ func validateGitOpsBackend(t *testing.T) {
 
 	name := "cluster"
 	f := framework.Global
-	namespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
+	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
 	assertNoError(t, err)
 
 	// check backend deployment
@@ -82,11 +82,8 @@ func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	f := framework.Global
 
-	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
-	assertNoError(t, err)
-
 	route := &routev1.Route{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 	assertNoError(t, err)
 
 	// check ConsoleLink
@@ -122,11 +119,8 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	f := framework.Global
 
-	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
-	assertNoError(t, err)
-
 	// Check if argocd namespace is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 	// Check if ArgoCD instance is created
@@ -162,4 +156,3 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
-
