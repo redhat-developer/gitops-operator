@@ -82,11 +82,8 @@ func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 	f := framework.Global
 
-	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
-	assertNoError(t, err)
-
 	route := &routev1.Route{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 	assertNoError(t, err)
 
 	// check ConsoleLink
@@ -122,11 +119,8 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	f := framework.Global
 
-	argoCDNamespace, err := argocd.GetArgoCDNamespace(f.Client.Client)
-	assertNoError(t, err)
-
 	// Check if argocd namespace is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 	// Check if ArgoCD instance is created
@@ -162,4 +156,3 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
-
