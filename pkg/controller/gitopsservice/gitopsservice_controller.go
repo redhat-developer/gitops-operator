@@ -163,7 +163,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	namespace, err := GetGitOpsServiceNamespace(r.client)
+	namespace, err := GetBackendNamespace(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -270,8 +270,8 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	return r.reconcileCLIServer(instance, request)
 }
 
-// GetGitOpsServiceNamespace returns the backend service namespace based on OpenShift Cluster version
-func GetGitOpsServiceNamespace(client client.Client) (string, error) {
+// GetBackendNamespace returns the backend service namespace based on OpenShift Cluster version
+func GetBackendNamespace(client client.Client) (string, error) {
 	version, err := util.GetClusterVersion(client)
 	if err != nil {
 		return "", err

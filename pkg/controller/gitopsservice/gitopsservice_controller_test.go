@@ -153,7 +153,7 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	}
 }
 
-func TestGetGitOpsServiceNamespace(t *testing.T) {
+func TestGetBackendNamespace(t *testing.T) {
 	logf.SetLogger(logf.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
@@ -168,19 +168,19 @@ func TestGetGitOpsServiceNamespace(t *testing.T) {
 
 	t.Run("Using a 4.7 Cluster", func(t *testing.T) {
 		fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.7.1"), newGitopsService())
-		namespace, err := GetGitOpsServiceNamespace(fakeClient)
+		namespace, err := GetBackendNamespace(fakeClient)
 		assertNamespace(t, err, namespace, serviceNamespace)
 	})
 
 	t.Run("Using a 4.6 Cluster", func(t *testing.T) {
 		fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.6.1"), newGitopsService())
-		namespace, err := GetGitOpsServiceNamespace(fakeClient)
+		namespace, err := GetBackendNamespace(fakeClient)
 		assertNamespace(t, err, namespace, depracatedServiceNamespace)
 	})
 
 	t.Run("Using a 4.X Cluster", func(t *testing.T) {
 		fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.X.1"), newGitopsService())
-		namespace, err := GetGitOpsServiceNamespace(fakeClient)
+		namespace, err := GetBackendNamespace(fakeClient)
 		assertNamespace(t, err, namespace, serviceNamespace)
 	})
 }

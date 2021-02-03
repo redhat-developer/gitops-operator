@@ -60,7 +60,7 @@ func validateGitOpsBackend(t *testing.T) {
 
 	name := "cluster"
 	f := framework.Global
-	namespace, err := gitopsservice.GetGitOpsServiceNamespace(f.Client.Client)
+	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
 	assertNoError(t, err)
 
 	// check backend deployment
