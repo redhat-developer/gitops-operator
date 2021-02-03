@@ -4,15 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 
-	configv1 "github.com/openshift/api/config/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -162,7 +163,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	namespace, err := argocd.GetArgoCDNamespace(r.client)
+	namespace, err := GetBackendNamespace(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -183,7 +184,20 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
-	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, namespace)
+	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, serviceNamespace)
+
+	// The operator decides the namespace based on the version of the cluster it is installed in
+	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
+	// 4.7 Cluster: Both backend and argocd instance in openshift-gitops namespace
+	argocdNS := newNamespace(defaultArgoCDInstance.Namespace)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
+		err = r.client.Create(context.TODO(), argocdNS)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
 
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.scheme); err != nil {
@@ -191,7 +205,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	existingArgoCD := &argoapp.ArgoCD{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: namespace}, existingArgoCD)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
 		err = r.client.Create(context.TODO(), defaultArgoCDInstance)
@@ -256,16 +270,16 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	return r.reconcileCLIServer(instance, request)
 }
 
-func getClusterVersion(client client.Client) (string, error) {
-	clusterVersion := &configv1.ClusterVersion{}
-	err := client.Get(context.TODO(), types.NamespacedName{Name: clusterVersionName}, clusterVersion)
+// GetBackendNamespace returns the backend service namespace based on OpenShift Cluster version
+func GetBackendNamespace(client client.Client) (string, error) {
+	version, err := util.GetClusterVersion(client)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return "", nil
-		}
 		return "", err
 	}
-	return clusterVersion.Status.Desired.Version, nil
+	if strings.HasPrefix(version, "4.6") {
+		return depracatedServiceNamespace, nil
+	}
+	return serviceNamespace, nil
 }
 
 func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
