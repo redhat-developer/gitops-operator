@@ -160,6 +160,8 @@ spec:
                   value: gitops-operator
                 - name: DISABLE_DEX
                   value: "true"
+                - name: ARGOCD_REDIS_IMAGE
+                  value: "registry.redhat.io/rhel8/redis-5"
                 image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 imagePullPolicy: Always
                 name: gitops-operator
