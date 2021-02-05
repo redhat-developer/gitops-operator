@@ -387,6 +387,18 @@ spec:
           verbs:
           - get
           - list
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consoleclidownloads
+          verbs:
+          - create
+          - get
+          - list
+          - patch
+          - update
+          - watch
         serviceAccountName: gitops-operator
     strategy: deployment
   installModes:
