@@ -32,10 +32,10 @@ import (
 var logs = logf.Log.WithName("controller_argocd_route")
 
 const (
-	argocdNS           = "argocd"
+	argocdNS           = "openshift-gitops"
+	depracatedArgoCDNS = "openshift-pipelines-app-delivery"
 	consoleLinkName    = "argocd"
-	argocdInstanceName = "argocd"
-	argocdRouteName    = "argocd-server"
+	argocdRouteName    = "argocd-cluster-server"
 	iconFilePath       = "/argo.png"
 )
 
