@@ -17,6 +17,8 @@ import (
 func validateKamService(t *testing.T) {
 
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
+	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleCLIDownload{})
+
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
 	namespace := "openshift-gitops"
@@ -38,12 +40,13 @@ func validateKamService(t *testing.T) {
 
 	// check ConsoleLink
 	consoleCLIDownoad := &console.ConsoleCLIDownload{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: consoleLinkName}, consoleCLIDownoad)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name}, consoleCLIDownoad)
 	assertNoError(t, err)
 
 	got := strings.TrimLeft(consoleCLIDownoad.Spec.Links[0].Href, "https://")
-	if got != route.Spec.Host {
-		t.Fatalf("Host mismatch: got %s, want %s", got, route.Spec.Host)
+	want := route.Spec.Host + "/kam/"
+	if got != want {
+		t.Fatalf("Host mismatch: got %s, want %s", got, want)
 	}
 
 	assert.Equal(t, consoleCLIDownoad.OwnerReferences[0].Name, route.OwnerReferences[0].Name)
