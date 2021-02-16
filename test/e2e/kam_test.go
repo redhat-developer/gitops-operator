@@ -25,20 +25,20 @@ func validateKamService(t *testing.T) {
 	name := "kam"
 	f := framework.Global
 
-	// check backend deployment
+	// check for deployment that hosts kam CLI
 	err := e2eutil.WaitForDeployment(t, f.KubeClient, namespace, name, 1, retryInterval, timeout)
 	assertNoError(t, err)
 
-	// check backend service
+	// check for service that serves kam CLI
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, &corev1.Service{})
 	assertNoError(t, err)
 
-	// check backend route
+	// check for route that serves kam CLI
 	route := &routev1.Route{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, route)
 	assertNoError(t, err)
 
-	// check ConsoleLink
+	// check for console CLI download resource that adds kam route to OpenShift's CLI download page
 	consoleCLIDownoad := &console.ConsoleCLIDownload{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: name}, consoleCLIDownoad)
 	assertNoError(t, err)
