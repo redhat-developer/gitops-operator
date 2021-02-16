@@ -170,7 +170,7 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 			},
 			Location: console.ApplicationMenu,
 			ApplicationMenu: &console.ApplicationMenuSpec{
-				Section:  "Application Stages",
+				Section:  "OpenShift GitOps",
 				ImageURL: image,
 			},
 		},
