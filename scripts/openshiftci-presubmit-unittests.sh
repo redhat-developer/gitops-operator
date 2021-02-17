@@ -20,5 +20,6 @@ then
     echo "Go mod state is not clean."
     exit 1
 fi
-echo "Add your unit test target"
 
+# Run unit
+make test
