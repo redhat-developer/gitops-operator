@@ -1,16 +1,18 @@
 #!/bin/bash
 
 # Download the release binary
+export VERSION="v0.17.0"
+
 # Set platform information
-export ARCH=$(case $(arch) in x86_64) echo -n amd64 ;; aarch64) echo -n arm64 ;; *) echo -n $(arch) ;; esac)
+export ARCH=$(uname -m)
 export OS=$(uname | awk '{print tolower($0)}')
 
-# Download the binary for your platform
-export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/latest/download
-curl -LO ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
+# Download v0.17.0 binary for your platform
+export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/${VERSION}
+curl -LO ${OPERATOR_SDK_DL_URL}/operator-sdk-${VERSION}-${ARCH}-${OS}-gnu
 
-# Install the release binary in your PATH
-chmod +x operator-sdk_${OS}_${ARCH} && mv operator-sdk_${OS}_${ARCH} operator-sdk
+# Install the release binary in your CI PATH
+chmod +x operator-sdk-${VERSION}-${ARCH}-${OS}-gnu && mv operator-sdk-${VERSION}-${ARCH}-${OS}-gnu operator-sdk
 
 # Assert operator-sdk installation
 operator-sdk version

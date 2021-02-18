@@ -9,6 +9,7 @@ set +x
 # show commands
 set -x
 export CI="prow"
+go mod vendor
 make prepare-test-cluster
 
 export PATH="$PATH:$(pwd)"
