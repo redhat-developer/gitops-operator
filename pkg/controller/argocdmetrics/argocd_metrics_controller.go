@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -70,23 +71,44 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ArgoCDMetricsReconciler{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
-func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Metrics")
 
 	namespace := corev1.Namespace{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: request.Namespace}, &namespace)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			// Namespace not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return reconcile.Result{}, nil
+		}
 		reqLogger.Error(err, "Error getting namespace",
 			"Namespace", request.Namespace)
 		return reconcile.Result{}, err
 	}
-	_, exists := namespace.Labels["openshift.io/cluster-monitoring"]
+
+	argocd := &argoapp.ArgoCD{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name, Namespace: request.Namespace}, argocd)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// ArgoCD not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return reconcile.Result{}, nil
+		}
+		reqLogger.Error(err, "Error getting ArgoCD instsance")
+		return reconcile.Result{}, err
+	}
+
+	const clusterMonitoringLabel = "openshift.io/cluster-monitoring"
+	_, exists := namespace.Labels[clusterMonitoringLabel]
 	if !exists {
 		if namespace.Labels == nil {
 			namespace.Labels = make(map[string]string)
 		}
-		namespace.Labels["openshift.io/cluster-monitoring"] = "true"
+		namespace.Labels[clusterMonitoringLabel] = "true"
 		err = r.client.Update(context.TODO(), &namespace)
 		if err != nil {
 			reqLogger.Error(err, "Error updating namespace",
@@ -99,13 +121,13 @@ func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Create role to grant read permission to the openshift metrics stack
-	err = r.createReadRoleIfAbsent(request.Namespace, reqLogger)
+	err = r.createReadRoleIfAbsent(request.Namespace, argocd, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Create role binding to grant read permission to the openshift metrics stack
-	err = r.createReadRoleBindingIfAbsent(request.Namespace, reqLogger)
+	err = r.createReadRoleBindingIfAbsent(request.Namespace, argocd, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -113,7 +135,7 @@ func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile
 	// Create ServiceMonitor for ArgoCD application metrics
 	serviceMonitorLabel := fmt.Sprintf("%s-metrics", request.Name)
 	serviceMonitorName := request.Name
-	err = r.createServiceMonitorIfAbsent(request.Namespace, serviceMonitorName, serviceMonitorLabel, reqLogger)
+	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -121,7 +143,7 @@ func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile
 	// Create ServiceMonitor for ArgoCD API server metrics
 	serviceMonitorLabel = fmt.Sprintf("%s-server-metrics", request.Name)
 	serviceMonitorName = fmt.Sprintf("%s-server", request.Name)
-	err = r.createServiceMonitorIfAbsent(request.Namespace, serviceMonitorName, serviceMonitorLabel, reqLogger)
+	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -129,13 +151,13 @@ func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile
 	// Create ServiceMonitor for ArgoCD repo server metrics
 	serviceMonitorLabel = fmt.Sprintf("%s-repo-server", request.Name)
 	serviceMonitorName = fmt.Sprintf("%s-repo-server", request.Name)
-	err = r.createServiceMonitorIfAbsent(request.Namespace, serviceMonitorName, serviceMonitorLabel, reqLogger)
+	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// Create alert rule
-	err = r.createPrometheusRuleIfAbsent(request.Namespace, reqLogger)
+	err = r.createPrometheusRuleIfAbsent(request.Namespace, argocd, reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -143,7 +165,7 @@ func (r ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile
 	return reconcile.Result{}, nil
 }
 
-func (r *ArgoCDMetricsReconciler) createReadRoleIfAbsent(namespace string, reqLogger logr.Logger) error {
+func (r *ArgoCDMetricsReconciler) createReadRoleIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
 	readRole := newReadRole(namespace)
 	existingReadRole := &rbacv1.Role{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: readRole.Name, Namespace: readRole.Namespace}, existingReadRole)
@@ -155,12 +177,21 @@ func (r *ArgoCDMetricsReconciler) createReadRoleIfAbsent(namespace string, reqLo
 	if errors.IsNotFound(err) {
 		reqLogger.Info("Creating new read role",
 			"Namespace", readRole.Namespace, "Name", readRole.Name)
+
+		// Set the ArgoCD instance as the owner and controller
+		if err := controllerutil.SetControllerReference(argocd, readRole, r.scheme); err != nil {
+			reqLogger.Error(err, "Error setting read role owner ref",
+				"Namespace", readRole.Namespace, "Name", readRole.Name, "ArgoCD Name", argocd.Name)
+			return err
+		}
+
 		err = r.client.Create(context.TODO(), readRole)
 		if err != nil {
-			reqLogger.Info("Error creating a new read role",
+			reqLogger.Error(err, "Error creating a new read role",
 				"Namespace", readRole.Namespace, "Name", readRole.Name)
 			return err
 		}
+
 		return nil
 	}
 	reqLogger.Info("Error querying for read role",
@@ -168,7 +199,7 @@ func (r *ArgoCDMetricsReconciler) createReadRoleIfAbsent(namespace string, reqLo
 	return err
 }
 
-func (r ArgoCDMetricsReconciler) createReadRoleBindingIfAbsent(namespace string, reqLogger logr.Logger) error {
+func (r *ArgoCDMetricsReconciler) createReadRoleBindingIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
 	readRoleBinding := newReadRoleBinding(namespace)
 	existingReadRoleBinding := &rbacv1.RoleBinding{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: readRoleBinding.Name, Namespace: readRoleBinding.Namespace}, existingReadRoleBinding)
@@ -180,20 +211,29 @@ func (r ArgoCDMetricsReconciler) createReadRoleBindingIfAbsent(namespace string,
 	if errors.IsNotFound(err) {
 		reqLogger.Info("Creating new read role binding",
 			"Namespace", readRoleBinding.Namespace, "Name", readRoleBinding.Name)
+
+		// Set the ArgoCD instance as the owner and controller
+		if err := controllerutil.SetControllerReference(argocd, readRoleBinding, r.scheme); err != nil {
+			reqLogger.Error(err, "Error setting read role owner ref",
+				"Namespace", readRoleBinding.Namespace, "Name", readRoleBinding.Name, "ArgoCD Name", argocd.Name)
+			return err
+		}
+
 		err = r.client.Create(context.TODO(), readRoleBinding)
 		if err != nil {
-			reqLogger.Info("Error creating a new read role binding",
+			reqLogger.Error(err, "Error creating a new read role binding",
 				"Namespace", readRoleBinding.Namespace, "Name", readRoleBinding.Name)
 			return err
 		}
+
 		return nil
 	}
-	reqLogger.Info("Error querying for read role binding",
+	reqLogger.Error(err, "Error querying for read role binding",
 		"Name", readRoleBinding.Name, "Namespace", readRoleBinding.Namespace)
 	return err
 }
 
-func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace, name, serviceMonitorLabel string, reqLogger logr.Logger) error {
+func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace string, argocd *argoapp.ArgoCD, name, serviceMonitorLabel string, reqLogger logr.Logger) error {
 	existingServiceMonitor := &monitoringv1.ServiceMonitor{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, existingServiceMonitor)
 	if err == nil {
@@ -205,19 +245,28 @@ func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace, name, 
 		serviceMonitor := newServiceMonitor(namespace, name, serviceMonitorLabel)
 		reqLogger.Info("Creating a new ServiceMonitor instance",
 			"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name)
+
+		// Set the ArgoCD instance as the owner and controller
+		if err := controllerutil.SetControllerReference(argocd, serviceMonitor, r.scheme); err != nil {
+			reqLogger.Error(err, "Error setting read role owner ref",
+				"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name, "ArgoCD Name", argocd.Name)
+			return err
+		}
+
 		err = r.client.Create(context.TODO(), serviceMonitor)
 		if err != nil {
-			reqLogger.Info("Error creating a new ServiceMonitor instance",
+			reqLogger.Error(err, "Error creating a new ServiceMonitor instance",
 				"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name)
 			return err
 		}
+
 		return nil
 	}
-	reqLogger.Info("Error querying for ServiceMonitor", "Namespace", namespace, "Name", name)
+	reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", namespace, "Name", name)
 	return err
 }
 
-func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string, reqLogger logr.Logger) error {
+func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
 	alertRule := newPrometheusRule(namespace)
 	existingAlertRule := &monitoringv1.PrometheusRule{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: alertRule.Name, Namespace: alertRule.Namespace}, existingAlertRule)
@@ -229,15 +278,24 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 	if errors.IsNotFound(err) {
 		reqLogger.Info("Creating new alert rule",
 			"Namespace", alertRule.Namespace, "Name", alertRule.Name)
+
+		// Set the ArgoCD instance as the owner and controller
+		if err := controllerutil.SetControllerReference(argocd, alertRule, r.scheme); err != nil {
+			reqLogger.Error(err, "Error setting read role owner ref",
+				"Namespace", alertRule.Namespace, "Name", alertRule.Name, "ArgoCD Name", argocd.Name)
+			return err
+		}
+
 		err := r.client.Create(context.TODO(), alertRule)
 		if err != nil {
 			reqLogger.Error(err, "Error creating a new alert rule",
 				"Namespace", alertRule.Namespace, "Name", alertRule.Name)
 			return err
 		}
+
 		return nil
 	}
-	reqLogger.Info("Error querying for existing alert rule",
+	reqLogger.Error(err, "Error querying for existing alert rule",
 		"Namespace", namespace, "Name", alertRuleName)
 	return err
 }
