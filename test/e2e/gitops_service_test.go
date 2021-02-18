@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -9,12 +10,14 @@ import (
 
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -35,6 +38,7 @@ const (
 	operatorName              = "gitops-operator"
 	argoCDRouteName           = "argocd-cluster-server"
 	argoCDNamespace           = "openshift-gitops"
+	argoCDInstanceName        = "argocd-cluster"
 	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
 	consoleLinkName           = "argocd"
 )
@@ -50,6 +54,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
+	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 }
 
 func validateGitOpsBackend(t *testing.T) {
@@ -125,7 +130,7 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	// Check if ArgoCD instance is created
 	existingArgoInstance := &argoapp.ArgoCD{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
 
 	// modify the ArgoCD instance "manually"
@@ -142,7 +147,7 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	// Check if ArgoCD CR was overwritten
 	existingArgoInstance = &argoapp.ArgoCD{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster", Namespace: argoCDNamespace}, existingArgoInstance)
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
 
 	// check that this has not been overwritten
@@ -155,4 +160,59 @@ func assertNoError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func validateArgoCDMetrics(t *testing.T) {
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.Role{})
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
+	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.ServiceMonitor{})
+	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.PrometheusRule{})
+
+	f := framework.Global
+
+	// Check the role was created
+	role := rbacv1.Role{}
+	readRoleName := fmt.Sprintf("%s-read", argoCDNamespace)
+	err := f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: readRoleName, Namespace: argoCDNamespace}, &role)
+	assertNoError(t, err)
+
+	// Check the role binding was created
+	roleBinding := rbacv1.RoleBinding{}
+	roleBindingName := fmt.Sprintf("%s-prometheus-k8s-read-binding", argoCDNamespace)
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
+		&roleBinding)
+	assertNoError(t, err)
+
+	// Check the application service monitor was created
+	serviceMonitor := monitoringv1.ServiceMonitor{}
+	serviceMonitorName := argoCDInstanceName
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace},
+		&serviceMonitor)
+	assertNoError(t, err)
+
+	// Check the api server service monitor was created
+	serviceMonitor = monitoringv1.ServiceMonitor{}
+	serviceMonitorName = fmt.Sprintf("%s-server", argoCDInstanceName)
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace},
+		&serviceMonitor)
+	assertNoError(t, err)
+
+	// Check the repo server service monitor was created
+	serviceMonitor = monitoringv1.ServiceMonitor{}
+	serviceMonitorName = fmt.Sprintf("%s-repo-server", argoCDInstanceName)
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace},
+		&serviceMonitor)
+	assertNoError(t, err)
+
+	// Check the prometheus rule was created
+	rule := monitoringv1.PrometheusRule{}
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: "gitops-operator-argocd-alerts", Namespace: argoCDNamespace},
+		&rule)
+	assertNoError(t, err)
 }
