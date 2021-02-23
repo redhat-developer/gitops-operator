@@ -23,7 +23,7 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     required:
-    - name:tektonconfigs.operator.tekton.dev
+    - name: tektonconfigs.operator.tekton.dev
       version: v1alpha1
       kind: TektonConfig
       displayName: OpenShift Pipelines Config
