@@ -142,3 +142,26 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - oauth.openshift.io
+  resources:
+  - oauthclients 
+  verbs:
+  - '*'
+- apiGroups:
+  - keycloak.org
+  resources:
+  - keycloaks
+  - keycloaks/status
+  - keycloaks/finalizers
+  - keycloakrealms
+  - keycloakrealms/status
+  - keycloakrealms/finalizers
+  - keycloakclients
+  - keycloakclients/status
+  - keycloakclients/finalizers
+  verbs:
+  - create
+  - get
+  - list
+  - watch

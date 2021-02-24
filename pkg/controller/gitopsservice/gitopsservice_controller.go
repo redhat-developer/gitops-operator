@@ -7,14 +7,17 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"sigs.k8s.io/yaml"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
-	routev1 "github.com/openshift/api/route/v1"
-
-	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
-	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	keycloakv1alpha1 "github.com/keycloak/keycloak-operator/pkg/apis/keycloak/v1alpha1"
+	oauthv1 "github.com/openshift/api/oauth/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/rhsso"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,7 +50,21 @@ var (
 	serviceNamespace                  = "openshift-gitops"
 	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
 	clusterVersionName                = "version"
+	argoClientID                      = "openshift-gitops"
+	keycloakRouteName                 = "keycloak"
+	keycloakSecretName                = fmt.Sprintf("keycloak-client-secret-%s", rhsso.KeycloakArgoClient)
+	argoCDSecretName                  = "argocd-secret"
 )
+
+const gitopsIdentifier = "openshift-gitops"
+
+func filterKeycloakRoute(namespace, name string) bool {
+	return namespace == serviceNamespace && keycloakRouteName == name
+}
+
+func filterOIDCSecrets(namespace, name string) bool {
+	return namespace == serviceNamespace && (keycloakSecretName == name || argoCDSecretName == name)
+}
 
 // Add creates a new GitopsService Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -94,6 +111,21 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		OwnerType:    &pipelinesv1alpha1.GitopsService{},
 	}, pred)
 
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, argocd.FilterPredicate(argocd.FilterArgoCDRoute))
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForObject{}, argocd.FilterPredicate(filterKeycloakRoute))
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}, argocd.FilterPredicate(filterOIDCSecrets))
 	if err != nil {
 		return err
 	}
@@ -183,8 +215,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		Namespace: namespace,
 	}
 
-	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
-	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(gitopsIdentifier, serviceNamespace)
 
 	// The operator decides the namespace based on the version of the cluster it is installed in
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
@@ -264,7 +295,186 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		if err != nil {
 			return reconcile.Result{}, err
 		}
+	}
+
+	// Update ArgoCD instance for OIDC Config with Keycloakrealm URL
+	// Keycloakrealm URL can be derived by adding realm name to Keycloak route URL
+	argoCD := argoapp.ArgoCD{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, &argoCD)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("ArgoCD instance is not found or yet to be created", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
 		return reconcile.Result{}, nil
+	}
+
+	if !instance.Spec.EnableSSO {
+		reqLogger.Info("SSO is set to false, removing if there is any RHSSO Configuration")
+		argoCD.Spec.OIDCConfig = ""
+		err = r.client.Update(context.TODO(), &argoCD)
+		if err != nil {
+			reqLogger.Error(err, "Error updating OIDC Config")
+			return reconcile.Result{}, err
+		}
+	} else {
+		reqLogger.Info("SSO is set to true, Setting up argocd OIDC Configuration")
+		// Create a new Keycloak Instance. Ignore if there is one already.
+		// Keycloak instance is created with default values out of the box. Admins or owners are allowed to modify the instance.
+		defaultKeycloakInstance := rhsso.NewKeycloakCR(gitopsIdentifier)
+		existingKeycloak := &keycloakv1alpha1.Keycloak{}
+
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, defaultKeycloakInstance, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakInstance.Name, Namespace: defaultKeycloakInstance.Namespace}, existingKeycloak)
+		if err != nil {
+			reqLogger.Info("Creating a new Keycloak instance", "Namespace", defaultKeycloakInstance.Namespace, "Name", defaultKeycloakInstance.Name)
+			err = r.client.Create(context.TODO(), defaultKeycloakInstance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		// Create a new Keycloak Realm Instance. Ignore if there is one already.
+		// Keycloak Realm instance is created with default values out of the box. Admins or owners are allowed to modify the instance.
+		defaultKeycloakRealmInstance := rhsso.NewKeycloakRealmCR(gitopsIdentifier)
+		existingKeycloakRealm := &keycloakv1alpha1.KeycloakRealm{}
+
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, defaultKeycloakRealmInstance, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakRealmInstance.Name, Namespace: defaultKeycloakRealmInstance.Namespace}, existingKeycloakRealm)
+		if err != nil && errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Keycloak Realm", "Namespace", defaultKeycloakRealmInstance.Namespace, "Name", defaultKeycloakRealmInstance.Name)
+			err = r.client.Create(context.TODO(), defaultKeycloakRealmInstance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		// Get Argocd Route URL and pass it to the Keycloak Client installation.
+		// Keycloak Client instance is created with default values out of the box. Admins or owners are allowed to modify the instance.
+		argoRoute := &routev1.Route{}
+		argoRouteRef := existingArgoRoute()
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: argoRouteRef.Name, Namespace: argoRouteRef.Namespace}, argoRoute)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("ArgoCD Route not found or yet to be created", "Namespace", argoRouteRef.Namespace, "Name", argoRouteRef.Name)
+				return reconcile.Result{}, nil
+			}
+			reqLogger.Error(err, "Error getting ArgoCD Route")
+			return reconcile.Result{}, err
+		}
+		argoRouteHost := argoRoute.Spec.Host
+
+		// Keycloak client installation
+		defaultKeycloakCientInstance := rhsso.NewKeycloakClientCR(gitopsIdentifier, argoRouteHost)
+		existingKeycloakClient := &keycloakv1alpha1.KeycloakClient{}
+
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, defaultKeycloakCientInstance, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakCientInstance.Name, Namespace: defaultKeycloakCientInstance.Namespace}, existingKeycloakClient)
+		if err != nil && errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Keycloak Client", "Namespace", defaultKeycloakCientInstance.Namespace, "Name", defaultKeycloakCientInstance.Name)
+			err = r.client.Create(context.TODO(), defaultKeycloakCientInstance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		// Update ArgoCD instance for OIDC Config with Keycloakrealm URL
+		// Keycloakrealm URL can be derived by adding realm name to Keycloak route URL
+		// Get keycloak relam URL from Keycloak route
+		keycloakRoute := &routev1.Route{}
+		kRef := existingKeycloakRoute()
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: kRef.Name, Namespace: kRef.Namespace}, keycloakRoute)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Keycloak Route not found or yet to be created", "Namespace", kRef.Namespace, "Name", kRef.Name)
+				return reconcile.Result{}, nil
+			}
+			reqLogger.Error(err, "Error getting Keycloak Route")
+			return reconcile.Result{}, err
+		}
+		keycloakRouteHost := keycloakRoute.Spec.Host
+		keycloakRealmURL := fmt.Sprintf("https://%s/auth/realms/%s", keycloakRouteHost, gitopsIdentifier)
+
+		// Update OIDC Config for ArgoCD instance
+		o, _ := yaml.Marshal(argocd.OIDCConfig{
+			Name:           "Keycloak",
+			Issuer:         keycloakRealmURL,
+			ClientID:       argoClientID,
+			ClientSecret:   "$oidc.keycloak.clientSecret",
+			RequestedScope: []string{"openid", "profile", "email", "groups"},
+		})
+
+		argoCD.Spec.OIDCConfig = string(o)
+		err = r.client.Update(context.TODO(), &argoCD)
+		if err != nil {
+			reqLogger.Error(err, "Error updating OIDC Config")
+			return reconcile.Result{}, err
+		}
+
+		// Get Keycloak ClientID and Secret from Keycloak secret
+		keycloakSecretRef := existingKeycloakSecret()
+		keycloakSecret := &corev1.Secret{}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: keycloakSecretRef.Name, Namespace: keycloakSecretRef.Namespace}, keycloakSecret)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Keycloak secret not found or yet to be created", "Namespace", keycloakSecretRef.Namespace, "Name", keycloakSecretRef.Name)
+				return reconcile.Result{}, nil
+			}
+			reqLogger.Error(err, "Error getting keycloak secret")
+			return reconcile.Result{}, err
+		}
+		clientSecret := keycloakSecret.Data["CLIENT_SECRET"]
+
+		// Update argocd-secret secret with Keycloak ClientID and Secret
+		// https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#configuring-argocd-oidc
+		argoCDSecretRef := existingArgoCDSecret()
+		argoCDSecret := corev1.Secret{}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: argoCDSecretRef.Name, Namespace: argoCDSecretRef.Namespace}, &argoCDSecret)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("argocd secret not found or yet to be created", "Namespace", argoCDSecretRef.Namespace, "Name", argoCDSecretRef.Name)
+				return reconcile.Result{}, nil
+			}
+			reqLogger.Error(err, "Error getting argocd secret")
+			return reconcile.Result{}, err
+		}
+
+		argoCDSecret.Data["oidc.keycloak.clientSecret"] = clientSecret
+		err = r.client.Update(context.TODO(), &argoCDSecret)
+		if err != nil {
+			reqLogger.Error(err, "Error updating argocd secret")
+			return reconcile.Result{}, err
+		}
+
+		// Create a new oauthclient Instance. Ignore if there is one already.
+		// oauthclient instance is created with default values out of the box. Admins or owners are allowed to modify the instance.
+		defaultOAuthCientInstance := rhsso.NewOAuthClient(gitopsIdentifier, keycloakRouteHost)
+		existingOAuthClient := &oauthv1.OAuthClient{}
+
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, defaultOAuthCientInstance, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultOAuthCientInstance.Name, Namespace: defaultOAuthCientInstance.Namespace}, existingOAuthClient)
+		if err != nil && errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new OAuth Client", "Namespace", defaultOAuthCientInstance.Namespace, "Name", defaultOAuthCientInstance.Name)
+			err = r.client.Create(context.TODO(), defaultOAuthCientInstance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	return r.reconcileCLIServer(instance, request)
@@ -280,17 +490,6 @@ func GetBackendNamespace(client client.Client) (string, error) {
 		return depracatedServiceNamespace, nil
 	}
 	return serviceNamespace, nil
-}
-
-func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
-	objectMeta := metav1.ObjectMeta{
-		Name:      resourceName,
-		Namespace: namespace,
-	}
-	for _, o := range opts {
-		o(&objectMeta)
-	}
-	return objectMeta
 }
 
 func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
@@ -431,6 +630,49 @@ func newGitopsService() *pipelinesv1alpha1.GitopsService {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceName,
 		},
-		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			EnableSSO: false,
+		},
+	}
+}
+
+func objectMeta(resourceName string, namespace string, opts ...func(*metav1.ObjectMeta)) metav1.ObjectMeta {
+	objectMeta := metav1.ObjectMeta{
+		Name:      resourceName,
+		Namespace: namespace,
+	}
+	for _, o := range opts {
+		o(&objectMeta)
+	}
+	return objectMeta
+}
+
+func existingArgoRoute() *routev1.Route {
+	name := gitopsIdentifier + "-server"
+	namespace := serviceNamespace
+	return &routev1.Route{
+		ObjectMeta: objectMeta(name, namespace),
+	}
+}
+
+func existingKeycloakRoute() *routev1.Route {
+	name := "keycloak"
+	namespace := serviceNamespace
+	return &routev1.Route{
+		ObjectMeta: objectMeta(name, namespace),
+	}
+}
+
+func existingKeycloakSecret() *corev1.Secret {
+	keycloakSecretName := keycloakSecretName
+	namespace := serviceNamespace
+	return &corev1.Secret{
+		ObjectMeta: objectMeta(keycloakSecretName, namespace),
+	}
+}
+
+func existingArgoCDSecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: objectMeta("argocd-secret", serviceNamespace),
 	}
 }

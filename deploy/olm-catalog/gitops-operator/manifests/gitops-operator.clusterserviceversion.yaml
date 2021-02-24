@@ -177,6 +177,12 @@ spec:
           - clusterrolebindings
           verbs:
           - '*'
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclients 
+          verbs:
+          - '*'
         serviceAccountName: gitops-operator
       permissions:
       - rules:
@@ -231,6 +237,29 @@ spec:
           - ingresses
           verbs:
           - '*'
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclient  
+          verbs:
+          - '*'
+        - apiGroups:
+          - keycloak.org
+          resources:
+          - keycloaks
+          - keycloaks/status
+          - keycloaks/finalizers
+          - keycloakrealms
+          - keycloakrealms/status
+          - keycloakrealms/finalizers
+          - keycloakclients
+          - keycloakclients/status
+          - keycloakclients/finalizers
+          verbs:
+          - create
+          - get
+          - list
+          - watch
         - apiGroups:
           - monitoring.coreos.com
           resources:

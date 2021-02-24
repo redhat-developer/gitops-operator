@@ -14,6 +14,15 @@ type resource struct {
 	Clusters  []string `json:"clusters"`
 }
 
+// OIDCConfig enables Integration with RHSSO
+type OIDCConfig struct {
+	Name           string   `json:"name"`
+	Issuer         string   `json:"issuer"`
+	ClientID       string   `json:"clientID"`
+	ClientSecret   string   `json:"clientSecret"`
+	RequestedScope []string `json:"requestedScopes"`
+}
+
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
 // with Tekton
 func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
