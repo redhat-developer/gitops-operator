@@ -6,6 +6,10 @@ default: test
 test:
 	go test `go list ./... | grep -v ${E2E_TEST_DIR}`
 
+.PHONY: prepare-test-cluster
+prepare-test-cluster:
+	. ./scripts/prepare-test-cluster.sh
+
 .PHONY: test-e2e
 test-e2e:
 	. ./scripts/run_e2e_tests.sh
