@@ -10,7 +10,8 @@ WORKDIR /go/src/github.com/redhat-developer/gitops-operator
 COPY . .
 
 ARG VERBOSE=2
-RUN go build -o bin/gitops-operator cmd/manager/main.go
+RUN GIT_COMMIT=$(git rev-list -1 HEAD) && \
+  go build -ldflags "-X main.GitCommit=$GIT_COMMIT" -o bin/gitops-operator cmd/manager/main.go
 
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal
