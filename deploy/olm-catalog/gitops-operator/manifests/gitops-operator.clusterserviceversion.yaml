@@ -17,6 +17,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
+    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
   name: openshift-gitops-operator.v0.0.3
   namespace: placeholder
 spec:
