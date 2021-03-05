@@ -39,7 +39,7 @@ const (
 	operatorName              = "gitops-operator"
 	argoCDRouteName           = "argocd-cluster-server"
 	argoCDNamespace           = "openshift-gitops"
-	argoCDInstanceName        = "argocd-cluster"
+	argoCDInstanceName        = "openshift-gitops"
 	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
 	consoleLinkName           = "argocd"
 )

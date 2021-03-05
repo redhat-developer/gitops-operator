@@ -2,7 +2,6 @@ package gitopsservice
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -183,8 +182,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		Namespace: namespace,
 	}
 
-	argoCDIdentifier := fmt.Sprintf("argocd-%s", request.Name)
-	defaultArgoCDInstance, err := argocd.NewCR(argoCDIdentifier, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR("openshift-gitops", serviceNamespace)
 
 	// The operator decides the namespace based on the version of the cluster it is installed in
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
