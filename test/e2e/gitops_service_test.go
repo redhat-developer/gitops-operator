@@ -18,6 +18,7 @@ import (
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -55,6 +56,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
+	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 }
 
 func validateGitOpsBackend(t *testing.T) {
@@ -215,4 +217,23 @@ func validateArgoCDMetrics(t *testing.T) {
 		types.NamespacedName{Name: "gitops-operator-argocd-alerts", Namespace: argoCDNamespace},
 		&rule)
 	assertNoError(t, err)
+}
+
+func tearDownArgoCD(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+
+	f := framework.Global
+
+	existingArgoInstance := &argoapp.ArgoCD{}
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
+	assertNoError(t, err)
+
+	// Tear down Argo CD instance
+	err = f.Client.Delete(context.TODO(), existingArgoInstance, &client.DeleteOptions{}) //Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
+	assertNoError(t, err)
+
+	err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
+	assertNoError(t, err)
+
 }

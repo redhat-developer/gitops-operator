@@ -5,8 +5,7 @@ set -x
 E2E_TEST_NS="gitops-test"
 E2E_TEST_DIR=./test/e2e
 ARGOCD_NS="openshift-gitops"
-DEPRACATED_ARGOCD_NS="openshift-pipelines-app-delivery"
-CONSOLE_LINK="argocd"
+OPERATOR_SDK="${OPERATOR_SDK:-operator-sdk}"
 
 echo "Checking if operator-sdk is installed"
 if ! command -v operator-sdk &> /dev/null
@@ -15,9 +14,9 @@ then
     exit
 fi
 
-operator_sdk_version=$(operator-sdk version | grep -Po '[0-9][^.]+' | head -1)
-if [ $operator_sdk_version -gt "17" ]; then
-    echo "Install operator-sdk with version less than 0.18.0"
+operator_sdk_version=$(${OPERATOR_SDK} version | awk '/operator-sdk version/ { print $3 }' | sed -re 's/\"v([0-9]+).*\",/\1/')
+if [ $operator_sdk_version -gt "0" ]; then
+    echo "Install operator-sdk with version less than 1.0"
     exit
 fi
 
@@ -25,10 +24,8 @@ fi
 oc new-project $E2E_TEST_NS
 
 echo "Running e2e tests"
-operator-sdk test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local
+${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose
 
 echo "Cleaning e2e test resources"
 oc delete project $E2E_TEST_NS
 oc delete project $ARGOCD_NS
-oc delete project $DEPRACATED_ARGOCD_NS
-oc delete consolelink $CONSOLE_LINK
