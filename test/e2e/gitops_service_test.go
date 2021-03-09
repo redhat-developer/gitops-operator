@@ -230,7 +230,7 @@ func tearDownArgoCD(t *testing.T) {
 	assertNoError(t, err)
 
 	// Tear down Argo CD instance
-	err = f.Client.Delete(context.TODO(), existingArgoInstance, &client.DeleteOptions{}) //Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
+	err = f.Client.Delete(context.TODO(), existingArgoInstance, &client.DeleteOptions{})
 	assertNoError(t, err)
 
 	err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
