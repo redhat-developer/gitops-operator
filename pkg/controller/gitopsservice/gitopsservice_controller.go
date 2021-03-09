@@ -14,6 +14,7 @@ import (
 	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 
+	"github.com/redhat-developer/gitops-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -182,7 +183,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		Namespace: namespace,
 	}
 
-	defaultArgoCDInstance, err := argocd.NewCR("openshift-gitops", serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
 
 	// The operator decides the namespace based on the version of the cluster it is installed in
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
