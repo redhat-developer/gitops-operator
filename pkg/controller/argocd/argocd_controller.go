@@ -35,7 +35,7 @@ const (
 	argocdNS           = "openshift-gitops"
 	depracatedArgoCDNS = "openshift-pipelines-app-delivery"
 	consoleLinkName    = "argocd"
-	argocdRouteName    = "argocd-cluster-server"
+	argocdRouteName    = "openshift-gitops-server"
 	iconFilePath       = "/argo.png"
 )
 

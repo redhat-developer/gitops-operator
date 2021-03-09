@@ -37,11 +37,11 @@ var (
 
 const (
 	operatorName              = "gitops-operator"
-	argoCDRouteName           = "argocd-cluster-server"
+	argoCDRouteName           = "openshift-gitops-server"
 	argoCDNamespace           = "openshift-gitops"
-	argoCDInstanceName        = "openshift-gitops"
 	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
 	consoleLinkName           = "argocd"
+	argoCDInstanceName        = "openshift-gitops"
 )
 
 func TestGitOpsService(t *testing.T) {
