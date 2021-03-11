@@ -7,6 +7,7 @@ require (
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.4.0
+	github.com/keycloak/keycloak-operator v0.0.0-20210310124102-7f0380886612
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/operator-framework/operator-sdk v0.18.2
