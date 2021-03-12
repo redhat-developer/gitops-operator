@@ -8,16 +8,21 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "pipelines.openshift.io/v1alpha1",
-          "kind": "GitopsService",
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "ArgoCD",
           "metadata": {
-            "name": "example-gitopsservice"
+            "name": "argocd"
           },
-          "spec": {}
+          "spec": {
+            "server": {
+              "route": {
+                "enabled": true
+              }
+            }
+          }
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
   name: openshift-gitops-operator.v0.0.3
   namespace: placeholder
 spec:
