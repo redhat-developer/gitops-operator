@@ -1,12 +1,18 @@
 FROM registry.redhat.io/ubi8/ubi:latest
-RUN yum install -y wget git make
 
-RUN wget https://github.com/operator-framework/operator-sdk/releases/download/v0.17.2/operator-sdk-v0.17.2-x86_64-linux-gnu -O operator-sdk && chmod +x operator-sdk
 
-COPY operator-sdk /usr/local/bin/operator-sdk
-RUN chmod +x /usr/local/bin/operator-sdk
-
+RUN yum install -y git make golang && yum clean all
 WORKDIR /tmp
-RUN git clone --branch dockerfile.e2e https://github.com/sbose78/gitops-operator && cd gitops-operator 
 
-ENTRYPOINT [ "make" "test-e2e-on-installed-operator" ]
+RUN git clone --branch=v0.17.2 https://github.com/operator-framework/operator-sdk && \
+            git clone --branch=dockerfile.e2e https://github.com/sbose78/gitops-operator && \
+            cd operator-sdk && go mod vendor && \
+            go build -o bin/operator-sdk cmd/operator-sdk/main.go && \
+            cp /tmp/operator-sdk/bin/operator-sdk /usr/local/bin/operator-sdk && \
+            rm -rf operator-sdk && \
+            chmod +x /usr/local/bin/operator-sdk && \
+            cd /tmp/gitops-operator && go mod vendor
+
+ENV XDG_CACHE_HOME=/tmp/.cache
+WORKDIR /tmp/gitops-operator 
+ENTRYPOINT [ "make", "test-e2e-on-installed-operator" ]
