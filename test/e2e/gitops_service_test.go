@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -47,9 +48,12 @@ func TestGitOpsService(t *testing.T) {
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
-	deployOperator(t)
+	if os.Getenv("SKIP_OPERATOR_DEPLOYMENT") != "true" {
+		deployOperator(t)
+	}
 
 	// run subtests
+	// validateNewArgoCD
 	t.Run("Validate kam service", validateKamService)
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
@@ -161,7 +165,6 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
-
 func validateArgoCDMetrics(t *testing.T) {
 	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.Role{})
 	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
