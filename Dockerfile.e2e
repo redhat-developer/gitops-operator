@@ -1,7 +1,8 @@
-FROM registry.redhat.io/ubi8/ubi:latest
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 
 
-RUN yum install -y git make golang && yum clean all
+#RUN yum install -y git make golang && yum clean all
+RUN microdnf install -y git make golang 
 WORKDIR /tmp
 
 RUN git clone --branch=v0.17.2 https://github.com/operator-framework/operator-sdk && \

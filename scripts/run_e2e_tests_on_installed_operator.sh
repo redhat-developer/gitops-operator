@@ -52,7 +52,7 @@ users:
 
 
 echo "Running e2e tests"
-SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR --operator-namespace default --kubeconfig=sa.kubeconfig --verbose 
+SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR --operator-namespace default --kubeconfig=./sa.kubeconfig --verbose 
 
 echo "Cleaning e2e test resources"
 #oc delete project $E2E_TEST_NS
