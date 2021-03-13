@@ -14,8 +14,8 @@ prepare-test-cluster:
 test-e2e:
 	. ./scripts/run_e2e_tests.sh
 
-.PHONY: test-e2e-on-installed_operator
-test-e2e-on-installed_operator:
+.PHONY: test-e2e-on-installed-operator
+test-e2e-on-installed-operator:
 	. ./scripts/run_e2e_tests_on_installed_operator.sh
 
 .PHONY: gomod_tidy

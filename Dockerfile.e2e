@@ -1,0 +1,12 @@
+FROM registry.redhat.io/ubi8/ubi:latest
+RUN yum install -y wget git make
+
+RUN wget https://github.com/operator-framework/operator-sdk/releases/download/v0.17.2/operator-sdk-v0.17.2-x86_64-linux-gnu -O operator-sdk && chmod +x operator-sdk
+
+COPY operator-sdk /usr/local/bin/operator-sdk
+RUN chmod +x /usr/local/bin/operator-sdk
+
+WORKDIR /tmp
+RUN git clone --branch dockerfile.e2e https://github.com/sbose78/gitops-operator && cd gitops-operator 
+
+ENTRYPOINT [ "make" "test-e2e-on-installed-operator" ]

@@ -9,10 +9,10 @@ DEPRACATED_ARGOCD_NS="openshift-pipelines-app-delivery"
 CONSOLE_LINK="argocd"
 
 # Create a new namespace for e2e tests
-oc new-project $E2E_TEST_NS
+#oc new-project $E2E_TEST_NS
 
 echo "Running e2e tests"
-SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS  --verbose 
+SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR --operator-namespace default  --verbose 
 
 echo "Cleaning e2e test resources"
-oc delete project $E2E_TEST_NS
+#oc delete project $E2E_TEST_NS
