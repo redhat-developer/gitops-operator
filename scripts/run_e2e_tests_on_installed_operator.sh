@@ -38,9 +38,9 @@ users:
 - name: admin
   user:
     token: ${TOKEN}
-" > sa.kubeconfig
+" > /tmp/output/sa.kubeconfig
 
 
 
 echo "Running e2e tests"
-CGO_ENABLED=0 SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR  --kubeconfig=/tmp/gitops-operator/sa.kubeconfig --verbose --no-setup
+CGO_ENABLED=0 SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local $E2E_TEST_DIR  --kubeconfig=/tmp/output/sa.kubeconfig --verbose --no-setup
