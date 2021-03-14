@@ -1,12 +1,31 @@
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pipeline-sa-admin
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: gitpos-e2e-test
+roleRef:
+  # Operator-sdk tries to create cluster-scoped resources.
+  # Doesn't hurt to make the test pipeline sa a cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
 kind: Task
 metadata:
   name: run-operator-sdk-e2e
+  namespace: gitpos-e2e-test
 spec:
   workspaces:
   - name: source
   - name: tmp 
     mountPath: /tmp/output
   steps:
+    # uses the specific version of operator-sdk that our tests need
+    # to run on. We may replace this with a better maintained image.
+    # Built using Dockerfile.operator-sdk in this source-code-repo
   - image: quay.io/shbose/operator-sdk
     workingDir: $(workspaces.source.path) 
     env:
@@ -15,12 +34,12 @@ spec:
     command:
       - make
       - test-e2e-on-installed-operator
---- 
-
+---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: gitops-osdk-e2e
+  namespace: gitpos-e2e-test
 spec:
   params:
   - name: repo-url
@@ -30,15 +49,13 @@ spec:
     type: string
     description: The git branch to clone.
   workspaces:
-  - name: shared-data
-    description: |
-      This workspace will receive the cloned git repo and be passed
-      to the next Task for the repo's README.md file to be read.
-  - name: tmp
+  - name: shared-data # needed to check out source code
+  - name: tmp # needed to write out a kubeconfig for operator-sdk to consume.
   tasks:
   - name: fetch-repo
     taskRef:
       name: git-clone
+      kind: ClusterTask 
     workspaces:
     - name: output
       workspace: shared-data
@@ -54,17 +71,17 @@ spec:
       workspace: shared-data
     - name: tmp 
       workspace: tmp
-      
     taskRef:
       name: run-operator-sdk-e2e
 ---
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: gitops-osdk-e2e
+  namespace: gitpos-e2e-test
+  generateName: gitops-osdk-e2e-
 spec:
   pipelineRef:
-    name: gitops-e2e
+    name: gitops-osdk-e2e
   workspaces:
   - name: tmp 
     emptyDir: {}
@@ -78,6 +95,6 @@ spec:
             storage: 1Gi
   params:
   - name: repo-url
-    value: https://github.com/sbose78/gitops-operator
+    value: https://github.com/redhat-developer/gitops-operator
   - name: branch-name
-    value: dockerfile.e2e
+    value: master
