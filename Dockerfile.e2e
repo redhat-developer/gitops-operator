@@ -1,7 +1,5 @@
 FROM registry.access.redhat.com/ubi8/ubi-minimal
 
-
-#RUN yum install -y git make golang && yum clean all
 RUN microdnf install -y git make golang 
 WORKDIR /tmp
 
