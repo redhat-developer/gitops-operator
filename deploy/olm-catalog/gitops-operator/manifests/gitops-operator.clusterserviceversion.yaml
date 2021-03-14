@@ -8,12 +8,18 @@ metadata:
     alm-examples: |-
       [
         {
-          "apiVersion": "pipelines.openshift.io/v1alpha1",
-          "kind": "GitopsService",
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "ArgoCD",
           "metadata": {
-            "name": "example-gitopsservice"
+            "name": "argocd"
           },
-          "spec": {}
+          "spec": {
+            "server": {
+              "route": {
+                "enabled": true
+              }
+            }
+          }
         }
       ]
     capabilities: Basic Install
