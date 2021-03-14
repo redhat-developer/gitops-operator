@@ -1,0 +1,83 @@
+kind: Task
+metadata:
+  name: run-operator-sdk-e2e
+spec:
+  workspaces:
+  - name: source
+  - name: tmp 
+    mountPath: /tmp/output
+  steps:
+  - image: quay.io/shbose/operator-sdk
+    workingDir: $(workspaces.source.path) 
+    env:
+      - name: XDG_CACHE_HOME
+        value: /tmp/output/.cache
+    command:
+      - make
+      - test-e2e-on-installed-operator
+--- 
+
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: gitops-osdk-e2e
+spec:
+  params:
+  - name: repo-url
+    type: string
+    description: The git repository URL to clone from.
+  - name: branch-name
+    type: string
+    description: The git branch to clone.
+  workspaces:
+  - name: shared-data
+    description: |
+      This workspace will receive the cloned git repo and be passed
+      to the next Task for the repo's README.md file to be read.
+  - name: tmp
+  tasks:
+  - name: fetch-repo
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-data
+    params:
+    - name: url
+      value: $(params.repo-url)
+    - name: revision
+      value: $(params.branch-name)
+  - name: run-e2e
+    runAfter: ["fetch-repo"]  # Wait until the clone is done before reading the readme.
+    workspaces:
+    - name: source
+      workspace: shared-data
+    - name: tmp 
+      workspace: tmp
+      
+    taskRef:
+      name: run-operator-sdk-e2e
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: gitops-osdk-e2e
+spec:
+  pipelineRef:
+    name: gitops-e2e
+  workspaces:
+  - name: tmp 
+    emptyDir: {}
+  - name: shared-data
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+  params:
+  - name: repo-url
+    value: https://github.com/sbose78/gitops-operator
+  - name: branch-name
+    value: dockerfile.e2e

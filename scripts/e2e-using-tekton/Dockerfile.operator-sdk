@@ -1,0 +1,14 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal as builder
+
+RUN microdnf install git golang
+
+WORKDIR /tmp
+RUN git clone --branch=v0.17.2 https://github.com/operator-framework/operator-sdk && \
+            cd operator-sdk && go mod vendor && \
+            go build -o bin/operator-sdk cmd/operator-sdk/main.go
+
+FROM registry.access.redhat.com/ubi8/ubi-minimal
+COPY --from=builder /tmp/operator-sdk/bin/operator-sdk /usr/local/bin/operator-sdk
+
+#USER 10001
+
