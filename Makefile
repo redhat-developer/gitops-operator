@@ -16,7 +16,7 @@ test-e2e:
 
 .PHONY: test-e2e-on-installed-operator
 test-e2e-on-installed-operator:
-	. ./scripts/run_e2e_tests_on_installed_operator.sh
+	go mod vendor && . ./scripts/run_e2e_tests_on_installed_operator.sh
 
 .PHONY: gomod_tidy
 gomod_tidy:

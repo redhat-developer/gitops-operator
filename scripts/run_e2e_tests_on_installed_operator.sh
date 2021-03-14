@@ -2,6 +2,8 @@
 
 set -x
 
+
+XDG_CACHE_HOME=/tmp/output/.cache
 E2E_TEST_DIR=./test/e2e
 ARGOCD_NS="openshift-gitops"
 DEPRACATED_ARGOCD_NS="openshift-pipelines-app-delivery"
