@@ -54,7 +54,6 @@ func TestGitOpsService(t *testing.T) {
 	}
 
 	// run subtests
-	// validateNewArgoCD
 	t.Run("Validate kam service", validateKamService)
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
