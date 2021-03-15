@@ -16,7 +16,7 @@ oc new-project gitpos-e2e-test
 3. Run the tests by 
 
 ```
-kubect apply -f e2e-pipeline.yaml
+oc apply -f e2e-pipeline.yaml
 ```
 
 3. Sit back and watch it run,
