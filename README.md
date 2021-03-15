@@ -1,7 +1,6 @@
-# OpenShift Gitops Service Operator
+# OpenShift GitOps  Operator
 
-The Gitops Service Operator delivers and manages the backend which powers the OpenShift GitOps UI.
-The service would be available at a well-known UI location.
+An operator that gets you an ArgoCD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
 
 # Getting started
 
