@@ -21,7 +21,7 @@ spec:
   sourceType: grpc
 ```
 
-2. Go the OperatorHub on OpenShift Webconsole and look for the "Gitops Service" operator.
+2. Go to the OperatorHub on OpenShift Webconsole and look for the "OpenShift GitOps" operator.
 
 
 
