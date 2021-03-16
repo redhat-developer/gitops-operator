@@ -13,6 +13,7 @@ roleRef:
   kind: ClusterRole
   name: cluster-admin
 ---
+apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: run-operator-sdk-e2e
