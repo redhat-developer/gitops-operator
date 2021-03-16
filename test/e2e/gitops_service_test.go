@@ -155,6 +155,13 @@ func validateArgoCDInstallation(t *testing.T) {
 	// check that this has not been overwritten
 	assert.Equal(t, existingArgoInstance.Spec.DisableAdmin, true)
 
+	// Check policy rules for cluster configuration
+	clusterRole := &rbacv1.ClusterRole{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "argocd-cluster-openshift-gitops-argocd-application-controller"}, clusterRole)
+	assertNoError(t, err)
+	expectedRules := policyRulesForClusterConfig()
+	assert.DeepEqual(t, clusterRole.Rules, expectedRules)
+
 }
 
 func assertNoError(t *testing.T, err error) {
@@ -236,4 +243,98 @@ func tearDownArgoCD(t *testing.T) {
 	err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
 	assertNoError(t, err)
 
+}
+
+func policyRulesForClusterConfig() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"operators.coreos.com",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"operator.openshift.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"user.openshift.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"config.openshift.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"console.openshift.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"namespaces",
+				"persistentvolumeclaims",
+				"persistentvolumes",
+				"configmaps",
+			},
+			Verbs: []string{
+				"*",
+			},
+		}, {
+			APIGroups: []string{
+				"rbac.authorization.k8s.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		}, {
+			APIGroups: []string{
+				"storage.k8s.io",
+			},
+			Resources: []string{
+				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+	}
 }
