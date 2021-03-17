@@ -1,4 +1,5 @@
 E2E_TEST_DIR=test/e2e
+OPERATOR_SDK?=operator-sdk
 
 default: test
 
@@ -24,4 +25,4 @@ gofmt:
 
 .PHONY: run-local
 run-local:
-	operator-sdk run --local --watch-namespace ""
+	${OPERATOR_SDK} run --local --watch-namespace ""
