@@ -23,6 +23,9 @@ ENV LANG=en_US.utf8
 
 COPY --from=builder /go/src/github.com/redhat-developer/gitops-operator/bin/gitops-operator /usr/local/bin/gitops-operator
 
+# install redis artifacts
+COPY build/redis /var/lib/redis
+
 USER 10001
 
 ENTRYPOINT [ "/usr/local/bin/gitops-operator" ]
