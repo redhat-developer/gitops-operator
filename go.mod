@@ -1,6 +1,6 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.14
+go 1.16
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.0.15-0.20210323235536-15b58452ee5b
