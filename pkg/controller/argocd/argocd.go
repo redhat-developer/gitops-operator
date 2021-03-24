@@ -41,6 +41,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Server: argoapp.ArgoCDServerSpec{
 				Route: argoapp.ArgoCDRouteSpec{Enabled: true},
 			},
+			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
 		},
 	}, nil
 }

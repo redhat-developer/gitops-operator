@@ -1,7 +1,6 @@
-# OpenShift Gitops Service Operator
+# OpenShift GitOps  Operator
 
-The Gitops Service Operator delivers and manages the backend which powers the OpenShift GitOps UI.
-The service would be available at a well-known UI location.
+An operator that gets you an ArgoCD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
 
 # Getting started
 
@@ -22,7 +21,7 @@ spec:
   sourceType: grpc
 ```
 
-2. Go the OperatorHub on OpenShift Webconsole and look for the "Gitops Service" operator.
+2. Go to the OperatorHub on OpenShift Webconsole and look for the "OpenShift GitOps" operator.
 
 
 
@@ -65,7 +64,7 @@ mode. You could update your image "payload" and re-install the operator.
 * Build the operator image.
 
 ```
-docker build -t quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+docker build -t quay.io/redhat-developer/gitops-backend-operator:v0.0.1 .
 docker push quay.io/redhat-developer/gitops-backend-operator:v0.0.1
 ```
 

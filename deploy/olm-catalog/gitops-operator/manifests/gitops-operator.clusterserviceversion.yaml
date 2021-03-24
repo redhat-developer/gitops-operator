@@ -23,7 +23,6 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
   name: openshift-gitops-operator.v0.0.3
   namespace: placeholder
 spec:
@@ -102,6 +101,10 @@ spec:
       - kind: StatefulSet
         name: ''
         version: v1
+    - kind: ApplicationSet
+      name: applicationsets.argoproj.io
+      version: v1alpha1
+      description: ApplicationSet is the representation of an ApplicationSet controller deployment.
   description: |
     Red Hat OpenShift GitOps is a declarative continuous delivery platform based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt GitOps principles for managing cluster configurations and automating secure and repeatable application delivery across hybrid multi-cluster Kubernetes environments. Following GitOps and infrastructure as code principles, you can store the configuration of clusters and applications in Git repositories and use Git workflows to roll them out to the target clusters.
 
