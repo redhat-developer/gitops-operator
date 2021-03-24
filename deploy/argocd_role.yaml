@@ -83,9 +83,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/name: openshift-gitops-application-controller
     app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
+  name: openshift-gitops-application-controller
 rules:
 - apiGroups:
   - ""
@@ -140,9 +140,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: dex-server
-    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/name: openshift-gitops-dex-server
     app.kubernetes.io/part-of: argocd
-  name: argocd-dex-server
+  name: openshift-gitops-dex-server
 rules:
 - apiGroups:
   - ""
@@ -159,9 +159,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: redis
-    app.kubernetes.io/name: argocd-redis-ha
+    app.kubernetes.io/name: openshift-gitops-redis-ha
     app.kubernetes.io/part-of: argocd
-  name: argocd-redis-ha
+  name: openshift-gitops-redis-ha
 rules:
 - apiGroups:
   - ""
@@ -175,9 +175,9 @@ kind: Role
 metadata:
   labels:
     app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: openshift-gitops-server
     app.kubernetes.io/part-of: argocd
-  name: argocd-server
+  name: openshift-gitops-server
 rules:
 - apiGroups:
   - ""
@@ -218,9 +218,9 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/component: application-controller
-    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/name: openshift-gitops-application-controller
     app.kubernetes.io/part-of: argocd
-  name: argocd-application-controller
+  name: openshift-gitops-application-controller
 rules:
 - apiGroups:
   - '*'
@@ -241,9 +241,9 @@ kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/component: server
-    app.kubernetes.io/name: argocd-server
+    app.kubernetes.io/name: openshift-gitops-server
     app.kubernetes.io/part-of: argocd
-  name: argocd-server
+  name: openshift-gitops-server
 rules:
 - apiGroups:
   - '*'
