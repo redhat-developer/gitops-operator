@@ -13,7 +13,6 @@ go mod vendor
 make prepare-test-cluster
 
 export PATH="$PATH:$(pwd)"
-export ARTIFACTS_DIR="/tmp/artifacts"
 
 INSTALL_OPERATOR_SDK="./scripts/install-operator-sdk.sh"
 sh $INSTALL_OPERATOR_SDK
