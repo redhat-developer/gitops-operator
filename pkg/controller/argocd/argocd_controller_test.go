@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	argocdInstanceName = "argocd"
+	argocdInstanceName = "openshift-gitops"
 )
 
 var (
