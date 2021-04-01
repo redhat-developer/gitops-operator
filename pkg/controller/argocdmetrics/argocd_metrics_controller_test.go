@@ -3,6 +3,8 @@ package argocdmetrics
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"gotest.tools/assert"
@@ -16,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 func newScheme() *runtime.Scheme {
@@ -29,7 +30,8 @@ func newScheme() *runtime.Scheme {
 }
 
 const (
-	argocdKind = "ArgoCD"
+	argocdKind         = "ArgoCD"
+	argoCDInstanceName = "openshift-gitops"
 )
 
 func newClient(s *runtime.Scheme, namespace, name string) client.Client {
@@ -70,7 +72,7 @@ func TestReconcile_add_namespace_label(t *testing.T) {
 		namespace    string
 	}{
 		{
-			instanceName: "argocd-cluster",
+			instanceName: argoCDInstanceName,
 			namespace:    "openshift-gitops",
 		},
 		{
@@ -97,7 +99,7 @@ func TestReconcile_add_read_role(t *testing.T) {
 		namespace    string
 	}{
 		{
-			instanceName: "argocd-cluster",
+			instanceName: argoCDInstanceName,
 			namespace:    "openshift-gitops",
 		},
 		{
@@ -140,7 +142,7 @@ func TestReconcile_add_read_role_binding(t *testing.T) {
 		namespace    string
 	}{
 		{
-			instanceName: "argocd-cluster",
+			instanceName: argoCDInstanceName,
 			namespace:    "openshift-gitops",
 		},
 		{
@@ -184,7 +186,7 @@ func TestReconcile_add_service_monitors(t *testing.T) {
 		namespace    string
 	}{
 		{
-			instanceName: "argocd-cluster",
+			instanceName: argoCDInstanceName,
 			namespace:    "openshift-gitops",
 		},
 		{
@@ -250,7 +252,7 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		namespace    string
 	}{
 		{
-			instanceName: "argocd-cluster",
+			instanceName: argoCDInstanceName,
 			namespace:    "openshift-gitops",
 		},
 		{

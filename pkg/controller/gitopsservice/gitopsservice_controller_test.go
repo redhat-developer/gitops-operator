@@ -92,7 +92,7 @@ func TestReconcile(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check if argocd instance is created in openshift-gitops namespace
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "argocd-test", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
 }
 
@@ -127,7 +127,7 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check if argocd instance is created in openshift-gitops namespace
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "argocd-test", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
 }
 
