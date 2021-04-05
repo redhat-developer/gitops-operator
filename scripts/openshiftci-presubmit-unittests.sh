@@ -18,6 +18,7 @@ git status
 go mod tidy
 echo "post .... "
 git status 
+git diff
 if [[ ! -z $(git status -s) ]]
 then
     echo "Go mod state is not clean."
