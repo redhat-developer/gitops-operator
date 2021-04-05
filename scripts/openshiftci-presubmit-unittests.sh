@@ -8,8 +8,8 @@ set -x
 export PATH=$PATH:$GOPATH/bin
 
 go env
-go mod vendor
-if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
+#go mod vendor
+if [[ $(go fmt `go list ./...`) ]]; then
     echo "not well formatted sources are found"
     exit 1
 fi
