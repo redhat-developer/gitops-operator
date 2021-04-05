@@ -6,7 +6,7 @@ set -e
 set -x
 
 export PATH=$PATH:$GOPATH/bin
-
+go version
 go env
 #go mod vendor
 if [[ $(go fmt `go list ./...`) ]]; then
