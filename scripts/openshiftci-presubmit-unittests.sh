@@ -6,6 +6,7 @@ set -e
 set -x
 
 export PATH=$PATH:$GOPATH/bin
+
 go env
 go mod vendor
 if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
