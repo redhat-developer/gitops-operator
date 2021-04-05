@@ -6,19 +6,13 @@ set -e
 set -x
 
 export PATH=$PATH:$GOPATH/bin
-go version
 go env
-#go mod vendor
-if [[ $(go fmt `go list ./...`) ]]; then
+go mod vendor
+if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
     echo "not well formatted sources are found"
     exit 1
 fi
-echo "pre ..... "
-git status 
 go mod tidy
-echo "post .... "
-git status 
-git diff
 if [[ ! -z $(git status -s) ]]
 then
     echo "Go mod state is not clean."
