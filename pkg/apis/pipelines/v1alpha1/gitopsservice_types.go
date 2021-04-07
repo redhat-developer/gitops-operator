@@ -6,6 +6,7 @@ import (
 
 // GitopsServiceSpec defines the desired state of GitopsService
 type GitopsServiceSpec struct {
+	DisableSSO bool `json:"disableSSO,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService

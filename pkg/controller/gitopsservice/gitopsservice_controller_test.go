@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	template "github.com/openshift/api/template/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -94,6 +96,10 @@ func TestReconcile(t *testing.T) {
 	// Check if argocd instance is created in openshift-gitops namespace
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
+
+	// Check if rhsso template instance is created in openshift-gitops namespace
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "rhsso", Namespace: serviceNamespace}, &template.TemplateInstance{})
+	assertNoError(t, err)
 }
 
 func TestReconcile_AppDeliveryNamespace(t *testing.T) {
@@ -128,6 +134,10 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 
 	// Check if argocd instance is created in openshift-gitops namespace
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
+	assertNoError(t, err)
+
+	// Check if rhsso template instance is created in openshift-gitops namespace
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "rhsso", Namespace: serviceNamespace}, &template.TemplateInstance{})
 	assertNoError(t, err)
 }
 
@@ -190,6 +200,9 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(pipelinesv1alpha1.SchemeGroupVersion, &pipelinesv1alpha1.GitopsService{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	scheme.AddKnownTypes(argoapp.SchemeGroupVersion, &argoapp.ArgoCD{})
+	scheme.AddKnownTypes(oappsv1.SchemeGroupVersion, &oappsv1.DeploymentConfig{})
+	scheme.AddKnownTypes(template.SchemeGroupVersion, &template.Template{})
+	scheme.AddKnownTypes(template.SchemeGroupVersion, &template.TemplateInstance{})
 }
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {

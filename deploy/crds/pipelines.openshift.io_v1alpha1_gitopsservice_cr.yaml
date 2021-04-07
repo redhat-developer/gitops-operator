@@ -2,4 +2,6 @@ apiVersion: pipelines.openshift.io/v1alpha1
 kind: GitopsService
 metadata:
   name: example-gitopsservice
-spec:
+spec: {
+  disableSSO: false
+}

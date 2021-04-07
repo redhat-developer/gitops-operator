@@ -55,6 +55,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
+	t.Run("Validate rhsso installation", validateRHSSO)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 }

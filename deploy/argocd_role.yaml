@@ -71,6 +71,13 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - template.openshift.io
+  resources:
+  - templates
+  - templateinstances
+  verbs:
+  - '*'
+- apiGroups:
   - route.openshift.io
   resources:
   - routes

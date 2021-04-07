@@ -9,6 +9,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
+	template "github.com/openshift/api/template/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
@@ -201,6 +202,25 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.scheme); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	// create a new template instance for installing rhsso
+	if !instance.Spec.DisableSSO {
+		templateInstanceRef := newSSOTemplateInstance()
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, templateInstanceRef, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		existingTemplateInstance := template.TemplateInstance{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: templateInstanceRef.Name, Namespace: templateInstanceRef.Namespace}, &existingTemplateInstance)
+		if err != nil && errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new SSO Instance", "Namespace", templateInstanceRef.Namespace, "Name", templateInstanceRef.Name)
+			err = r.client.Create(context.TODO(), templateInstanceRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	existingArgoCD := &argoapp.ArgoCD{}
@@ -430,6 +450,8 @@ func newGitopsService() *pipelinesv1alpha1.GitopsService {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceName,
 		},
-		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			DisableSSO: false,
+		},
 	}
 }
