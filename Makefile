@@ -26,3 +26,7 @@ gofmt:
 .PHONY: run-local
 run-local:
 	${OPERATOR_SDK} run --local --watch-namespace ""
+
+.PHONY: test-e2e-on-installed-operator
+test-e2e-on-installed-operator:
+	CGO_ENABLED=0 SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local ./test/e2e  --verbose --no-setup
