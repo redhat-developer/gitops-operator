@@ -2,6 +2,7 @@ package gitopsservice
 
 import (
 	"context"
+	"gotest.tools/assert"
 	"os"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -80,6 +82,17 @@ func TestReconcile(t *testing.T) {
 
 	// Check if backend resources are created in openshift-gitops namespace
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName, Namespace: serviceNamespace}, &corev1.ServiceAccount{})
+	assertNoError(t, err)
+
+	role := &rbacv1.ClusterRole{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName}, role)
+	assertNoError(t, err)
+	assert.DeepEqual(t, role.Rules, policyRuleForBackendServiceClusterRole())
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName}, &rbacv1.ClusterRoleBinding{})
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})

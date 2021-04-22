@@ -5,17 +5,17 @@ import (
 	"os"
 	"strings"
 
-	appsv1 "k8s.io/api/apps/v1"
-
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 
+	"github.com/redhat-developer/gitops-operator/common"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	argocd "github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 
-	"github.com/redhat-developer/gitops-operator/common"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +47,10 @@ var (
 	serviceNamespace                  = "openshift-gitops"
 	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
 	clusterVersionName                = "version"
+)
+
+const (
+	gitopsBackendPrefix = "gitops-backend-service-"
 )
 
 // Add creates a new GitopsService Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -213,6 +217,60 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
+	// Define Service account for backend Service
+	serviceAccountObj := newServiceAccount(serviceNamespacedName)
+
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, serviceAccountObj, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	existingServiceAccount := &corev1.ServiceAccount{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: serviceAccountObj.Namespace, Name: serviceAccountObj.Name}, existingServiceAccount)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new ServiceAccount", "Namespace", serviceAccountObj.Namespace, "Name", serviceAccountObj.Name)
+		err = r.client.Create(context.TODO(), serviceAccountObj)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// Define a new cluster role for backend service
+	clusterRoleObj := newClusterRole(serviceNamespacedName)
+
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, clusterRoleObj, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	existingClusterRole := &rbacv1.ClusterRole{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleObj.Name}, existingClusterRole)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Cluster Role", "Name", clusterRoleObj.Name)
+		err = r.client.Create(context.TODO(), clusterRoleObj)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// Define Cluster Role Binding for backend service
+	cluserRoleBindingObj := newClusterRoleBinding(serviceNamespacedName)
+
+	// Set GitopsService instance as the owner and controller
+	if err := controllerutil.SetControllerReference(instance, cluserRoleBindingObj, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: cluserRoleBindingObj.Name}, existingClusterRoleBinding)
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Creating a new Cluster Role Binding", "Name", cluserRoleBindingObj.Name)
+		err = r.client.Create(context.TODO(), cluserRoleBindingObj)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
 	// Define a new Pod object
 	deploymentObj := newBackendDeployment(serviceNamespacedName)
 
@@ -334,6 +392,7 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 				},
 			},
 		},
+		ServiceAccountName: gitopsBackendPrefix + ns.Name,
 	}
 
 	template := corev1.PodTemplateSpec{
@@ -431,5 +490,61 @@ func newGitopsService() *pipelinesv1alpha1.GitopsService {
 			Name: serviceName,
 		},
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+}
+
+func newServiceAccount(meta types.NamespacedName) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      gitopsBackendPrefix + meta.Name,
+			Namespace: meta.Namespace,
+		},
+	}
+}
+
+func newClusterRole(meta types.NamespacedName) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: gitopsBackendPrefix + meta.Name,
+		},
+		Rules: policyRuleForBackendServiceClusterRole(),
+	}
+}
+
+func newClusterRoleBinding(meta types.NamespacedName) *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: gitopsBackendPrefix + meta.Name,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      meta.Name,
+				Namespace: meta.Namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     meta.Name,
+		},
+	}
+}
+
+func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"argoproj.io",
+			},
+			Resources: []string{
+				"applications",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"watch",
+			},
+		},
 	}
 }
