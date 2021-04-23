@@ -21,4 +21,9 @@
 
 Fixes #?
 
+**Test acceptance criteria**:
+
+* [ ] Unit Test
+* [ ] E2E Test
+
 **How to test changes / Special notes to the reviewer**:
