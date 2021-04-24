@@ -16,7 +16,7 @@ type resource struct {
 	Clusters  []string `json:"clusters"`
 }
 
-func getArgoApplicationSet() *argoapp.ArgoCDApplicationSet {
+func getArgoApplicationSetSpec() *argoapp.ArgoCDApplicationSet {
 	return &argoapp.ArgoCDApplicationSet{
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
