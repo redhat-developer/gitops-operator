@@ -161,7 +161,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Namespace: ns,
 		},
 		Spec: argoapp.ArgoCDSpec{
-			ApplicationSet: getArgoApplicationSet(),
+			ApplicationSet: getArgoApplicationSetSpec(),
 			Controller:     getArgoControllerSpec(),
 			Dex:            getArgoDexSpec(),
 			Grafana:        getArgoGrafanaSpec(),
