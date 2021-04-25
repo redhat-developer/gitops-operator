@@ -6,4 +6,14 @@ plugins:
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: gitops-operator
 repo: github.com/redhat-developer/gitops-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: pipelines
+  kind: GitopsService
+  path: github.com/redhat-developer/gitops-operator/api/v1alpha1
+  version: v1alpha1
 version: "3"
