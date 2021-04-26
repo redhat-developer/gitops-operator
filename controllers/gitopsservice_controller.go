@@ -232,7 +232,7 @@ func (r *GitopsServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, erro
 		return reconcile.Result{}, nil
 	}
 
-	return reconcile.Result{}, nil
+	return r.reconcileCLIServer(instance, req)
 
 }
 
