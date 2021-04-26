@@ -18,7 +18,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	rt "runtime"
+
+	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	"go.etcd.io/etcd/version"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -37,8 +42,9 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme    = runtime.NewScheme()
+	setupLog  = ctrl.Log.WithName("setup")
+	GitCommit string
 )
 
 func init() {
@@ -64,6 +70,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	printVersion()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -102,4 +110,12 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func printVersion() {
+	setupLog.Info(fmt.Sprintf("Git Commit: %s", GitCommit))
+	setupLog.Info(fmt.Sprintf("Operator Version: %s", version.Version))
+	setupLog.Info(fmt.Sprintf("Go Version: %s", rt.Version()))
+	setupLog.Info(fmt.Sprintf("Go OS/Arch: %s/%s", rt.GOOS, rt.GOARCH))
+	setupLog.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
 }

@@ -41,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
+
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 )
 
