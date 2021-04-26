@@ -84,15 +84,15 @@ func TestReconcile(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName, Namespace: serviceNamespace}, &corev1.ServiceAccount{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName, Namespace: serviceNamespace}, &corev1.ServiceAccount{})
 	assertNoError(t, err)
 
 	role := &rbacv1.ClusterRole{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName}, role)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName}, role)
 	assertNoError(t, err)
 	assert.DeepEqual(t, role.Rules, policyRuleForBackendServiceClusterRole())
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsBackendPrefix + serviceName}, &rbacv1.ClusterRoleBinding{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName}, &rbacv1.ClusterRoleBinding{})
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})

@@ -50,7 +50,7 @@ var (
 )
 
 const (
-	gitopsBackendPrefix = "gitops-backend-service-"
+	gitopsServicePrefix = "gitops-service-"
 )
 
 // Add creates a new GitopsService Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -119,6 +119,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &pipelinesv1alpha1.GitopsService{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &pipelinesv1alpha1.GitopsService{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &rbacv1.ClusterRole{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &pipelinesv1alpha1.GitopsService{},
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.Watch(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &pipelinesv1alpha1.GitopsService{},
 	})
@@ -254,18 +278,18 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Define Cluster Role Binding for backend service
-	cluserRoleBindingObj := newClusterRoleBinding(serviceNamespacedName)
+	clusterRoleBinding := newClusterRoleBinding(serviceNamespacedName)
 
 	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, cluserRoleBindingObj, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, clusterRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: cluserRoleBindingObj.Name}, existingClusterRoleBinding)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.Name}, existingClusterRoleBinding)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Cluster Role Binding", "Name", cluserRoleBindingObj.Name)
-		err = r.client.Create(context.TODO(), cluserRoleBindingObj)
+		reqLogger.Info("Creating a new Cluster Role Binding", "Name", clusterRoleBinding.Name)
+		err = r.client.Create(context.TODO(), clusterRoleBinding)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -392,7 +416,7 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 				},
 			},
 		},
-		ServiceAccountName: gitopsBackendPrefix + ns.Name,
+		ServiceAccountName: gitopsServicePrefix + ns.Name,
 	}
 
 	template := corev1.PodTemplateSpec{
@@ -496,7 +520,7 @@ func newGitopsService() *pipelinesv1alpha1.GitopsService {
 func newServiceAccount(meta types.NamespacedName) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      gitopsBackendPrefix + meta.Name,
+			Name:      gitopsServicePrefix + meta.Name,
 			Namespace: meta.Namespace,
 		},
 	}
@@ -505,7 +529,7 @@ func newServiceAccount(meta types.NamespacedName) *corev1.ServiceAccount {
 func newClusterRole(meta types.NamespacedName) *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: gitopsBackendPrefix + meta.Name,
+			Name: gitopsServicePrefix + meta.Name,
 		},
 		Rules: policyRuleForBackendServiceClusterRole(),
 	}
@@ -514,19 +538,19 @@ func newClusterRole(meta types.NamespacedName) *rbacv1.ClusterRole {
 func newClusterRoleBinding(meta types.NamespacedName) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: gitopsBackendPrefix + meta.Name,
+			Name: gitopsServicePrefix + meta.Name,
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      rbacv1.ServiceAccountKind,
-				Name:      meta.Name,
+				Name:      gitopsServicePrefix + meta.Name,
 				Namespace: meta.Namespace,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: rbacv1.GroupName,
 			Kind:     "ClusterRole",
-			Name:     meta.Name,
+			Name:     gitopsServicePrefix + meta.Name,
 		},
 	}
 }
