@@ -110,7 +110,7 @@ type GitopsServiceReconciler struct {
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
-func (r *GitopsServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *GitopsServiceReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	reqLogger := r.Log.WithValues("gitopsservice", req.NamespacedName)
 
 	reqLogger.Info("Reconciling GitopsService")
@@ -240,6 +240,7 @@ func (r *GitopsServiceReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *GitopsServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&pipelinesv1alpha1.GitopsService{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
 
