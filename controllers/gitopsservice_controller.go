@@ -103,9 +103,6 @@ type GitopsServiceReconciler struct {
 //+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=*
 //+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=*
 
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses;prometheusrules;servicemonitors,verbs=*
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=create;get
-
 //+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
