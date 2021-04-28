@@ -8,6 +8,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
+	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
@@ -95,7 +96,8 @@ func TestReconcile(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName}, &rbacv1.ClusterRoleBinding{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	deploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &corev1.Service{})
@@ -107,6 +109,30 @@ func TestReconcile(t *testing.T) {
 	// Check if argocd instance is created in openshift-gitops namespace
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
+
+	// update Cluster Role and Backend Deployment
+	updatedPolicyRules := policyRuleForBackendServiceClusterRole()
+	updatedPolicyRules[0].Resources = append(updatedPolicyRules[0].Resources, "testResource")
+	role.Rules = updatedPolicyRules
+
+	err = fakeClient.Update(context.TODO(), role)
+	assertNoError(t, err)
+
+	deploy.Spec.Template.Spec.Containers[0].Image = "newTestImage:test"
+	err = fakeClient.Update(context.TODO(), deploy)
+	assertNoError(t, err)
+
+	// reconcile
+	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName}, role)
+	assertNoError(t, err)
+	assert.DeepEqual(t, role.Rules, policyRuleForBackendServiceClusterRole())
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
+	assertNoError(t, err)
+	assert.DeepEqual(t, deploy.Spec.Template.Spec.Containers[0].Image, backendImage)
 }
 
 func TestReconcile_AppDeliveryNamespace(t *testing.T) {
@@ -203,6 +229,7 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(pipelinesv1alpha1.SchemeGroupVersion, &pipelinesv1alpha1.GitopsService{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	scheme.AddKnownTypes(argoapp.SchemeGroupVersion, &argoapp.ArgoCD{})
+	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
 }
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {
