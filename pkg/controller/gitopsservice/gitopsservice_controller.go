@@ -570,5 +570,16 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 				"watch",
 			},
 		},
+		{
+			APIGroups: []string{
+				"authorization.k8s.io",
+			},
+			Resources: []string{
+				"subjectaccessreviews",
+			},
+			Verbs: []string{
+				"create",
+			},
+		},
 	}
 }
