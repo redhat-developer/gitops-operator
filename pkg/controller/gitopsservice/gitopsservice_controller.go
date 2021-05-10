@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -231,6 +232,35 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 				return reconcile.Result{}, err
 			}
 		} else {
+			return reconcile.Result{}, err
+		}
+	}
+
+	// Ensure compute resource quotas are set for the default ArgoCD namespace
+	resourceQuotaName := argocdNS.Name + "-compute-resources"
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourceQuotaName, Namespace: argocdNS.Name}, &corev1.ResourceQuota{})
+	if err != nil && errors.IsNotFound(err) {
+		reqLogger.Info("Setting compute resource quotas for ArgoCD namespace", "Name", argocdNS.Name)
+		resourceQuota := corev1.ResourceQuota{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "ResourceQuota",
+				APIVersion: "v1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      resourceQuotaName,
+				Namespace: argocdNS.Name,
+			},
+			Spec: corev1.ResourceQuotaSpec{
+				Hard: corev1.ResourceList{
+					corev1.ResourceMemory:       resourcev1.MustParse("4032Mi"),
+					corev1.ResourceCPU:          resourcev1.MustParse("6188m"),
+					corev1.ResourceLimitsMemory: resourcev1.MustParse("8046Mi"),
+					corev1.ResourceLimitsCPU:    resourcev1.MustParse("12750m"),
+				},
+			},
+		}
+		err = r.client.Create(context.TODO(), &resourceQuota)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 	}
@@ -469,6 +499,16 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 						MountPath: "/etc/gitops/ssl",
 						Name:      "backend-ssl",
 						ReadOnly:  true,
+					},
+				},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
+						corev1.ResourceCPU:    resourcev1.MustParse("250m"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+						corev1.ResourceCPU:    resourcev1.MustParse("500m"),
 					},
 				},
 			},

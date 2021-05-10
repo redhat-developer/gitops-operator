@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -190,6 +191,49 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	if err == nil {
 		t.Fatalf("was expecting an error %s, but got nil", wantErr)
 	}
+}
+
+func TestReconcile_GitOpsNamespaceResourceQuotas(t *testing.T) {
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	resourceQuota := corev1.ResourceQuota{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace + "-compute-resources", Namespace: serviceNamespace}, &resourceQuota)
+	assertNoError(t, err)
+
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceCPU], resourcev1.MustParse("6188m"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceMemory], resourcev1.MustParse("4032Mi"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsCPU], resourcev1.MustParse("12750m"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsMemory], resourcev1.MustParse("8046Mi"))
+}
+
+func TestReconcile_BackendResourceLimits(t *testing.T) {
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	resources := deployment.Spec.Template.Spec.Containers[0].Resources
+	assert.Equal(t, resources.Requests[corev1.ResourceCPU], resourcev1.MustParse("250m"))
+	assert.Equal(t, resources.Requests[corev1.ResourceMemory], resourcev1.MustParse("128Mi"))
+	assert.Equal(t, resources.Limits[corev1.ResourceCPU], resourcev1.MustParse("500m"))
+	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
 }
 
 func TestGetBackendNamespace(t *testing.T) {

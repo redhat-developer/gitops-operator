@@ -3,6 +3,7 @@ package gitopsservice
 import (
 	"context"
 	"fmt"
+	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	"os"
 
 	console "github.com/openshift/api/console/v1"
@@ -40,6 +41,16 @@ func newDeploymentForCLI() *appsv1.Deployment {
 						Name:          "http",
 						Protocol:      corev1.ProtocolTCP,
 						ContainerPort: port, // should come from flag
+					},
+				},
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
+						corev1.ResourceCPU:    resourcev1.MustParse("250m"),
+					},
+					Limits: corev1.ResourceList{
+						corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+						corev1.ResourceCPU:    resourcev1.MustParse("500m"),
 					},
 				},
 			},
