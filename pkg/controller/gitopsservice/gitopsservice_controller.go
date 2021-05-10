@@ -3,6 +3,7 @@ package gitopsservice
 import (
 	"context"
 	"os"
+	"reflect"
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
@@ -199,10 +200,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	namespaceRef := newNamespace(namespace)
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: namespace}, &corev1.Namespace{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Namespace", "Name", namespace)
-		err = r.client.Create(context.TODO(), namespaceRef)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Namespace", "Name", namespace)
+			err = r.client.Create(context.TODO(), namespaceRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -219,10 +224,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	// 4.7 Cluster: Both backend and argocd instance in openshift-gitops namespace
 	argocdNS := newNamespace(defaultArgoCDInstance.Namespace)
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
-		err = r.client.Create(context.TODO(), argocdNS)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
+			err = r.client.Create(context.TODO(), argocdNS)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -263,10 +272,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
-		err = r.client.Create(context.TODO(), defaultArgoCDInstance)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
+			err = r.client.Create(context.TODO(), defaultArgoCDInstance)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -281,10 +294,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingServiceAccount := &corev1.ServiceAccount{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: serviceAccountObj.Namespace, Name: serviceAccountObj.Name}, existingServiceAccount)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ServiceAccount", "Namespace", serviceAccountObj.Namespace, "Name", serviceAccountObj.Name)
-		err = r.client.Create(context.TODO(), serviceAccountObj)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new ServiceAccount", "Namespace", serviceAccountObj.Namespace, "Name", serviceAccountObj.Name)
+			err = r.client.Create(context.TODO(), serviceAccountObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -299,9 +316,20 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingClusterRole := &rbacv1.ClusterRole{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleObj.Name}, existingClusterRole)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Cluster Role", "Name", clusterRoleObj.Name)
-		err = r.client.Create(context.TODO(), clusterRoleObj)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Cluster Role", "Name", clusterRoleObj.Name)
+			err = r.client.Create(context.TODO(), clusterRoleObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
+			return reconcile.Result{}, err
+		}
+	} else if !reflect.DeepEqual(existingClusterRole.Rules, clusterRoleObj.Rules) {
+		reqLogger.Info("Reconciling existing Cluster Role", "Name", clusterRoleObj.Name)
+		existingClusterRole.Rules = clusterRoleObj.Rules
+		err = r.client.Update(context.TODO(), existingClusterRole)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -317,10 +345,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.Name}, existingClusterRoleBinding)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Cluster Role Binding", "Name", clusterRoleBinding.Name)
-		err = r.client.Create(context.TODO(), clusterRoleBinding)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Cluster Role Binding", "Name", clusterRoleBinding.Name)
+			err = r.client.Create(context.TODO(), clusterRoleBinding)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -336,13 +368,41 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	// Check if this Deployment already exists
 	found := &appsv1.Deployment{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-		err = r.client.Create(context.TODO(), deploymentObj)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+			err = r.client.Create(context.TODO(), deploymentObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
+	} else {
+		changed := false
+		desiredImage := deploymentObj.Spec.Template.Spec.Containers[0].Image
+		if found.Spec.Template.Spec.Containers[0].Image != desiredImage {
+			found.Spec.Template.Spec.Containers[0].Image = desiredImage
+			changed = true
+		}
+		if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
+			found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
+			changed = true
+		}
+		if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
+			found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
+			changed = true
+		}
+
+		if changed {
+			reqLogger.Info("Reconciling existing backend Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+			err = r.client.Update(context.TODO(), found)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
+
 	serviceRef := newBackendService(serviceNamespacedName)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
@@ -352,10 +412,14 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	// Check if this Service already exists
 	existingServiceRef := &corev1.Service{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, existingServiceRef)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-		err = r.client.Create(context.TODO(), serviceRef)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Service", "Namespace", serviceRef.Namespace, "Name", serviceRef.Name)
+			err = r.client.Create(context.TODO(), serviceRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -369,13 +433,16 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	existingRoute := &routev1.Route{}
 
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, existingRoute)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
-		err = r.client.Create(context.TODO(), routeRef)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
+			err = r.client.Create(context.TODO(), routeRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, nil
 	}
 
 	return r.reconcileCLIServer(instance, request)
