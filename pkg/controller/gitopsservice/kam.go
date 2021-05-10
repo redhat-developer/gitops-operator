@@ -164,10 +164,14 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	// Check if this Deployment already exists
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, &appsv1.Deployment{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-		err = r.client.Create(context.TODO(), deploymentObj)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+			err = r.client.Create(context.TODO(), deploymentObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -178,10 +182,14 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	// Check if this Service already exists
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, &corev1.Service{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-		err = r.client.Create(context.TODO(), serviceRef)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+			err = r.client.Create(context.TODO(), serviceRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
 	}
@@ -192,13 +200,16 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	}
 
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, &routev1.Route{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
-		err = r.client.Create(context.TODO(), routeRef)
-		if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
+			err = r.client.Create(context.TODO(), routeRef)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		} else {
 			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, nil
 	}
 
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, routeRef)
