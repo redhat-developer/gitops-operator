@@ -414,7 +414,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, existingServiceRef)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Service", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+			reqLogger.Info("Creating a new Service", "Namespace", serviceRef.Namespace, "Name", serviceRef.Name)
 			err = r.client.Create(context.TODO(), serviceRef)
 			if err != nil {
 				return reconcile.Result{}, err
