@@ -185,7 +185,7 @@ spec:
     * Configuration drift detection and visualization on live clusters
     * Audit trails of rollouts to the clusters
     * Monitoring and logging integration with OpenShift
-    * Automated GitOps bootstrapping using Tekton and Argo CD with [GitOps Application Manager CLI](https://github.com/ redhat-developer/kam) 
+    * Automated GitOps bootstrapping using Tekton and Argo CD with [GitOps Application Manager CLI](https://github.com/redhat-developer/kam) 
 
     ## Components
     * Argo CD 1.8.3
