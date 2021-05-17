@@ -135,7 +135,7 @@ func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.R
 
 	argocCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink(argocCDRouteURL, "ArgoCD")
+	consoleLink := newConsoleLink(argocCDRouteURL, "Cluster Argo CD")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
