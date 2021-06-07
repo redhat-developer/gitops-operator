@@ -88,6 +88,9 @@ metadata:
                   "memory": "128Mi"
                 }
               }                
+            },
+            "sso": {
+              "provider": "keycloak"
             }
           }
         }
@@ -257,14 +260,26 @@ spec:
           verbs:
           - '*'
         - apiGroups:
-            - ""
+          - ""
           resources:
           - resourcequotas
           verbs:
-          - "get"
-          - "list"
-          - "watch"
-          - "create"
+          - 'list'
+          - 'get'
+          - 'create'
+          - 'watch'
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclients 
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         serviceAccountName: gitops-operator
       permissions:
       - rules:
@@ -282,6 +297,18 @@ spec:
           - services/finalizers
           verbs:
           - '*'
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclients 
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
@@ -334,6 +361,32 @@ spec:
           - routes/custom-host
           verbs:
           - '*'
+        - apiGroups:
+          - template.openshift.io
+          resources:
+          - templates
+          - templateinstances
+          - templateconfigs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps.openshift.io
+          resources:
+          - deploymentconfigs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         serviceAccountName: gitops-operator
       - rules:
         - apiGroups:
