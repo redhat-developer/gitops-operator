@@ -48,7 +48,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	fakeClient := fake.NewFakeClient(argoCDRoute)
 
 	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
-	want := newConsoleLink("https://test.com", "ArgoCD")
+	want := newConsoleLink("https://test.com", "Cluster Argo CD")
 
 	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
 	assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, want)
