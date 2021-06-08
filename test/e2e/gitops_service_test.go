@@ -54,9 +54,9 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate kam service", validateKamService)
 	t.Run("Validate GitOps Backend", validateGitOpsBackend)
 	t.Run("Validate ConsoleLink", validateConsoleLink)
-	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
-	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
-	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
+	t.Run("Validate Argo CD Installation", validateArgoCDInstallation)
+	t.Run("Validate Argo CD Metrics Configuration", validateArgoCDMetrics)
+	t.Run("Validate tear down of Argo CD Installation", tearDownArgoCD)
 }
 
 func validateGitOpsBackend(t *testing.T) {
@@ -130,12 +130,12 @@ func validateArgoCDInstallation(t *testing.T) {
 	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	// Check if ArgoCD instance is created
+	// Check if Argo CD instance is created
 	existingArgoInstance := &argoapp.ArgoCD{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
 
-	// modify the ArgoCD instance "manually"
+	// modify the Argo CD instance "manually"
 	// and ensure that a manual modification of the
 	// ArgoCD CR is allowed, and not overwritten
 	// by the reconciler

@@ -274,7 +274,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new ArgoCD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
+			reqLogger.Info("Creating a new Argo CD instance", "Namespace", defaultArgoCDInstance.Namespace, "Name", defaultArgoCDInstance.Name)
 			err = r.client.Create(context.TODO(), defaultArgoCDInstance)
 			if err != nil {
 				return reconcile.Result{}, err

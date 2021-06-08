@@ -3,6 +3,7 @@ package argocdmetrics
 import (
 	"context"
 	"fmt"
+
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
@@ -41,7 +42,7 @@ type ArgoCDMetricsReconciler struct {
 // blank assignment to verify that ReconcileArgoCDRoute implements reconcile.Reconciler
 var _ reconcile.Reconciler = &ArgoCDMetricsReconciler{}
 
-// Add creates a new ArgoCD Metrics Controller and adds it to the Manager.
+// Add creates a new Argo CD Metrics Controller and adds it to the Manager.
 // The Manager will set fields on the Controller and start it when the
 // Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -51,13 +52,13 @@ func Add(mgr manager.Manager) error {
 func add(mgr manager.Manager, reconciler reconcile.Reconciler) error {
 	reqLogger := logs.WithValues()
 
-	reqLogger.Info("Creating ArgoCD metrics controller")
+	reqLogger.Info("Creating Argo CD metrics controller")
 	c, err := controller.New("argocd-metrics-controller", mgr, controller.Options{Reconciler: reconciler})
 	if err != nil {
 		return err
 	}
 
-	reqLogger.Info("Watching for ArgoCD instance creation")
+	reqLogger.Info("Watching for Argo CD instance creation")
 	err = c.Watch(&source.Kind{Type: &argoapp.ArgoCD{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
@@ -73,7 +74,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling ArgoCD Metrics")
+	reqLogger.Info("Reconciling Argo CD Metrics")
 
 	namespace := corev1.Namespace{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: request.Namespace}, &namespace)
@@ -93,12 +94,12 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name, Namespace: request.Namespace}, argocd)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// ArgoCD not found, could have been deleted after reconcile request.
+			// Argo CD not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
-		reqLogger.Error(err, "Error getting ArgoCD instsance")
+		reqLogger.Error(err, "Error getting Argo CD instsance")
 		return reconcile.Result{}, err
 	}
 
@@ -132,7 +133,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create ServiceMonitor for ArgoCD application metrics
+	// Create ServiceMonitor for Argo CD application metrics
 	serviceMonitorLabel := fmt.Sprintf("%s-metrics", request.Name)
 	serviceMonitorName := request.Name
 	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
@@ -140,7 +141,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create ServiceMonitor for ArgoCD API server metrics
+	// Create ServiceMonitor for Argo CD API server metrics
 	serviceMonitorLabel = fmt.Sprintf("%s-server-metrics", request.Name)
 	serviceMonitorName = fmt.Sprintf("%s-server", request.Name)
 	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
@@ -148,7 +149,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create ServiceMonitor for ArgoCD repo server metrics
+	// Create ServiceMonitor for Argo CD repo server metrics
 	serviceMonitorLabel = fmt.Sprintf("%s-repo-server", request.Name)
 	serviceMonitorName = fmt.Sprintf("%s-repo-server", request.Name)
 	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
@@ -178,7 +179,7 @@ func (r *ArgoCDMetricsReconciler) createReadRoleIfAbsent(namespace string, argoc
 		reqLogger.Info("Creating new read role",
 			"Namespace", readRole.Namespace, "Name", readRole.Name)
 
-		// Set the ArgoCD instance as the owner and controller
+		// Set the Argo CD instance as the owner and controller
 		if err := controllerutil.SetControllerReference(argocd, readRole, r.scheme); err != nil {
 			reqLogger.Error(err, "Error setting read role owner ref",
 				"Namespace", readRole.Namespace, "Name", readRole.Name, "ArgoCD Name", argocd.Name)
@@ -212,7 +213,7 @@ func (r *ArgoCDMetricsReconciler) createReadRoleBindingIfAbsent(namespace string
 		reqLogger.Info("Creating new read role binding",
 			"Namespace", readRoleBinding.Namespace, "Name", readRoleBinding.Name)
 
-		// Set the ArgoCD instance as the owner and controller
+		// Set the Argo CD instance as the owner and controller
 		if err := controllerutil.SetControllerReference(argocd, readRoleBinding, r.scheme); err != nil {
 			reqLogger.Error(err, "Error setting read role owner ref",
 				"Namespace", readRoleBinding.Namespace, "Name", readRoleBinding.Name, "ArgoCD Name", argocd.Name)
@@ -246,7 +247,7 @@ func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace string,
 		reqLogger.Info("Creating a new ServiceMonitor instance",
 			"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name)
 
-		// Set the ArgoCD instance as the owner and controller
+		// Set the Argo CD instance as the owner and controller
 		if err := controllerutil.SetControllerReference(argocd, serviceMonitor, r.scheme); err != nil {
 			reqLogger.Error(err, "Error setting read role owner ref",
 				"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name, "ArgoCD Name", argocd.Name)
@@ -279,7 +280,7 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 		reqLogger.Info("Creating new alert rule",
 			"Namespace", alertRule.Namespace, "Name", alertRule.Name)
 
-		// Set the ArgoCD instance as the owner and controller
+		// Set the Argo CD instance as the owner and controller
 		if err := controllerutil.SetControllerReference(argocd, alertRule, r.scheme); err != nil {
 			reqLogger.Error(err, "Error setting read role owner ref",
 				"Namespace", alertRule.Namespace, "Name", alertRule.Name, "ArgoCD Name", argocd.Name)
@@ -371,9 +372,9 @@ func newServiceMonitor(namespace, name, matchLabel string) *monitoringv1.Service
 func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 	// The namespace used in the alert rule is not the namespace of the
 	// running application, it is the namespace that the corresponding
-	// ArgoCD application metadata was created in.  This is needed to
+	// Argo CD application metadata was created in.  This is needed to
 	// scope this alert rule to only fire for applications managed
-	// by the ArgoCD instance installed in this namespace.
+	// by the Argo CD instance installed in this namespace.
 	expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", namespace)
 
 	objectMeta := metav1.ObjectMeta{
@@ -388,7 +389,7 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 					{
 						Alert: "ArgoCDSyncAlert",
 						Annotations: map[string]string{
-							"message": "ArgoCD application {{ $labels.name }} is out of sync",
+							"message": "Argo CD application {{ $labels.name }} is out of sync",
 						},
 						Expr: intstr.IntOrString{
 							Type:   intstr.String,

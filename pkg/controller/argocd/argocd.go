@@ -137,7 +137,7 @@ func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 	}
 }
 
-// NewCR returns an ArgoCD reference optimized for use in OpenShift
+// NewCR returns an Argo CD reference optimized for use in OpenShift
 // with Tekton
 func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{

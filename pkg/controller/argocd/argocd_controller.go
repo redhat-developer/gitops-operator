@@ -46,7 +46,7 @@ func init() {
 	image = imageDataURL(base64.StdEncoding.EncodeToString(readStatikImage()))
 }
 
-// Add creates a new ArgoCD Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new Argo CD Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -61,7 +61,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	reqLogger := logs.WithValues()
-	reqLogger.Info("Watching ArgoCD Server Route")
+	reqLogger.Info("Watching Argo CD Server Route")
 
 	c, err := controller.New("argocd-route-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -75,7 +75,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	reqLogger.Info("Created controller for ArgoCD server route")
+	reqLogger.Info("Created controller for Argo CD server route")
 	return nil
 }
 
@@ -101,7 +101,7 @@ func filterArgoCDRoute(namespace, name string) bool {
 // blank assignment to verify that ReconcileArgoCDRoute implements reconcile.Reconciler
 var _ reconcile.Reconciler = &ReconcileArgoCDRoute{}
 
-// ReconcileArgoCDRoute reconciles a ArgoCD Route object
+// ReconcileArgoCDRoute reconciles a Argo CD Route object
 type ReconcileArgoCDRoute struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
@@ -109,23 +109,23 @@ type ReconcileArgoCDRoute struct {
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a ArgoCD Route object and makes changes based on the state read
+// Reconcile reads that state of the cluster for a Argo CD Route object and makes changes based on the state read
 // and what is in the Route.Spec
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling ArgoCD Route")
+	reqLogger.Info("Reconciling Argo CD Route")
 
 	ctx := context.Background()
 
-	// Fetch ArgoCD server route
+	// Fetch Argo CD server route
 	argoCDRoute := &routev1.Route{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
+			reqLogger.Info("Argo CD server route not found", "Route.Namespace", argocdNS)
 			// if argocd-server route is deleted, remove the ConsoleLink if present
 			return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
 		}
@@ -135,7 +135,7 @@ func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.R
 
 	argocCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink(argocCDRouteURL, "ArgoCD")
+	consoleLink := newConsoleLink(argocCDRouteURL, "Argo CD")
 
 	found := &console.ConsoleLink{}
 	err = r.client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
@@ -196,12 +196,12 @@ func readStatikImage() []byte {
 	}
 	file, err := statikFs.Open(iconFilePath)
 	if err != nil {
-		log.Fatalf("Failed to open ArgoCD icon file: %v", err)
+		log.Fatalf("Failed to open Argo CD icon file: %v", err)
 	}
 	defer file.Close()
 	data, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Fatalf("Failed to read ArgoCD icon file: %v", err)
+		log.Fatalf("Failed to read Argo CD icon file: %v", err)
 	}
 	return data
 }
