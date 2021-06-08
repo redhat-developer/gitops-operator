@@ -256,6 +256,15 @@ spec:
           - clusterrolebindings
           verbs:
           - '*'
+        - apiGroups:
+            - ""
+          resources:
+          - resourcequotas
+          verbs:
+          - "get"
+          - "list"
+          - "watch"
+          - "create"
         serviceAccountName: gitops-operator
       permissions:
       - rules:
