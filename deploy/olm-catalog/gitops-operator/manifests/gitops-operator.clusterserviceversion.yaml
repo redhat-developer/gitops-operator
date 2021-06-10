@@ -237,7 +237,7 @@ spec:
                   value: gitops-operator
                 - name: DISABLE_DEX
                   value: "true"                  
-                image:  registry-proxy.engineering.redhat.com/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v1.2.0
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
