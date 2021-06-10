@@ -351,10 +351,10 @@ spec:
           resources:
           - resourcequotas
           verbs:
-          - 'list'
-          - 'get'
-          - 'create'
-          - 'watch'   
+          - list
+          - get
+          - create
+          - watch
         - apiGroups:
           - oauth.openshift.io
           resources:
