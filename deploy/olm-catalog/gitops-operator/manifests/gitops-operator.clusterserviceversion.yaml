@@ -101,12 +101,6 @@ metadata:
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
-    required:
-    - name: tektonconfigs.operator.tekton.dev
-      version: v1alpha1
-      kind: TektonConfig
-      displayName: OpenShift Pipelines Config
-      description: Represents Installation of Tekton.
     owned:
     - description: GitOpsService configures a web service for rendering the GitOps UI on OpenShift
       kind: GitopsService
@@ -126,8 +120,8 @@ spec:
     - kind: ArgoCD
       name: argocds.argoproj.io
       version: v1alpha1
-      displayName: ArgoCD
-      description: ArgoCD is the representation of an Argo CD deployment.
+      displayName: Argo CD
+      description: Argo CD is the representation of an Argo CD deployment.
       resources:
       - kind: ArgoCD
         name: ''
@@ -188,11 +182,11 @@ spec:
     * Configuration drift detection and visualization on live clusters
     * Audit trails of rollouts to the clusters
     * Monitoring and logging integration with OpenShift
-    * Automated GitOps bootstrapping using Tekton and Argo CD with [GitOps Application Manager CLI](https://github.com/redhat-developer/kam) 
+    * Automated GitOps bootstrapping using Tekton and Argo CD with [GitOps Application Manager CLI](https://github.com/redhat-developer/kam)
 
     ## Components
-    * Argo CD 1.8.3
-    * GitOps Application Manager CLI 0.0.19 ([download](https://github.com/redhat-developer/kam/releases/tag/v0.0.19))
+    * Argo CD 2.0.0
+    * GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))
 
     ## How to Install 
     After installing the OpenShift GitOps operator, an instance  of Argo CD is installed in the `openshift-gitops` namespace which has sufficent privileges for managing cluster configurations. You can create additional Argo CD instances using the `ArgoCD` custom resource within the desired namespaces.
@@ -242,10 +236,8 @@ spec:
                 - name: OPERATOR_NAME
                   value: gitops-operator
                 - name: DISABLE_DEX
-                  value: "true"
-                - name: ARGOCD_REDIS_IMAGE
-                  value: "registry.redhat.io/rhel8/redis-5"
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
+                  value: "true"                  
+                image:  registry-proxy.engineering.redhat.com/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v1.2.0
                 imagePullPolicy: Always
                 name: gitops-operator
                 resources: {}
@@ -259,27 +251,6 @@ spec:
           - clusterrolebindings
           verbs:
           - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - resourcequotas
-          verbs:
-          - 'list'
-          - 'get'
-          - 'create'
-          - 'watch'
-        - apiGroups:
-          - oauth.openshift.io
-          resources:
-          - oauthclients 
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         serviceAccountName: gitops-operator
       permissions:
       - rules:
@@ -297,18 +268,6 @@ spec:
           - services/finalizers
           verbs:
           - '*'
-        - apiGroups:
-          - oauth.openshift.io
-          resources:
-          - oauthclients 
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - apps
           resources:
@@ -387,6 +346,27 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ""
+          resources:
+          - resourcequotas
+          verbs:
+          - 'list'
+          - 'get'
+          - 'create'
+          - 'watch'   
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclients 
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch   
         serviceAccountName: gitops-operator
       - rules:
         - apiGroups:
