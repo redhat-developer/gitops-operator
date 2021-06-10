@@ -87,10 +87,10 @@ rules:
   resources:
   - resourcequotas
   verbs:
-  - 'list'
-  - 'get'
-  - 'create'
-  - 'watch'
+  - list
+  - get
+  - create
+  - watch
 - apiGroups:
   - route.openshift.io
   resources:
