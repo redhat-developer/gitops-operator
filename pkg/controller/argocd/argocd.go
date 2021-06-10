@@ -169,6 +169,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Redis:          getArgoRedisSpec(),
 			Repo:           getArgoRepoServerSpec(),
 			Server:         getArgoServerSpec(),
+			SSO:            &argoapp.ArgoCDSSOSpec{Provider: "keycloak"},
 
 			ResourceExclusions: string(b),
 		},
