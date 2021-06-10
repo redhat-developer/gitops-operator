@@ -34,6 +34,18 @@ rules:
   verbs:
   - update
 - apiGroups:
+  - apps.openshift.io
+  resources:
+  - deploymentconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - argoproj.io
   resources:
   - argocds
@@ -71,12 +83,47 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - ""
+  resources:
+  - resourcequotas
+  verbs:
+  - list
+  - get
+  - create
+  - watch
+- apiGroups:
   - route.openshift.io
   resources:
   - routes
   - routes/custom-host
   verbs:
   - '*'
+- apiGroups:
+  - template.openshift.io
+  resources:
+  - templates
+  - templateinstances
+  - templateconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - oauth.openshift.io
+  resources:
+  - oauthclients 
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

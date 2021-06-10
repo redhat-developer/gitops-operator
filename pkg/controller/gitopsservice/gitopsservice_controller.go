@@ -252,10 +252,13 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 			},
 			Spec: corev1.ResourceQuotaSpec{
 				Hard: corev1.ResourceList{
-					corev1.ResourceMemory:       resourcev1.MustParse("4032Mi"),
-					corev1.ResourceCPU:          resourcev1.MustParse("6188m"),
-					corev1.ResourceLimitsMemory: resourcev1.MustParse("8046Mi"),
-					corev1.ResourceLimitsCPU:    resourcev1.MustParse("12750m"),
+					corev1.ResourceMemory:       resourcev1.MustParse("4544Mi"),
+					corev1.ResourceCPU:          resourcev1.MustParse("6688m"),
+					corev1.ResourceLimitsMemory: resourcev1.MustParse("9070Mi"),
+					corev1.ResourceLimitsCPU:    resourcev1.MustParse("13750m"),
+				},
+				Scopes: []corev1.ResourceQuotaScope{
+					"NotTerminating",
 				},
 			},
 		}
