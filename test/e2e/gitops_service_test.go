@@ -2,6 +2,9 @@ package e2e
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +23,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
@@ -56,13 +60,14 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
+	t.Run("Validate ArgoCD Installation", deployClusterScopedManifest)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 }
 
 func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	name := "cluster"
@@ -106,7 +111,7 @@ func validateConsoleLink(t *testing.T) {
 
 func deployOperator(t *testing.T) {
 	t.Helper()
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	err := ctx.InitializeClusterResources(&framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
@@ -142,6 +147,9 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	existingArgoInstance.Spec.DisableAdmin = true
 	err = f.Client.Update(context.TODO(), existingArgoInstance)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// assumption that an attempt to reconcile would have happened within 5 seconds.
 	// This can definitely be improved.
@@ -236,4 +244,35 @@ func tearDownArgoCD(t *testing.T) {
 	err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
 	assertNoError(t, err)
 
+}
+
+func deployClusterScopedManifest(t *testing.T) {
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
+	f := framework.Global
+	path, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	imageYAML := filepath.Join(path, "yamls", "image.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	existingImage := &configv1.Image{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "cluster",
+		},
+	}
+
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: existingImage.Name}, existingImage)
+	assertNoError(t, err)
 }
