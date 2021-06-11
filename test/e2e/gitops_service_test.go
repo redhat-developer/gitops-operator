@@ -60,7 +60,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
-	t.Run("Validate ArgoCD Installation", deployClusterScopedManifest)
+	t.Run("Validate ArgoCD Installation", validateMachineConfigUpdates)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 }
 
@@ -92,6 +92,8 @@ func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleLink{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	route := &routev1.Route{}
@@ -128,7 +130,8 @@ func deployOperator(t *testing.T) {
 func validateArgoCDInstallation(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	// Check if argocd namespace is created
@@ -177,7 +180,8 @@ func validateArgoCDMetrics(t *testing.T) {
 	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
 	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.ServiceMonitor{})
 	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.PrometheusRule{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	// Check the role was created
@@ -230,7 +234,8 @@ func validateArgoCDMetrics(t *testing.T) {
 func tearDownArgoCD(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	existingArgoInstance := &argoapp.ArgoCD{}
@@ -246,8 +251,10 @@ func tearDownArgoCD(t *testing.T) {
 
 }
 
-func deployClusterScopedManifest(t *testing.T) {
+func validateMachineConfigUpdates(t *testing.T) {
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 	path, err := os.Getwd()
 	if err != nil {
