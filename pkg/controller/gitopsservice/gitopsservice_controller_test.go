@@ -2,9 +2,10 @@ package gitopsservice
 
 import (
 	"context"
-	"gotest.tools/assert"
 	"os"
 	"testing"
+
+	"gotest.tools/assert"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -208,10 +209,11 @@ func TestReconcile_GitOpsNamespaceResourceQuotas(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace + "-compute-resources", Namespace: serviceNamespace}, &resourceQuota)
 	assertNoError(t, err)
 
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceCPU], resourcev1.MustParse("6188m"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceMemory], resourcev1.MustParse("4032Mi"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsCPU], resourcev1.MustParse("12750m"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsMemory], resourcev1.MustParse("8046Mi"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceCPU], resourcev1.MustParse("6688m"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceMemory], resourcev1.MustParse("4544Mi"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsCPU], resourcev1.MustParse("13750m"))
+	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsMemory], resourcev1.MustParse("9070Mi"))
+	assert.DeepEqual(t, resourceQuota.Spec.Scopes, []corev1.ResourceQuotaScope{"NotTerminating"})
 }
 
 func TestReconcile_BackendResourceLimits(t *testing.T) {
