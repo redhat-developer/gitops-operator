@@ -1,7 +1,9 @@
 package e2e
 
 import (
+	"bytes"
 	"fmt"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -115,6 +117,7 @@ func validateConsoleLink(t *testing.T) {
 }
 
 func deployOperator(t *testing.T) {
+	var stdout, stderr bytes.Buffer
 	t.Helper()
 	ctx := framework.NewTestCtx(t)
 	defer ctx.Cleanup()
@@ -128,9 +131,26 @@ func deployOperator(t *testing.T) {
 
 	err = e2eutil.WaitForOperatorDeployment(t, framework.Global.KubeClient, namespace, operatorName, 1, retryInterval, timeout)
 	assertNoError(t, err)
+
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "get", "pod", "-n", "openshift-gitops")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(stderr.String())
+		t.Fatal(err)
+	}
+
+	fmt.Println(stdout.String())
 }
 
 func validateArgoCDInstallation(t *testing.T) {
+	var stdout, stderr bytes.Buffer
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 
@@ -164,6 +184,22 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	// check that this has not been overwritten
 	assert.Equal(t, existingArgoInstance.Spec.DisableAdmin, true)
+
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "get", "pod", "-n", "openshift-gitops")
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	if err != nil {
+		fmt.Println(stderr.String())
+		t.Fatal(err)
+	}
+
+	fmt.Println(stdout.String())
 
 }
 
