@@ -30,10 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
-	"github.com/redhat-developer/gitops-operator/pkg/apis"
-	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
+	operator "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,7 +65,7 @@ const (
 )
 
 func TestGitOpsService(t *testing.T) {
-	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
+	err := framework.AddToFrameworkScheme(operator.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
 	ensureCleanSlate(t)
