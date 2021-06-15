@@ -1,0 +1,20 @@
+# permissions for end users to view gitopsservices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gitopsservice-viewer-role
+rules:
+- apiGroups:
+  - pipelines.openshift.io
+  resources:
+  - gitopsservices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - pipelines.openshift.io
+  resources:
+  - gitopsservices/status
+  verbs:
+  - get
