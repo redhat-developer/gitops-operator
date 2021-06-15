@@ -30,6 +30,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
+	"github.com/redhat-developer/gitops-operator/test/e2e/helper"
 )
 
 var (
@@ -283,6 +284,14 @@ func validateMachineConfigUpdates(t *testing.T) {
 	}
 
 	time.Sleep(5 * time.Second)
+
+	if helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	if helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
 
 	existingImage := &configv1.Image{
 		ObjectMeta: v1.ObjectMeta{
