@@ -26,3 +26,8 @@ gofmt:
 .PHONY: run-local
 run-local:
 	${OPERATOR_SDK} run --local --watch-namespace ""
+
+# Please install GitOps operator before running this target
+.PHONY: test-e2e-on-operator
+test-e2e-on-operator:
+	CGO_ENABLED=0 SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local ./test/e2e  --verbose --no-setup
