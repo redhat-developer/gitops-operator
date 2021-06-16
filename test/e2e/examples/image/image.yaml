@@ -1,0 +1,13 @@
+---
+apiVersion: config.openshift.io/v1
+kind: Image
+metadata:
+  annotations:
+    release.openshift.io/create-only: "true"
+  name: cluster
+spec:
+  allowedRegistriesForImport:
+    - domainName: quay.io
+      insecure: false
+status:
+  internalRegistryHostname: image-registry.openshift-image-registry.svc:5000

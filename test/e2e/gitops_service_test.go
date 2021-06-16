@@ -271,7 +271,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	imageYAML := filepath.Join(path, "yamls", "image.yaml")
+	imageYAML := filepath.Join(path, "yamls", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)

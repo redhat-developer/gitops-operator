@@ -9,8 +9,8 @@ spec:
     server: 'https://kubernetes.default.svc'
   project: default
   source:
-    path: argocd/image
-    repoURL: 'https://github.com/openshift/openshift-gitops-examples'
+    path: test/e2e/examples/image
+    repoURL: 'https://github.com/redhat-developer/gitops-operator'
     targetRevision: HEAD
   syncPolicy:
     automated: {}
