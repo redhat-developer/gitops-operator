@@ -62,8 +62,8 @@ func (r *ArgoCDMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//+kubebuilder:rbac:groups=monitoring.coreos.com,namespace=openshift-gitops,resources=prometheuses;prometheusrules;servicemonitors,verbs=*
-//+kubebuilder:rbac:groups=monitoring.coreos.com,namespace=openshift-gitops,resources=servicemonitors,verbs=create;get
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses;prometheusrules;servicemonitors,verbs=*
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=create;get
 
 func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
