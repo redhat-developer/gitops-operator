@@ -22,7 +22,7 @@ func ApplicationHealthStatus(appname string, namespace string) error {
 	}
 
 	if strings.Trim(stdout.String(), " ") != "Healthy" {
-		fmt.Errorf(stdout.String())
+		return fmt.Errorf(stdout.String())
 	}
 
 	return nil
@@ -43,7 +43,7 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 	}
 
 	if strings.Trim(stdout.String(), " ") != "Synced" {
-		fmt.Errorf(stdout.String())
+		return fmt.Errorf(stdout.String())
 	}
 
 	return nil
