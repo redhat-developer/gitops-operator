@@ -14,6 +14,7 @@ import (
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/keycloak/keycloak-operator/pkg/apis"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -67,7 +68,7 @@ const (
 )
 
 func TestGitOpsService(t *testing.T) {
-	err := framework.AddToFrameworkScheme(operator.AddToScheme, &operator.GitopsServiceList{})
+	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
 	err = helper.EnsureCleanSlate(t)

@@ -25,6 +25,7 @@ import (
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
 	corev1 "k8s.io/api/core/v1"
 )
 
