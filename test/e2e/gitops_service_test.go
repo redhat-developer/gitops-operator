@@ -2,7 +2,7 @@ package e2e
 
 import (
 	"fmt"
-	"os"
+	// "os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -30,7 +30,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
-	"github.com/redhat-developer/gitops-operator/test/e2e/helper"
+	"github.com/redhat-developer/gitops-operator/test/helper"
 )
 
 var (
@@ -68,7 +68,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
-	t.Run("Validate ArgoCD Installation", validateMachineConfigUpdates)
+	t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
@@ -267,11 +267,8 @@ func validateMachineConfigUpdates(t *testing.T) {
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 	f := framework.Global
-	path, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	imageYAML := filepath.Join(path, "yamls", "image_appcr.yaml")
+
+	imageYAML := filepath.Join("..", "yamls", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
