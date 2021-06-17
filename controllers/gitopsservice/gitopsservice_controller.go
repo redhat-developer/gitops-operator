@@ -115,43 +115,46 @@ type ReconcileGitopsService struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=pipelines.openshift.io,namespace=openshift-gitops,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=pipelines.openshift.io,namespace=openshift-gitops,resources=gitopsservices/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=pipelines.openshift.io,namespace=openshift-gitops,resources=gitopsservices/finalizers,verbs=update
+//+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/finalizers,verbs=update
 
-//+kubebuilder:rbac:groups=pipelines.openshift.io,namespace=openshift-gitops,resources=*,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=pipelines.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=*
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=*,verbs=*
 
-//+kubebuilder:rbac:groups="",namespace=openshift-gitops,resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=*
-//+kubebuilder:rbac:groups="",namespace=openshift-gitops,resources=pods;pods/log,verbs=get
-//+kubebuilder:rbac:groups="",namespace=openshift-gitops,resources=pods,verbs=get
-//+kubebuilder:rbac:groups="",namespace=openshift-gitops,resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets;namespaces,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=*
+//+kubebuilder:rbac:groups="",resources=pods;pods/log,verbs=get
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get
+//+kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets;namespaces,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create
 
-//+kubebuilder:rbac:groups=apps,namespace=openshift-gitops,resources=deployments;replicasets;statefulsets,verbs=*
-//+kubebuilder:rbac:groups=apps,namespace=openshift-gitops,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups=apps,namespace=openshift-gitops,resourceNames=gitops-operator,resources=deployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,namespace=openshift-gitops,resources=replicasets;deployments,verbs=get
+//+kubebuilder:rbac:groups=apps,resources=deployments;replicasets;statefulsets,verbs=*
+//+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=apps,resourceNames=gitops-operator,resources=deployments/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=replicasets;deployments,verbs=get
 
-//+kubebuilder:rbac:groups=apps.openshift.io,namespace=openshift-gitops,resources=*,verbs=*
+//+kubebuilder:rbac:groups=apps.openshift.io,resources=*,verbs=*
 
-//+kubebuilder:rbac:groups=route.openshift.io,namespace=openshift-gitops,resources=routes;routes/custom-host,verbs=*
-//+kubebuilder:rbac:groups=route.openshift.io,namespace=openshift-gitops,resources=*,verbs=*
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=*
+//+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=*
 
-//+kubebuilder:rbac:groups=config.openshift.io,namespace=openshift-gitops,resources=clusterversions,verbs=get;list;watch
+//+kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
 
-//+kubebuilder:rbac:groups=console.openshift.io,namespace=openshift-gitops,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
-//+kubebuilder:rbac:groups=console.openshift.io,namespace=openshift-gitops,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=console.openshift.io,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=console.openshift.io,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
 
-//+kubebuilder:rbac:groups=argoproj.io,namespace=openshift-gitops,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=*
-//+kubebuilder:rbac:groups=argoproj.io,namespace=openshift-gitops,resources=argocds,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=*
+//+kubebuilder:rbac:groups=argoproj.io,resources=argocds,verbs=get;list;watch;create
 
-//+kubebuilder:rbac:groups=autoscaling,namespace=openshift-gitops,resources=horizontalpodautoscalers,verbs=*
-//+kubebuilder:rbac:groups=batch,namespace=openshift-gitops,resources=cronjobs;jobs,verbs=*
-//+kubebuilder:rbac:groups=extensions,namespace=openshift-gitops,resources=ingresses,verbs=*
+//+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=*
+//+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=*
+//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=*
 
-//+kubebuilder:rbac:groups=operators.coreos.com,namespace=openshift-gitops,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
+//+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
+
+//+kubebuilder:rbac:groups=template.openshift.io,resources=templates;templateinstances;templateconfigs,verbs=*
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
