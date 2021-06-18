@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"fmt"
-	// "os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -268,7 +267,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 	defer ctx.Cleanup()
 	f := framework.Global
 
-	imageYAML := filepath.Join("..", "yamls", "image_appcr.yaml")
+	imageYAML := filepath.Join("test", "yamls", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
