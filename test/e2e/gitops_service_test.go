@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -59,7 +60,9 @@ func TestGitOpsService(t *testing.T) {
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
-	deployOperator(t)
+	if os.Getenv("SKIP_OPERATOR_DEPLOYMENT") != "true" {
+		deployOperator(t)
+	}
 
 	// run subtests
 	t.Run("Validate kam service", validateKamService)
