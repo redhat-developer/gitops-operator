@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# show commands
 set -x
 
 E2E_TEST_NS="gitops-test"
@@ -26,6 +27,12 @@ oc new-project $E2E_TEST_NS
 echo "Running e2e tests"
 ${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose
 
+Teststatus=$?
+
 echo "Cleaning e2e test resources"
 oc delete project $E2E_TEST_NS
 oc delete project $ARGOCD_NS
+
+if [ $Teststatus -ne "0" ]; then
+    exit $Teststatus
+fi
