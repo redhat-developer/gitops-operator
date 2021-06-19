@@ -49,7 +49,7 @@ func verifyRHSSOInstallation(t *testing.T) {
 
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	f := framework.Global
@@ -97,7 +97,7 @@ func verifyRHSSOConfiguration(t *testing.T) {
 
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	f := framework.Global
@@ -176,7 +176,7 @@ func verifyRHSSOUnInstallation(t *testing.T) {
 	framework.AddToFrameworkScheme(templatev1.AddToScheme, &templatev1.TemplateInstance{})
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	f := framework.Global

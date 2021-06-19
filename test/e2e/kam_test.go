@@ -19,7 +19,7 @@ func validateKamService(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleCLIDownload{})
 
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 	namespace := "openshift-gitops"
 	name := "kam"

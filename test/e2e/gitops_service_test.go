@@ -3,6 +3,8 @@ package e2e
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,12 +23,14 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
+	"github.com/redhat-developer/gitops-operator/test/helper"
 )
 
 var (
@@ -66,6 +70,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ConsoleLink", validateConsoleLink)
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
+	t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
@@ -75,7 +80,7 @@ func TestGitOpsService(t *testing.T) {
 func validateGitOpsBackend(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	name := "cluster"
@@ -100,6 +105,8 @@ func validateConsoleLink(t *testing.T) {
 	framework.AddToFrameworkScheme(routev1.AddToScheme, &routev1.Route{})
 	framework.AddToFrameworkScheme(console.AddToScheme, &console.ConsoleLink{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	route := &routev1.Route{}
@@ -119,7 +126,7 @@ func validateConsoleLink(t *testing.T) {
 
 func deployOperator(t *testing.T) {
 	t.Helper()
-	ctx := framework.NewTestCtx(t)
+	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 
 	err := ctx.InitializeClusterResources(&framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
@@ -136,7 +143,8 @@ func deployOperator(t *testing.T) {
 func validateArgoCDInstallation(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	// Check if argocd namespace is created
@@ -155,6 +163,9 @@ func validateArgoCDInstallation(t *testing.T) {
 
 	existingArgoInstance.Spec.DisableAdmin = true
 	err = f.Client.Update(context.TODO(), existingArgoInstance)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// assumption that an attempt to reconcile would have happened within 5 seconds.
 	// This can definitely be improved.
@@ -182,7 +193,8 @@ func validateArgoCDMetrics(t *testing.T) {
 	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
 	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.ServiceMonitor{})
 	framework.AddToFrameworkScheme(monitoringv1.AddToScheme, &monitoringv1.PrometheusRule{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	// Check the role was created
@@ -235,7 +247,8 @@ func validateArgoCDMetrics(t *testing.T) {
 func tearDownArgoCD(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
 	f := framework.Global
 
 	existingArgoInstance := &argoapp.ArgoCD{}
@@ -249,4 +262,42 @@ func tearDownArgoCD(t *testing.T) {
 	err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
 	assertNoError(t, err)
 
+}
+
+func validateMachineConfigUpdates(t *testing.T) {
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	imageYAML := filepath.Join("test", "yamls", "image_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	if helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	existingImage := &configv1.Image{
+		ObjectMeta: v1.ObjectMeta{
+			Name: "cluster",
+		},
+	}
+
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: existingImage.Name}, existingImage)
+	assertNoError(t, err)
 }
