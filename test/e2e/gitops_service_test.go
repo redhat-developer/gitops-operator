@@ -763,3 +763,38 @@ type resourceList struct {
 	// expectedResources are the names of the resources of the above type
 	expectedResources []string
 }
+
+func validateClusterConfigChange(t *testing.T) {
+	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	schedulerYAML := filepath.Join("test", "yamls", "scheduler_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if helper.ApplicationHealthStatus("scheduler", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	if helper.ApplicationSyncStatus("scheduler", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	existingConfigMap := &corev1.ConfigMap{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap)
+
+	assertNoError(t, err)
+
+}
