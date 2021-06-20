@@ -83,11 +83,13 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 	t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
+	t.Run("Validate cluster config updates", validateClusterConfigChange)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
+
 }
 
 func validateGitOpsBackend(t *testing.T) {
@@ -557,4 +559,39 @@ type resourceList struct {
 
 func skipOperatorDeployment() bool {
 	return os.Getenv("SKIP_OPERATOR_DEPLOYMENT") == "true"
+}
+
+func validateClusterConfigChange(t *testing.T) {
+	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	schedulerYAML := filepath.Join("test", "appcrs", "scheduler_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if helper.ApplicationHealthStatus("policy-configmap", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	if helper.ApplicationSyncStatus("policy-configmap", "openshift-gitops"); err != nil {
+		t.Fatal(err)
+	}
+
+	existingConfigMap := &corev1.ConfigMap{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap)
+
+	assertNoError(t, err)
+
 }
