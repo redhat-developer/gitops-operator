@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 
 	"github.com/redhat-developer/gitops-operator/common"
@@ -47,8 +48,7 @@ var (
 	insecureEnvVar                    = "INSECURE"
 	insecureEnvVarValue               = "true"
 	serviceNamespace                  = "openshift-gitops"
-	depracatedServiceNamespace        = "openshift-pipelines-app-delivery"
-	clusterVersionName                = "version"
+	deprecatedServiceNamespace        = "openshift-pipelines-app-delivery"
 )
 
 const (
@@ -198,6 +198,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	// Create namespace if it doesn't already exist
 	namespaceRef := newNamespace(namespace)
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: namespace}, &corev1.Namespace{})
 	if err != nil {
@@ -212,12 +213,30 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	serviceNamespacedName := types.NamespacedName{
+	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: namespace,
 	}
 
+	result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger)
+	if err != nil {
+		return result, err
+	}
+
+	result, err = r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	if err != nil {
+		return result, err
+	}
+
+	return r.reconcileCLIServer(instance, request)
+}
+
+func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
+
 	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	// The operator decides the namespace based on the version of the cluster it is installed in
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
@@ -273,6 +292,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	// Get or create ArgoCD instance in default namespace
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err != nil {
@@ -287,168 +307,191 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName types.NamespacedName, instance *pipelinesv1alpha1.GitopsService,
+	reqLogger logr.Logger) (reconcile.Result, error) {
+
 	// Define Service account for backend Service
-	serviceAccountObj := newServiceAccount(serviceNamespacedName)
+	{
+		serviceAccountObj := newServiceAccount(gitopsserviceNamespacedName)
 
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, serviceAccountObj, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, serviceAccountObj, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
 
-	existingServiceAccount := &corev1.ServiceAccount{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: serviceAccountObj.Namespace, Name: serviceAccountObj.Name}, existingServiceAccount)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new ServiceAccount", "Namespace", serviceAccountObj.Namespace, "Name", serviceAccountObj.Name)
-			err = r.client.Create(context.TODO(), serviceAccountObj)
-			if err != nil {
+		existingServiceAccount := &corev1.ServiceAccount{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: serviceAccountObj.Namespace, Name: serviceAccountObj.Name}, existingServiceAccount)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new ServiceAccount", "Namespace", serviceAccountObj.Namespace, "Name", serviceAccountObj.Name)
+				err = r.client.Create(context.TODO(), serviceAccountObj)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
 				return reconcile.Result{}, err
 			}
-		} else {
-			return reconcile.Result{}, err
 		}
 	}
 
 	// Define a new cluster role for backend service
-	clusterRoleObj := newClusterRole(serviceNamespacedName)
+	{
+		clusterRoleObj := newClusterRole(gitopsserviceNamespacedName)
 
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, clusterRoleObj, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, clusterRoleObj, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
 
-	existingClusterRole := &rbacv1.ClusterRole{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleObj.Name}, existingClusterRole)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Cluster Role", "Name", clusterRoleObj.Name)
-			err = r.client.Create(context.TODO(), clusterRoleObj)
+		existingClusterRole := &rbacv1.ClusterRole{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleObj.Name}, existingClusterRole)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Cluster Role", "Name", clusterRoleObj.Name)
+				err = r.client.Create(context.TODO(), clusterRoleObj)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		} else if !reflect.DeepEqual(existingClusterRole.Rules, clusterRoleObj.Rules) {
+			reqLogger.Info("Reconciling existing Cluster Role", "Name", clusterRoleObj.Name)
+			existingClusterRole.Rules = clusterRoleObj.Rules
+			err = r.client.Update(context.TODO(), existingClusterRole)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	} else if !reflect.DeepEqual(existingClusterRole.Rules, clusterRoleObj.Rules) {
-		reqLogger.Info("Reconciling existing Cluster Role", "Name", clusterRoleObj.Name)
-		existingClusterRole.Rules = clusterRoleObj.Rules
-		err = r.client.Update(context.TODO(), existingClusterRole)
-		if err != nil {
-			return reconcile.Result{}, err
 		}
 	}
 
 	// Define Cluster Role Binding for backend service
-	clusterRoleBinding := newClusterRoleBinding(serviceNamespacedName)
+	{
+		clusterRoleBinding := newClusterRoleBinding(gitopsserviceNamespacedName)
 
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, clusterRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, clusterRoleBinding, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.Name}, existingClusterRoleBinding)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Cluster Role Binding", "Name", clusterRoleBinding.Name)
+				err = r.client.Create(context.TODO(), clusterRoleBinding)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
-	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBinding.Name}, existingClusterRoleBinding)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Cluster Role Binding", "Name", clusterRoleBinding.Name)
-			err = r.client.Create(context.TODO(), clusterRoleBinding)
-			if err != nil {
+	// Define a new backend Deployment
+	{
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
+
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Check if this Deployment already exists
+		found := &appsv1.Deployment{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace},
+			found); err != nil {
+
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+				err = r.client.Create(context.TODO(), deploymentObj)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
 				return reconcile.Result{}, err
 			}
 		} else {
-			return reconcile.Result{}, err
-		}
-	}
-
-	// Define a new Pod object
-	deploymentObj := newBackendDeployment(serviceNamespacedName)
-
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, deploymentObj, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this Deployment already exists
-	found := &appsv1.Deployment{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, found)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-			err = r.client.Create(context.TODO(), deploymentObj)
-			if err != nil {
-				return reconcile.Result{}, err
+			changed := false
+			desiredImage := deploymentObj.Spec.Template.Spec.Containers[0].Image
+			if found.Spec.Template.Spec.Containers[0].Image != desiredImage {
+				found.Spec.Template.Spec.Containers[0].Image = desiredImage
+				changed = true
 			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	} else {
-		changed := false
-		desiredImage := deploymentObj.Spec.Template.Spec.Containers[0].Image
-		if found.Spec.Template.Spec.Containers[0].Image != desiredImage {
-			found.Spec.Template.Spec.Containers[0].Image = desiredImage
-			changed = true
-		}
-		if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
-			found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
-			changed = true
-		}
-		if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
-			found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
-			changed = true
-		}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
+				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
+				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
+				changed = true
+			}
 
-		if changed {
-			reqLogger.Info("Reconciling existing backend Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-			err = r.client.Update(context.TODO(), found)
-			if err != nil {
-				return reconcile.Result{}, err
+			if changed {
+				reqLogger.Info("Reconciling existing backend Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+				err = r.client.Update(context.TODO(), found)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 			}
 		}
 	}
 
-	serviceRef := newBackendService(serviceNamespacedName)
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+	// Create backend Service
+	{
+		serviceRef := newBackendService(gitopsserviceNamespacedName)
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, serviceRef, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
 
-	// Check if this Service already exists
-	existingServiceRef := &corev1.Service{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace}, existingServiceRef)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Service", "Namespace", serviceRef.Namespace, "Name", serviceRef.Name)
-			err = r.client.Create(context.TODO(), serviceRef)
-			if err != nil {
+		// Check if this Service already exists
+		existingServiceRef := &corev1.Service{}
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceRef.Name, Namespace: serviceRef.Namespace},
+			existingServiceRef); err != nil {
+
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Service", "Namespace", serviceRef.Namespace, "Name", serviceRef.Name)
+				err = r.client.Create(context.TODO(), serviceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
 				return reconcile.Result{}, err
 			}
-		} else {
-			return reconcile.Result{}, err
 		}
 	}
 
-	routeRef := newBackendRoute(serviceNamespacedName)
-	// Set GitopsService instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+	// Create backend Route
+	{
+		routeRef := newBackendRoute(gitopsserviceNamespacedName)
+		// Set GitopsService instance as the owner and controller
+		if err := controllerutil.SetControllerReference(instance, routeRef, r.scheme); err != nil {
+			return reconcile.Result{}, err
+		}
 
-	existingRoute := &routev1.Route{}
+		existingRoute := &routev1.Route{}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, existingRoute)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
-			err = r.client.Create(context.TODO(), routeRef)
-			if err != nil {
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace},
+			existingRoute); err != nil {
+
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
+				err = r.client.Create(context.TODO(), routeRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
 				return reconcile.Result{}, err
 			}
-		} else {
-			return reconcile.Result{}, err
 		}
 	}
 
-	return r.reconcileCLIServer(instance, request)
+	return reconcile.Result{}, nil
 }
 
 // GetBackendNamespace returns the backend service namespace based on OpenShift Cluster version
@@ -458,7 +501,7 @@ func GetBackendNamespace(client client.Client) (string, error) {
 		return "", err
 	}
 	if strings.HasPrefix(version, "4.6") {
-		return depracatedServiceNamespace, nil
+		return deprecatedServiceNamespace, nil
 	}
 	return serviceNamespace, nil
 }
