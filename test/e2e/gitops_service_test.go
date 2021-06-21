@@ -782,19 +782,23 @@ func validateClusterConfigChange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
-
-	if helper.ApplicationHealthStatus("scheduler", "openshift-gitops"); err != nil {
+	err = wait.Poll(time.Second*1, time.Second*60, func() (bool, error) {
+		if helper.ApplicationHealthStatus("scheduler", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if helper.ApplicationSyncStatus("scheduler", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		existingConfigMap := &corev1.ConfigMap{}
+		if err := f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
-
-	if helper.ApplicationSyncStatus("scheduler", "openshift-gitops"); err != nil {
-		t.Fatal(err)
-	}
-
-	existingConfigMap := &corev1.ConfigMap{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap)
-
-	assertNoError(t, err)
-
 }
