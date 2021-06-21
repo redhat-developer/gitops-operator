@@ -4,7 +4,7 @@ metadata:
   creationTimestamp: null
   labels:
     control-plane: controller-manager
-  name: gitops-operator-controller-manager-metrics-service
+  name: controller-manager-metrics-service
 spec:
   ports:
   - name: https
