@@ -562,24 +562,47 @@ func skipOperatorDeployment() bool {
 }
 
 func validateClusterConfigChange(t *testing.T) {
-	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.Role{})
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
+
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 	f := framework.Global
 
-	schedulerYAML := filepath.Join("test", "appcrs", "scheduler_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
-	err = cmd.Run()
-	if err != nil {
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// Thus, applying missing rules for 'argocd-application-controller'
+	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	if err := applyMissingPermissions(f, ocPath); err != nil {
 		t.Fatal(err)
 	}
-	existingConfigMap := &corev1.ConfigMap{}
-	err = wait.Poll(time.Second*1, time.Second*60, func() (bool, error) {
+
+	// Wait for the default project to exist; this avoids a race condition where the Application
+	// can be created before the Project that it targets.
+	if err := wait.Poll(time.Second*5, time.Minute*5, func() (bool, error) {
+		if status, err := helper.ProjectExists("default", "openshift-gitops"); !status {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		t.Fatalf("project never existed %v", err)
+	}
+
+	schedulerYAML := filepath.Join("test", "appcrs", "scheduler_appcr.yaml")
+
+	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err, string(output))
+	}
+
+	err = wait.Poll(time.Second*5, time.Minute*2, func() (bool, error) {
 		if err := helper.ApplicationHealthStatus("policy-configmap", "openshift-gitops"); err != nil {
 			t.Log(err)
 			return false, nil
@@ -588,7 +611,17 @@ func validateClusterConfigChange(t *testing.T) {
 			t.Log(err)
 			return false, nil
 		}
-		if err := f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap); err != nil {
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	namespacedName := types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}
+	existingConfigMap := &corev1.ConfigMap{}
+
+	err = wait.Poll(time.Second*1, time.Minute*1, func() (bool, error) {
+		if err := f.Client.Get(context.TODO(), namespacedName, existingConfigMap); err != nil {
 			t.Log(err)
 			return false, nil
 		}
@@ -600,205 +633,36 @@ func validateClusterConfigChange(t *testing.T) {
 
 }
 
-// ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
-func ensureCleanSlate(t *testing.T) {
-	f := framework.Global
+func applyMissingPermissions(f *framework.Framework, ocPath string) error {
 
-	t.Log("Running ensureCleanSlate")
-
-	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
-	nsGitopsStandaloneTest := &corev1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
-			Name: standaloneArgoCDNamespace,
-		},
-	}
-	f.Client.Delete(context.Background(), nsGitopsStandaloneTest)
-
-	err := wait.Poll(1*time.Second, 60*time.Second, func() (bool, error) {
-		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsGitopsStandaloneTest.Name},
-			nsGitopsStandaloneTest); kubeerrors.IsNotFound(err) {
-			t.Logf("Namespace '%s' no longer exists", nsGitopsStandaloneTest.Name)
-			return true, nil
-		}
-
-		t.Logf("Namespace '%s' still exists", nsGitopsStandaloneTest.Name)
-
-		return false, nil
-	})
-
+	// Check the role was created. If not, create a new role
+	role := rbacv1.Role{}
+	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	err := f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
 	if err != nil {
-		assertNoError(t, fmt.Errorf("Namespace was not deleted: %v", err))
-	}
-
-}
-
-func validateNamespaceScopedInstall(t *testing.T) {
-
-	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
-	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
-
-	ctx := framework.NewContext(t)
-	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
-	defer ctx.Cleanup()
-
-	f := framework.Global
-
-	// Create new namespace
-	newNamespace := &corev1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
-			Name: standaloneArgoCDNamespace,
-		},
-	}
-	err := f.Client.Create(context.TODO(), newNamespace, cleanupOptions)
-	if !kubeerrors.IsAlreadyExists(err) {
-		assertNoError(t, err)
-		return
-	}
-
-	// Create new ArgoCD instance in the test namespace
-	name := "standalone-argocd-instance"
-	existingArgoInstance := &argoapp.ArgoCD{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
-			Namespace: newNamespace.Name,
-		},
-	}
-	err = f.Client.Create(context.TODO(), existingArgoInstance, cleanupOptions)
-	assertNoError(t, err)
-
-	// Verify that a subset of resources are created
-	resourceList := []resourceList{
-		{
-			resource: &appsv1.Deployment{},
-			expectedResources: []string{
-				name + "-dex-server",
-				name + "-redis",
-				name + "-repo-server",
-				name + "-server",
-			},
-		},
-		{
-			resource: &corev1.ConfigMap{},
-			expectedResources: []string{
-				"argocd-cm",
-				"argocd-gpg-keys-cm",
-				"argocd-rbac-cm",
-				"argocd-ssh-known-hosts-cm",
-				"argocd-tls-certs-cm",
-			},
-		},
-		{
-			resource: &corev1.ServiceAccount{},
-			expectedResources: []string{
-				name + "-argocd-application-controller",
-				name + "-argocd-server",
-			},
-		},
-		{
-			resource: &rbacv1.Role{},
-			expectedResources: []string{
-				name + "-argocd-application-controller",
-				name + "-argocd-server",
-			},
-		},
-		{
-			resource: &rbacv1.RoleBinding{},
-			expectedResources: []string{
-				name + "-argocd-application-controller",
-				name + "-argocd-server",
-			},
-		},
-		{
-			resource: &monitoringv1.ServiceMonitor{},
-			expectedResources: []string{
-				name,
-				name + "-repo-server",
-				name + "-server",
-			},
-		},
-	}
-
-	err = waitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180, t)
-	assertNoError(t, err)
-
-}
-
-// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
-// should be of the given type (Deployment, Service, etc) and name(s).
-// Returns error if the resources could not be found within the given time frame.
-func waitForResourcesByName(resourceList []resourceList, namespace string, timeout time.Duration, t *testing.T) error {
-
-	f := framework.Global
-
-	// Wait X seconds for all the resources to be created
-	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
-
-		for _, resourceListEntry := range resourceList {
-
-			for _, resourceName := range resourceListEntry.expectedResources {
-
-				resource := resourceListEntry.resource.DeepCopyObject()
-				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
-				if err := f.Client.Get(context.TODO(), namespacedName, resource); err != nil {
-					t.Logf("Unable to retrieve expected resource %s: %v", resourceName, err)
-					return false, nil
-				} else {
-					t.Logf("Able to retrieve %s", resourceName)
-				}
-			}
-
+		roleYAML := filepath.Join("test", "rolebindings", "role.yaml")
+		cmd := exec.Command(ocPath, "apply", "-f", roleYAML)
+		_, err := cmd.CombinedOutput()
+		if err != nil {
+			return err
 		}
+	}
 
-		return false, nil
-	})
-
-	return err
-}
-
-// resourceList is used by waitForResourcesByName
-type resourceList struct {
-	// resource is the type of resource to verify that it exists
-	resource runtime.Object
-
-	// expectedResources are the names of the resources of the above type
-	expectedResources []string
-}
-
-func validateClusterConfigChange(t *testing.T) {
-	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
-	ctx := framework.NewContext(t)
-	defer ctx.Cleanup()
-	f := framework.Global
-
-	schedulerYAML := filepath.Join("test", "yamls", "scheduler_appcr.yaml")
-	ocPath, err := exec.LookPath("oc")
+	// Check the role binding was created. If not, create a new role binding
+	roleBinding := rbacv1.RoleBinding{}
+	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
+		&roleBinding)
 	if err != nil {
-		t.Fatal(err)
+		roleBindingYAML := filepath.Join("test", "rolebindings", "role-binding.yaml")
+		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
+		_, err = cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
 	}
 
-	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
-	err = cmd.Run()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = wait.Poll(time.Second*1, time.Second*60, func() (bool, error) {
-		if helper.ApplicationHealthStatus("scheduler", "openshift-gitops"); err != nil {
-			t.Log(err)
-			return false, nil
-		}
-		if helper.ApplicationSyncStatus("scheduler", "openshift-gitops"); err != nil {
-			t.Log(err)
-			return false, nil
-		}
-		existingConfigMap := &corev1.ConfigMap{}
-		if err := f.Client.Get(context.TODO(), types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}, existingConfigMap); err != nil {
-			t.Log(err)
-			return false, nil
-		}
-		return true, nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	return nil
 }
