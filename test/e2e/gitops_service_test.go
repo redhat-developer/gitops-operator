@@ -25,10 +25,12 @@ import (
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 )
@@ -42,18 +44,20 @@ var (
 )
 
 const (
-	operatorName              = "gitops-operator"
-	argoCDConfigMapName       = "argocd-cm"
-	argoCDRouteName           = "openshift-gitops-server"
-	argoCDNamespace           = "openshift-gitops"
-	authURL                   = "/auth/realms/master/protocol/openid-connect/token"
-	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
-	consoleLinkName           = "argocd"
-	argoCDInstanceName        = "openshift-gitops"
-	defaultKeycloakIdentifier = "keycloak"
-	defaultTemplateIdentifier = "rhsso"
-	realmURL                  = "/auth/admin/realms/argocd"
-	rhssosecret               = "keycloak-secret"
+	operatorName                          = "gitops-operator"
+	argoCDConfigMapName                   = "argocd-cm"
+	argoCDRouteName                       = "openshift-gitops-server"
+	argoCDNamespace                       = "openshift-gitops"
+	authURL                               = "/auth/realms/master/protocol/openid-connect/token"
+	depracatedArgoCDNamespace             = "openshift-pipelines-app-delivery"
+	consoleLinkName                       = "argocd"
+	argoCDInstanceName                    = "openshift-gitops"
+	defaultKeycloakIdentifier             = "keycloak"
+	defaultTemplateIdentifier             = "rhsso"
+	realmURL                              = "/auth/admin/realms/argocd"
+	rhssosecret                           = "keycloak-secret"
+	argocdNonDefaultNamespaceInstanceName = "argocd-non-default-namespace-instance"
+	argocdNonDefaultNamespace             = "argocd-non-default-source"
 )
 
 func TestGitOpsService(t *testing.T) {
@@ -300,4 +304,58 @@ func validateMachineConfigUpdates(t *testing.T) {
 
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: existingImage.Name}, existingImage)
 	assertNoError(t, err)
+}
+
+func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
+	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	// Create non-default argocd source namespace
+	argocdNonDefaultNamespaceObj := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: argocdNonDefaultNamespace}}
+	err := f.Client.Create(context.TODO(), argocdNonDefaultNamespaceObj, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	assertNoError(t, err)
+
+	// Create non-default namespace argocd instance
+	argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
+	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
+	assertNoError(t, err)
+
+	// Check if non-default argocd namespace is created
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNonDefaultNamespace}, &corev1.Namespace{})
+	assertNoError(t, err)
+
+	// Check if non-default namepsace argocd instance is created
+	existingArgoInstance := &argoapp.ArgoCD{}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
+	assertNoError(t, err)
+
+	identityProviderYAML := filepath.Join("test", "yamls", "identity-provider_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wait.Poll(time.Second*1, time.Second*60, func() (bool, error) {
+		if err := helper.ApplicationHealthStatus("identity-provider", argocdNonDefaultNamespace); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if err := helper.ApplicationSyncStatus("identity-provider", argocdNonDefaultNamespace); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
