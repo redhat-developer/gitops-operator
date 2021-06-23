@@ -9,7 +9,7 @@ spec:
     server: 'https://kubernetes.default.svc'
   project: default
   source:
-    path: test/examples/image
+    path: test/examples/identity-provider
     repoURL: 'https://github.com/redhat-developer/gitops-operator'
     targetRevision: HEAD
   syncPolicy:
