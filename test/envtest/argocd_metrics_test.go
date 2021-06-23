@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package envtest
 
 import (
 	"fmt"
-	"time"
 
 	"context"
 
+	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -30,14 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const (
-	timeout  = time.Second * 10
-	duration = time.Second * 10
-	interval = time.Millisecond * 250
-)
-
 var _ = Describe("Argo CD metrics controller", func() {
-
 	Context("Check if monitoring resources are created", func() {
 		It("role is created", func() {
 			role := rbacv1.Role{}
@@ -49,6 +42,30 @@ var _ = Describe("Argo CD metrics controller", func() {
 			roleBinding := rbacv1.RoleBinding{}
 			roleBindingName := fmt.Sprintf("%s-prometheus-k8s-read-binding", argoCDNamespace)
 			checkIfPresent(types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace}, &roleBinding)
+		})
+
+		It("application service monitor is created", func() {
+			serviceMonitor := monitoringv1.ServiceMonitor{}
+			serviceMonitorName := argoCDInstanceName
+			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
+		})
+
+		It("api service monitor is created", func() {
+			serviceMonitor := monitoringv1.ServiceMonitor{}
+			serviceMonitorName := fmt.Sprintf("%s-server", argoCDInstanceName)
+			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
+		})
+
+		It("repo server service monitor is created", func() {
+			serviceMonitor := monitoringv1.ServiceMonitor{}
+			serviceMonitorName := fmt.Sprintf("%s-repo-server", argoCDInstanceName)
+			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
+		})
+
+		It("prometheus rule is created", func() {
+			rule := monitoringv1.PrometheusRule{}
+			ruleName := "gitops-operator-argocd-alerts"
+			checkIfPresent(types.NamespacedName{Name: ruleName, Namespace: argoCDNamespace}, &rule)
 		})
 	})
 })
