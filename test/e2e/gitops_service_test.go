@@ -436,6 +436,7 @@ func validateNamespaceScopedInstall(t *testing.T) {
 
 // waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
 // should be of the given type (Deployment, Service, etc) and name(s).
+// Returns error if the resources could not be found within the given time frame.
 func waitForResourcesByName(resourceList []resourceList, namespace string, timeout time.Duration, t *testing.T) error {
 
 	f := framework.Global
