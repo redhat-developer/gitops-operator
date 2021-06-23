@@ -75,6 +75,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 	t.Run("Validate machine config updates", validateMachineConfigUpdates)
+	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
