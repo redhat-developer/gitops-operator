@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: build
+  namespace: openshift-gitops
+spec:
+  destination:
+    namespace: openshift-gitops
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    path: argocd/builds/base
+    repoURL: 'https://github.com/openshift/openshift-gitops-examples.git'
+    targetRevision: HEAD
