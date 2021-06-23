@@ -14,10 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package envtest
 
 import (
 	"path/filepath"
+	"time"
 
 	"testing"
 
@@ -71,6 +72,9 @@ const (
 	defaultTemplateIdentifier = "rhsso"
 	realmURL                  = "/auth/admin/realms/argocd"
 	rhssosecret               = "keycloak-secret"
+	timeout                   = time.Second * 10
+	duration                  = time.Second * 10
+	interval                  = time.Millisecond * 250
 )
 
 func TestAPIs(t *testing.T) {
@@ -85,11 +89,12 @@ var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
+	useActualCluster := true
 	testEnv = &envtest.Environment{
 		CRDDirectoryPaths: []string{
 			filepath.Join("../..", "config", "crd", "bases"),
-			filepath.Join("external_crds"),
 		},
+		UseExistingCluster:    &useActualCluster, // use an actual OpenShift cluster specified in kubeconfig
 		ErrorIfCRDPathMissing: true,
 	}
 
