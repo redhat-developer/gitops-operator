@@ -92,7 +92,7 @@ test-e2e: manifests generate fmt vet ## Run e2e tests.
 	go test ./test/envtest/... -coverprofile cover.out
 
 test: manifests generate fmt vet ## Run unit tests.
-	go test `go list ./... | grep -v test/e2e` -coverprofile cover.out
+	go test `go list ./... | grep -v test` -coverprofile cover.out
 
 ##@ Build
 
