@@ -308,7 +308,8 @@ func validateMachineConfigUpdates(t *testing.T) {
 }
 
 func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
-	framework.AddToFrameworkScheme(corev1.AddToScheme, &corev1.ConfigMap{})
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 	f := framework.Global
