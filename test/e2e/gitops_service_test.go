@@ -70,15 +70,15 @@ func TestGitOpsService(t *testing.T) {
 
 	// run subtests
 	t.Run("Validate kam service", validateKamService)
-	t.Run("Validate GitOps Backend", validateGitOpsBackend)
-	t.Run("Validate ConsoleLink", validateConsoleLink)
-	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
-	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
-	t.Run("Validate machine config updates", validateMachineConfigUpdates)
+	// t.Run("Validate GitOps Backend", validateGitOpsBackend)
+	// t.Run("Validate ConsoleLink", validateConsoleLink)
+	// t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
+	// t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
+	// t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
-	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
-	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
-	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
+	// t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
+	// t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
+	// t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 }
 
@@ -309,6 +309,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 
 func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
@@ -325,11 +326,12 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check if non-default argocd namespace is created
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNonDefaultNamespace}, &corev1.Namespace{})
+	existingArgocdNonDefaultNamespaceObj := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: argocdNonDefaultNamespace}}
+	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNonDefaultNamespace}, existingArgocdNonDefaultNamespaceObj)
 	assertNoError(t, err)
 
 	// Check if non-default namepsace argocd instance is created
-	existingArgoInstance := &argoapp.ArgoCD{}
+	existingArgoInstance, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
 	assertNoError(t, err)
 
@@ -360,4 +362,16 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Tear down non-default namespace Argo CD instance
+	// err = f.Client.Delete(context.TODO(), existingArgoInstance, &client.DeleteOptions{})
+	// assertNoError(t, err)
+
+	// err = e2eutil.WaitForDeletion(t, f.Client.Client, existingArgoInstance, retryInterval, timeout)
+	// assertNoError(t, err)
+
+	// // Delete non-default Argo CD namespace
+	// err = f.Client.Delete(context.TODO(), existingArgocdNonDefaultNamespaceObj, &client.DeleteOptions{})
+	// assertNoError(t, err)
+
 }
