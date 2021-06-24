@@ -10,12 +10,12 @@ set +x
 set -x
 export CI="prow"
 go mod vendor
-make prepare-test-cluster
+# make prepare-test-cluster
 
 export PATH="$PATH:$(pwd)"
 
-INSTALL_OPERATOR_SDK="./scripts/install-operator-sdk.sh"
-sh $INSTALL_OPERATOR_SDK
+# INSTALL_OPERATOR_SDK="./scripts/install-operator-sdk.sh"
+# sh $INSTALL_OPERATOR_SDK
 
 # Copy kubeconfig to temporary kubeconfig file and grant
 # read and Write permission to temporary kubeconfig file
