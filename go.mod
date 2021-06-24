@@ -8,6 +8,7 @@ require (
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.1.0
+	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/keycloak/keycloak-operator v0.0.0-20210517080327-281373538a44
 	github.com/onsi/ginkgo v1.14.1
