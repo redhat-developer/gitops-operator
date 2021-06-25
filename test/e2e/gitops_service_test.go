@@ -32,6 +32,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
 	"github.com/redhat-developer/gitops-operator/pkg/apis"
 	operator "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/pkg/controller/argocd"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 
@@ -81,7 +82,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 	t.Run("Validate machine config updates", validateMachineConfigUpdates)
-	// t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
+	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
@@ -474,27 +475,26 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
 
 	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
 	defer ctx.Cleanup()
 	f := framework.Global
 
 	// Create non-default argocd source namespace
-	argocdNonDefaultNamespaceObj := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: argocdNonDefaultNamespace}}
-	err := f.Client.Create(context.TODO(), argocdNonDefaultNamespaceObj, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
-	assertNoError(t, err)
+	argocdNonDefaultNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: argocdNonDefaultNamespace,
+		},
+	}
 
-	// Create non-default namespace argocd instance
+	err := f.Client.Create(context.TODO(), argocdNonDefaultNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+		return
+	}
+
+	// Create argocd instance in non-default namespace
 	argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
-	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
-	assertNoError(t, err)
-
-	// Check if non-default argocd namespace is created
-	existingArgocdNonDefaultNamespaceObj := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: argocdNonDefaultNamespace}}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNonDefaultNamespace}, existingArgocdNonDefaultNamespaceObj)
-	assertNoError(t, err)
-
-	// Check if non-default namepsace argocd instance is created
-	existingArgoInstance, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, existingArgoInstance)
+	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, cleanupOptions)
 	assertNoError(t, err)
 
 	identityProviderYAML := filepath.Join("test", "yamls", "identity-provider_appcr.yaml")
@@ -503,6 +503,7 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// apply argocd application CR
 	cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
 	err = cmd.Run()
 	if err != nil {
@@ -524,6 +525,8 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+}
 
 // resourceList is used by waitForResourcesByName
 type resourceList struct {
