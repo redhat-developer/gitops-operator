@@ -597,4 +597,169 @@ func validateClusterConfigChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+}
+
+// ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
+func ensureCleanSlate(t *testing.T) {
+	f := framework.Global
+
+	t.Log("Running ensureCleanSlate")
+
+	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
+	nsGitopsStandaloneTest := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: standaloneArgoCDNamespace,
+		},
+	}
+	f.Client.Delete(context.Background(), nsGitopsStandaloneTest)
+
+	err := wait.Poll(1*time.Second, 60*time.Second, func() (bool, error) {
+		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsGitopsStandaloneTest.Name},
+			nsGitopsStandaloneTest); kubeerrors.IsNotFound(err) {
+			t.Logf("Namespace '%s' no longer exists", nsGitopsStandaloneTest.Name)
+			return true, nil
+		}
+
+		t.Logf("Namespace '%s' still exists", nsGitopsStandaloneTest.Name)
+
+		return false, nil
+	})
+
+	if err != nil {
+		assertNoError(t, fmt.Errorf("Namespace was not deleted: %v", err))
+	}
+
+}
+
+func validateNamespaceScopedInstall(t *testing.T) {
+
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.ClusterVersion{})
+
+	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	defer ctx.Cleanup()
+
+	f := framework.Global
+
+	// Create new namespace
+	newNamespace := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: standaloneArgoCDNamespace,
+		},
+	}
+	err := f.Client.Create(context.TODO(), newNamespace, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+		return
+	}
+
+	// Create new ArgoCD instance in the test namespace
+	name := "standalone-argocd-instance"
+	existingArgoInstance := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      name,
+			Namespace: newNamespace.Name,
+		},
+	}
+	err = f.Client.Create(context.TODO(), existingArgoInstance, cleanupOptions)
+	assertNoError(t, err)
+
+	// Verify that a subset of resources are created
+	resourceList := []resourceList{
+		{
+			resource: &appsv1.Deployment{},
+			expectedResources: []string{
+				name + "-dex-server",
+				name + "-redis",
+				name + "-repo-server",
+				name + "-server",
+			},
+		},
+		{
+			resource: &corev1.ConfigMap{},
+			expectedResources: []string{
+				"argocd-cm",
+				"argocd-gpg-keys-cm",
+				"argocd-rbac-cm",
+				"argocd-ssh-known-hosts-cm",
+				"argocd-tls-certs-cm",
+			},
+		},
+		{
+			resource: &corev1.ServiceAccount{},
+			expectedResources: []string{
+				name + "-argocd-application-controller",
+				name + "-argocd-server",
+			},
+		},
+		{
+			resource: &rbacv1.Role{},
+			expectedResources: []string{
+				name + "-argocd-application-controller",
+				name + "-argocd-server",
+			},
+		},
+		{
+			resource: &rbacv1.RoleBinding{},
+			expectedResources: []string{
+				name + "-argocd-application-controller",
+				name + "-argocd-server",
+			},
+		},
+		{
+			resource: &monitoringv1.ServiceMonitor{},
+			expectedResources: []string{
+				name,
+				name + "-repo-server",
+				name + "-server",
+			},
+		},
+	}
+
+	err = waitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180, t)
+	assertNoError(t, err)
+
+}
+
+// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
+// should be of the given type (Deployment, Service, etc) and name(s).
+// Returns error if the resources could not be found within the given time frame.
+func waitForResourcesByName(resourceList []resourceList, namespace string, timeout time.Duration, t *testing.T) error {
+
+	f := framework.Global
+
+	// Wait X seconds for all the resources to be created
+	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
+
+		for _, resourceListEntry := range resourceList {
+
+			for _, resourceName := range resourceListEntry.expectedResources {
+
+				resource := resourceListEntry.resource.DeepCopyObject()
+				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
+				if err := f.Client.Get(context.TODO(), namespacedName, resource); err != nil {
+					t.Logf("Unable to retrieve expected resource %s: %v", resourceName, err)
+					return false, nil
+				} else {
+					t.Logf("Able to retrieve %s", resourceName)
+				}
+			}
+
+		}
+
+		return false, nil
+	})
+
+	return err
+}
+
+// resourceList is used by waitForResourcesByName
+type resourceList struct {
+	// resource is the type of resource to verify that it exists
+	resource runtime.Object
+
+	// expectedResources are the names of the resources of the above type
+	expectedResources []string
 }
