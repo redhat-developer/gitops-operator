@@ -278,6 +278,13 @@ func tearDownArgoCD(t *testing.T) {
 }
 
 func validateMachineConfigUpdates(t *testing.T) {
+
+	// This test will fail automation until gitops-operator #148 is fixed.
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// (https://github.com/redhat-developer/gitops-operator/issues/148)
+	t.SkipNow()
+
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
