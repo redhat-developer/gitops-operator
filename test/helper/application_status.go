@@ -9,7 +9,7 @@ import (
 
 // ApplicationHealthStatus returns an error if the application is not 'Healthy'
 func ApplicationHealthStatus(appname string, namespace string) error {
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		return err
@@ -17,8 +17,9 @@ func ApplicationHealthStatus(appname string, namespace string) error {
 
 	cmd := exec.Command(ocPath, "get", "application/"+appname, "-n", namespace, "-o", "jsonpath='{.status.health.status}'")
 	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("oc command failed: %s%s", stdout.String(), stderr.String())
 	}
 
 	if output := strings.TrimSpace(stdout.String()); output != "'Healthy'" {
@@ -30,7 +31,7 @@ func ApplicationHealthStatus(appname string, namespace string) error {
 
 // ApplicationSyncStatus returns an error if the application is not 'Synced'
 func ApplicationSyncStatus(appname string, namespace string) error {
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		return err
@@ -38,9 +39,10 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 
 	cmd := exec.Command(ocPath, "get", "application/"+appname, "-n", namespace, "-o", "jsonpath='{.status.sync.status}'")
 	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return err
+		return fmt.Errorf("oc command failed: %s%s", stdout.String(), stderr.String())
 	}
 
 	if output := strings.TrimSpace(stdout.String()); output != "'Synced'" {
