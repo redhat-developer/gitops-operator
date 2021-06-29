@@ -22,7 +22,7 @@ func ApplicationHealthStatus(appname string, namespace string) error {
 	}
 
 	if output := strings.TrimSpace(stdout.String()); output != "'Healthy'" {
-		return fmt.Errorf("application '%s' health is %v", appname, output)
+		return fmt.Errorf("application '%s' health is %s", appname, output)
 	}
 
 	return nil
