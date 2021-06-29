@@ -295,13 +295,22 @@ func validateMachineConfigUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	err = wait.Poll(time.Second*1, time.Minute*5, func() (bool, error) {
 
-	if helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
-		t.Fatal(err)
-	}
+		if err := helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
 
-	if helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+		if err := helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+
+		return true, nil
+
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 
