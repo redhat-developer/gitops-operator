@@ -15,14 +15,15 @@ func ApplicationHealthStatus(appname string, namespace string) error {
 	}
 
 	cmd := exec.Command(ocPath, "get", "application", "-n", namespace, "-o", "jsonpath='{.items[?(@.metadata.name==\""+appname+"\")].status.health.status}'")
-	err = cmd.Run()
 	cmd.Stdout = &stdout
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	if strings.TrimSpace(stdout.String()) != "Healthy" {
-		return fmt.Errorf("application health is '%s' ", stdout.String())
+	output := strings.TrimSpace(stdout.String())
+
+	if output != "'Healthy'" {
+		return fmt.Errorf("application '%s' health is %v", appname, output)
 	}
 
 	return nil
@@ -35,15 +36,17 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 		return err
 	}
 
-	cmd := exec.Command(ocPath, "get", "application", "-n", namespace, "-o", "jsonpath='{.items[?(@.metame==\""+appname+"\")].status.sync.status}'")
-	err = cmd.Run()
+	cmd := exec.Command(ocPath, "get", "application", "-n", namespace, "-o", "jsonpath='{.items[?(@.metadata.name==\""+appname+"\")].status.sync.status}'")
 	cmd.Stdout = &stdout
-	if err != nil {
+
+	if err := cmd.Run(); err != nil {
 		return err
 	}
 
-	if strings.TrimSpace(stdout.String()) != "Synced" {
-		return fmt.Errorf("application status is '%s' ", stdout.String())
+	output := strings.TrimSpace(stdout.String())
+
+	if output != "'Synced'" {
+		return fmt.Errorf("application '%s' status is %s", appname, output)
 	}
 
 	return nil
