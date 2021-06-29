@@ -295,7 +295,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = wait.Poll(time.Second*1, time.Minute*5, func() (bool, error) {
+	err = wait.Poll(time.Second*1, time.Minute*10, func() (bool, error) {
 
 		if err := helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
 			t.Log(err)
