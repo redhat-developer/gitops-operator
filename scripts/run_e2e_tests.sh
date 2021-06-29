@@ -27,7 +27,7 @@ oc new-project $E2E_TEST_NS
 export ARGOCD_CLUSTER_CONFIG_NAMESPACES=openshift-gitops
 
 echo "Running e2e tests"
-${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose -timeout 30 
+${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m"
 
 Teststatus=$?
 
