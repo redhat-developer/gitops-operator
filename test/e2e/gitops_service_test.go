@@ -71,7 +71,7 @@ func TestGitOpsService(t *testing.T) {
 
 	ensureCleanSlate(t)
 
-	if os.Getenv("SKIP_OPERATOR_DEPLOYMENT") != "true" {
+	if !skipOperatorDeployment() {
 		deployOperator(t)
 	}
 
@@ -283,7 +283,9 @@ func validateMachineConfigUpdates(t *testing.T) {
 	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 	// (https://github.com/redhat-developer/gitops-operator/issues/148)
-	t.SkipNow()
+	if skipOperatorDeployment() {
+		t.SkipNow()
+	}
 
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
 	ctx := framework.NewContext(t)
@@ -551,4 +553,8 @@ type resourceList struct {
 
 	// expectedResources are the names of the resources of the above type
 	expectedResources []string
+}
+
+func skipOperatorDeployment() bool {
+	return os.Getenv("SKIP_OPERATOR_DEPLOYMENT") == "true"
 }
