@@ -5,6 +5,8 @@ approvers:
 - wtam2018
 - chetan-rns
 - amitkrout
+- jannfis
+- jgwest
 
 reviewers:
 - sbose78
@@ -15,3 +17,4 @@ reviewers:
 - shubhamagarwal19
 - jannfis
 - iam-veeramalla
+- jgwest
