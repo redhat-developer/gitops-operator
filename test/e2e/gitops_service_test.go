@@ -283,7 +283,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 	// (https://github.com/redhat-developer/gitops-operator/issues/148)
-	if skipOperatorDeployment() {
+	if !skipOperatorDeployment() {
 		t.SkipNow()
 	}
 
