@@ -16,11 +16,11 @@ func ProjectExists(projectName string, namespace string) (bool, error) {
 		return false, err
 	}
 
-	cmd := exec.Command(ocPath, "get", "appproject/"+projectName, "-n", namespace, "-o", "yaml")
+	cmd := exec.Command(ocPath, "get", "appproject/"+projectName, "-n", namespace)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return false, fmt.Errorf("oc command failed: %s%s", stdout.String(), stderr.String())
+		return false, fmt.Errorf("oc command failed. Stdout: %s, Stderr: %s", stdout.String(), stderr.String())
 	}
 
 	return true, nil
