@@ -71,7 +71,7 @@ func TestGitOpsService(t *testing.T) {
 
 	ensureCleanSlate(t)
 
-	if os.Getenv("SKIP_OPERATOR_DEPLOYMENT") != "true" {
+	if !skipOperatorDeployment() {
 		deployOperator(t)
 	}
 
@@ -278,30 +278,48 @@ func tearDownArgoCD(t *testing.T) {
 }
 
 func validateMachineConfigUpdates(t *testing.T) {
+
+	// This test will fail automation until gitops-operator #148 is fixed.
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// (https://github.com/redhat-developer/gitops-operator/issues/148)
+	if !skipOperatorDeployment() {
+		t.SkipNow()
+	}
+
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
 	f := framework.Global
 
-	imageYAML := filepath.Join("test", "yamls", "image_appcr.yaml")
+	imageAppCr := filepath.Join("test", "appcrs", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
+	cmd := exec.Command(ocPath, "apply", "-f", imageAppCr)
 	err = cmd.Run()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	time.Sleep(5 * time.Second)
+	err = wait.Poll(time.Second*1, time.Minute*10, func() (bool, error) {
 
-	if helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
-		t.Fatal(err)
-	}
+		if err := helper.ApplicationHealthStatus("image", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
 
-	if helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+		if err := helper.ApplicationSyncStatus("image", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+
+		return true, nil
+
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -497,14 +515,14 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, cleanupOptions)
 	assertNoError(t, err)
 
-	identityProviderYAML := filepath.Join("test", "yamls", "identity-provider_appcr.yaml")
+	identityProviderAppCr := filepath.Join("test", "appcrs", "identity-provider_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// apply argocd application CR
-	cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
+	cmd := exec.Command(ocPath, "apply", "-f", identityProviderAppCr)
 	err = cmd.Run()
 	if err != nil {
 		t.Fatal(err)
@@ -535,4 +553,8 @@ type resourceList struct {
 
 	// expectedResources are the names of the resources of the above type
 	expectedResources []string
+}
+
+func skipOperatorDeployment() bool {
+	return os.Getenv("SKIP_OPERATOR_DEPLOYMENT") == "true"
 }
