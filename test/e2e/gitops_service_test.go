@@ -83,11 +83,13 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
 	t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
+	t.Run("Validate cluster config updates", validateClusterConfigChange)
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
+
 }
 
 func validateGitOpsBackend(t *testing.T) {
@@ -279,14 +281,6 @@ func tearDownArgoCD(t *testing.T) {
 
 func validateMachineConfigUpdates(t *testing.T) {
 
-	// This test will fail automation until gitops-operator #148 is fixed.
-	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
-	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
-	// (https://github.com/redhat-developer/gitops-operator/issues/148)
-	if !skipOperatorDeployment() {
-		t.SkipNow()
-	}
-
 	framework.AddToFrameworkScheme(configv1.AddToScheme, &configv1.Image{})
 	ctx := framework.NewContext(t)
 	defer ctx.Cleanup()
@@ -295,6 +289,14 @@ func validateMachineConfigUpdates(t *testing.T) {
 	imageAppCr := filepath.Join("test", "appcrs", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// Thus, applying missing rules for 'argocd-application-controller'
+	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	if err := applyMissingPermissions(f, ocPath); err != nil {
 		t.Fatal(err)
 	}
 
@@ -557,4 +559,110 @@ type resourceList struct {
 
 func skipOperatorDeployment() bool {
 	return os.Getenv("SKIP_OPERATOR_DEPLOYMENT") == "true"
+}
+
+func validateClusterConfigChange(t *testing.T) {
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.Role{})
+	framework.AddToFrameworkScheme(rbacv1.AddToScheme, &rbacv1.RoleBinding{})
+
+	ctx := framework.NewContext(t)
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// Thus, applying missing rules for 'argocd-application-controller'
+	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	if err := applyMissingPermissions(f, ocPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for the default project to exist; this avoids a race condition where the Application
+	// can be created before the Project that it targets.
+	if err := wait.Poll(time.Second*5, time.Minute*5, func() (bool, error) {
+		if status, err := helper.ProjectExists("default", "openshift-gitops"); !status {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		t.Fatalf("project never existed %v", err)
+	}
+
+	schedulerYAML := filepath.Join("test", "appcrs", "scheduler_appcr.yaml")
+
+	cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatal(err, string(output))
+	}
+
+	err = wait.Poll(time.Second*5, time.Minute*2, func() (bool, error) {
+		if err := helper.ApplicationHealthStatus("policy-configmap", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if err := helper.ApplicationSyncStatus("policy-configmap", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	namespacedName := types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}
+	existingConfigMap := &corev1.ConfigMap{}
+
+	err = wait.Poll(time.Second*1, time.Minute*1, func() (bool, error) {
+		if err := f.Client.Get(context.TODO(), namespacedName, existingConfigMap); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+}
+
+func applyMissingPermissions(f *framework.Framework, ocPath string) error {
+
+	// Check the role was created. If not, create a new role
+	role := rbacv1.Role{}
+	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	err := f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
+	if err != nil {
+		roleYAML := filepath.Join("test", "rolebindings", "role.yaml")
+		cmd := exec.Command(ocPath, "apply", "-f", roleYAML)
+		_, err := cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Check the role binding was created. If not, create a new role binding
+	roleBinding := rbacv1.RoleBinding{}
+	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	err = f.Client.Get(context.TODO(),
+		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
+		&roleBinding)
+	if err != nil {
+		roleBindingYAML := filepath.Join("test", "rolebindings", "role-binding.yaml")
+		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
+		_, err = cmd.CombinedOutput()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
