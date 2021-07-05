@@ -4,18 +4,13 @@ go 1.16
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210706021413-b1d5839e2b9c
-	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
-	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.1.0
-	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/google/go-cmp v0.5.2
-	github.com/keycloak/keycloak-operator v0.0.0-20210517080327-281373538a44
 	github.com/onsi/ginkgo v1.14.1
 	github.com/onsi/gomega v1.10.2
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
-	github.com/operator-framework/operator-sdk v0.18.2
 	github.com/rakyll/statik v0.1.7
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.3

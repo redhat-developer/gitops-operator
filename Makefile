@@ -89,7 +89,7 @@ test-all: manifests generate fmt vet ## Run all tests.
 	go test ./... -coverprofile cover.out
 
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	go test ./test/envtest/... -coverprofile cover.out
+	go test ./test/e2e/... -coverprofile cover.out
 
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
@@ -201,12 +201,3 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
-
-.PHONY: run-local
-run-local:
-	${OPERATOR_SDK} run --local --watch-namespace ""
-
-# Please install GitOps operator before running this target
-.PHONY: test-e2e-on-operator
-test-e2e-on-operator:
-	CGO_ENABLED=0 SKIP_OPERATOR_DEPLOYMENT=true operator-sdk test local ./test/e2e  --verbose --no-setup
