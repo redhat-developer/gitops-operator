@@ -19,14 +19,10 @@ package envtest
 import (
 	"fmt"
 
-	"context"
-
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -50,7 +46,7 @@ var _ = Describe("Argo CD metrics controller", func() {
 			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
 		})
 
-		It("api service monitor is created", func() {
+		It("api server service monitor is created", func() {
 			serviceMonitor := monitoringv1.ServiceMonitor{}
 			serviceMonitorName := fmt.Sprintf("%s-server", argoCDInstanceName)
 			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
@@ -69,13 +65,3 @@ var _ = Describe("Argo CD metrics controller", func() {
 		})
 	})
 })
-
-func checkIfPresent(ns types.NamespacedName, obj runtime.Object) {
-	Eventually(func() bool {
-		err := k8sClient.Get(context.TODO(), ns, obj)
-		if err != nil {
-			return false
-		}
-		return true
-	}, timeout, interval).Should(BeTrue())
-}

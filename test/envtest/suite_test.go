@@ -17,6 +17,7 @@ limitations under the License.
 package envtest
 
 import (
+	"context"
 	"path/filepath"
 	"time"
 
@@ -25,6 +26,8 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argocdprovisioner "github.com/argoproj-labs/argocd-operator/pkg/controller/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -40,6 +43,9 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/argocdmetrics"
 	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -68,13 +74,14 @@ const (
 	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
 	consoleLinkName           = "argocd"
 	argoCDInstanceName        = "openshift-gitops"
+	gitopsInstanceName        = "cluster"
 	defaultKeycloakIdentifier = "keycloak"
 	defaultTemplateIdentifier = "rhsso"
 	realmURL                  = "/auth/admin/realms/argocd"
 	rhssosecret               = "keycloak-secret"
-	timeout                   = time.Second * 10
+	timeout                   = time.Second * 40
 	duration                  = time.Second * 10
-	interval                  = time.Millisecond * 250
+	interval                  = time.Second * 1
 )
 
 func TestAPIs(t *testing.T) {
@@ -145,6 +152,9 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(mgr)
 	Expect(err).ToNot(HaveOccurred())
 
+	err = argocdprovisioner.Add(mgr)
+	Expect(err).ToNot(HaveOccurred())
+
 	go func() {
 		defer GinkgoRecover()
 		err = mgr.Start(ctrl.SetupSignalHandler())
@@ -154,7 +164,43 @@ var _ = BeforeSuite(func() {
 }, 60)
 
 var _ = AfterSuite(func() {
+	By("remove the GitOpsService Instance")
+	existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
+	checkIfPresent(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+
+	err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
+	Expect(err).ToNot(HaveOccurred())
+
+	checkIfDeleted(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+
+	By("check if the default Argo CD instance is removed")
+	checkIfDeleted(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+
 	By("tearing down the test environment")
-	err := testEnv.Stop()
+	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+// checks if a given resource is present in the cluster
+// continouslly polls until it returns nil or a timeout occurs
+func checkIfPresent(ns types.NamespacedName, obj runtime.Object) {
+	Eventually(func() error {
+		err := k8sClient.Get(context.TODO(), ns, obj)
+		if err != nil {
+			return err
+		}
+		return nil
+	}, timeout, interval).ShouldNot(HaveOccurred())
+}
+
+// checks if a given resource is deleted
+// continouslly polls until the object is deleted or a timeout occurs
+func checkIfDeleted(ns types.NamespacedName, obj runtime.Object) {
+	Eventually(func() error {
+		err := k8sClient.Get(context.TODO(), ns, obj)
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}, timeout, interval).ShouldNot(HaveOccurred())
+}
