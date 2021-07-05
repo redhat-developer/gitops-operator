@@ -13,7 +13,6 @@ require (
 	github.com/onsi/gomega v1.10.2
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
-	github.com/operator-framework/operator-sdk v0.18.2
 	github.com/rakyll/statik v0.1.7
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.18.3

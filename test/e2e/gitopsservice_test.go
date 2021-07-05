@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package envtest
+package e2e
 
 import (
 	"context"
@@ -69,7 +69,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			By("modify the Argo CD CR")
 			argoCDInstance.Spec.DisableAdmin = true
 			err := k8sClient.Update(context.TODO(), argoCDInstance)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("check if the modification was not overwritten")
 			argoCDInstance = &argoapp.ArgoCD{}
@@ -123,18 +123,18 @@ var _ = Describe("GitOpsServiceController", func() {
 		BeforeEach(func() {
 			imageYAML := filepath.Join("..", "appcrs", "image_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
 			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
 			err = applyMissingPermissions(ocPath)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
 			err = cmd.Run()
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("image is created", func() {
@@ -173,22 +173,22 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 			err := k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceObj)
 			if !errors.IsAlreadyExists(err) {
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 			}
 
 			By("create a new Argo CD instance in test ns")
 			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
 			err = k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceInstance)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("create a sample application", func() {
 			identityProviderYAML := filepath.Join("..", "appcrs", "identity-provider_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 			cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
 			err = cmd.Run()
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("Check if the app is healthy and in sync")
 			Eventually(func() error {
@@ -210,7 +210,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					Namespace: argocdNonDefaultNamespace,
 				},
 			})
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() bool {
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: argocdNonDefaultNamespace, Name: argocdNonDefaultInstanceName}, &argoapp.ArgoCD{})
@@ -248,7 +248,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 			err := k8sClient.Create(context.TODO(), newNamespace)
 			if !errors.IsAlreadyExists(err) {
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 			}
 
 			By("Create new ArgoCD instance in the test namespace")
@@ -260,7 +260,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					},
 				}
 			err = k8sClient.Create(context.TODO(), existingArgoInstance)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("verify that a subset of resources are created", func() {
@@ -316,7 +316,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 
 			err := waitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		AfterEach(func() {
@@ -327,7 +327,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					Namespace: standaloneArgoCDNamespace,
 				},
 			})
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() bool {
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: standaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
@@ -358,12 +358,12 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Update TLS", func() {
 			argocd := &argoapp.ArgoCD{}
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			insecure := false
 			argocd.Spec.SSO.VerifyTLS = &insecure
 			err = k8sClient.Update(context.TODO(), argocd)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("template instance is created", func() {
@@ -436,28 +436,28 @@ var _ = Describe("GitOpsServiceController", func() {
 			argoRealmURL := fmt.Sprintf("https://%s%s", route.Spec.Host, realmURL)
 
 			accessToken, err := getAccessToken(string(user), string(pass), accessURL)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			By("create a new https request to verify Realm creation")
 			client := http.Client{}
 			http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 			request, err := http.NewRequest("GET", argoRealmURL, nil)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 			request.Header.Set("Content-Type", "application/json")
 			request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
 			By("verify RHSSO realm creation and check if HTTP GET returns 200 ")
 			response, err := client.Do(request)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 			defer response.Body.Close()
 
 			By("verify reponse")
 			b, err := ioutil.ReadAll(response.Body)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			m := make(map[string]interface{})
 			err = json.Unmarshal(b, &m)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Expect(m["realm"]).To(Equal("argocd"))
 			Expect(m["registrationFlow"]).To(Equal("registration"))
@@ -484,14 +484,14 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			argocd.Spec.SSO = nil
 			err = k8sClient.Update(context.TODO(), argocd)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("OIDC configuration is removed", func() {
 			Eventually(func() bool {
 				cm := &corev1.ConfigMap{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
-				Expect(err).ToNot(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred())
 				return cm.Data[common.ArgoCDKeyOIDCConfig] == ""
 			}, timeout, interval).Should(BeTrue())
 		})
@@ -514,7 +514,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				VerifyTLS: &insecure,
 			}
 			err := k8sClient.Update(context.TODO(), argocd)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			templateInstance := &templatev1.TemplateInstance{}
 			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
@@ -522,17 +522,16 @@ var _ = Describe("GitOpsServiceController", func() {
 	})
 
 	Context("Validate Cluster Config Support", func() {
-		var ocPath string
 		BeforeEach(func() {
 			ocPath, err := exec.LookPath("oc")
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
 			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
 			err = applyMissingPermissions(ocPath)
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
 				_, err := helper.ProjectExists("default", "openshift-gitops")
@@ -544,10 +543,12 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Update cluster config resource", func() {
+			ocPath, err := exec.LookPath("oc")
+			Expect(err).NotTo(HaveOccurred())
 			schedulerYAML := filepath.Join("..", "appcrs", "scheduler_appcr.yaml")
 			cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
-			_, err := cmd.CombinedOutput()
-			Expect(err).ToNot(HaveOccurred())
+			_, err = cmd.CombinedOutput()
+			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
 				err := helper.ApplicationHealthStatus("policy-configmap", "openshift-gitops")
@@ -659,7 +660,7 @@ func applyMissingPermissions(ocPath string) error {
 
 	// Check the role was created. If not, create a new role
 	role := rbacv1.Role{}
-	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleName := "openshift-gitops-argocd-application-controller"
 	err := k8sClient.Get(context.TODO(),
 		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
 	if err != nil {
@@ -673,12 +674,12 @@ func applyMissingPermissions(ocPath string) error {
 
 	// Check the role binding was created. If not, create a new role binding
 	roleBinding := rbacv1.RoleBinding{}
-	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleBindingName := "openshift-gitops-argocd-application-controller"
 	err = k8sClient.Get(context.TODO(),
 		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
 		&roleBinding)
 	if err != nil {
-		roleBindingYAML := filepath.Join("test", "rolebindings", "role-binding.yaml")
+		roleBindingYAML := filepath.Join("..", "rolebindings", "role-binding.yaml")
 		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
 		_, err = cmd.CombinedOutput()
 		if err != nil {
