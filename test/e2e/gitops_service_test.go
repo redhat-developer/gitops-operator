@@ -300,7 +300,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 	defer ctx.Cleanup()
 	f := framework.Global
 
-	imageAppCr := filepath.Join("test", "appcrs", "image_appcr.yaml")
+	imageYAML := filepath.Join("test", "appcrs", "image_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
@@ -467,14 +467,14 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, cleanupOptions)
 	assertNoError(t, err)
 
-	identityProviderAppCr := filepath.Join("test", "appcrs", "identity-provider_appcr.yaml")
+	identityProviderYAML := filepath.Join("test", "appcrs", "identity-provider_appcr.yaml")
 	ocPath, err := exec.LookPath("oc")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// apply argocd application CR
-	cmd := exec.Command(ocPath, "apply", "-f", identityProviderAppCr)
+	cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
 	err = cmd.Run()
 	if err != nil {
 		t.Fatal(err)
