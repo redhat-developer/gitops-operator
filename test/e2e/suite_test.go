@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package envtest
+package e2e
 
 import (
 	"context"
@@ -26,7 +26,6 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/pkg/controller/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -79,7 +78,7 @@ const (
 	defaultTemplateIdentifier = "rhsso"
 	realmURL                  = "/auth/admin/realms/argocd"
 	rhssosecret               = "keycloak-secret"
-	timeout                   = time.Second * 40
+	timeout                   = time.Second * 60
 	duration                  = time.Second * 10
 	interval                  = time.Second * 1
 )
@@ -132,52 +131,52 @@ var _ = BeforeSuite(func() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
 	})
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	err = (&gitopsservice.ReconcileGitopsService{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	err = (&argocd.ReconcileArgoCDRoute{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	err = (&argocdmetrics.ArgoCDMetricsReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	err = argocdprovisioner.Add(mgr)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
 		defer GinkgoRecover()
 		err = mgr.Start(ctrl.SetupSignalHandler())
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 	}()
 
 }, 60)
 
 var _ = AfterSuite(func() {
-	By("remove the GitOpsService Instance")
-	existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
-	checkIfPresent(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+	// By("remove the GitOpsService Instance")
+	// existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
+	// checkIfPresent(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
 
-	err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
-	Expect(err).ToNot(HaveOccurred())
+	// err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
+	// Expect(err).NotTo(HaveOccurred())
 
-	checkIfDeleted(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+	// checkIfDeleted(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
 
-	By("check if the default Argo CD instance is removed")
-	checkIfDeleted(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+	// By("check if the default Argo CD instance is removed")
+	// checkIfDeleted(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
 
 	By("tearing down the test environment")
-	err = testEnv.Stop()
+	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
 
