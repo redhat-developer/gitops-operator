@@ -149,7 +149,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 
 			existingImage := &configv1.Image{
 				ObjectMeta: metav1.ObjectMeta{
@@ -183,23 +183,26 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("create a sample application", func() {
-			identityProviderYAML := filepath.Join("..", "appcrs", "identity-provider_appcr.yaml")
+			nginxYAML := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", identityProviderYAML)
-			err = cmd.Run()
-			Expect(err).NotTo(HaveOccurred())
+			cmd := exec.Command(ocPath, "apply", "-f", nginxYAML)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				log.Println(string(output))
+				Expect(err).NotTo(HaveOccurred())
+			}
 
 			By("Check if the app is healthy and in sync")
 			Eventually(func() error {
-				err := helper.ApplicationHealthStatus("identity-provider", argocdNonDefaultNamespace)
+				err := helper.ApplicationHealthStatus("nginx", argocdNonDefaultNamespace)
 				if err != nil {
 					return err
 				}
 
-				err = helper.ApplicationSyncStatus("identity-provider", argocdNonDefaultNamespace)
+				err = helper.ApplicationSyncStatus("nginx", argocdNonDefaultNamespace)
 				return err
-			}, time.Second*60, time.Second*1).ShouldNot(HaveOccurred())
+			}, time.Second*180, time.Second*1).ShouldNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
@@ -268,7 +271,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				{
 					resource: &appsv1.Deployment{},
 					expectedResources: []string{
-						name + "-dex-server",
 						name + "-redis",
 						name + "-repo-server",
 						name + "-server",
@@ -560,7 +562,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 
 			namespacedName := types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}
 			existingConfigMap := &corev1.ConfigMap{}
@@ -660,29 +662,31 @@ func applyMissingPermissions(ocPath string) error {
 
 	// Check the role was created. If not, create a new role
 	role := rbacv1.Role{}
-	roleName := "openshift-gitops-argocd-application-controller"
+	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
 	err := k8sClient.Get(context.TODO(),
 		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
 	if err != nil {
 		roleYAML := filepath.Join("..", "rolebindings", "role.yaml")
 		cmd := exec.Command(ocPath, "apply", "-f", roleYAML)
-		_, err := cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
+			log.Println(string(output))
 			return err
 		}
 	}
 
 	// Check the role binding was created. If not, create a new role binding
 	roleBinding := rbacv1.RoleBinding{}
-	roleBindingName := "openshift-gitops-argocd-application-controller"
+	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
 	err = k8sClient.Get(context.TODO(),
 		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
 		&roleBinding)
 	if err != nil {
 		roleBindingYAML := filepath.Join("..", "rolebindings", "role-binding.yaml")
 		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
-		_, err = cmd.CombinedOutput()
+		output, err := cmd.CombinedOutput()
 		if err != nil {
+			log.Println(string(output))
 			return err
 		}
 	}

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: identity-provider
+  name: nginx
   namespace: argocd-ns
 spec:
   destination:
@@ -9,7 +9,7 @@ spec:
     server: 'https://kubernetes.default.svc'
   project: default
   source:
-    path: test/examples/identity-provider
+    path: test/examples/nginx
     repoURL: 'https://github.com/redhat-developer/gitops-operator'
     targetRevision: HEAD
   syncPolicy:
