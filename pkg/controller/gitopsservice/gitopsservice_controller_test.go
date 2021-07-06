@@ -149,22 +149,22 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check if both openshift-gitops and openshift-pipelines-app-delivey namespace is created
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: depracatedServiceNamespace}, &corev1.Namespace{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: deprecatedServiceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 	// Check if backend resources are created in openshift-pipelines-app-delivery namespace
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: depracatedServiceNamespace}, &corev1.Namespace{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: deprecatedServiceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: depracatedServiceNamespace}, &appsv1.Deployment{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: deprecatedServiceNamespace}, &appsv1.Deployment{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: depracatedServiceNamespace}, &corev1.Service{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: deprecatedServiceNamespace}, &corev1.Service{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: depracatedServiceNamespace}, &routev1.Route{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: deprecatedServiceNamespace}, &routev1.Route{})
 	assertNoError(t, err)
 
 	// Check if argocd instance is created in openshift-gitops namespace
@@ -187,7 +187,7 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: depracatedServiceNamespace}, &corev1.Namespace{})
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: deprecatedServiceNamespace}, &corev1.Namespace{})
 	wantErr := `namespaces "openshift-pipelines-app-delivery" not found`
 	if err == nil {
 		t.Fatalf("was expecting an error %s, but got nil", wantErr)
@@ -260,7 +260,7 @@ func TestGetBackendNamespace(t *testing.T) {
 	t.Run("Using a 4.6 Cluster", func(t *testing.T) {
 		fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.6.1"), newGitopsService())
 		namespace, err := GetBackendNamespace(fakeClient)
-		assertNamespace(t, err, namespace, depracatedServiceNamespace)
+		assertNamespace(t, err, namespace, deprecatedServiceNamespace)
 	})
 
 	t.Run("Using a 4.X Cluster", func(t *testing.T) {
