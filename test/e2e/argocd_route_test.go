@@ -17,7 +17,8 @@ limitations under the License.
 package e2e
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -41,9 +42,22 @@ var _ = Describe("Argo CD ConsoleLink controller", func() {
 		})
 
 		It("ConsoleLink and argocd route should match", func() {
-			checkIfPresent(types.NamespacedName{Name: consoleLinkName}, consoleLink)
-			log.Println(consoleLink.Spec.Href, route.Spec.Host)
-			Expect(strings.TrimLeft(consoleLink.Spec.Href, "https://")).Should(Equal(route.Spec.Host))
+			Eventually(func() error {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: consoleLinkName}, consoleLink)
+				if err != nil {
+					return err
+				}
+				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
+				if err != nil {
+					return err
+				}
+				clLink := strings.TrimLeft(consoleLink.Spec.Href, "https://")
+				routeLink := route.Spec.Host
+				if clLink != routeLink {
+					return fmt.Errorf("URL mismatch, route: %s, consoleLink: %s", routeLink, clLink)
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
 		})
 	})
 })
