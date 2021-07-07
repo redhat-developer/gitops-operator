@@ -9,4 +9,4 @@ subjects:
 roleRef:
   kind: Role 
   name: openshift-gitops-openshift-gitops-argocd-application-controller
-  apiGroup: rbac.authorization.k8s.io
+  apiGroup: rbac.authorization.k8s.io 
