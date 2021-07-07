@@ -88,6 +88,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
+	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
 }
@@ -546,6 +547,97 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 		t.Fatal(err)
 	}
 
+}
+
+func validateGrantingPermissionsByLabel(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	sourceNS := "source-ns"
+	argocdInstance := "argocd-label"
+
+	// create a new source namespace
+	sourceNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: sourceNS,
+		},
+	}
+	err := f.Client.Create(context.TODO(), sourceNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// create an ArgoCD instance in the source namespace
+	argoCDInstanceObj := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      argocdInstance,
+			Namespace: sourceNS,
+		},
+	}
+	err = f.Client.Create(context.TODO(), argoCDInstanceObj, cleanupOptions)
+	assertNoError(t, err)
+
+	// create a target namespace to deploy resources
+	// allow argocd to create resources in the target namespace by adding managed-by label
+	targetNS := "target-ns"
+	targetNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: sourceNS,
+			Labels: map[string]string{
+				"argocd.argoproj.io/managed-by": sourceNS,
+			},
+		},
+	}
+	err = f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// check if the necessary roles/rolebindings are created in the target namespace
+	resourceList := []resourceList{
+		{
+			&rbacv1.Role{},
+			[]string{
+				argocdInstance + "-argocd-application-controller",
+				argocdInstance + "-argocd-redis-ha",
+				argocdInstance + "-argocd-server",
+			},
+		},
+		{
+			&rbacv1.RoleBinding{},
+			[]string{
+				argocdInstance + "-argocd-application-controller",
+				argocdInstance + "-argocd-redis-ha",
+				argocdInstance + "-argocd-server",
+			},
+		},
+	}
+	err = waitForResourcesByName(resourceList, targetNS, time.Second*60, t)
+	assertNoError(t, err)
+
+	// create an ArgoCD app and check if it can create resources in the target namespace
+	taxiAppCr := filepath.Join("test", "appcrs", "taxi_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	assertNoError(t, err)
+	cmd := exec.Command(ocPath, "apply", "-f", taxiAppCr)
+	err = cmd.Run()
+	assertNoError(t, err)
+
+	err = wait.Poll(time.Second*1, time.Second*60, func() (bool, error) {
+		if err := helper.ApplicationHealthStatus("taxi", sourceNS); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if err := helper.ApplicationSyncStatus("taxi", sourceNS); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	assertNoError(t, err)
 }
 
 // resourceList is used by waitForResourcesByName
