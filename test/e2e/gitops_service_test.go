@@ -615,7 +615,7 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 			},
 		},
 	}
-	err = waitForResourcesByName(resourceList, targetNS, time.Second*60, t)
+	err = waitForResourcesByName(resourceList, targetNS, time.Second*180, t)
 	assertNoError(t, err)
 
 	// create an ArgoCD app and check if it can create resources in the target namespace
