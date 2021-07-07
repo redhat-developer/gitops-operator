@@ -84,7 +84,7 @@ const (
 	disableDexEnv             = "DISABLE_DEX"
 	timeout                   = time.Second * 60
 	duration                  = time.Second * 10
-	interval                  = time.Second * 1
+	interval                  = time.Millisecond * 250
 )
 
 func TestAPIs(t *testing.T) {
