@@ -91,6 +91,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
+	t.Run("Validate granting permissions by adding label for ootb argocd instance", validateGrantingPermissionsByLabelForOOTBArgocdInstance)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
 }
