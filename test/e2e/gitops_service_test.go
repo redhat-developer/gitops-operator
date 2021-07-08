@@ -84,11 +84,12 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate machine config updates", validateMachineConfigUpdates)
 	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
 	t.Run("Validate cluster config updates", validateClusterConfigChange)
+	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
+	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
+	// Keep the Redhat Single sign-on tests at the end because RHSSO takes 2-3 minutes to start.
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
-	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
-	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
 }
@@ -177,7 +178,14 @@ func validateArgoCDInstallation(t *testing.T) {
 	// ArgoCD CR is allowed, and not overwritten
 	// by the reconciler
 
+	// update .sso.provider = keycloak to enable RHSSO for default Argo CD instance.
+	// update verifyTLS = false to ensure operator(when run locally) can create RHSSO resources.
 	existingArgoInstance.Spec.DisableAdmin = true
+	existingArgoInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
+		Provider:  "keycloak",
+		VerifyTLS: &insecure,
+	}
+
 	err = f.Client.Update(context.TODO(), existingArgoInstance)
 	if err != nil {
 		t.Fatal(err)

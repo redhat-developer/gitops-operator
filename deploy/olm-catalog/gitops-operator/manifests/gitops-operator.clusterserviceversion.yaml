@@ -88,9 +88,6 @@ metadata:
                   "memory": "128Mi"
                 }
               }                
-            },
-            "sso": {
-              "provider": "keycloak"
             }
           }
         }
