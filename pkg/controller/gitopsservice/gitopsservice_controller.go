@@ -63,7 +63,10 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileGitopsService{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+
+	disableDefaultInstall := strings.ToLower(os.Getenv(common.EnvVar_disableDefaultInstall)) == "true"
+
+	return &ReconcileGitopsService{client: mgr.GetClient(), scheme: mgr.GetScheme(), disableDefaultInstall: disableDefaultInstall}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -171,6 +174,10 @@ type ReconcileGitopsService struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+
+	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
+	// see 'newReconciler'
+	disableDefaultInstall bool
 }
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
@@ -218,13 +225,13 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		Namespace: namespace,
 	}
 
-	result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger)
-	if err != nil {
-		return result, err
+	if !r.disableDefaultInstall {
+		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
+			return result, err
+		}
 	}
 
-	result, err = r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
-	if err != nil {
+	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
 		return result, err
 	}
 

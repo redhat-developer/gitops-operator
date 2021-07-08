@@ -2,9 +2,20 @@ package helper
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
+	"testing"
+	"time"
+
+	framework "github.com/operator-framework/operator-sdk/pkg/test"
+	corev1 "k8s.io/api/core/v1"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // ProjectExists return true if the AppProject exists in the namespace,
@@ -69,4 +80,89 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 	}
 
 	return nil
+}
+
+// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
+// should be of the given type (Deployment, Service, etc) and name(s).
+// Returns error if the resources could not be found within the given time frame.
+func WaitForResourcesByName(resourceList []ResourceList, namespace string, timeout time.Duration, t *testing.T) error {
+
+	f := framework.Global
+
+	// Wait X seconds for all the resources to be created
+	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
+
+		for _, resourceListEntry := range resourceList {
+
+			for _, resourceName := range resourceListEntry.ExpectedResources {
+
+				resource := resourceListEntry.Resource.DeepCopyObject()
+				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
+				if err := f.Client.Get(context.TODO(), namespacedName, resource); err != nil {
+					t.Logf("Unable to retrieve expected resource %s: %v", resourceName, err)
+					return false, nil
+				} else {
+					t.Logf("Able to retrieve %s", resourceName)
+				}
+			}
+
+		}
+
+		return true, nil
+	})
+
+	return err
+}
+
+// resourceList is used by waitForResourcesByName
+type ResourceList struct {
+	// resource is the type of resource to verify that it exists
+	Resource runtime.Object
+
+	// expectedResources are the names of the resources of the above type
+	ExpectedResources []string
+}
+
+const (
+	StandaloneArgoCDNamespace = "gitops-standalone-test"
+)
+
+// ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
+func EnsureCleanSlate(t *testing.T) {
+
+	t.Log("Running ensureCleanSlate")
+
+	DeleteNamespace(StandaloneArgoCDNamespace, t)
+
+}
+
+// DeleteNamespace deletes a namespace, and waits for deletion to complete.
+func DeleteNamespace(nsToDelete string, t *testing.T) {
+	f := framework.Global
+
+	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
+	nsTarget := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: nsToDelete,
+		},
+	}
+	f.Client.Delete(context.Background(), nsTarget)
+
+	err := wait.Poll(1*time.Second, 90*time.Second, func() (bool, error) {
+		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsTarget.Name},
+			nsTarget); kubeerrors.IsNotFound(err) {
+			t.Logf("Namespace '%s' no longer exists", nsTarget.Name)
+			return true, nil
+		}
+
+		t.Logf("Namespace '%s' still exists", nsTarget.Name)
+
+		return false, nil
+	})
+
+	if err != nil {
+		t.Error(fmt.Errorf("namespace '%s' was not deleted: %v", nsToDelete, err))
+		t.Fail()
+	}
+
 }
