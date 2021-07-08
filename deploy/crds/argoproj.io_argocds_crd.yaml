@@ -969,6 +969,9 @@ spec:
               description: SSO defines the Single Sign-on configuration for Argo
                 CD
               properties:
+                image:
+                  description: Image is the SSO container image.
+                  type: string
                 provider:
                   description: Provider installs and configures the given SSO Provider
                     with Argo CD.
@@ -976,6 +979,9 @@ spec:
                 verifyTLS:
                   description: VerifyTLS set to false disables strict TLS validation.
                   type: boolean
+                version:
+                  description: Version is the SSO container image tag.
+                  type: string
               type: object
             statusBadgeEnabled:
               description: StatusBadgeEnabled toggles application status badge feature.
