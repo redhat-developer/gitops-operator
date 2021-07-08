@@ -88,6 +88,7 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
+	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
 }
@@ -296,7 +297,7 @@ func validateMachineConfigUpdates(t *testing.T) {
 	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 	// Thus, applying missing rules for 'argocd-application-controller'
 	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-	if err := applyMissingPermissions(f, ocPath); err != nil {
+	if err := applyMissingPermissions(ctx, f, "openshift-gitops", "openshift-gitops"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -548,6 +549,113 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 
 }
 
+func validateGrantingPermissionsByLabel(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	sourceNS := "source-ns"
+	argocdInstance := "argocd-label"
+
+	// create a new source namespace
+	sourceNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: sourceNS,
+		},
+	}
+	err := f.Client.Create(context.TODO(), sourceNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// create an ArgoCD instance in the source namespace
+	argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
+	assertNoError(t, err)
+	err = f.Client.Create(context.TODO(), argoCDInstanceObj, cleanupOptions)
+	assertNoError(t, err)
+
+	// Wait for the default project to exist; this avoids a race condition where the Application
+	// can be created before the Project that it targets.
+	if err := wait.Poll(time.Second*5, time.Minute*5, func() (bool, error) {
+		if status, err := helper.ProjectExists("default", sourceNS); !status {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		t.Fatalf("project never existed %v", err)
+	}
+
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// Thus, applying missing rules for 'argocd-application-controller'
+	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	if err := applyMissingPermissions(ctx, f, argocdInstance, sourceNS); err != nil {
+		t.Fatal(err)
+	}
+
+	// create a target namespace to deploy resources
+	// allow argocd to create resources in the target namespace by adding managed-by label
+	targetNS := "target-ns"
+	targetNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: targetNS,
+			Labels: map[string]string{
+				"argocd.argoproj.io/managed-by": sourceNS,
+			},
+		},
+	}
+	err = f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// check if the necessary roles/rolebindings are created in the target namespace
+	resourceList := []resourceList{
+		{
+			&rbacv1.Role{},
+			[]string{
+				argocdInstance + "-argocd-application-controller",
+				argocdInstance + "-argocd-redis-ha",
+				argocdInstance + "-argocd-server",
+			},
+		},
+		{
+			&rbacv1.RoleBinding{},
+			[]string{
+				argocdInstance + "-argocd-application-controller",
+				argocdInstance + "-argocd-redis-ha",
+				argocdInstance + "-argocd-server",
+			},
+		},
+	}
+	err = waitForResourcesByName(resourceList, targetNS, time.Second*180, t)
+	assertNoError(t, err)
+
+	// create an ArgoCD app and check if it can create resources in the target namespace
+	nginxAppCr := filepath.Join("test", "appcrs", "nginx_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	assertNoError(t, err)
+	cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
+	err = cmd.Run()
+	assertNoError(t, err)
+
+	err = wait.Poll(time.Second*1, time.Second*180, func() (bool, error) {
+		if err := helper.ApplicationHealthStatus("nginx", sourceNS); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if err := helper.ApplicationSyncStatus("nginx", sourceNS); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	assertNoError(t, err)
+}
+
 // resourceList is used by waitForResourcesByName
 type resourceList struct {
 	// resource is the type of resource to verify that it exists
@@ -578,7 +686,7 @@ func validateClusterConfigChange(t *testing.T) {
 	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 	// Thus, applying missing rules for 'argocd-application-controller'
 	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-	if err := applyMissingPermissions(f, ocPath); err != nil {
+	if err := applyMissingPermissions(ctx, f, "openshift-gitops", "openshift-gitops"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -633,33 +741,65 @@ func validateClusterConfigChange(t *testing.T) {
 
 }
 
-func applyMissingPermissions(f *framework.Framework, ocPath string) error {
-
+func applyMissingPermissions(ctx *framework.Context, f *framework.Framework, name, namespace string) error {
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
 	// Check the role was created. If not, create a new role
-	role := rbacv1.Role{}
-	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
+	role := &rbacv1.Role{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      roleName,
+			Namespace: namespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"*"},
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+			},
+		},
+	}
 	err := f.Client.Get(context.TODO(),
-		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
+		types.NamespacedName{Name: roleName, Namespace: namespace}, role)
 	if err != nil {
-		roleYAML := filepath.Join("test", "rolebindings", "role.yaml")
-		cmd := exec.Command(ocPath, "apply", "-f", roleYAML)
-		_, err := cmd.CombinedOutput()
-		if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			err := f.Client.Create(context.TODO(), role, cleanupOptions)
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
 
 	// Check the role binding was created. If not, create a new role binding
-	roleBinding := rbacv1.RoleBinding{}
-	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
+	roleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      roleBindingName,
+			Namespace: namespace,
+		},
+		RoleRef: rbacv1.RoleRef{
+			Name:     roleName,
+			Kind:     "Role",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Name: fmt.Sprintf("%s-argocd-application-controller", name),
+				Kind: "ServiceAccount",
+			},
+		},
+	}
 	err = f.Client.Get(context.TODO(),
-		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
-		&roleBinding)
+		types.NamespacedName{Name: roleBindingName, Namespace: namespace},
+		roleBinding)
 	if err != nil {
-		roleBindingYAML := filepath.Join("test", "rolebindings", "role-binding.yaml")
-		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
-		_, err = cmd.CombinedOutput()
-		if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			err := f.Client.Create(context.TODO(), roleBinding, cleanupOptions)
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
