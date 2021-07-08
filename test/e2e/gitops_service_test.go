@@ -484,7 +484,7 @@ func waitForResourcesByName(resourceList []resourceList, namespace string, timeo
 
 		}
 
-		return false, nil
+		return true, nil
 	})
 
 	return err
