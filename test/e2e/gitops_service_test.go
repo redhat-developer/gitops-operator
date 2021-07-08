@@ -547,25 +547,25 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 	}
 
 	// check if the necessary roles/rolebindings are created in the target namespace
-	resourceList := []resourceList{
+	resourceList := []helper.ResourceList{
 		{
-			&rbacv1.Role{},
-			[]string{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
 				argocdInstance + "-argocd-application-controller",
 				argocdInstance + "-argocd-redis-ha",
 				argocdInstance + "-argocd-server",
 			},
 		},
 		{
-			&rbacv1.RoleBinding{},
-			[]string{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
 				argocdInstance + "-argocd-application-controller",
 				argocdInstance + "-argocd-redis-ha",
 				argocdInstance + "-argocd-server",
 			},
 		},
 	}
-	err = waitForResourcesByName(resourceList, targetNS, time.Second*180, t)
+	err = helper.WaitForResourcesByName(resourceList, targetNS, time.Second*180, t)
 	assertNoError(t, err)
 
 	// create an ArgoCD app and check if it can create resources in the target namespace

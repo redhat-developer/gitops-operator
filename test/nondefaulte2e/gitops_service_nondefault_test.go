@@ -107,6 +107,7 @@ func validateNoDefaultInstall(t *testing.T) {
 
 }
 
+// validateNamespaceScopedInstall ensures that we are able to create a namespace-scoped Argo CD within its own namespace
 func validateNamespaceScopedInstall(t *testing.T) {
 
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
