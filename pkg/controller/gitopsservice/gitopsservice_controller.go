@@ -65,7 +65,7 @@ func Add(mgr manager.Manager) error {
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
-	disableDefaultInstall := strings.ToLower(os.Getenv(common.EnvVar_disableDefaultInstall)) == "true"
+	disableDefaultInstall := strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true"
 
 	return &ReconcileGitopsService{client: mgr.GetClient(), scheme: mgr.GetScheme(), disableDefaultInstall: disableDefaultInstall}
 }
