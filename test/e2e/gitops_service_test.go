@@ -91,7 +91,7 @@ func TestGitOpsService(t *testing.T) {
 	// t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
 	// t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
 	// t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
-	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
+	// t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
 	t.Run("Validate revoking permissions by removing label", validateRevokingPermissionsByLabel)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
@@ -799,12 +799,21 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 	err = helper.WaitForResourcesByName(resourceList, argocdTargetNamespace, time.Second*180, t)
 	assertNoError(t, err)
 
+	// Retrieve created target namespace from cluster
+	targetNsObj := &corev1.Namespace{}
+	if err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argocdTargetNamespace}, targetNsObj); err != nil {
+		t.Logf("Could not retrieve target namespace object: %v", err)
+	}
+
 	// Remove argocd managed by label from target namespace object and update it on the cluster to trigger deletion of resources
-	delete(targetNamespaceObj.Labels, argocdManagedByLabel)
-	f.Client.Update(context.TODO(), targetNamespaceObj)
+	delete(targetNsObj.Labels, argocdManagedByLabel)
+	err = f.Client.Update(context.TODO(), targetNsObj)
+	if err != nil {
+		t.Logf("Could not delete label from target namespace: %v", err)
+	}
 
 	// Wait X seconds for all the resources to be deleted
-	err = wait.Poll(time.Second*1, timeout, func() (bool, error) {
+	err = wait.Poll(time.Second*3, timeout, func() (bool, error) {
 
 		for _, resourceListEntry := range resourceList {
 
@@ -813,7 +822,7 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 				resource := resourceListEntry.Resource.DeepCopyObject()
 				namespacedName := types.NamespacedName{Name: resourceName, Namespace: argocdTargetNamespace}
 				if err := f.Client.Get(context.TODO(), namespacedName, resource); err == nil {
-					t.Logf("Resource %s was not deleted: %v", resourceName, err)
+					t.Logf("Resource %s was not deleted", resourceName)
 					return false, nil
 				} else {
 					t.Logf("Resource %s was successfully deleted", resourceName)
@@ -841,10 +850,11 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 					for _, ns := range namespaceList {
 
 						if strings.TrimSpace(ns) == argocdTargetNamespace {
-							t.Log("Target namespace still present in cluster secret namespace list")
+							t.Logf("namespace %v still present in cluster secret namespace list", argocdTargetNamespace)
 							return false, nil
 						}
 					}
+					t.Logf("namespace %v succesfully removed from cluster secret namespace list", argocdTargetNamespace)
 				}
 			}
 		}
