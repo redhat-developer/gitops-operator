@@ -56,29 +56,18 @@ func verifyRHSSOInstallation(t *testing.T) {
 	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
 	assertNoError(t, err)
 
-	// Update verifyTLS=false in the SSO configuration of ArgoCD resource.
-	argocd := &argoapp.ArgoCD{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
-	assertNoError(t, err)
-
-	argocd.Spec.SSO.VerifyTLS = &insecure
-	err = f.Client.Update(context.TODO(), argocd)
-
-	// Assumption that an attempt to reconcile would have happened within 5 seconds.
-	time.Sleep(5 * time.Second)
-
 	// Verify the creation of template instance.
 	tInstance := &templatev1.TemplateInstance{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
 	assertNoError(t, err)
 
-	// Verify the keycloak Deployment and availble replicas.
+	// Verify the keycloak Deployment and available replicas.
 	dc := &appsv1.DeploymentConfig{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, dc)
 	assertNoError(t, err)
 	assert.Assert(t, dc.Status.AvailableReplicas == 1)
 
-	// Verify the keycloak Deployment and availble replicas.
+	// Verify the keycloak Deployment and available replicas.
 	svc := &corev1.Service{}
 	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, svc)
 	assertNoError(t, err)
