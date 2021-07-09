@@ -71,7 +71,7 @@ func TestGitOpsService(t *testing.T) {
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
-	ensureCleanSlate(t)
+	helper.EnsureCleanSlate(t)
 
 	if !skipOperatorDeployment() {
 		deployOperator(t)
@@ -339,38 +339,6 @@ func validateMachineConfigUpdates(t *testing.T) {
 	assertNoError(t, err)
 }
 
-// ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
-func ensureCleanSlate(t *testing.T) {
-	f := framework.Global
-
-	t.Log("Running ensureCleanSlate")
-
-	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
-	nsGitopsStandaloneTest := &corev1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
-			Name: standaloneArgoCDNamespace,
-		},
-	}
-	f.Client.Delete(context.Background(), nsGitopsStandaloneTest)
-
-	err := wait.Poll(1*time.Second, 60*time.Second, func() (bool, error) {
-		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsGitopsStandaloneTest.Name},
-			nsGitopsStandaloneTest); kubeerrors.IsNotFound(err) {
-			t.Logf("Namespace '%s' no longer exists", nsGitopsStandaloneTest.Name)
-			return true, nil
-		}
-
-		t.Logf("Namespace '%s' still exists", nsGitopsStandaloneTest.Name)
-
-		return false, nil
-	})
-
-	if err != nil {
-		assertNoError(t, fmt.Errorf("Namespace was not deleted: %v", err))
-	}
-
-}
-
 func validateNamespaceScopedInstall(t *testing.T) {
 
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
@@ -385,7 +353,7 @@ func validateNamespaceScopedInstall(t *testing.T) {
 	// Create new namespace
 	newNamespace := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
-			Name: standaloneArgoCDNamespace,
+			Name: helper.StandaloneArgoCDNamespace,
 		},
 	}
 	err := f.Client.Create(context.TODO(), newNamespace, cleanupOptions)
@@ -406,10 +374,10 @@ func validateNamespaceScopedInstall(t *testing.T) {
 	assertNoError(t, err)
 
 	// Verify that a subset of resources are created
-	resourceList := []resourceList{
+	resourceList := []helper.ResourceList{
 		{
-			resource: &appsv1.Deployment{},
-			expectedResources: []string{
+			Resource: &appsv1.Deployment{},
+			ExpectedResources: []string{
 				name + "-dex-server",
 				name + "-redis",
 				name + "-repo-server",
@@ -417,8 +385,8 @@ func validateNamespaceScopedInstall(t *testing.T) {
 			},
 		},
 		{
-			resource: &corev1.ConfigMap{},
-			expectedResources: []string{
+			Resource: &corev1.ConfigMap{},
+			ExpectedResources: []string{
 				"argocd-cm",
 				"argocd-gpg-keys-cm",
 				"argocd-rbac-cm",
@@ -427,29 +395,29 @@ func validateNamespaceScopedInstall(t *testing.T) {
 			},
 		},
 		{
-			resource: &corev1.ServiceAccount{},
-			expectedResources: []string{
+			Resource: &corev1.ServiceAccount{},
+			ExpectedResources: []string{
 				name + "-argocd-application-controller",
 				name + "-argocd-server",
 			},
 		},
 		{
-			resource: &rbacv1.Role{},
-			expectedResources: []string{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
 				name + "-argocd-application-controller",
 				name + "-argocd-server",
 			},
 		},
 		{
-			resource: &rbacv1.RoleBinding{},
-			expectedResources: []string{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
 				name + "-argocd-application-controller",
 				name + "-argocd-server",
 			},
 		},
 		{
-			resource: &monitoringv1.ServiceMonitor{},
-			expectedResources: []string{
+			Resource: &monitoringv1.ServiceMonitor{},
+			ExpectedResources: []string{
 				name,
 				name + "-repo-server",
 				name + "-server",
@@ -457,41 +425,9 @@ func validateNamespaceScopedInstall(t *testing.T) {
 		},
 	}
 
-	err = waitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180, t)
+	err = helper.WaitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180, t)
 	assertNoError(t, err)
 
-}
-
-// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
-// should be of the given type (Deployment, Service, etc) and name(s).
-// Returns error if the resources could not be found within the given time frame.
-func waitForResourcesByName(resourceList []resourceList, namespace string, timeout time.Duration, t *testing.T) error {
-
-	f := framework.Global
-
-	// Wait X seconds for all the resources to be created
-	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
-
-		for _, resourceListEntry := range resourceList {
-
-			for _, resourceName := range resourceListEntry.expectedResources {
-
-				resource := resourceListEntry.resource.DeepCopyObject()
-				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
-				if err := f.Client.Get(context.TODO(), namespacedName, resource); err != nil {
-					t.Logf("Unable to retrieve expected resource %s: %v", resourceName, err)
-					return false, nil
-				} else {
-					t.Logf("Able to retrieve %s", resourceName)
-				}
-			}
-
-		}
-
-		return true, nil
-	})
-
-	return err
 }
 
 func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
@@ -517,7 +453,7 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 	}
 
 	// Create argocd instance in non-default namespace
-	argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
+	argocdNonDefaultNamespaceInstance, _ := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
 	err = f.Client.Create(context.TODO(), argocdNonDefaultNamespaceInstance, cleanupOptions)
 	assertNoError(t, err)
 
@@ -616,25 +552,25 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 	}
 
 	// check if the necessary roles/rolebindings are created in the target namespace
-	resourceList := []resourceList{
+	resourceList := []helper.ResourceList{
 		{
-			&rbacv1.Role{},
-			[]string{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
 				argocdInstance + "-argocd-application-controller",
 				argocdInstance + "-argocd-redis-ha",
 				argocdInstance + "-argocd-server",
 			},
 		},
 		{
-			&rbacv1.RoleBinding{},
-			[]string{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
 				argocdInstance + "-argocd-application-controller",
 				argocdInstance + "-argocd-redis-ha",
 				argocdInstance + "-argocd-server",
 			},
 		},
 	}
-	err = waitForResourcesByName(resourceList, targetNS, time.Second*180, t)
+	err = helper.WaitForResourcesByName(resourceList, targetNS, time.Second*180, t)
 	assertNoError(t, err)
 
 	// create an ArgoCD app and check if it can create resources in the target namespace
@@ -698,25 +634,25 @@ func validateGrantingPermissionsByLabelForOOTBArgocdInstance(t *testing.T) {
 		assertNoError(t, err)
 	}
 	// check if the necessary roles/rolebindings are created in the target namespace
-	resourceList := []resourceList{
+	resourceList := []helper.ResourceList{
 		{
-			&rbacv1.Role{},
-			[]string{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
 				argoCDInstanceName + "-argocd-application-controller",
 				argoCDInstanceName + "-argocd-redis-ha",
 				argoCDInstanceName + "-argocd-server",
 			},
 		},
 		{
-			&rbacv1.RoleBinding{},
-			[]string{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
 				argoCDInstanceName + "-argocd-application-controller",
 				argoCDInstanceName + "-argocd-redis-ha",
 				argoCDInstanceName + "-argocd-server",
 			},
 		},
 	}
-	err = waitForResourcesByName(resourceList, argocdTargetNamespace, time.Second*180, t)
+	err = helper.WaitForResourcesByName(resourceList, argocdTargetNamespace, time.Second*180, t)
 	assertNoError(t, err)
 	// create an ArgoCD app and check if it can create resources in the target namespace
 	nginxAppCr := filepath.Join("test", "appcrs", "nginx_default_ns_appcr.yaml")
