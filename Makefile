@@ -1,11 +1,12 @@
 E2E_TEST_DIR=test/e2e
+NON_DEFAULT_E2E_TEST_DIR=test/nondefaulte2e
 OPERATOR_SDK?=operator-sdk
 
 default: test
 
 .PHONY: test
 test:
-	go test `go list ./... | grep -v ${E2E_TEST_DIR}`
+	go test `go list ./... | grep -v ${E2E_TEST_DIR} | grep -v ${NON_DEFAULT_E2E_TEST_DIR}`
 
 .PHONY: prepare-test-cluster
 prepare-test-cluster:
