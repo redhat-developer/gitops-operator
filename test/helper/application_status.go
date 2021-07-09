@@ -16,6 +16,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 )
 
 // ProjectExists return true if the AppProject exists in the namespace,
@@ -128,16 +131,16 @@ const (
 )
 
 // ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
-func EnsureCleanSlate(t *testing.T) {
+func EnsureCleanSlate(t *testing.T) error {
 
 	t.Log("Running ensureCleanSlate")
 
-	DeleteNamespace(StandaloneArgoCDNamespace, t)
+	return DeleteNamespace(StandaloneArgoCDNamespace, t)
 
 }
 
 // DeleteNamespace deletes a namespace, and waits for deletion to complete.
-func DeleteNamespace(nsToDelete string, t *testing.T) {
+func DeleteNamespace(nsToDelete string, t *testing.T) error {
 	f := framework.Global
 
 	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
@@ -146,9 +149,35 @@ func DeleteNamespace(nsToDelete string, t *testing.T) {
 			Name: nsToDelete,
 		},
 	}
-	f.Client.Delete(context.Background(), nsTarget)
+	err := f.Client.Delete(context.Background(), nsTarget)
+	if err != nil {
+		if kubeerrors.IsNotFound(err) {
+			// Success: the namespace doesn't exist.
+			return nil
+		}
+		return fmt.Errorf("unable to delete namespace %v", err)
+	}
 
-	err := wait.Poll(1*time.Second, 90*time.Second, func() (bool, error) {
+	err = wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+
+		// Patch all the ArgoCDs in the NS, to remove the finalizer (so the namespace can be deleted)
+		var list argoapp.ArgoCDList
+
+		opts := &client.ListOptions{
+			Namespace: nsToDelete,
+		}
+		if err = f.Client.List(context.Background(), &list, opts); err != nil {
+			t.Errorf("Unable to list ArgoCDs %v", err)
+			// Report failure, but still continue
+		}
+		for _, item := range list.Items {
+			item.Finalizers = []string{}
+			if err := f.Client.Update(context.Background(), &item); err != nil {
+				t.Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
+				// Report failure, but still continue
+			}
+		}
+
 		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsTarget.Name},
 			nsTarget); kubeerrors.IsNotFound(err) {
 			t.Logf("Namespace '%s' no longer exists", nsTarget.Name)
@@ -161,8 +190,9 @@ func DeleteNamespace(nsToDelete string, t *testing.T) {
 	})
 
 	if err != nil {
-		t.Error(fmt.Errorf("namespace '%s' was not deleted: %v", nsToDelete, err))
-		t.Fail()
+		return fmt.Errorf("namespace '%s' was not deleted: %v", nsToDelete, err)
 	}
+
+	return nil
 
 }
