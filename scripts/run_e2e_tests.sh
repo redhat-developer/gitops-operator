@@ -5,6 +5,7 @@ set -x
 
 E2E_TEST_NS="gitops-test"
 E2E_TEST_DIR=./test/e2e
+NON_DEFAULT_E2E_TEST_DIR=./test/nondefaulte2e
 ARGOCD_NS="openshift-gitops"
 OPERATOR_SDK="${OPERATOR_SDK:-operator-sdk}"
 
@@ -27,14 +28,23 @@ oc new-project $E2E_TEST_NS
 export ARGOCD_CLUSTER_CONFIG_NAMESPACES=openshift-gitops
 
 echo "Running e2e tests"
-${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m"
+${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m" 
+Teststatus_e2e=$?
 
-Teststatus=$?
+echo "Running e2e tests (DISABLE_DEFAULT_ARGOCD_INSTANCE=true)"
+DISABLE_DEFAULT_ARGOCD_INSTANCE=true ${OPERATOR_SDK} test local $NON_DEFAULT_E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m"
+Teststatus_e2e_nondefault=$?
 
 echo "Cleaning e2e test resources"
 oc delete project $E2E_TEST_NS
 oc delete project $ARGOCD_NS
 
-if [ $Teststatus -ne "0" ]; then
-    exit $Teststatus
+if [ $Teststatus_e2e -ne "0" ]; then
+    exit $Teststatus_e2e
 fi
+
+if [ $Teststatus_e2e_nondefault -ne "0" ]; then
+    exit $Teststatus_e2e_nondefault
+fi
+
+
