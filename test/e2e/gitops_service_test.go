@@ -25,7 +25,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -64,7 +63,6 @@ const (
 	argocdNonDefaultNamespace             = "argocd-non-default-source"
 	argocdTargetNamespace                 = "argocd-target"
 	argocdManagedByLabel                  = "argocd.argoproj.io/managed-by"
-	standaloneArgoCDNamespace             = "gitops-standalone-test"
 )
 
 func TestGitOpsService(t *testing.T) {
@@ -673,15 +671,6 @@ func validateGrantingPermissionsByLabelForOOTBArgocdInstance(t *testing.T) {
 		return true, nil
 	})
 	assertNoError(t, err)
-}
-
-// resourceList is used by waitForResourcesByName
-type resourceList struct {
-	// resource is the type of resource to verify that it exists
-	resource runtime.Object
-
-	// expectedResources are the names of the resources of the above type
-	expectedResources []string
 }
 
 func skipOperatorDeployment() bool {
