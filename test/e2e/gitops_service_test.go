@@ -61,6 +61,12 @@ const (
 	rhssosecret                           = "keycloak-secret"
 	argocdNonDefaultNamespaceInstanceName = "argocd-non-default-namespace-instance"
 	argocdNonDefaultNamespace             = "argocd-non-default-source"
+<<<<<<< Updated upstream
+=======
+	standaloneArgoCDNamespace             = "gitops-standalone-test"
+	argocdTargetNamespace                 = "argocd-target"
+	argocdManagedByLabel                  = "argocd.argoproj.io/managed-by"
+>>>>>>> Stashed changes
 )
 
 func TestGitOpsService(t *testing.T) {
