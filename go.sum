@@ -1022,8 +1022,8 @@ github.com/sergi/go-diff v1.1.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNX
 github.com/sethvargo/go-password v0.2.0 h1:BTDl4CC/gjf/axHMaDQtw507ogrXLci6XRiLc7i/UHI=
 github.com/sethvargo/go-password v0.2.0/go.mod h1:Ym4Mr9JXLBycr02MFuVQ/0JHidNetSgbzutTr3zsYXE=
 github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24/go.mod h1:M+9NzErvs504Cn4c5DxATwIqPbtswREoFCre64PpcG4=
-github.com/shubhamagarwal19/argocd-operator v0.0.15-0.20210709105152-3b96f6d02765 h1:syt6ezSjQVe/DmS0LkYi8oxHoxiwJ+p/G8RH388n7zc=
-github.com/shubhamagarwal19/argocd-operator v0.0.15-0.20210709105152-3b96f6d02765/go.mod h1:b6t078lHz63c2mTeyJuDXwceCbAu9GJxeWlDn7XDj7w=
+github.com/shubhamagarwal19/argocd-operator v0.0.15-0.20210709142800-3a4d8f983012 h1:mIRp2KzkKEiGO67IUAAYEbHsrE6TfnFwIvIsoUsvzk4=
+github.com/shubhamagarwal19/argocd-operator v0.0.15-0.20210709142800-3a4d8f983012/go.mod h1:b6t078lHz63c2mTeyJuDXwceCbAu9GJxeWlDn7XDj7w=
 github.com/shurcooL/httpfs v0.0.0-20171119174359-809beceb2371/go.mod h1:ZY1cvUeJuFPAdZ/B6v7RHavJWZn2YPVFQ1OSXhCGOkg=
 github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749/go.mod h1:ZY1cvUeJuFPAdZ/B6v7RHavJWZn2YPVFQ1OSXhCGOkg=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=

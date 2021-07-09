@@ -64,6 +64,8 @@ const (
 	standaloneArgoCDNamespace             = "gitops-standalone-test"
 	argocdTargetNamespace                 = "argocd-target"
 	argocdManagedByLabel                  = "argocd.argoproj.io/managed-by"
+	argocdSecretTypeLabel                 = "argocd.argoproj.io/secret-type"
+	argoCDDefaultServer                   = "https://kubernetes.default.svc"
 )
 
 func TestGitOpsService(t *testing.T) {
@@ -77,19 +79,20 @@ func TestGitOpsService(t *testing.T) {
 	}
 
 	// run subtests
-	t.Run("Validate kam service", validateKamService)
-	t.Run("Validate GitOps Backend", validateGitOpsBackend)
-	t.Run("Validate ConsoleLink", validateConsoleLink)
-	t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
-	t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
-	t.Run("Validate machine config updates", validateMachineConfigUpdates)
-	t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
-	t.Run("Validate cluster config updates", validateClusterConfigChange)
-	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
-	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
-	t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
-	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
+	// t.Run("Validate kam service", validateKamService)
+	// t.Run("Validate GitOps Backend", validateGitOpsBackend)
+	// t.Run("Validate ConsoleLink", validateConsoleLink)
+	// t.Run("Validate ArgoCD Installation", validateArgoCDInstallation)
+	// t.Run("Validate ArgoCD Metrics Configuration", validateArgoCDMetrics)
+	// t.Run("Validate machine config updates", validateMachineConfigUpdates)
+	// t.Run("Validate non-default argocd namespace management", validateNonDefaultArgocdNamespaceManagement)
+	// t.Run("Validate cluster config updates", validateClusterConfigChange)
+	// t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
+	// t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
+	// t.Run("Validate Redhat Single sign-on Uninstallation", verifyRHSSOUnInstallation)
+	// t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
+	t.Run("Validate revoking permissions by removing label", validateRevokingPermissionsByLabel)
 	t.Run("Validate tear down of ArgoCD Installation", tearDownArgoCD)
 
 }
@@ -742,17 +745,34 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 	defer ctx.Cleanup()
 	f := framework.Global
 
+	// create a new source namespace
+	sourceNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: argocdNonDefaultNamespace,
+		},
+	}
+	err := f.Client.Create(context.TODO(), sourceNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// create an ArgoCD instance in the non-default source namespace
+	argoCDInstanceObj, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
+	assertNoError(t, err)
+	err = f.Client.Create(context.TODO(), argoCDInstanceObj, cleanupOptions)
+	assertNoError(t, err)
+
 	// create a target namespace with label already applied
 	// allow argocd to create resources in the target namespace by adding managed-by label
 	targetNamespaceObj := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: argocdTargetNamespace,
 			Labels: map[string]string{
-				argocdManagedByLabel: argoCDNamespace,
+				argocdManagedByLabel: argocdNonDefaultNamespace,
 			},
 		},
 	}
-	err := f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
+	err = f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
 	if !kubeerrors.IsAlreadyExists(err) {
 		assertNoError(t, err)
 	}
@@ -762,17 +782,17 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 		{
 			Resource: &rbacv1.Role{},
 			ExpectedResources: []string{
-				argoCDInstanceName + "-argocd-application-controller",
-				argoCDInstanceName + "-argocd-redis-ha",
-				argoCDInstanceName + "-argocd-server",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-server",
 			},
 		},
 		{
 			Resource: &rbacv1.RoleBinding{},
 			ExpectedResources: []string{
-				argoCDInstanceName + "-argocd-application-controller",
-				argoCDInstanceName + "-argocd-redis-ha",
-				argoCDInstanceName + "-argocd-server",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
+				argocdNonDefaultNamespaceInstanceName + "-argocd-server",
 			},
 		},
 	}
@@ -783,4 +803,52 @@ func validateRevokingPermissionsByLabel(t *testing.T) {
 	delete(targetNamespaceObj.Labels, argocdManagedByLabel)
 	f.Client.Update(context.TODO(), targetNamespaceObj)
 
+	// Wait X seconds for all the resources to be deleted
+	err = wait.Poll(time.Second*1, timeout, func() (bool, error) {
+
+		for _, resourceListEntry := range resourceList {
+
+			for _, resourceName := range resourceListEntry.ExpectedResources {
+
+				resource := resourceListEntry.Resource.DeepCopyObject()
+				namespacedName := types.NamespacedName{Name: resourceName, Namespace: argocdTargetNamespace}
+				if err := f.Client.Get(context.TODO(), namespacedName, resource); err == nil {
+					t.Logf("Resource %s was not deleted: %v", resourceName, err)
+					return false, nil
+				} else {
+					t.Logf("Resource %s was successfully deleted", resourceName)
+				}
+			}
+
+		}
+
+		// Retrieve cluster secret to check if the target namespace was removed from the list of namespaces
+		listOptions := &client.ListOptions{}
+		client.MatchingLabels{argocdSecretTypeLabel: "cluster"}.ApplyToList(listOptions)
+		clusterSecretList := &corev1.SecretList{}
+		err := f.Client.List(context.TODO(), clusterSecretList, listOptions)
+		if err != nil {
+			t.Logf("Unable to retrieve cluster secrets: %v", err)
+			return false, nil
+		} else {
+			for _, secret := range clusterSecretList.Items {
+				if string(secret.Data["server"]) != argoCDDefaultServer {
+					continue
+				}
+				if namespaces, ok := secret.Data["namespaces"]; ok {
+					namespaceList := strings.Split(string(namespaces), ",")
+
+					for _, ns := range namespaceList {
+
+						if strings.TrimSpace(ns) == argocdTargetNamespace {
+							t.Log("Target namespace still present in cluster secret namespace list")
+							return false, nil
+						}
+					}
+				}
+			}
+		}
+		return true, nil
+	})
+	assertNoError(t, err)
 }
