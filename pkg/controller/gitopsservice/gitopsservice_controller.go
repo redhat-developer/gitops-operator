@@ -2,6 +2,7 @@ package gitopsservice
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -226,8 +227,15 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	if !r.disableDefaultInstall {
+		// Create/reconcile the default Argo CD instance, unless default install is disabled
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
-			return result, err
+			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
+		}
+	} else {
+		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
+		// deleting it if necessary
+		if err := r.ensureDefaultArgoCDInstanceDoesntExist(instance, reqLogger); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
 	}
 
@@ -236,6 +244,54 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 	}
 
 	return r.reconcileCLIServer(instance, request)
+}
+
+func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
+
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	if err != nil {
+		return err
+	}
+
+	argocdNS := newNamespace(defaultArgoCDInstance.Namespace)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
+	if err != nil {
+
+		if errors.IsNotFound(err) {
+			// If the namespace doesn't exit, then the instance necessarily doesn't exist, so just return
+			return nil
+		} else {
+			return err
+		}
+	}
+
+	// Delete the existing Argo CD instance, if it exists
+	existingArgoCD := &argoapp.ArgoCD{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
+	if err == nil {
+		// The Argo CD instance exists, so update, then delete it
+
+		reqLogger.Info("Patching ArgoCD finalizer for " + existingArgoCD.Name)
+
+		// Remove the finalizer, so it can be deleted
+		existingArgoCD.Finalizers = []string{}
+		if err := r.client.Update(context.TODO(), existingArgoCD); err != nil {
+			return err
+		}
+
+		reqLogger.Info("Deleting ArgoCD finalizer for " + existingArgoCD.Name)
+
+		// Delete the existing ArgoCD instance
+		if err := r.client.Delete(context.TODO(), existingArgoCD); err != nil {
+			return err
+		}
+
+	} else if !errors.IsNotFound(err) {
+		// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
+		return err
+	}
+
+	return nil
 }
 
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
