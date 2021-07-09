@@ -734,3 +734,53 @@ func applyMissingPermissions(ctx *framework.Context, f *framework.Framework, nam
 
 	return nil
 }
+
+func validateRevokingPermissionsByLabel(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	defer ctx.Cleanup()
+	f := framework.Global
+
+	// create a target namespace with label already applied
+	// allow argocd to create resources in the target namespace by adding managed-by label
+	targetNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: argocdTargetNamespace,
+			Labels: map[string]string{
+				argocdManagedByLabel: argoCDNamespace,
+			},
+		},
+	}
+	err := f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+
+	// wait for the necessary roles/rolebindings to be created in the target namespace
+	resourceList := []helper.ResourceList{
+		{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
+				argoCDInstanceName + "-argocd-application-controller",
+				argoCDInstanceName + "-argocd-redis-ha",
+				argoCDInstanceName + "-argocd-server",
+			},
+		},
+		{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
+				argoCDInstanceName + "-argocd-application-controller",
+				argoCDInstanceName + "-argocd-redis-ha",
+				argoCDInstanceName + "-argocd-server",
+			},
+		},
+	}
+	err = helper.WaitForResourcesByName(resourceList, argocdTargetNamespace, time.Second*180, t)
+	assertNoError(t, err)
+
+	// Remove argocd managed by label from target namespace object and update it on the cluster to trigger deletion of resources
+	delete(targetNamespaceObj.Labels, argocdManagedByLabel)
+	f.Client.Update(context.TODO(), targetNamespaceObj)
+
+}
