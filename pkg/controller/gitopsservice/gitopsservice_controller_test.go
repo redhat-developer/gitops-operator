@@ -11,11 +11,13 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/common"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/pkg/apis/pipelines/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/pkg/controller/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -69,6 +71,97 @@ func TestImageFromEnvVariable(t *testing.T) {
 			t.Errorf("Image mismatch: got %s, want %s", got, cliImage)
 		}
 	})
+
+}
+
+// If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
+func TestReconcileDisableDefault(t *testing.T) {
+
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	var err error
+
+	fakeClient := fake.NewFakeClient(newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reconciler.disableDefaultInstall = true
+
+	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	argoCD := &argoapp.ArgoCD{}
+
+	// ArgoCD instance SHOULD NOT created (in openshift-gitops namespace)
+	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		argoCD); err == nil || !errors.IsNotFound(err) {
+
+		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
+	}
+
+	// openshift-gitops namespace SHOULD be created
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
+	assertNoError(t, err)
+
+	// backend Route SHOULD be created
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &routev1.Route{})
+	assertNoError(t, err)
+
+	// backend Deployment SHOULD be created
+	deploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
+	assertNoError(t, err)
+
+}
+
+// If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is deleted if it already exists.
+func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
+
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	var err error
+
+	fakeClient := fake.NewFakeClient(newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reconciler.disableDefaultInstall = false
+
+	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	argoCD := &argoapp.ArgoCD{}
+
+	// ArgoCD instance SHOULD be created (in openshift-gitops namespace)
+	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		argoCD); err != nil {
+
+		t.Fatalf("ArgoCD instance should exist in namespace, error: %v", err)
+	}
+
+	reconciler.disableDefaultInstall = true
+	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// ArgoCD instance SHOULD be deleted from namespace (in openshift-gitops namespace)
+	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		argoCD); err == nil || !errors.IsNotFound(err) {
+
+		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
+	}
+
+	// openshift-gitops namespace SHOULD still exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
+	assertNoError(t, err)
+
+	// backend Route SHOULD still exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &routev1.Route{})
+	assertNoError(t, err)
+
+	// backend Deployment SHOULD still exist
+	deploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
+	assertNoError(t, err)
 
 }
 
