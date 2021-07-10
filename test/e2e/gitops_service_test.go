@@ -61,7 +61,6 @@ const (
 	rhssosecret                           = "keycloak-secret"
 	argocdNonDefaultNamespaceInstanceName = "argocd-non-default-namespace-instance"
 	argocdNonDefaultNamespace             = "argocd-non-default-source"
-	standaloneArgoCDNamespace             = "gitops-standalone-test"
 	argocdTargetNamespace                 = "argocd-target"
 	argocdManagedByLabel                  = "argocd.argoproj.io/managed-by"
 	argocdSecretTypeLabel                 = "argocd.argoproj.io/secret-type"
@@ -89,7 +88,8 @@ func TestGitOpsService(t *testing.T) {
 	t.Run("Validate cluster config updates", validateClusterConfigChange)
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate granting permissions by adding label", validateGrantingPermissionsByLabel)
-	t.Run("Validate revoking permissions by removing label", validateRevokingPermissionsByLabel)
+	t.Run("Validate granting permissions by adding label for ootb argocd instance", validateGrantingPermissionsByLabelForOOTBArgocdInstance)
+  t.Run("Validate revoking permissions by removing label", validateRevokingPermissionsByLabel)
 	// Keep the Redhat Single sign-on tests at the end because RHSSO takes 2-3 minutes to start.
 	t.Run("Validate Redhat Single sign-on Installation", verifyRHSSOInstallation)
 	t.Run("Validate Redhat Single sign-on Configuration", verifyRHSSOConfiguration)
@@ -596,6 +596,86 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 			return false, nil
 		}
 		if err := helper.ApplicationSyncStatus("nginx", sourceNS); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	})
+	assertNoError(t, err)
+}
+
+func validateGrantingPermissionsByLabelForOOTBArgocdInstance(t *testing.T) {
+	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
+	ctx := framework.NewContext(t)
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	defer ctx.Cleanup()
+	f := framework.Global
+	// Wait for the default project to exist; this avoids a race condition where the Application
+	// can be created before the Project that it targets.
+	if err := wait.Poll(time.Second*5, time.Minute*5, func() (bool, error) {
+		if status, err := helper.ProjectExists("default", argoCDNamespace); !status {
+			t.Log(err)
+			return false, nil
+		}
+		return true, nil
+	}); err != nil {
+		t.Fatalf("project never existed %v", err)
+	}
+	// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// Thus, applying missing rules for 'argocd-application-controller'
+	// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	if err := applyMissingPermissions(ctx, f, argoCDInstanceName, argoCDNamespace); err != nil {
+		t.Fatal(err)
+	}
+	// create a target namespace to deploy resources
+	// allow argocd to create resources in the target namespace by adding managed-by label
+	targetNamespaceObj := &corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: argocdTargetNamespace,
+			Labels: map[string]string{
+				argocdManagedByLabel: argoCDNamespace,
+			},
+		},
+	}
+	err := f.Client.Create(context.TODO(), targetNamespaceObj, cleanupOptions)
+	if !kubeerrors.IsAlreadyExists(err) {
+		assertNoError(t, err)
+	}
+	// check if the necessary roles/rolebindings are created in the target namespace
+	resourceList := []helper.ResourceList{
+		{
+			Resource: &rbacv1.Role{},
+			ExpectedResources: []string{
+				argoCDInstanceName + "-argocd-application-controller",
+				argoCDInstanceName + "-argocd-redis-ha",
+				argoCDInstanceName + "-argocd-server",
+			},
+		},
+		{
+			Resource: &rbacv1.RoleBinding{},
+			ExpectedResources: []string{
+				argoCDInstanceName + "-argocd-application-controller",
+				argoCDInstanceName + "-argocd-redis-ha",
+				argoCDInstanceName + "-argocd-server",
+			},
+		},
+	}
+	err = helper.WaitForResourcesByName(resourceList, argocdTargetNamespace, time.Second*180, t)
+	assertNoError(t, err)
+	// create an ArgoCD app and check if it can create resources in the target namespace
+	nginxAppCr := filepath.Join("test", "appcrs", "nginx_default_ns_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	assertNoError(t, err)
+	cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
+	err = cmd.Run()
+	assertNoError(t, err)
+	err = wait.Poll(time.Second*1, time.Second*180, func() (bool, error) {
+		if err := helper.ApplicationHealthStatus("nginx", argoCDNamespace); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+		if err := helper.ApplicationSyncStatus("nginx", argoCDNamespace); err != nil {
 			t.Log(err)
 			return false, nil
 		}
