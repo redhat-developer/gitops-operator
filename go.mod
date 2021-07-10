@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210708113628-c85d1875315f
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210709234543-5a9ab3a1ec3d
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
@@ -34,6 +34,5 @@ require (
 
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210708113628-c85d1875315f => github.com/shubhamagarwal19/argocd-operator v0.0.15-0.20210709142800-3a4d8f983012
 	k8s.io/client-go => k8s.io/client-go v0.18.2
 )
