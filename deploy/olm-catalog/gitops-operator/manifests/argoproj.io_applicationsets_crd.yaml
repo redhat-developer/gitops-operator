@@ -42,11 +42,11 @@ spec:
                   properties:
                     clusters:
                       description: ClusterGenerator defines a generator to match against
-                        clusters registered with ArgoCD.
+                        clusters registered with Argo CD.
                       properties:
                         selector:
                           description: Selector defines a label selector to match
-                            against all clusters registered with ArgoCD. Clusters
+                            against all clusters registered with Argo CD. Clusters
                             today are stored as Kubernetes Secrets, thus the Secret
                             labels will be used for matching the selector.
                           properties:
@@ -93,7 +93,7 @@ spec:
                               type: object
                           type: object
                         template:
-                          description: ApplicationSetTemplate represents argocd ApplicationSpec
+                          description: ApplicationSetTemplate represents Argo CD ApplicationSpec
                           properties:
                             metadata:
                               description: ApplicationSetTemplateMeta represents the
@@ -521,7 +521,7 @@ spec:
                         revision:
                           type: string
                         template:
-                          description: ApplicationSetTemplate represents argocd ApplicationSpec
+                          description: ApplicationSetTemplate represents Argo CD ApplicationSpec
                           properties:
                             metadata:
                               description: ApplicationSetTemplateMeta represents the
@@ -942,7 +942,7 @@ spec:
                             type: object
                           type: array
                         template:
-                          description: ApplicationSetTemplate represents argocd ApplicationSpec
+                          description: ApplicationSetTemplate represents Argo CD ApplicationSpec
                           properties:
                             metadata:
                               description: ApplicationSetTemplateMeta represents the
@@ -1353,7 +1353,7 @@ spec:
                     type: boolean
                 type: object
               template:
-                description: ApplicationSetTemplate represents argocd ApplicationSpec
+                description: ApplicationSetTemplate represents Argo CD ApplicationSpec
                 properties:
                   metadata:
                     description: ApplicationSetTemplateMeta represents the Argo CD
