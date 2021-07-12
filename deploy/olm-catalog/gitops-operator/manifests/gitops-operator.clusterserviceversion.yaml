@@ -99,21 +99,6 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: GitOpsService configures a web service for rendering the GitOps UI on OpenShift
-      kind: GitopsService
-      name: gitopsservices.pipelines.openshift.io
-      version: v1alpha1
-      displayName: GitOps Service
-    - kind: Application
-      name: applications.argoproj.io
-      version: v1alpha1
-      displayName: Application
-      description: An Application is a group of Kubernetes resources as defined by a manifest.
-    - kind: AppProject
-      name: appprojects.argoproj.io
-      version: v1alpha1
-      displayName: AppProject
-      description: An AppProject is a logical grouping of Argo CD Applications.
     - kind: ArgoCD
       name: argocds.argoproj.io
       version: v1alpha1
@@ -165,10 +150,6 @@ spec:
       - kind: StatefulSet
         name: ''
         version: v1
-    - kind: ApplicationSet
-      name: applicationsets.argoproj.io
-      version: v1alpha1
-      description: ApplicationSet is the representation of an ApplicationSet controller deployment.
   description: |
     Red Hat OpenShift GitOps is a declarative continuous delivery platform based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt GitOps principles for managing cluster configurations and automating secure and repeatable application delivery across hybrid multi-cluster Kubernetes environments. Following GitOps and infrastructure as code principles, you can store the configuration of clusters and applications in Git repositories and use Git workflows to roll them out to the target clusters.
 
