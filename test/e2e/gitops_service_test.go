@@ -587,7 +587,7 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 	err = cmd.Run()
 	assertNoError(t, err)
 
-	err = wait.Poll(time.Second*1, time.Second*180, func() (bool, error) {
+	err = wait.Poll(time.Second*1, time.Minute*5, func() (bool, error) {
 		if err := helper.ApplicationHealthStatus("nginx", sourceNS); err != nil {
 			t.Log(err)
 			return false, nil
