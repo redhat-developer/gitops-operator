@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -17,8 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 )
 
 // ProjectExists return true if the AppProject exists in the namespace,
@@ -142,6 +142,10 @@ func EnsureCleanSlate(t *testing.T) error {
 // DeleteNamespace deletes a namespace, and waits for deletion to complete.
 func DeleteNamespace(nsToDelete string, t *testing.T) error {
 	f := framework.Global
+
+	if err := framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{}); err != nil {
+		return err
+	}
 
 	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
 	nsTarget := &corev1.Namespace{
