@@ -21,7 +21,7 @@ func getArgoApplicationSetSpec() *argoapp.ArgoCDApplicationSet {
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("512Mi"),
-				v1.ResourceCPU:    resourcev1.MustParse("1000m"),
+				v1.ResourceCPU:    resourcev1.MustParse("250m"),
 			},
 			Limits: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("1024Mi"),
@@ -36,7 +36,7 @@ func getArgoControllerSpec() argoapp.ArgoCDApplicationControllerSpec {
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("1024Mi"),
-				v1.ResourceCPU:    resourcev1.MustParse("1000m"),
+				v1.ResourceCPU:    resourcev1.MustParse("250m"),
 			},
 			Limits: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("2048Mi"),
@@ -76,8 +76,9 @@ func getArgoGrafanaSpec() argoapp.ArgoCDGrafanaSpec {
 	}
 }
 
-func getArgoHAProxySpec() argoapp.ArgoCDHASpec {
+func getArgoHASpec() argoapp.ArgoCDHASpec {
 	return argoapp.ArgoCDHASpec{
+		Enabled: false,
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("128Mi"),
@@ -111,7 +112,7 @@ func getArgoRepoServerSpec() argoapp.ArgoCDRepoSpec {
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("256Mi"),
-				v1.ResourceCPU:    resourcev1.MustParse("500m"),
+				v1.ResourceCPU:    resourcev1.MustParse("250m"),
 			},
 			Limits: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("512Mi"),
@@ -165,7 +166,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Controller:     getArgoControllerSpec(),
 			Dex:            getArgoDexSpec(),
 			Grafana:        getArgoGrafanaSpec(),
-			HA:             getArgoHAProxySpec(),
+			HA:             getArgoHASpec(),
 			Redis:          getArgoRedisSpec(),
 			Repo:           getArgoRepoServerSpec(),
 			Server:         getArgoServerSpec(),

@@ -39,6 +39,7 @@ metadata:
               }                
             },
             "ha": {
+              "enabled": false
               "resources": {
                 "limits": {
                   "cpu": "500m",
