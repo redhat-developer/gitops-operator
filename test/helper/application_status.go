@@ -162,7 +162,7 @@ func DeleteNamespace(nsToDelete string, t *testing.T) error {
 		return fmt.Errorf("unable to delete namespace %v", err)
 	}
 
-	err = wait.Poll(1*time.Second, 2*time.Minute, func() (bool, error) {
+	err = wait.Poll(1*time.Second, 5*time.Minute, func() (bool, error) {
 
 		// Patch all the ArgoCDs in the NS, to remove the finalizer (so the namespace can be deleted)
 		var list argoapp.ArgoCDList
@@ -175,7 +175,13 @@ func DeleteNamespace(nsToDelete string, t *testing.T) error {
 			// Report failure, but still continue
 		}
 		for _, item := range list.Items {
+
+			if len(item.Finalizers) == 0 {
+				continue
+			}
+
 			item.Finalizers = []string{}
+			t.Logf("Updating ArgoCD operand '%s' to remove finalizers, for deletion.", item.Name)
 			if err := f.Client.Update(context.Background(), &item); err != nil {
 				t.Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
 				// Report failure, but still continue
@@ -188,7 +194,7 @@ func DeleteNamespace(nsToDelete string, t *testing.T) error {
 			return true, nil
 		}
 
-		t.Logf("Namespace '%s' still exists", nsTarget.Name)
+		t.Logf("Namespace '%s' still exists (finalizers: %v)", nsTarget.Name, len(list.Items))
 
 		return false, nil
 	})
