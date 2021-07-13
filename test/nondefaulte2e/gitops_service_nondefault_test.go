@@ -36,8 +36,11 @@ func TestGitOpsServiceNonDefaultInstall(t *testing.T) {
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
-	helper.EnsureCleanSlate(t)
-	helper.DeleteNamespace("openshift-gitops", t)
+	err = helper.EnsureCleanSlate(t)
+	assertNoError(t, err)
+
+	err = helper.DeleteNamespace("openshift-gitops", t)
+	assertNoError(t, err)
 
 	t.Run("Validate Namespace-scoped install", validateNamespaceScopedInstall)
 	t.Run("Validate no default install", validateNoDefaultInstall)

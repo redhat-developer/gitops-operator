@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Add dispose function, called on script end
+function finish {
+    echo "Cleaning e2e test resources"
+    oc delete project $E2E_TEST_NS
+    oc delete project $ARGOCD_NS
+}
+trap finish EXIT
+
+
 # show commands
 set -x
 
@@ -31,17 +40,13 @@ echo "Running e2e tests"
 ${OPERATOR_SDK} test local $E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m" 
 Teststatus_e2e=$?
 
-echo "Running e2e tests (DISABLE_DEFAULT_ARGOCD_INSTANCE=true)"
-DISABLE_DEFAULT_ARGOCD_INSTANCE=true ${OPERATOR_SDK} test local $NON_DEFAULT_E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m"
-Teststatus_e2e_nondefault=$?
-
-echo "Cleaning e2e test resources"
-oc delete project $E2E_TEST_NS
-oc delete project $ARGOCD_NS
-
 if [ $Teststatus_e2e -ne "0" ]; then
     exit $Teststatus_e2e
 fi
+
+echo "Running e2e tests (DISABLE_DEFAULT_ARGOCD_INSTANCE=true)"
+DISABLE_DEFAULT_ARGOCD_INSTANCE=true ${OPERATOR_SDK} test local $NON_DEFAULT_E2E_TEST_DIR --operator-namespace $E2E_TEST_NS --watch-namespace "" --up-local --verbose --go-test-flags "-timeout 30m"
+Teststatus_e2e_nondefault=$?
 
 if [ $Teststatus_e2e_nondefault -ne "0" ]; then
     exit $Teststatus_e2e_nondefault
