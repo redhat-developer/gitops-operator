@@ -69,7 +69,8 @@ func TestGitOpsService(t *testing.T) {
 	err := framework.AddToFrameworkScheme(apis.AddToScheme, &operator.GitopsServiceList{})
 	assertNoError(t, err)
 
-	helper.EnsureCleanSlate(t)
+	err = helper.EnsureCleanSlate(t)
+	assertNoError(t, err)
 
 	if !skipOperatorDeployment() {
 		deployOperator(t)
@@ -497,7 +498,7 @@ func validateNonDefaultArgocdNamespaceManagement(t *testing.T) {
 func validateGrantingPermissionsByLabel(t *testing.T) {
 	framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{})
 	ctx := framework.NewContext(t)
-	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 60, RetryInterval: time.Second * 1}
+	cleanupOptions := &framework.CleanupOptions{TestContext: ctx, Timeout: time.Second * 120, RetryInterval: time.Second * 1}
 	defer ctx.Cleanup()
 	f := framework.Global
 
@@ -587,7 +588,7 @@ func validateGrantingPermissionsByLabel(t *testing.T) {
 	err = cmd.Run()
 	assertNoError(t, err)
 
-	err = wait.Poll(time.Second*1, time.Second*180, func() (bool, error) {
+	err = wait.Poll(time.Second*5, time.Minute*10, func() (bool, error) {
 		if err := helper.ApplicationHealthStatus("nginx", sourceNS); err != nil {
 			t.Log(err)
 			return false, nil
