@@ -59,7 +59,7 @@ func TestArgoCD(t *testing.T) {
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.Grafana.Resources, testGrafanaResources)
 
-	testHAProxyResources := &v1.ResourceRequirements{
+	testHAResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("128Mi"),
 			v1.ResourceCPU:    resourcev1.MustParse("250m"),
@@ -69,7 +69,8 @@ func TestArgoCD(t *testing.T) {
 			v1.ResourceCPU:    resourcev1.MustParse("500m"),
 		},
 	}
-	assert.DeepEqual(t, testArgoCD.Spec.HA.Resources, testHAProxyResources)
+	assert.DeepEqual(t, testArgoCD.Spec.HA.Resources, testHAResources)
+	assert.Equal(t, testArgoCD.Spec.HA.Enabled, false)
 
 	testRedisResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{

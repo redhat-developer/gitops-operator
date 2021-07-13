@@ -76,8 +76,9 @@ func getArgoGrafanaSpec() argoapp.ArgoCDGrafanaSpec {
 	}
 }
 
-func getArgoHAProxySpec() argoapp.ArgoCDHASpec {
+func getArgoHASpec() argoapp.ArgoCDHASpec {
 	return argoapp.ArgoCDHASpec{
+		Enabled: false,
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("128Mi"),
@@ -165,7 +166,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Controller:     getArgoControllerSpec(),
 			Dex:            getArgoDexSpec(),
 			Grafana:        getArgoGrafanaSpec(),
-			HA:             getArgoHAProxySpec(),
+			HA:             getArgoHASpec(),
 			Redis:          getArgoRedisSpec(),
 			Repo:           getArgoRepoServerSpec(),
 			Server:         getArgoServerSpec(),
