@@ -14,7 +14,7 @@ func TestArgoCD(t *testing.T) {
 	testApplicationSetResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("512Mi"),
-			v1.ResourceCPU:    resourcev1.MustParse("1000m"),
+			v1.ResourceCPU:    resourcev1.MustParse("250m"),
 		},
 		Limits: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("1024Mi"),
@@ -26,7 +26,7 @@ func TestArgoCD(t *testing.T) {
 	testControllerResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("1024Mi"),
-			v1.ResourceCPU:    resourcev1.MustParse("1000m"),
+			v1.ResourceCPU:    resourcev1.MustParse("250m"),
 		},
 		Limits: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("2048Mi"),
@@ -86,7 +86,7 @@ func TestArgoCD(t *testing.T) {
 	testRepoResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("256Mi"),
-			v1.ResourceCPU:    resourcev1.MustParse("500m"),
+			v1.ResourceCPU:    resourcev1.MustParse("250m"),
 		},
 		Limits: v1.ResourceList{
 			v1.ResourceMemory: resourcev1.MustParse("512Mi"),
