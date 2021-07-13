@@ -119,8 +119,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20210709234543-5a9ab3a1ec3d h1:xO2Sak5vZwSMVppJHM1NluyYMg/l4LjvHjoxFGF78Bc=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20210709234543-5a9ab3a1ec3d/go.mod h1:b6t078lHz63c2mTeyJuDXwceCbAu9GJxeWlDn7XDj7w=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20210712220925-3c945c648bd0 h1:8/qViIQ17yk2m1HDVi9vHkV+7wpz9tW0g5qOZG+ukow=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20210712220925-3c945c648bd0/go.mod h1:b6t078lHz63c2mTeyJuDXwceCbAu9GJxeWlDn7XDj7w=
 github.com/argoproj/argo-cd v1.5.8 h1:fmJP50W48OVGeDMZlbYBG0SMHY50wsEETvOx8IhHi/Q=
 github.com/argoproj/argo-cd v1.5.8/go.mod h1:UPOPiF6Y1y/oTL3X1KcuLbu7ljD7f4+SIaXvlowBmhE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
