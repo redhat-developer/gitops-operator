@@ -22,7 +22,7 @@ metadata:
                   "memory": "2048Mi"
                 },
                 "requests": {
-                  "cpu": "1000m",
+                  "cpu": "250m",
                   "memory": "1024Mi"
                 }
               }                
@@ -71,7 +71,7 @@ metadata:
                   "memory": "512Mi"
                 },
                 "requests": {
-                  "cpu": "500m",
+                  "cpu": "250m",
                   "memory": "256Mi"
                 }
               }                
