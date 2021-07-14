@@ -40,7 +40,7 @@ metadata:
               }                
             },
             "ha": {
-              "enabled": false
+              "enabled": false,
               "resources": {
                 "limits": {
                   "cpu": "500m",
