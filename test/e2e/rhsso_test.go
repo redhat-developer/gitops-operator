@@ -25,7 +25,6 @@ import (
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
-	"github.com/redhat-developer/gitops-operator/pkg/controller/gitopsservice"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -53,12 +52,11 @@ func verifyRHSSOInstallation(t *testing.T) {
 	defer ctx.Cleanup()
 
 	f := framework.Global
-	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
-	assertNoError(t, err)
+	namespace := argoCDNamespace
 
 	// Verify the creation of template instance.
 	tInstance := &templatev1.TemplateInstance{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
 	assertNoError(t, err)
 
 	// Verify the keycloak Deployment and available replicas.
@@ -90,12 +88,11 @@ func verifyRHSSOConfiguration(t *testing.T) {
 	defer ctx.Cleanup()
 
 	f := framework.Global
-	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
-	assertNoError(t, err)
+	namespace := argoCDNamespace
 
 	// Verify OIDC Configuration is created.
 	cm := &corev1.ConfigMap{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
 	assertNoError(t, err)
 	assert.Assert(t, cm.Data[common.ArgoCDKeyOIDCConfig] != "")
 
@@ -169,11 +166,10 @@ func verifyRHSSOUnInstallation(t *testing.T) {
 	defer ctx.Cleanup()
 
 	f := framework.Global
-	namespace, err := gitopsservice.GetBackendNamespace(f.Client.Client)
-	assertNoError(t, err)
+	namespace := argoCDNamespace
 
 	argocd := &argoapp.ArgoCD{}
-	err = f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
+	err := f.Client.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
 	assertNoError(t, err)
 
 	// Remove SSO feild from ArgoCD CR.
