@@ -271,6 +271,33 @@ func validateArgoCDMetrics(t *testing.T) {
 		types.NamespacedName{Name: "gitops-operator-argocd-alerts", Namespace: argoCDNamespace},
 		&rule)
 	assertNoError(t, err)
+
+	imageYAML := filepath.Join("test", "appcrs", "build_appcr.yaml")
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
+	err = cmd.Run()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wait.Poll(time.Second*1, time.Minute*10, func() (bool, error) {
+
+		if err := helper.ApplicationHealthStatus("build", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+
+		if err := helper.ApplicationSyncStatus("build", "openshift-gitops"); err != nil {
+			t.Log(err)
+			return false, nil
+		}
+
+		return true, nil
+	})
 }
 
 func tearDownArgoCD(t *testing.T) {

@@ -1,0 +1,39 @@
+---
+apiVersion: config.openshift.io/v1
+kind: Build
+metadata:
+  name: cluster
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  buildDefaults:
+    defaultProxy:
+      httpProxy: http://proxy.com
+      httpsProxy: https://proxy.com
+      noProxy: internal.com
+    env:
+    - name: envkey
+      value: envvalue
+    gitProxy:
+      httpProxy: http://gitproxy.com
+      httpsProxy: https://gitproxy.com
+      noProxy: internalgit.com
+    imageLabels:
+    - name: labelkey
+      value: labelvalue
+    resources:
+      limits:
+        cpu: 100m
+        memory: 50Mi
+      requests:
+        cpu: 10m
+        memory: 10Mi
+  buildOverrides:
+    imageLabels:
+    - name: labelkey
+      value: labelvalue
+    nodeSelector:
+      selectorkey: selectorvalue
+    tolerations:
+    - effect: NoSchedule
+      key: node-role.kubernetes.io/builds
