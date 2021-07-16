@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210716071134-bed2f41a3dac
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210716115333-5b13ae4379ba
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
