@@ -368,8 +368,59 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		} else {
 			return reconcile.Result{}, err
 		}
-	}
+	} else {
+		changed := false
 
+		if existingArgoCD.Spec.ApplicationSet != nil {
+			if existingArgoCD.Spec.ApplicationSet.Resources == nil {
+				existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
+				changed = true
+			}
+		}
+
+		if existingArgoCD.Spec.Controller.Resources == nil {
+			existingArgoCD.Spec.Controller.Resources = defaultArgoCDInstance.Spec.Controller.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.Dex.Resources == nil {
+			existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.Dex.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.Grafana.Resources == nil {
+			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.HA.Resources == nil {
+			existingArgoCD.Spec.HA.Resources = defaultArgoCDInstance.Spec.HA.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.Redis.Resources == nil {
+			existingArgoCD.Spec.Redis.Resources = defaultArgoCDInstance.Spec.Redis.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.Repo.Resources == nil {
+			existingArgoCD.Spec.Repo.Resources = defaultArgoCDInstance.Spec.Repo.Resources
+			changed = true
+		}
+
+		if existingArgoCD.Spec.Server.Resources == nil {
+			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
+			changed = true
+		}
+
+		if changed {
+			reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
+			err = r.client.Update(context.TODO(), existingArgoCD)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
 	return reconcile.Result{}, nil
 }
 
@@ -491,6 +542,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
 				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
+				changed = true
+			}
+			if found.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
+				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
 
