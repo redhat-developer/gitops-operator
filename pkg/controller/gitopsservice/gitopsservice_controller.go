@@ -544,7 +544,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
 				changed = true
 			}
-			if found.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
