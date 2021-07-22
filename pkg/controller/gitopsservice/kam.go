@@ -3,8 +3,9 @@ package gitopsservice
 import (
 	"context"
 	"fmt"
-	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	"os"
+
+	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -163,7 +164,8 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	}
 
 	// Check if this Deployment already exists
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, &appsv1.Deployment{})
+	existingDeployment := &appsv1.Deployment{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingDeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
@@ -173,6 +175,14 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 			}
 		} else {
 			return reconcile.Result{}, err
+		}
+	} else {
+		if existingDeployment.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
+			existingDeployment.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
+			err = r.client.Update(context.TODO(), existingDeployment)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 	serviceRef := newServiceForCLI()
