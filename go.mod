@@ -12,7 +12,7 @@ require (
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
-	github.com/google/go-cmp v0.4.0
+	github.com/google/go-cmp v0.5.4
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/opencontainers/runc v1.0.0-rc9 // indirect
@@ -34,5 +34,6 @@ require (
 
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
+	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95 // fix CVE-2019-16884 on runc v1.0.0-rc9
 	k8s.io/client-go => k8s.io/client-go v0.18.2
 )
