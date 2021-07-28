@@ -15,7 +15,7 @@ require (
 	github.com/google/go-cmp v0.5.4
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.4 // indirect
-	github.com/opencontainers/runc v1.0.0-rc9 // indirect
+	github.com/opencontainers/runc v1.0.0-rc95 // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/operator-framework/operator-sdk v0.18.2
@@ -34,6 +34,5 @@ require (
 
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
-	github.com/opencontainers/runc => github.com/opencontainers/runc v1.0.0-rc95 // fix CVE-2019-16884 on runc v1.0.0-rc9
 	k8s.io/client-go => k8s.io/client-go v0.18.2
 )
