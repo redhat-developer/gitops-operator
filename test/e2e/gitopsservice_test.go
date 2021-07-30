@@ -47,7 +47,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -129,7 +129,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
 			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			err = applyMissingPermissions(ocPath)
+			err = applyMissingPermissions("openshift-gitops", "openshift-gitops")
 			Expect(err).NotTo(HaveOccurred())
 
 			cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
@@ -172,7 +172,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				},
 			}
 			err := k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceObj)
-			if !errors.IsAlreadyExists(err) {
+			if !kubeerrors.IsAlreadyExists(err) {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
@@ -183,10 +183,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("create a sample application", func() {
-			nginxYAML := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
+			nonDefaultAppCR := filepath.Join("..", "appcrs", "non_default_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", nginxYAML)
+			cmd := exec.Command(ocPath, "apply", "-f", nonDefaultAppCR)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
 				log.Println(string(output))
@@ -202,7 +202,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 				err = helper.ApplicationSyncStatus("nginx", argocdNonDefaultNamespace)
 				return err
-			}, time.Second*180, time.Second*1).ShouldNot(HaveOccurred())
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
@@ -217,7 +217,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: argocdNonDefaultNamespace, Name: argocdNonDefaultInstanceName}, &argoapp.ArgoCD{})
-				if errors.IsNotFound(err) {
+				if kubeerrors.IsNotFound(err) {
 					return true
 				}
 				return false
@@ -250,7 +250,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				},
 			}
 			err := k8sClient.Create(context.TODO(), newNamespace)
-			if !errors.IsAlreadyExists(err) {
+			if !kubeerrors.IsAlreadyExists(err) {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
@@ -333,7 +333,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			Eventually(func() bool {
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: standaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
-				if errors.IsNotFound(err) {
+				if kubeerrors.IsNotFound(err) {
 					return true
 				}
 				return false
@@ -502,7 +502,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			Eventually(func() error {
 				templateInstance := &templatev1.TemplateInstance{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
-				if errors.IsNotFound(err) {
+				if kubeerrors.IsNotFound(err) {
 					return nil
 				}
 				return err
@@ -525,14 +525,11 @@ var _ = Describe("GitOpsServiceController", func() {
 
 	Context("Validate Cluster Config Support", func() {
 		BeforeEach(func() {
-			ocPath, err := exec.LookPath("oc")
-			Expect(err).NotTo(HaveOccurred())
-
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
 			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			err = applyMissingPermissions(ocPath)
+			err := applyMissingPermissions("openshift-gitops", "openshift-gitops")
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
@@ -570,6 +567,154 @@ var _ = Describe("GitOpsServiceController", func() {
 			checkIfPresent(namespacedName, existingConfigMap)
 		})
 	})
+
+	Context("Validate granting permissions by label", func() {
+		sourceNS := "source-ns"
+		argocdInstance := "argocd-label"
+		targetNS := "target-ns"
+
+		BeforeEach(func() {
+			// create a new source namespace
+			sourceNamespaceObj := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: sourceNS,
+				},
+			}
+			err := k8sClient.Create(context.TODO(), sourceNamespaceObj)
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// create an ArgoCD instance in the source namespace
+			argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Wait for the default project to exist; this avoids a race condition where the Application
+			// can be created before the Project that it targets.
+			Eventually(func() error {
+				_, err := helper.ProjectExists("default", sourceNS)
+				if err != nil {
+					return err
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+
+			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+			// Thus, applying missing rules for 'argocd-application-controller'
+			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+			if err := applyMissingPermissions(argocdInstance, sourceNS); err != nil {
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			// create a target namespace to deploy resources
+			// allow argocd to create resources in the target namespace by adding managed-by label
+			targetNamespaceObj := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: targetNS,
+					Labels: map[string]string{
+						"argocd.argoproj.io/managed-by": sourceNS,
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), targetNamespaceObj)
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		})
+
+		It("Required RBAC resources are created in the target namespace", func() {
+			resourceList := []resourceList{
+				{
+					&rbacv1.Role{},
+					[]string{
+						argocdInstance + "-argocd-application-controller",
+						argocdInstance + "-argocd-redis-ha",
+						argocdInstance + "-argocd-server",
+					},
+				},
+				{
+					&rbacv1.RoleBinding{},
+					[]string{
+						argocdInstance + "-argocd-application-controller",
+						argocdInstance + "-argocd-redis-ha",
+						argocdInstance + "-argocd-server",
+					},
+				},
+			}
+			err := waitForResourcesByName(resourceList, targetNS, time.Second*180)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Check if an application could be deployed in target namespace", func() {
+			nginxAppCr := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
+			ocPath, err := exec.LookPath("oc")
+			Expect(err).NotTo(HaveOccurred())
+			cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
+			err = cmd.Run()
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() error {
+				err := helper.ApplicationHealthStatus("nginx", sourceNS)
+				if err != nil {
+					return err
+				}
+				err = helper.ApplicationSyncStatus("nginx", sourceNS)
+				if err != nil {
+					return err
+				}
+				return nil
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Clean up resources", func() {
+			By("delete Argo CD instance in source namespace")
+			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      argocdInstance,
+					Namespace: sourceNS,
+				},
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() bool {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: sourceNS, Name: sourceNS}, &argoapp.ArgoCD{})
+				if kubeerrors.IsNotFound(err) {
+					return true
+				}
+				return false
+			}, timeout, interval).Should(BeTrue())
+
+			By("delete source namespace")
+			Eventually(func() error {
+				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: sourceNS,
+					},
+				})
+				if err != nil {
+					return err
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+
+			By("delete target namespace")
+			Eventually(func() error {
+				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: targetNS,
+					},
+				})
+				if err != nil {
+					return err
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+	})
+
 })
 
 // resourceList is used by waitForResourcesByName
@@ -658,35 +803,64 @@ func getAccessToken(user, pass, accessURL string) (string, error) {
 	return tokenRes.AccessToken, nil
 }
 
-func applyMissingPermissions(ocPath string) error {
-
+func applyMissingPermissions(name, namespace string) error {
 	// Check the role was created. If not, create a new role
-	role := rbacv1.Role{}
-	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
+	role := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleName,
+			Namespace: namespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				Verbs:     []string{"*"},
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+			},
+		},
+	}
 	err := k8sClient.Get(context.TODO(),
-		types.NamespacedName{Name: roleName, Namespace: argoCDNamespace}, &role)
+		types.NamespacedName{Name: roleName, Namespace: namespace}, role)
 	if err != nil {
-		roleYAML := filepath.Join("..", "rolebindings", "role.yaml")
-		cmd := exec.Command(ocPath, "apply", "-f", roleYAML)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Println(string(output))
+		if kubeerrors.IsNotFound(err) {
+			err := k8sClient.Create(context.TODO(), role)
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
 
 	// Check the role binding was created. If not, create a new role binding
-	roleBinding := rbacv1.RoleBinding{}
-	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", argoCDNamespace)
+	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
+	roleBinding := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roleBindingName,
+			Namespace: namespace,
+		},
+		RoleRef: rbacv1.RoleRef{
+			Name:     roleName,
+			Kind:     "Role",
+			APIGroup: "rbac.authorization.k8s.io",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Name: fmt.Sprintf("%s-argocd-application-controller", name),
+				Kind: "ServiceAccount",
+			},
+		},
+	}
 	err = k8sClient.Get(context.TODO(),
-		types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace},
-		&roleBinding)
+		types.NamespacedName{Name: roleBindingName, Namespace: namespace},
+		roleBinding)
 	if err != nil {
-		roleBindingYAML := filepath.Join("..", "rolebindings", "role-binding.yaml")
-		cmd := exec.Command(ocPath, "apply", "-f", roleBindingYAML)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Println(string(output))
+		if kubeerrors.IsNotFound(err) {
+			err := k8sClient.Create(context.TODO(), roleBinding)
+			if err != nil {
+				return err
+			}
+		} else {
 			return err
 		}
 	}
