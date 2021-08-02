@@ -83,6 +83,7 @@ const (
 	rhssosecret               = "keycloak-secret"
 	clusterConfigEnv          = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
 	disableDexEnv             = "DISABLE_DEX"
+	argocdManagedByLabel      = "argocd.argoproj.io/managed-by"
 	timeout                   = time.Second * 60
 	duration                  = time.Second * 10
 	interval                  = time.Millisecond * 250
