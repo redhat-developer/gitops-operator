@@ -16,8 +16,9 @@ limitations under the License.
 
 package common
 
-// Default Argo CD instance name
 const (
-	ArgoCDInstanceName          = "openshift-gitops"
+	// ArgoCDInstanceName is the default Argo CD instance name
+	ArgoCDInstanceName = "openshift-gitops"
+	// DisableDefaultInstallEnvVar is an env variable to disable the default instance
 	DisableDefaultInstallEnvVar = "DISABLE_DEFAULT_ARGOCD_INSTANCE"
 )

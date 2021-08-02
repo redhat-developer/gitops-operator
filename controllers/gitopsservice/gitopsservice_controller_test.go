@@ -28,6 +28,7 @@ import (
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -101,7 +102,7 @@ func TestReconcileDisableDefault(t *testing.T) {
 
 	fakeClient := fake.NewFakeClient(newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
-	reconciler.disableDefaultInstall = true
+	reconciler.DisableDefaultInstall = true
 
 	_, err = reconciler.Reconcile(newRequest("test", "test"))
 	assertNoError(t, err)
@@ -141,7 +142,7 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 
 	fakeClient := fake.NewFakeClient(newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
-	reconciler.disableDefaultInstall = false
+	reconciler.DisableDefaultInstall = false
 
 	_, err = reconciler.Reconcile(newRequest("test", "test"))
 	assertNoError(t, err)
@@ -155,7 +156,7 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 		t.Fatalf("ArgoCD instance should exist in namespace, error: %v", err)
 	}
 
-	reconciler.disableDefaultInstall = true
+	reconciler.DisableDefaultInstall = true
 	_, err = reconciler.Reconcile(newRequest("test", "test"))
 	assertNoError(t, err)
 

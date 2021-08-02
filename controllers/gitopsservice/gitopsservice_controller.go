@@ -113,6 +113,9 @@ type ReconcileGitopsService struct {
 	// that reads objects from the cache and writes to the apiserver
 	Client client.Client
 	Scheme *runtime.Scheme
+
+	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
+	DisableDefaultInstall bool
 }
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
@@ -201,7 +204,7 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 		Namespace: namespace,
 	}
 
-	if !r.disableDefaultInstall {
+	if !r.DisableDefaultInstall {
 		// Create/reconcile the default Argo CD instance, unless default install is disabled
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
 			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
@@ -229,7 +232,7 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 	}
 
 	argocdNS := newNamespace(defaultArgoCDInstance.Namespace)
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
 	if err != nil {
 
 		if errors.IsNotFound(err) {
@@ -242,7 +245,7 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 
 	// Delete the existing Argo CD instance, if it exists
 	existingArgoCD := &argoapp.ArgoCD{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err == nil {
 		// The Argo CD instance exists, so update, then delete it
 
@@ -250,14 +253,14 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 
 		// Remove the finalizer, so it can be deleted
 		existingArgoCD.Finalizers = []string{}
-		if err := r.client.Update(context.TODO(), existingArgoCD); err != nil {
+		if err := r.Client.Update(context.TODO(), existingArgoCD); err != nil {
 			return err
 		}
 
 		reqLogger.Info("Deleting ArgoCD finalizer for " + existingArgoCD.Name)
 
 		// Delete the existing ArgoCD instance
-		if err := r.client.Delete(context.TODO(), existingArgoCD); err != nil {
+		if err := r.Client.Delete(context.TODO(), existingArgoCD); err != nil {
 			return err
 		}
 

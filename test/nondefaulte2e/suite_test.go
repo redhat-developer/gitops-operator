@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package e2e
+package nondefaulte2e
 
 import (
 	"context"
@@ -41,6 +41,7 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/argocdmetrics"
 	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
@@ -108,8 +109,8 @@ var _ = BeforeSuite(func() {
 		UseExistingCluster:    &useActualCluster, // use an actual OpenShift cluster specified in kubeconfig
 		ErrorIfCRDPathMissing: true,
 	}
-	// set cluster config argocd instance
-	Expect(os.Setenv(clusterConfigEnv, argoCDNamespace)).To(Succeed())
+	// disable default argocd instance
+	Expect(os.Setenv(common.DisableDefaultInstallEnvVar, "true")).To(Succeed())
 	// disable dex by default
 	Expect(os.Setenv(disableDexEnv, "true")).To(Succeed())
 
@@ -138,6 +139,8 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).NotTo(BeNil())
 
 	err = helper.EnsureCleanSlate(k8sClient)
+	Expect(err).NotTo(HaveOccurred())
+	err = helper.DeleteNamespace(k8sClient, "openshift-gitops")
 	Expect(err).NotTo(HaveOccurred())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
@@ -187,7 +190,7 @@ var _ = AfterSuite(func() {
 	By("check if the default Argo CD instance is removed")
 	checkIfDeleted(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
 
-	Expect(os.Unsetenv(clusterConfigEnv)).To(Succeed())
+	Expect(os.Unsetenv(common.DisableDefaultInstallEnvVar)).To(Succeed())
 	Expect(os.Unsetenv(disableDexEnv)).To(Succeed())
 
 	By("tearing down the test environment")

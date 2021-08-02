@@ -49,9 +49,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 var _ = Describe("GitOpsServiceController", func() {
@@ -149,7 +147,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+			}, time.Second*240, interval).ShouldNot(HaveOccurred())
 
 			existingImage := &configv1.Image{
 				ObjectMeta: metav1.ObjectMeta{
@@ -239,14 +237,13 @@ var _ = Describe("GitOpsServiceController", func() {
 	})
 
 	Context("Validate namespace scoped install", func() {
-		standaloneArgoCDNamespace := "gitops-standalone-test"
 		name := "standalone-argocd-instance"
 		existingArgoInstance := &argoapp.ArgoCD{}
 		BeforeEach(func() {
 			By("Create a test namespace")
 			newNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: standaloneArgoCDNamespace,
+					Name: helper.StandaloneArgoCDNamespace,
 				},
 			}
 			err := k8sClient.Create(context.TODO(), newNamespace)
@@ -267,18 +264,18 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("verify that a subset of resources are created", func() {
-			resourceList := []resourceList{
+			resourceList := []helper.ResourceList{
 				{
-					resource: &appsv1.Deployment{},
-					expectedResources: []string{
+					Resource: &appsv1.Deployment{},
+					ExpectedResources: []string{
 						name + "-redis",
 						name + "-repo-server",
 						name + "-server",
 					},
 				},
 				{
-					resource: &corev1.ConfigMap{},
-					expectedResources: []string{
+					Resource: &corev1.ConfigMap{},
+					ExpectedResources: []string{
 						"argocd-cm",
 						"argocd-gpg-keys-cm",
 						"argocd-rbac-cm",
@@ -287,29 +284,29 @@ var _ = Describe("GitOpsServiceController", func() {
 					},
 				},
 				{
-					resource: &corev1.ServiceAccount{},
-					expectedResources: []string{
+					Resource: &corev1.ServiceAccount{},
+					ExpectedResources: []string{
 						name + "-argocd-application-controller",
 						name + "-argocd-server",
 					},
 				},
 				{
-					resource: &rbacv1.Role{},
-					expectedResources: []string{
+					Resource: &rbacv1.Role{},
+					ExpectedResources: []string{
 						name + "-argocd-application-controller",
 						name + "-argocd-server",
 					},
 				},
 				{
-					resource: &rbacv1.RoleBinding{},
-					expectedResources: []string{
+					Resource: &rbacv1.RoleBinding{},
+					ExpectedResources: []string{
 						name + "-argocd-application-controller",
 						name + "-argocd-server",
 					},
 				},
 				{
-					resource: &monitoringv1.ServiceMonitor{},
-					expectedResources: []string{
+					Resource: &monitoringv1.ServiceMonitor{},
+					ExpectedResources: []string{
 						name,
 						name + "-repo-server",
 						name + "-server",
@@ -317,7 +314,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				},
 			}
 
-			err := waitForResourcesByName(resourceList, existingArgoInstance.Namespace, time.Second*180)
+			err := helper.WaitForResourcesByName(k8sClient, resourceList, existingArgoInstance.Namespace, time.Second*180)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -326,13 +323,13 @@ var _ = Describe("GitOpsServiceController", func() {
 			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      name,
-					Namespace: standaloneArgoCDNamespace,
+					Namespace: helper.StandaloneArgoCDNamespace,
 				},
 			})
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: standaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: helper.StandaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
 				if kubeerrors.IsNotFound(err) {
 					return true
 				}
@@ -343,7 +340,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			Eventually(func() error {
 				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: standaloneArgoCDNamespace,
+						Name: helper.StandaloneArgoCDNamespace,
 					},
 				})
 				if err != nil {
@@ -589,7 +586,9 @@ var _ = Describe("GitOpsServiceController", func() {
 			argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
 			Expect(err).NotTo(HaveOccurred())
 			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
-			Expect(err).NotTo(HaveOccurred())
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
 
 			// Wait for the default project to exist; this avoids a race condition where the Application
 			// can be created before the Project that it targets.
@@ -626,25 +625,25 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Required RBAC resources are created in the target namespace", func() {
-			resourceList := []resourceList{
+			resourceList := []helper.ResourceList{
 				{
-					&rbacv1.Role{},
-					[]string{
+					Resource: &rbacv1.Role{},
+					ExpectedResources: []string{
 						argocdInstance + "-argocd-application-controller",
 						argocdInstance + "-argocd-redis-ha",
 						argocdInstance + "-argocd-server",
 					},
 				},
 				{
-					&rbacv1.RoleBinding{},
-					[]string{
+					Resource: &rbacv1.RoleBinding{},
+					ExpectedResources: []string{
 						argocdInstance + "-argocd-application-controller",
 						argocdInstance + "-argocd-redis-ha",
 						argocdInstance + "-argocd-server",
 					},
 				},
 			}
-			err := waitForResourcesByName(resourceList, targetNS, time.Second*180)
+			err := helper.WaitForResourcesByName(k8sClient, resourceList, targetNS, time.Second*180)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -687,66 +686,12 @@ var _ = Describe("GitOpsServiceController", func() {
 				return false
 			}, timeout, interval).Should(BeTrue())
 
-			By("delete source namespace")
-			Eventually(func() error {
-				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: sourceNS,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
-
-			By("delete target namespace")
-			Eventually(func() error {
-				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: targetNS,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			Expect(helper.DeleteNamespace(k8sClient, sourceNS)).NotTo(HaveOccurred())
+			Expect(helper.DeleteNamespace(k8sClient, targetNS)).NotTo(HaveOccurred())
 		})
 	})
 
 })
-
-// resourceList is used by waitForResourcesByName
-type resourceList struct {
-	// resource is the type of resource to verify that it exists
-	resource runtime.Object
-
-	// expectedResources are the names of the resources of the above type
-	expectedResources []string
-}
-
-// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
-// should be of the given type (Deployment, Service, etc) and name(s).
-// Returns error if the resources could not be found within the given time frame.
-func waitForResourcesByName(resourceList []resourceList, namespace string, timeout time.Duration) error {
-	// Wait X seconds for all the resources to be created
-	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
-		for _, resourceListEntry := range resourceList {
-			for _, resourceName := range resourceListEntry.expectedResources {
-				resource := resourceListEntry.resource.DeepCopyObject()
-				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
-				if err := k8sClient.Get(context.TODO(), namespacedName, resource); err != nil {
-					log.Printf("Unable to retrieve expected resource %s: %v", resourceName, err)
-					return false, nil
-				}
-				log.Printf("Able to retrieve %s: %s", resource.GetObjectKind().GroupVersionKind().Kind, resourceName)
-			}
-		}
-		return true, nil
-	})
-	return err
-}
 
 type tokenResponse struct {
 	AccessToken      string `json:"access_token"`

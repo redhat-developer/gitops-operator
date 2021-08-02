@@ -20,21 +20,24 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
-	"testing"
 	"time"
 
-	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
 	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
-	framework "github.com/operator-framework/operator-sdk/pkg/test"
+	. "github.com/onsi/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	StandaloneArgoCDNamespace = "gitops-standalone-test"
 )
 
 // ProjectExists return true if the AppProject exists in the namespace,
@@ -101,39 +104,7 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 	return nil
 }
 
-// waitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
-// should be of the given type (Deployment, Service, etc) and name(s).
-// Returns error if the resources could not be found within the given time frame.
-func WaitForResourcesByName(resourceList []ResourceList, namespace string, timeout time.Duration, t *testing.T) error {
-
-	f := framework.Global
-
-	// Wait X seconds for all the resources to be created
-	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
-
-		for _, resourceListEntry := range resourceList {
-
-			for _, resourceName := range resourceListEntry.ExpectedResources {
-
-				resource := resourceListEntry.Resource.DeepCopyObject()
-				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
-				if err := f.Client.Get(context.TODO(), namespacedName, resource); err != nil {
-					t.Logf("Unable to retrieve expected resource %s: %v", resourceName, err)
-					return false, nil
-				} else {
-					t.Logf("Able to retrieve %s", resourceName)
-				}
-			}
-
-		}
-
-		return true, nil
-	})
-
-	return err
-}
-
-// resourceList is used by waitForResourcesByName
+// ResourceList is used by waitForResourcesByName
 type ResourceList struct {
 	// resource is the type of resource to verify that it exists
 	Resource runtime.Object
@@ -142,34 +113,46 @@ type ResourceList struct {
 	ExpectedResources []string
 }
 
-const (
-	StandaloneArgoCDNamespace = "gitops-standalone-test"
-)
+// WaitForResourcesByName will wait up to 'timeout' minutes for a set of resources to exist; the resources
+// should be of the given type (Deployment, Service, etc) and name(s).
+// Returns error if the resources could not be found within the given time frame.
+func WaitForResourcesByName(k8sClient client.Client, resourceList []ResourceList, namespace string, timeout time.Duration) error {
+	// Wait X seconds for all the resources to be created
+	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
+		for _, resourceListEntry := range resourceList {
+			for _, resourceName := range resourceListEntry.ExpectedResources {
+				resource := resourceListEntry.Resource.DeepCopyObject()
+				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
+				if err := k8sClient.Get(context.TODO(), namespacedName, resource); err != nil {
+					log.Printf("Unable to retrieve expected resource %s: %v", resourceName, err)
+					return false, nil
+				}
+				log.Printf("Able to retrieve %s: %s", resource.GetObjectKind().GroupVersionKind().Kind, resourceName)
+			}
+		}
+		return true, nil
+	})
+	return err
+}
 
-// ensureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
-func EnsureCleanSlate(t *testing.T) error {
+// EnsureCleanSlate runs before the tests, to ensure that the cluster is in the expected pre-test state
+func EnsureCleanSlate(k8sClient client.Client) error {
 
-	t.Log("Running ensureCleanSlate")
+	GinkgoT().Log("Running ensureCleanSlate")
 
-	return DeleteNamespace(StandaloneArgoCDNamespace, t)
+	return DeleteNamespace(k8sClient, StandaloneArgoCDNamespace)
 
 }
 
 // DeleteNamespace deletes a namespace, and waits for deletion to complete.
-func DeleteNamespace(nsToDelete string, t *testing.T) error {
-	f := framework.Global
-
-	if err := framework.AddToFrameworkScheme(argoapi.AddToScheme, &argoapp.ArgoCD{}); err != nil {
-		return err
-	}
-
+func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 	// Delete the standaloneArgoCDNamespace namespace and wait for it to not exist
 	nsTarget := &corev1.Namespace{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: nsToDelete,
 		},
 	}
-	err := f.Client.Delete(context.Background(), nsTarget)
+	err := k8sClient.Delete(context.Background(), nsTarget)
 	if err != nil {
 		if kubeerrors.IsNotFound(err) {
 			// Success: the namespace doesn't exist.
@@ -186,8 +169,8 @@ func DeleteNamespace(nsToDelete string, t *testing.T) error {
 		opts := &client.ListOptions{
 			Namespace: nsToDelete,
 		}
-		if err = f.Client.List(context.Background(), &list, opts); err != nil {
-			t.Errorf("Unable to list ArgoCDs %v", err)
+		if err = k8sClient.List(context.Background(), &list, opts); err != nil {
+			GinkgoT().Errorf("Unable to list ArgoCDs %v", err)
 			// Report failure, but still continue
 		}
 		for _, item := range list.Items {
@@ -197,20 +180,20 @@ func DeleteNamespace(nsToDelete string, t *testing.T) error {
 			}
 
 			item.Finalizers = []string{}
-			t.Logf("Updating ArgoCD operand '%s' to remove finalizers, for deletion.", item.Name)
-			if err := f.Client.Update(context.Background(), &item); err != nil {
-				t.Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
+			GinkgoT().Logf("Updating ArgoCD operand '%s' to remove finalizers, for deletion.", item.Name)
+			if err := k8sClient.Update(context.Background(), &item); err != nil {
+				GinkgoT().Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
 				// Report failure, but still continue
 			}
 		}
 
-		if err := f.Client.Get(context.Background(), types.NamespacedName{Name: nsTarget.Name},
+		if err := k8sClient.Get(context.Background(), types.NamespacedName{Name: nsTarget.Name},
 			nsTarget); kubeerrors.IsNotFound(err) {
-			t.Logf("Namespace '%s' no longer exists", nsTarget.Name)
+			GinkgoT().Logf("Namespace '%s' no longer exists", nsTarget.Name)
 			return true, nil
 		}
 
-		t.Logf("Namespace '%s' still exists (finalizers: %v)", nsTarget.Name, len(list.Items))
+		GinkgoT().Logf("Namespace '%s' still exists (finalizers: %v)", nsTarget.Name, len(list.Items))
 
 		return false, nil
 	})
