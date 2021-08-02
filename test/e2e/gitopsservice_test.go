@@ -595,7 +595,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
