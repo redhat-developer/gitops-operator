@@ -50,6 +50,7 @@ import (
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOpsServiceController", func() {
@@ -758,6 +759,128 @@ var _ = Describe("GitOpsServiceController", func() {
 
 		It("Clean up resources", func() {
 			Expect(helper.DeleteNamespace(k8sClient, argocdTargetNamespace)).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("Validate revoking permissions by label", func() {
+		argocdNonDefaultNamespace := "argocd-non-default-source"
+		argocdTargetNamespace := "argocd-target"
+		argocdNonDefaultNamespaceInstanceName := "argocd-non-default-namespace-instance"
+		resourceList := []helper.ResourceList{
+			{
+				Resource: &rbacv1.Role{},
+				ExpectedResources: []string{
+					argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
+					argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
+					argocdNonDefaultNamespaceInstanceName + "-argocd-server",
+				},
+			},
+			{
+				Resource: &rbacv1.RoleBinding{},
+				ExpectedResources: []string{
+					argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
+					argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
+					argocdNonDefaultNamespaceInstanceName + "-argocd-server",
+				},
+			},
+		}
+
+		It("Create source and target namespaces", func() {
+			By("create source namespace")
+			sourceNamespaceObj := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: argocdNonDefaultNamespace,
+				},
+			}
+			err := k8sClient.Create(context.TODO(), sourceNamespaceObj)
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+
+			By("create an Argo CD instance in source namespace")
+			argoCDInstanceObj, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
+			Expect(err).NotTo(HaveOccurred())
+			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("create target namespace with label")
+			targetNamespaceObj := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: argocdTargetNamespace,
+					Labels: map[string]string{
+						argocdManagedByLabel: argocdNonDefaultNamespace,
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), targetNamespaceObj)
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		})
+
+		It("Required RBAC resources should be created in target namespace", func() {
+			err := helper.WaitForResourcesByName(k8sClient, resourceList, argocdTargetNamespace, time.Second*180)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Remove label from target namespace", func() {
+			targetNsObj := &corev1.Namespace{}
+			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argocdTargetNamespace}, targetNsObj)
+			Expect(err).NotTo(HaveOccurred())
+
+			delete(targetNsObj.Labels, argocdManagedByLabel)
+			err = k8sClient.Update(context.TODO(), targetNsObj)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("RBAC resources must be absent", func() {
+			Eventually(func() error {
+				for _, resourceListEntry := range resourceList {
+					for _, resourceName := range resourceListEntry.ExpectedResources {
+						resource := resourceListEntry.Resource.DeepCopyObject()
+						namespacedName := types.NamespacedName{Name: resourceName, Namespace: argocdTargetNamespace}
+						if err := k8sClient.Get(context.TODO(), namespacedName, resource); err == nil {
+							GinkgoT().Logf("Resource %s was not deleted", resourceName)
+							return nil
+						}
+						GinkgoT().Logf("Resource %s was successfully deleted", resourceName)
+					}
+				}
+				return nil
+			}, time.Minute*2, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Target namespace must be removed from cluster secret", func() {
+			Eventually(func() error {
+				argocdSecretTypeLabel := "argocd.argoproj.io/secret-type"
+				argoCDDefaultServer := "https://kubernetes.default.svc"
+				listOptions := &client.ListOptions{}
+				client.MatchingLabels{argocdSecretTypeLabel: "cluster"}.ApplyToList(listOptions)
+				clusterSecretList := &corev1.SecretList{}
+				err := k8sClient.List(context.TODO(), clusterSecretList, listOptions)
+
+				if err != nil {
+					GinkgoT().Logf("Unable to retrieve cluster secrets: %v", err)
+					return err
+				}
+				for _, secret := range clusterSecretList.Items {
+					if string(secret.Data["server"]) != argoCDDefaultServer {
+						continue
+					}
+					if namespaces, ok := secret.Data["namespaces"]; ok {
+						namespaceList := strings.Split(string(namespaces), ",")
+						for _, ns := range namespaceList {
+							if strings.TrimSpace(ns) == argocdTargetNamespace {
+								err := fmt.Errorf("namespace %v still present in cluster secret namespace list", argocdTargetNamespace)
+								GinkgoT().Log(err.Error())
+								return err
+							}
+						}
+						GinkgoT().Logf("namespace %v succesfully removed from cluster secret namespace list", argocdTargetNamespace)
+					}
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
 		})
 	})
 
