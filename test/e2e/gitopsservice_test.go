@@ -688,6 +688,79 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 	})
 
+	Context("Validate permission label feature for OOTB Argo CD instance", func() {
+		argocdTargetNamespace := "argocd-target"
+		It("Create target namespace", func() {
+			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+			// Thus, applying missing rules for 'argocd-application-controller'
+			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+			err := applyMissingPermissions(argoCDInstanceName, argoCDNamespace)
+			Expect(err).NotTo(HaveOccurred())
+
+			// create a target namespace to deploy resources
+			// allow argocd to create resources in the target namespace by adding managed-by label
+			targetNamespaceObj := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: argocdTargetNamespace,
+					Labels: map[string]string{
+						argocdManagedByLabel: argoCDNamespace,
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), targetNamespaceObj)
+			if !kubeerrors.IsAlreadyExists(err) {
+				Expect(err).NotTo(HaveOccurred())
+			}
+		})
+
+		It("Required RBAC resources should be created in target namespace", func() {
+			resourceList := []helper.ResourceList{
+				{
+					Resource: &rbacv1.Role{},
+					ExpectedResources: []string{
+						argoCDInstanceName + "-argocd-application-controller",
+						argoCDInstanceName + "-argocd-redis-ha",
+						argoCDInstanceName + "-argocd-server",
+					},
+				},
+				{
+					Resource: &rbacv1.RoleBinding{},
+					ExpectedResources: []string{
+						argoCDInstanceName + "-argocd-application-controller",
+						argoCDInstanceName + "-argocd-redis-ha",
+						argoCDInstanceName + "-argocd-server",
+					},
+				},
+			}
+			err := helper.WaitForResourcesByName(k8sClient, resourceList, argocdTargetNamespace, time.Second*180)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Deploy an app in the target namespace", func() {
+			nginxAppCr := filepath.Join("..", "appcrs", "nginx_default_ns_appcr.yaml")
+			ocPath, err := exec.LookPath("oc")
+			Expect(err).NotTo(HaveOccurred())
+			cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
+			err = cmd.Run()
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() error {
+				if err := helper.ApplicationHealthStatus("nginx", argoCDNamespace); err != nil {
+					return err
+				}
+				if err := helper.ApplicationSyncStatus("nginx", argoCDNamespace); err != nil {
+					return err
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Clean up resources", func() {
+			Expect(helper.DeleteNamespace(k8sClient, argocdTargetNamespace)).NotTo(HaveOccurred())
+		})
+	})
+
 })
 
 type tokenResponse struct {
