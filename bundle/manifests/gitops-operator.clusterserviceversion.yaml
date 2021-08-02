@@ -90,6 +90,7 @@ metadata:
           }
         }
       ]
+    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
     capabilities: Basic Install
     containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
