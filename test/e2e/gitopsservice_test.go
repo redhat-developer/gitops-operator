@@ -65,7 +65,15 @@ var _ = Describe("GitOpsServiceController", func() {
 
 		It("manual modification of Argo CD CR is allowed", func() {
 			By("modify the Argo CD CR")
+			// update .sso.provider = keycloak to enable RHSSO for default Argo CD instance.
+			// update verifyTLS = false to ensure operator(when run locally) can create RHSSO resources.
 			argoCDInstance.Spec.DisableAdmin = true
+			insecure := false
+			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
+				Provider:  "keycloak",
+				VerifyTLS: &insecure,
+			}
+
 			err := k8sClient.Update(context.TODO(), argoCDInstance)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -354,17 +362,6 @@ var _ = Describe("GitOpsServiceController", func() {
 
 	Context("Verify RHSSO installation", func() {
 		namespace := argoCDNamespace
-		It("Update TLS", func() {
-			argocd := &argoapp.ArgoCD{}
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
-			Expect(err).NotTo(HaveOccurred())
-
-			insecure := false
-			argocd.Spec.SSO.VerifyTLS = &insecure
-			err = k8sClient.Update(context.TODO(), argocd)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
 		It("template instance is created", func() {
 			tInstance := &templatev1.TemplateInstance{}
 			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
