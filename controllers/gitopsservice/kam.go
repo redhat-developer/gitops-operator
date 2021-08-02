@@ -180,7 +180,8 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	}
 
 	// Check if this Deployment already exists
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, &appsv1.Deployment{})
+	existingDeployment := &appsv1.Deployment{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingDeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
@@ -194,7 +195,7 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	} else {
 		if existingDeployment.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
 			existingDeployment.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
-			err = r.client.Update(context.TODO(), existingDeployment)
+			err = r.Client.Update(context.TODO(), existingDeployment)
 			if err != nil {
 				return reconcile.Result{}, err
 			}

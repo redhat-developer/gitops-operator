@@ -393,7 +393,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		if changed {
 			reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
-			err = r.client.Update(context.TODO(), existingArgoCD)
+			err = r.Client.Update(context.TODO(), existingArgoCD)
 			if err != nil {
 				return reconcile.Result{}, err
 			}

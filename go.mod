@@ -4,8 +4,6 @@ go 1.16
 
 require (
 	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210722160114-5fe7ef0c459f
-	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
-	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-cmp v0.5.4

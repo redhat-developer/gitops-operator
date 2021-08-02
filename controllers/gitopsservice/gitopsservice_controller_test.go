@@ -35,7 +35,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -358,7 +358,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 
 	// Create a basic ArgoCD CR. ArgoCD created by Operator version less than v1.2
 	existingArgoCD := &argoapp.ArgoCD{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      serviceNamespace,
 			Namespace: serviceNamespace,
 		},
