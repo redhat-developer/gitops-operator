@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -47,6 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/argocdmetrics"
 	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
@@ -108,8 +110,9 @@ func main() {
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
 
 	if err = (&gitopsservice.ReconcileGitopsService{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 		os.Exit(1)
