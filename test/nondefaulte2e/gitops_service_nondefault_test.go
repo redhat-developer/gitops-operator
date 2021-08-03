@@ -84,8 +84,8 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 	Context("Validate namespace scoped install", func() {
 		name := "standalone-argocd-instance"
 		existingArgoInstance := &argoapp.ArgoCD{}
-		BeforeEach(func() {
-			By("Create a test namespace")
+		It("Create a non-default Argo CD instance in test namespace", func() {
+			By("create a test namespace")
 			newNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: helper.StandaloneArgoCDNamespace,
@@ -96,7 +96,7 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
-			By("Create new ArgoCD instance in the test namespace")
+			By("create new ArgoCD instance in the test namespace")
 			existingArgoInstance =
 				&argoapp.ArgoCD{
 					ObjectMeta: metav1.ObjectMeta{
@@ -108,7 +108,7 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("verify that a subset of resources are created", func() {
+		It("Verify that a subset of resources are created", func() {
 			resourceList := []helper.ResourceList{
 				{
 					Resource: &appsv1.Deployment{},
@@ -163,36 +163,8 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		AfterEach(func() {
-			By("delete Argo CD instance")
-			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: helper.StandaloneArgoCDNamespace,
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: helper.StandaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
-				if kubeerrors.IsNotFound(err) {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By("delete test ns")
-			Eventually(func() error {
-				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: helper.StandaloneArgoCDNamespace,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+		It("Clean up test resources", func() {
+			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace))
 		})
 	})
 })

@@ -27,7 +27,6 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/pkg/controller/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -84,8 +83,7 @@ const (
 	clusterConfigEnv          = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
 	disableDexEnv             = "DISABLE_DEX"
 	argocdManagedByLabel      = "argocd.argoproj.io/managed-by"
-	timeout                   = time.Second * 60
-	duration                  = time.Second * 10
+	timeout                   = time.Minute * 2
 	interval                  = time.Millisecond * 250
 )
 
@@ -176,23 +174,14 @@ var _ = BeforeSuite(func() {
 }, 60)
 
 var _ = AfterSuite(func() {
-	By("remove the GitOpsService Instance")
-	existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
-	checkIfPresent(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
-
-	err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
-	Expect(err).NotTo(HaveOccurred())
-
-	checkIfDeleted(types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
-
-	By("check if the default Argo CD instance is removed")
-	checkIfDeleted(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, &argoapp.ArgoCD{})
+	By("remove the default Argo CD instance")
+	Expect(helper.DeleteNamespace(k8sClient, argoCDNamespace)).NotTo(HaveOccurred())
 
 	Expect(os.Unsetenv(clusterConfigEnv)).To(Succeed())
 	Expect(os.Unsetenv(disableDexEnv)).To(Succeed())
 
 	By("tearing down the test environment")
-	err = testEnv.Stop()
+	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
 
