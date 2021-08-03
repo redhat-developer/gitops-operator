@@ -28,37 +28,37 @@ import (
 
 var _ = Describe("Argo CD metrics controller", func() {
 	Context("Check if monitoring resources are created", func() {
-		It("role is created", func() {
+		It("Role is created", func() {
 			role := rbacv1.Role{}
 			readRoleName := fmt.Sprintf("%s-read", argoCDNamespace)
 			checkIfPresent(types.NamespacedName{Name: readRoleName, Namespace: argoCDNamespace}, &role)
 		})
 
-		It("rolebinding is created", func() {
+		It("Rolebinding is created", func() {
 			roleBinding := rbacv1.RoleBinding{}
 			roleBindingName := fmt.Sprintf("%s-prometheus-k8s-read-binding", argoCDNamespace)
 			checkIfPresent(types.NamespacedName{Name: roleBindingName, Namespace: argoCDNamespace}, &roleBinding)
 		})
 
-		It("application service monitor is created", func() {
+		It("Application service monitor is created", func() {
 			serviceMonitor := monitoringv1.ServiceMonitor{}
 			serviceMonitorName := argoCDInstanceName
 			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
 		})
 
-		It("api server service monitor is created", func() {
+		It("API server service monitor is created", func() {
 			serviceMonitor := monitoringv1.ServiceMonitor{}
 			serviceMonitorName := fmt.Sprintf("%s-server", argoCDInstanceName)
 			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
 		})
 
-		It("repo server service monitor is created", func() {
+		It("Repo server service monitor is created", func() {
 			serviceMonitor := monitoringv1.ServiceMonitor{}
 			serviceMonitorName := fmt.Sprintf("%s-repo-server", argoCDInstanceName)
 			checkIfPresent(types.NamespacedName{Name: serviceMonitorName, Namespace: argoCDNamespace}, &serviceMonitor)
 		})
 
-		It("prometheus rule is created", func() {
+		It("Prometheus rule is created", func() {
 			rule := monitoringv1.PrometheusRule{}
 			ruleName := "gitops-operator-argocd-alerts"
 			checkIfPresent(types.NamespacedName{Name: ruleName, Namespace: argoCDNamespace}, &rule)

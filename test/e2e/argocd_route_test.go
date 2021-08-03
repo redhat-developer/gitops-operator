@@ -33,7 +33,7 @@ var _ = Describe("Argo CD ConsoleLink controller", func() {
 		route := &routev1.Route{}
 		consoleLink := &console.ConsoleLink{}
 
-		It("argocd route is present", func() {
+		It("Argocd route is present", func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 		})
 

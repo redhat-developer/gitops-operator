@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -60,11 +59,11 @@ var _ = Describe("GitOpsServiceController", func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDNamespace}, &corev1.Namespace{})
 		})
 
-		It("argocd instance is created", func() {
+		It("Argo CD instance is created", func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argoCDInstance)
 		})
 
-		It("manual modification of Argo CD CR is allowed", func() {
+		It("Manual modification of Argo CD CR is allowed", func() {
 			By("modify the Argo CD CR")
 			// update .sso.provider = keycloak to enable RHSSO for default Argo CD instance.
 			// update verifyTLS = false to ensure operator(when run locally) can create RHSSO resources.
@@ -87,30 +86,30 @@ var _ = Describe("GitOpsServiceController", func() {
 
 	Context("Check if gitops backend resources are created", func() {
 		name := "cluster"
-		It("backend deployment is created", func() {
+		It("Backend deployment is created", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 		})
 
-		It("backend service is created", func() {
+		It("Backend service is created", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &corev1.Service{})
 		})
 
-		It("backend route is created", func() {
+		It("Backend route is created", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &routev1.Route{})
 		})
 	})
 
 	Context("Check if kam resources are created", func() {
 		name := "kam"
-		It("deployment that hosts kam is created", func() {
+		It("Deployment that hosts kam is created", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 		})
 
-		It("service that serves kam is created", func() {
+		It("Service that serves kam is created", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &corev1.Service{})
 		})
 
-		It("console CLI download resource that adds kam route to OpenShift's CLI download page is created", func() {
+		It("Console CLI download resource that adds kam route to OpenShift's CLI download page is created", func() {
 
 			By("route that serves kam is created")
 			route := &routev1.Route{}
@@ -144,7 +143,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("image is created", func() {
+		It("Image is created", func() {
 			By("check health and sync status")
 			Eventually(func() error {
 				err := helper.ApplicationHealthStatus("image", "openshift-gitops")
@@ -171,7 +170,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		argocdNonDefaultInstanceName := "argocd-instance"
 		argocdNonDefaultNamespace := "argocd-ns"
 
-		BeforeEach(func() {
+		It("Create a non-default Argo CD instance", func() {
 			By("create a test ns")
 			argocdNonDefaultNamespaceObj := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -187,20 +186,27 @@ var _ = Describe("GitOpsServiceController", func() {
 			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
 			err = k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceInstance)
 			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() error {
+				_, err := helper.ProjectExists("default", argocdNonDefaultNamespace)
+				if err != nil {
+					return err
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
 		})
 
-		It("create a sample application", func() {
+		It("Create a sample application", func() {
 			nonDefaultAppCR := filepath.Join("..", "appcrs", "non_default_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
 			cmd := exec.Command(ocPath, "apply", "-f", nonDefaultAppCR)
-			output, err := cmd.CombinedOutput()
+			_, err = cmd.CombinedOutput()
 			if err != nil {
-				log.Println(string(output))
 				Expect(err).NotTo(HaveOccurred())
 			}
 
-			By("Check if the app is healthy and in sync")
+			By("check if the app is healthy and in sync")
 			Eventually(func() error {
 				err := helper.ApplicationHealthStatus("nginx", argocdNonDefaultNamespace)
 				if err != nil {
@@ -209,47 +215,19 @@ var _ = Describe("GitOpsServiceController", func() {
 
 				err = helper.ApplicationSyncStatus("nginx", argocdNonDefaultNamespace)
 				return err
-			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 		})
 
-		AfterEach(func() {
-			By("delete Argo CD instance")
-			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocdNonDefaultInstanceName,
-					Namespace: argocdNonDefaultNamespace,
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: argocdNonDefaultNamespace, Name: argocdNonDefaultInstanceName}, &argoapp.ArgoCD{})
-				if kubeerrors.IsNotFound(err) {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By("delete test ns")
-			Eventually(func() error {
-				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: argocdNonDefaultNamespace,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+		It("Clean up test resources", func() {
+			Expect(helper.DeleteNamespace(k8sClient, argocdNonDefaultNamespace))
 		})
 	})
 
 	Context("Validate namespace scoped install", func() {
 		name := "standalone-argocd-instance"
 		existingArgoInstance := &argoapp.ArgoCD{}
-		BeforeEach(func() {
-			By("Create a test namespace")
+		It("Create a non-default Argo CD instance", func() {
+			By("create a test namespace")
 			newNamespace := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: helper.StandaloneArgoCDNamespace,
@@ -260,7 +238,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
-			By("Create new ArgoCD instance in the test namespace")
+			By("create new ArgoCD instance in the test namespace")
 			existingArgoInstance =
 				&argoapp.ArgoCD{
 					ObjectMeta: metav1.ObjectMeta{
@@ -272,7 +250,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("verify that a subset of resources are created", func() {
+		It("Verify that a subset of resources are created", func() {
 			resourceList := []helper.ResourceList{
 				{
 					Resource: &appsv1.Deployment{},
@@ -327,199 +305,14 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		AfterEach(func() {
-			By("delete Argo CD instance")
-			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      name,
-					Namespace: helper.StandaloneArgoCDNamespace,
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: helper.StandaloneArgoCDNamespace, Name: name}, &argoapp.ArgoCD{})
-				if kubeerrors.IsNotFound(err) {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
-			By("delete test ns")
-			Eventually(func() error {
-				err = k8sClient.Delete(context.TODO(), &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: helper.StandaloneArgoCDNamespace,
-					},
-				})
-				if err != nil {
-					return err
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+		It("Clean up test resources", func() {
+			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace))
 		})
 
-	})
-
-	Context("Verify RHSSO installation", func() {
-		namespace := argoCDNamespace
-		It("template instance is created", func() {
-			tInstance := &templatev1.TemplateInstance{}
-			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
-		})
-
-		It("keycloak deployment is created", func() {
-			Eventually(func() error {
-				dc := &osappsv1.DeploymentConfig{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, dc)
-				if err != nil {
-					return err
-				}
-				if dc != nil {
-					got := dc.Status.AvailableReplicas
-					want := int32(1)
-					if got != want {
-						return fmt.Errorf("expected %d, got %d", want, got)
-					}
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
-		})
-
-		It("keycloak service is created", func() {
-			svc := &corev1.Service{}
-			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, svc)
-		})
-
-		It("keycloak service route is created", func() {
-			route := &routev1.Route{}
-			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
-		})
-	})
-
-	Context("Verify RHSSO configuration", func() {
-		namespace := argoCDNamespace
-
-		It("verify OIDC Configuration is created", func() {
-			Eventually(func() error {
-				cm := &corev1.ConfigMap{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
-				if err != nil {
-					return err
-				}
-				if cm.Data[common.ArgoCDKeyOIDCConfig] == "" {
-					return fmt.Errorf("expected OIDC configuration to be created")
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
-		})
-
-		It("Verify RHSSO Realm creation", func() {
-			By("get keycloak URL and credentials")
-			route := &routev1.Route{}
-			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
-
-			secret := &corev1.Secret{}
-			checkIfPresent(types.NamespacedName{Name: rhssosecret, Namespace: namespace}, secret)
-
-			userEnc := b64.URLEncoding.EncodeToString(secret.Data["SSO_USERNAME"])
-			user, _ := b64.URLEncoding.DecodeString(userEnc)
-
-			passEnc := b64.URLEncoding.EncodeToString(secret.Data["SSO_PASSWORD"])
-			pass, _ := b64.URLEncoding.DecodeString(passEnc)
-
-			By("get auth token from kaycloak")
-			accessURL := fmt.Sprintf("https://%s%s", route.Spec.Host, authURL)
-			argoRealmURL := fmt.Sprintf("https://%s%s", route.Spec.Host, realmURL)
-
-			accessToken, err := getAccessToken(string(user), string(pass), accessURL)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("create a new https request to verify Realm creation")
-			client := http.Client{}
-			http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-			request, err := http.NewRequest("GET", argoRealmURL, nil)
-			Expect(err).NotTo(HaveOccurred())
-			request.Header.Set("Content-Type", "application/json")
-			request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
-
-			By("verify RHSSO realm creation and check if HTTP GET returns 200 ")
-			response, err := client.Do(request)
-			Expect(err).NotTo(HaveOccurred())
-			defer response.Body.Close()
-
-			By("verify reponse")
-			b, err := ioutil.ReadAll(response.Body)
-			Expect(err).NotTo(HaveOccurred())
-
-			m := make(map[string]interface{})
-			err = json.Unmarshal(b, &m)
-			Expect(err).NotTo(HaveOccurred())
-
-			Expect(m["realm"]).To(Equal("argocd"))
-			Expect(m["registrationFlow"]).To(Equal("registration"))
-			Expect(m["browserFlow"]).To(Equal("browser"))
-			Expect(m["clientAuthenticationFlow"]).To(Equal("clients"))
-			Expect(m["directGrantFlow"]).To(Equal("direct grant"))
-			Expect(m["loginWithEmailAllowed"]).To(BeTrue())
-
-			idps := m["identityProviders"].([]interface{})
-			idp := idps[0].(map[string]interface{})
-
-			Expect(idp["alias"]).To(Equal("openshift-v4"))
-			Expect(idp["displayName"] == "Login with OpenShift")
-			Expect(idp["providerId"]).To(Equal("openshift-v4"))
-			Expect(idp["firstBrokerLoginFlowAlias"]).To(Equal("first broker login"))
-		})
-	})
-
-	Context("Verify RHSSO uninstallation", func() {
-		namespace := argoCDNamespace
-		argocd := &argoapp.ArgoCD{}
-		It("remove SSO field from Argo CD CR", func() {
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
-
-			argocd.Spec.SSO = nil
-			err = k8sClient.Update(context.TODO(), argocd)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("OIDC configuration is removed", func() {
-			Eventually(func() bool {
-				cm := &corev1.ConfigMap{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
-				Expect(err).NotTo(HaveOccurred())
-				return cm.Data[common.ArgoCDKeyOIDCConfig] == ""
-			}, timeout, interval).Should(BeTrue())
-		})
-
-		It("template instance is deleted", func() {
-			Eventually(func() error {
-				templateInstance := &templatev1.TemplateInstance{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
-				if kubeerrors.IsNotFound(err) {
-					return nil
-				}
-				return err
-			}, timeout, interval).ShouldNot(HaveOccurred())
-		})
-
-		It("add SSO field back and verify reconcilation", func() {
-			insecure := false
-			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  defaultKeycloakIdentifier,
-				VerifyTLS: &insecure,
-			}
-			err := k8sClient.Update(context.TODO(), argocd)
-			Expect(err).NotTo(HaveOccurred())
-
-			templateInstance := &templatev1.TemplateInstance{}
-			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
-		})
 	})
 
 	Context("Validate Cluster Config Support", func() {
-		BeforeEach(func() {
+		It("Apply missing permissions", func() {
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
@@ -554,7 +347,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*5, interval).ShouldNot(HaveOccurred())
 
 			namespacedName := types.NamespacedName{Name: "policy-configmap", Namespace: "openshift-config"}
 			existingConfigMap := &corev1.ConfigMap{}
@@ -568,7 +361,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		argocdInstance := "argocd-label"
 		targetNS := "target-ns"
 
-		BeforeEach(func() {
+		It("Create source and target namespaces", func() {
 			// create a new source namespace
 			sourceNamespaceObj := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -667,23 +460,6 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Clean up resources", func() {
-			By("delete Argo CD instance in source namespace")
-			err := k8sClient.Delete(context.TODO(), &argoapp.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      argocdInstance,
-					Namespace: sourceNS,
-				},
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			Eventually(func() bool {
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: sourceNS, Name: sourceNS}, &argoapp.ArgoCD{})
-				if kubeerrors.IsNotFound(err) {
-					return true
-				}
-				return false
-			}, timeout, interval).Should(BeTrue())
-
 			Expect(helper.DeleteNamespace(k8sClient, sourceNS)).NotTo(HaveOccurred())
 			Expect(helper.DeleteNamespace(k8sClient, targetNS)).NotTo(HaveOccurred())
 		})
@@ -754,7 +530,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*5, interval).ShouldNot(HaveOccurred())
 		})
 
 		It("Clean up resources", func() {
@@ -881,6 +657,168 @@ var _ = Describe("GitOpsServiceController", func() {
 				}
 				return nil
 			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Clean up resources", func() {
+			Expect(helper.DeleteNamespace(k8sClient, argocdNonDefaultNamespace)).NotTo(HaveOccurred())
+			Expect(helper.DeleteNamespace(k8sClient, argocdTargetNamespace)).NotTo(HaveOccurred())
+		})
+	})
+
+	Context("Verify RHSSO installation", func() {
+		namespace := argoCDNamespace
+		It("Template instance is created", func() {
+			tInstance := &templatev1.TemplateInstance{}
+			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
+		})
+
+		It("Keycloak deployment is created", func() {
+			Eventually(func() error {
+				dc := &osappsv1.DeploymentConfig{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, dc)
+				if err != nil {
+					return err
+				}
+				if dc != nil {
+					got := dc.Status.AvailableReplicas
+					want := int32(1)
+					if got != want {
+						return fmt.Errorf("expected %d, got %d", want, got)
+					}
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Keycloak service is created", func() {
+			svc := &corev1.Service{}
+			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, svc)
+		})
+
+		It("Keycloak service route is created", func() {
+			route := &routev1.Route{}
+			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
+		})
+	})
+
+	Context("Verify RHSSO configuration", func() {
+		namespace := argoCDNamespace
+
+		It("Verify OIDC Configuration is created", func() {
+			Eventually(func() error {
+				cm := &corev1.ConfigMap{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
+				if err != nil {
+					return err
+				}
+				if cm.Data[common.ArgoCDKeyOIDCConfig] == "" {
+					return fmt.Errorf("expected OIDC configuration to be created")
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Verify RHSSO Realm creation", func() {
+			By("get keycloak URL and credentials")
+			route := &routev1.Route{}
+			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
+
+			secret := &corev1.Secret{}
+			checkIfPresent(types.NamespacedName{Name: rhssosecret, Namespace: namespace}, secret)
+
+			userEnc := b64.URLEncoding.EncodeToString(secret.Data["SSO_USERNAME"])
+			user, _ := b64.URLEncoding.DecodeString(userEnc)
+
+			passEnc := b64.URLEncoding.EncodeToString(secret.Data["SSO_PASSWORD"])
+			pass, _ := b64.URLEncoding.DecodeString(passEnc)
+
+			By("get auth token from kaycloak")
+			accessURL := fmt.Sprintf("https://%s%s", route.Spec.Host, authURL)
+			argoRealmURL := fmt.Sprintf("https://%s%s", route.Spec.Host, realmURL)
+
+			accessToken, err := getAccessToken(string(user), string(pass), accessURL)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("create a new https request to verify Realm creation")
+			client := http.Client{}
+			http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+			request, err := http.NewRequest("GET", argoRealmURL, nil)
+			Expect(err).NotTo(HaveOccurred())
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+			By("verify RHSSO realm creation and check if HTTP GET returns 200 ")
+			response, err := client.Do(request)
+			Expect(err).NotTo(HaveOccurred())
+			defer response.Body.Close()
+
+			By("verify reponse")
+			b, err := ioutil.ReadAll(response.Body)
+			Expect(err).NotTo(HaveOccurred())
+
+			m := make(map[string]interface{})
+			err = json.Unmarshal(b, &m)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(m["realm"]).To(Equal("argocd"))
+			Expect(m["registrationFlow"]).To(Equal("registration"))
+			Expect(m["browserFlow"]).To(Equal("browser"))
+			Expect(m["clientAuthenticationFlow"]).To(Equal("clients"))
+			Expect(m["directGrantFlow"]).To(Equal("direct grant"))
+			Expect(m["loginWithEmailAllowed"]).To(BeTrue())
+
+			idps := m["identityProviders"].([]interface{})
+			idp := idps[0].(map[string]interface{})
+
+			Expect(idp["alias"]).To(Equal("openshift-v4"))
+			Expect(idp["displayName"] == "Login with OpenShift")
+			Expect(idp["providerId"]).To(Equal("openshift-v4"))
+			Expect(idp["firstBrokerLoginFlowAlias"]).To(Equal("first broker login"))
+		})
+	})
+
+	Context("Verify RHSSO uninstallation", func() {
+		namespace := argoCDNamespace
+		argocd := &argoapp.ArgoCD{}
+		It("Remove SSO field from Argo CD CR", func() {
+			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
+
+			argocd.Spec.SSO = nil
+			err = k8sClient.Update(context.TODO(), argocd)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("OIDC configuration is removed", func() {
+			Eventually(func() bool {
+				cm := &corev1.ConfigMap{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
+				Expect(err).NotTo(HaveOccurred())
+				return cm.Data[common.ArgoCDKeyOIDCConfig] == ""
+			}, timeout, interval).Should(BeTrue())
+		})
+
+		It("Template instance is deleted", func() {
+			Eventually(func() error {
+				templateInstance := &templatev1.TemplateInstance{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
+				if kubeerrors.IsNotFound(err) {
+					return nil
+				}
+				return err
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
+		It("Add SSO field back and verify reconcilation", func() {
+			insecure := false
+			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
+				Provider:  defaultKeycloakIdentifier,
+				VerifyTLS: &insecure,
+			}
+			err := k8sClient.Update(context.TODO(), argocd)
+			Expect(err).NotTo(HaveOccurred())
+
+			templateInstance := &templatev1.TemplateInstance{}
+			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
 		})
 	})
 
