@@ -155,7 +155,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Second*240, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*5, interval).ShouldNot(HaveOccurred())
 
 			existingImage := &configv1.Image{
 				ObjectMeta: metav1.ObjectMeta{

@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"testing"
@@ -127,8 +128,6 @@ var _ = BeforeSuite(func() {
 
 	err = helper.EnsureCleanSlate(k8sClient)
 	Expect(err).NotTo(HaveOccurred())
-	err = helper.DeleteNamespace(k8sClient, "openshift-gitops")
-	Expect(err).NotTo(HaveOccurred())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
@@ -136,8 +135,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	err = (&gitopsservice.ReconcileGitopsService{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                mgr.GetClient(),
+		Scheme:                mgr.GetScheme(),
+		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -165,11 +165,19 @@ var _ = BeforeSuite(func() {
 }, 60)
 
 var _ = AfterSuite(func() {
+	By("remove the GitOpsService Instance")
+	existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
+	err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+	if err == nil {
+		err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
 	By("remove the default Argo CD instance")
 	Expect(helper.DeleteNamespace(k8sClient, argoCDNamespace)).NotTo(HaveOccurred())
 
 	By("tearing down the test environment")
-	err := testEnv.Stop()
+	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
 
