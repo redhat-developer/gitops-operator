@@ -174,6 +174,14 @@ var _ = BeforeSuite(func() {
 }, 60)
 
 var _ = AfterSuite(func() {
+	By("remove the GitOpsService Instance")
+	existingGitOpsInstance := &pipelinesv1alpha1.GitopsService{}
+	err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: gitopsInstanceName}, existingGitOpsInstance)
+	if err == nil {
+		err := k8sClient.Delete(context.TODO(), existingGitOpsInstance)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
 	By("remove the default Argo CD instance")
 	Expect(helper.DeleteNamespace(k8sClient, argoCDNamespace)).NotTo(HaveOccurred())
 
@@ -181,7 +189,7 @@ var _ = AfterSuite(func() {
 	Expect(os.Unsetenv(disableDexEnv)).To(Succeed())
 
 	By("tearing down the test environment")
-	err := testEnv.Stop()
+	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
 
