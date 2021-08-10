@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210716115333-5b13ae4379ba
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20210722160114-5fe7ef0c459f
 	github.com/bugsnag/bugsnag-go v1.5.3 // indirect
 	github.com/bugsnag/panicwrap v1.2.0 // indirect
 	github.com/coreos/prometheus-operator v0.40.0
@@ -12,10 +12,10 @@ require (
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/go-logr/logr v0.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible // indirect
-	github.com/google/go-cmp v0.4.0
+	github.com/google/go-cmp v0.5.4
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.4 // indirect
-	github.com/opencontainers/runc v1.0.0-rc9 // indirect
+	github.com/opencontainers/runc v1.0.0-rc95 // indirect
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/operator-framework/operator-sdk v0.18.2
