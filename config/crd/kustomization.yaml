@@ -3,10 +3,10 @@
 # It should be run by config/default
 resources:
 - bases/pipelines.openshift.io_gitopsservices.yaml
-- bases/argoproj.io_applications_crd.yaml
-- bases/argoproj.io_appprojects_crd.yaml
-- bases/argoproj.io_applicationsets_crd.yaml
-- bases/argoproj.io_argocds_crd.yaml
+- bases/argoproj.io_applications.yaml
+- bases/argoproj.io_appprojects.yaml
+- bases/argoproj.io_applicationsets.yaml
+- bases/argoproj.io_argocds.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
