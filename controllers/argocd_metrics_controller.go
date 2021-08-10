@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package argocdmetrics
+package controllers
 
 import (
 	"context"
@@ -43,8 +43,6 @@ const (
 	alertRuleName             = "gitops-operator-argocd-alerts"
 )
 
-var logs = logf.Log.WithName("controller_argocd_metrics")
-
 type ArgoCDMetricsReconciler struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
@@ -66,6 +64,7 @@ func (r *ArgoCDMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=create;get
 
 func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	var logs = logf.Log.WithName("controller_argocd_metrics")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Metrics")
 

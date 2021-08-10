@@ -49,9 +49,7 @@ import (
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
-	"github.com/redhat-developer/gitops-operator/controllers/argocd"
-	"github.com/redhat-developer/gitops-operator/controllers/argocdmetrics"
-	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
+	"github.com/redhat-developer/gitops-operator/controllers"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	//+kubebuilder:scaffold:imports
 )
@@ -109,7 +107,7 @@ func main() {
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
 
-	if err = (&gitopsservice.ReconcileGitopsService{
+	if err = (&controllers.ReconcileGitopsService{
 		Client:                mgr.GetClient(),
 		Scheme:                mgr.GetScheme(),
 		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
@@ -118,7 +116,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&argocd.ReconcileArgoCDRoute{
+	if err = (&controllers.ReconcileArgoCDRoute{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
@@ -126,7 +124,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&argocdmetrics.ArgoCDMetricsReconciler{
+	if err = (&controllers.ArgoCDMetricsReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {

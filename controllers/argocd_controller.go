@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package argocd
+package controllers
 
 import (
 	"context"
@@ -42,8 +42,6 @@ import (
 	// register the statik zip content data
 	_ "github.com/redhat-developer/gitops-operator/controllers/argocd/statik"
 )
-
-var logs = logf.Log.WithName("controller_argocd_route")
 
 const (
 	argocdNS           = "openshift-gitops"
@@ -105,6 +103,7 @@ type ReconcileArgoCDRoute struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	var logs = logf.Log.WithName("controller_argocd_route")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Route")
 

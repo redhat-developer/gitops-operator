@@ -40,9 +40,7 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/controllers/argocd"
-	"github.com/redhat-developer/gitops-operator/controllers/argocdmetrics"
-	"github.com/redhat-developer/gitops-operator/controllers/gitopsservice"
+	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -144,19 +142,19 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&gitopsservice.ReconcileGitopsService{
+	err = (&controllers.ReconcileGitopsService{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&argocd.ReconcileArgoCDRoute{
+	err = (&controllers.ReconcileArgoCDRoute{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&argocdmetrics.ArgoCDMetricsReconciler{
+	err = (&controllers.ArgoCDMetricsReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr)
