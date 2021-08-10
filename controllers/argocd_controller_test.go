@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package argocd
+package controllers
 
 import (
 	"context"
@@ -58,12 +58,7 @@ var (
 )
 
 func TestReconcile_create_consolelink(t *testing.T) {
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
-
-	fakeClient := fake.NewFakeClient(argoCDRoute)
-
-	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
+	reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute)
 	want := newConsoleLink("https://test.com", "Cluster Argo CD")
 
 	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
@@ -71,11 +66,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 }
 
 func TestReconcile_delete_consolelink(t *testing.T) {
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
-
-	fakeClient := fake.NewFakeClient(argoCDRoute, consoleLink)
-	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
+	reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 
 	err := fakeClient.Delete(context.TODO(), &routev1.Route{ObjectMeta: v1.ObjectMeta{Name: argocdRouteName, Namespace: argocdNS}})
 	assertNoError(t, err)
@@ -85,10 +76,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 }
 
 func TestReconcile_update_consolelink(t *testing.T) {
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
-	fakeClient := fake.NewFakeClient(argoCDRoute, consoleLink)
-	reconcileArgoCD := newFakeReconcileArgoCD(fakeClient, s)
+	reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 
 	argoCDRoute.Spec.Host = "updated-test.com"
 	err := fakeClient.Update(context.TODO(), argoCDRoute)
@@ -106,33 +94,16 @@ func TestReconcile_update_consolelink(t *testing.T) {
 	}
 }
 
-func newFakeReconcileArgoCD(client client.Client, scheme *runtime.Scheme) *ReconcileArgoCDRoute {
+func newFakeReconcileArgoCD(objs ...runtime.Object) (*ReconcileArgoCDRoute, client.Client) {
+	s := scheme.Scheme
+	s.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
+	s.AddKnownTypes(console.GroupVersion, &console.ConsoleLink{})
+	s.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
+	fakeClient := fake.NewFakeClient(objs...)
 	return &ReconcileArgoCDRoute{
-		Client: client,
-		Scheme: scheme,
-	}
-}
-
-func assertNoError(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func addKnownTypesToScheme(scheme *runtime.Scheme) {
-	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
-	scheme.AddKnownTypes(console.GroupVersion, &console.ConsoleLink{})
-	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
-}
-
-func newRequest(namespace, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
+		Client: fakeClient,
+		Scheme: s,
+	}, fakeClient
 }
 
 func getConsoleLink(c client.Client) (*console.ConsoleLink, error) {

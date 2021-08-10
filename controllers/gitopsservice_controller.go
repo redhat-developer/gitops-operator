@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package gitopsservice
+package controllers
 
 import (
 	"context"
@@ -51,7 +51,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var log = logf.Log.WithName("controller_gitopsservice")
+var logs = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
 var (
@@ -72,7 +72,7 @@ const (
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
-	reqLogger := log.WithValues()
+	reqLogger := logs.WithValues()
 	reqLogger.Info("Watching GitopsService")
 
 	pred := predicate.Funcs{
@@ -162,7 +162,7 @@ type ReconcileGitopsService struct {
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
 func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
 
 	// Fetch the GitopsService instance

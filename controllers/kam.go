@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package gitopsservice
+package controllers
 
 import (
 	"context"
@@ -171,7 +171,7 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 
 func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
 	deploymentObj := newDeploymentForCLI()
 

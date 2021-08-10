@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package argocdmetrics
+package controllers
 
 import (
 	"context"
@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func newScheme() *runtime.Scheme {
@@ -63,15 +62,6 @@ func newClient(s *runtime.Scheme, namespace, name string) client.Client {
 		},
 	}
 	return fake.NewFakeClientWithScheme(s, &ns, &argocd)
-}
-
-func newRequest(namespace, name string) reconcile.Request {
-	return reconcile.Request{
-		NamespacedName: types.NamespacedName{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
 }
 
 func newMetricsReconciler(t *testing.T, namespace, name string) ArgoCDMetricsReconciler {
