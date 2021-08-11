@@ -74,8 +74,19 @@ var _ = Describe("GitOpsServiceController", func() {
 				VerifyTLS: &insecure,
 			}
 
-			err := k8sClient.Update(context.TODO(), argoCDInstance)
-			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() error {
+				err := k8sClient.Update(context.TODO(), argoCDInstance)
+				if err != nil {
+					if kubeerrors.IsConflict(err) {
+						err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argoCDInstance)
+						if err != nil {
+							return err
+						}
+					}
+					return err
+				}
+				return nil
+			}, timeout, time.Second*1).ShouldNot(HaveOccurred())
 
 			By("check if the modification was not overwritten")
 			argoCDInstance = &argoapp.ArgoCD{}

@@ -181,7 +181,22 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 
 			item.Finalizers = []string{}
 			GinkgoT().Logf("Updating ArgoCD operand '%s' to remove finalizers, for deletion.", item.Name)
-			if err := k8sClient.Patch(context.Background(), &item, client.Merge); err != nil {
+			err = wait.Poll(1*time.Second, 2*time.Minute, func() (done bool, err error) {
+				if err := k8sClient.Update(context.Background(), &item); err != nil {
+					if kubeerrors.IsConflict(err) {
+						err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: item.Namespace, Name: item.Name}, &item)
+						if err != nil {
+							return false, err
+						}
+						return false, nil
+					} else if kubeerrors.IsNotFound(err) {
+						return true, nil
+					}
+					return false, err
+				}
+				return true, nil
+			})
+			if err != nil {
 				GinkgoT().Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
 				// Report failure, but still continue
 			}
