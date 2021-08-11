@@ -49,6 +49,7 @@ import (
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -74,19 +75,17 @@ var _ = Describe("GitOpsServiceController", func() {
 				VerifyTLS: &insecure,
 			}
 
-			Eventually(func() error {
-				err := k8sClient.Update(context.TODO(), argoCDInstance)
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				updatedInstance := &argoapp.ArgoCD{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, updatedInstance)
 				if err != nil {
-					if kubeerrors.IsConflict(err) {
-						err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argoCDInstance)
-						if err != nil {
-							return err
-						}
-					}
 					return err
 				}
-				return nil
-			}, timeout, time.Second*1).ShouldNot(HaveOccurred())
+				updatedInstance.Spec.DisableAdmin = argoCDInstance.Spec.DisableAdmin
+				updatedInstance.Spec.SSO = argoCDInstance.Spec.SSO
+				return k8sClient.Update(context.TODO(), updatedInstance)
+			})
+			Expect(err).NotTo(HaveOccurred())
 
 			By("check if the modification was not overwritten")
 			argoCDInstance = &argoapp.ArgoCD{}
@@ -166,7 +165,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Minute*5, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
 			existingImage := &configv1.Image{
 				ObjectMeta: metav1.ObjectMeta{
