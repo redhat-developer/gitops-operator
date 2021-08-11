@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -181,20 +182,16 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 
 			item.Finalizers = []string{}
 			GinkgoT().Logf("Updating ArgoCD operand '%s' to remove finalizers, for deletion.", item.Name)
-			err = wait.Poll(1*time.Second, 2*time.Minute, func() (done bool, err error) {
-				if err := k8sClient.Update(context.Background(), &item); err != nil {
-					if kubeerrors.IsConflict(err) {
-						err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: item.Namespace, Name: item.Name}, &item)
-						if err != nil {
-							return false, err
-						}
-						return false, nil
-					} else if kubeerrors.IsNotFound(err) {
-						return true, nil
+			err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(context.Background(), types.NamespacedName{Namespace: item.Namespace, Name: item.Name}, &item)
+				if err != nil {
+					if kubeerrors.IsNotFound(err) {
+						return nil
 					}
-					return false, err
+					return err
 				}
-				return true, nil
+				item.Finalizers = []string{}
+				return k8sClient.Update(context.Background(), &item)
 			})
 			if err != nil {
 				GinkgoT().Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
