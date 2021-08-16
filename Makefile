@@ -89,8 +89,9 @@ test-all: manifests generate fmt vet ## Run all tests.
 	go test ./... -coverprofile cover.out
 
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	. ./scripts/run_e2e_tests.sh
-
+	go test ./test/e2e -coverprofile cover.out -ginkgo.v
+	go test ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+	
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
