@@ -6,6 +6,30 @@ metadata:
       [
         {
           "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "AppProject",
+          "metadata": {
+            "name": "example"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Application",
+          "metadata": {
+            "name": "example"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "ApplicationSet",
+          "metadata": {
+            "name": "example"
+          },
+          "spec": null
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
           "kind": "ArgoCD",
           "metadata": {
             "name": "argocd"
@@ -21,7 +45,7 @@ metadata:
                   "cpu": "250m",
                   "memory": "1024Mi"
                 }
-              }                
+              }
             },
             "dex": {
               "resources": {
@@ -33,7 +57,7 @@ metadata:
                   "cpu": "250m",
                   "memory": "128Mi"
                 }
-              }                
+              }
             },
             "ha": {
               "enabled": false,
@@ -46,7 +70,7 @@ metadata:
                   "cpu": "250m",
                   "memory": "128Mi"
                 }
-              }                
+              }
             },
             "redis": {
               "resources": {
@@ -58,7 +82,7 @@ metadata:
                   "cpu": "250m",
                   "memory": "128Mi"
                 }
-              }                
+              }
             },
             "repo": {
               "resources": {
@@ -70,12 +94,9 @@ metadata:
                   "cpu": "250m",
                   "memory": "256Mi"
                 }
-              }                
+              }
             },
             "server": {
-              "route": {
-                "enabled": true
-              },
               "resources": {
                 "limits": {
                   "cpu": "500m",
@@ -85,17 +106,28 @@ metadata:
                   "cpu": "125m",
                   "memory": "128Mi"
                 }
-              }                
+              },
+              "route": {
+                "enabled": true
+              }
             }
           }
+        },
+        {
+          "apiVersion": "pipelines.openshift.io/v1alpha1",
+          "kind": "GitopsService",
+          "metadata": {
+            "name": "gitopsservice-sample"
+          },
+          "spec": null
         }
       ]
-    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
     capabilities: Basic Install
     containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
+    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: gitops-operator.v0.0.3
   namespace: placeholder
@@ -103,21 +135,16 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: ApplicationSet is the representation of an ApplicationSet controller
-        deployment.
-      kind: ApplicationSet
-      name: applicationsets.argoproj.io
-      version: v1alpha1
-    - description: GitopsService is the Schema for the gitopsservices API
-      displayName: Gitops Service
-      kind: GitopsService
-      name: gitopsservices.pipelines.openshift.io
-      version: v1alpha1
     - description: An Application is a group of Kubernetes resources as defined by
         a manifest.
       displayName: Application
       kind: Application
       name: applications.argoproj.io
+      version: v1alpha1
+    - description: ApplicationSet is the representation of an ApplicationSet controller
+        deployment.
+      kind: ApplicationSet
+      name: applicationsets.argoproj.io
       version: v1alpha1
     - description: An AppProject is a logical grouping of Argo CD Applications.
       displayName: AppProject
@@ -174,6 +201,11 @@ spec:
       - kind: StatefulSet
         name: ""
         version: v1
+      version: v1alpha1
+    - description: GitopsService is the Schema for the gitopsservices API
+      displayName: Gitops Service
+      kind: GitopsService
+      name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
   description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
