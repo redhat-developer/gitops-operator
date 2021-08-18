@@ -1,31 +1,33 @@
-FROM openshift/origin-release:golang-1.16 AS builder
+# Build the manager binary
+FROM golang:1.16 as builder
 
-ENV LANG=en_US.utf8
-ENV GIT_COMMITTER_NAME devtools
-ENV GIT_COMMITTER_EMAIL devtools@redhat.com
-LABEL com.redhat.delivery.appregistry=true
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
 
-WORKDIR /go/src/github.com/redhat-developer/gitops-operator
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY controllers/ controllers/
+COPY common/ common/
+COPY version/ version/
 
-COPY . .
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager main.go
 
-ARG VERBOSE=2
-RUN GIT_COMMIT=$(git rev-list -1 HEAD) && \
-  go build -ldflags "-X main.GitCommit=$GIT_COMMIT" -o bin/gitops-operator cmd/manager/main.go
-
-
-FROM registry.access.redhat.com/ubi8/ubi-minimal
-
-LABEL com.redhat.delivery.appregistry=true
-LABEL maintainer "Devtools <devtools@redhat.com>"
-LABEL author "Shoubhik Bose <shbose@redhat.com>"
-ENV LANG=en_US.utf8
-
-COPY --from=builder /go/src/github.com/redhat-developer/gitops-operator/bin/gitops-operator /usr/local/bin/gitops-operator
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/manager .
 
 # install redis artifacts
 COPY build/redis /var/lib/redis
 
-USER 10001
+USER 65532:65532
 
-ENTRYPOINT [ "/usr/local/bin/gitops-operator" ]
+ENTRYPOINT ["/manager"]
