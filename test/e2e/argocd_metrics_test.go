@@ -18,15 +18,29 @@ package e2e
 
 import (
 	"fmt"
+	"os/exec"
+	"path/filepath"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var _ = Describe("Argo CD metrics controller", func() {
+
+	BeforeEach(func() {
+		buildYAML := filepath.Join("..", "appcrs", "build_appcr.yaml")
+		ocPath, err := exec.LookPath("oc")
+		Expect(err).NotTo(HaveOccurred())
+
+		cmd := exec.Command(ocPath, "apply", "-f", buildYAML)
+		err = cmd.Run()
+		Expect(err).NotTo(HaveOccurred())
+	})
+
 	Context("Check if monitoring resources are created", func() {
 		It("Role is created", func() {
 			role := rbacv1.Role{}
