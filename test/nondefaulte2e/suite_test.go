@@ -97,8 +97,8 @@ var _ = BeforeSuite(func() {
 	}
 	// disable default argocd instance
 	Expect(os.Setenv(common.DisableDefaultInstallEnvVar, "true")).To(Succeed())
-	// disable dex by default
-	Expect(os.Setenv(disableDexEnv, "true")).To(Succeed())
+	// enable dex by default
+	Expect(os.Setenv(disableDexEnv, "false")).To(Succeed())
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())

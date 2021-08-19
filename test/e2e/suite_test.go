@@ -65,24 +65,30 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 
 const (
-	operatorName              = "gitops-operator"
-	argoCDConfigMapName       = "argocd-cm"
-	argoCDRouteName           = "openshift-gitops-server"
-	argoCDNamespace           = "openshift-gitops"
-	authURL                   = "/auth/realms/master/protocol/openid-connect/token"
-	depracatedArgoCDNamespace = "openshift-pipelines-app-delivery"
-	consoleLinkName           = "argocd"
-	argoCDInstanceName        = "openshift-gitops"
-	gitopsInstanceName        = "cluster"
-	defaultKeycloakIdentifier = "keycloak"
-	defaultTemplateIdentifier = "rhsso"
-	realmURL                  = "/auth/admin/realms/argocd"
-	rhssosecret               = "keycloak-secret"
-	clusterConfigEnv          = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
-	disableDexEnv             = "DISABLE_DEX"
-	argocdManagedByLabel      = "argocd.argoproj.io/managed-by"
-	timeout                   = time.Minute * 2
-	interval                  = time.Millisecond * 250
+	operatorName                        = "gitops-operator"
+	argoCDConfigMapName                 = "argocd-cm"
+	argoCDRouteName                     = "openshift-gitops-server"
+	argoCDNamespace                     = "openshift-gitops"
+	authURL                             = "/auth/realms/master/protocol/openid-connect/token"
+	depracatedArgoCDNamespace           = "openshift-pipelines-app-delivery"
+	defaultApplicationControllerName    = "openshift-gitops-application-controller"
+	defaultApplicationSetControllerName = "openshift-gitops-applicationset-controller"
+	defaultDexInstanceName              = "openshift-gitops-dex-server"
+	defaultRedisName                    = "openshift-gitops-redis"
+	defaultRepoServerName               = "openshift-gitops-repo-server"
+	defaultServerName                   = "openshift-gitops-server"
+	consoleLinkName                     = "argocd"
+	argoCDInstanceName                  = "openshift-gitops"
+	gitopsInstanceName                  = "cluster"
+	defaultKeycloakIdentifier           = "keycloak"
+	defaultTemplateIdentifier           = "rhsso"
+	realmURL                            = "/auth/admin/realms/argocd"
+	rhssosecret                         = "keycloak-secret"
+	clusterConfigEnv                    = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
+	disableDexEnv                       = "DISABLE_DEX"
+	argocdManagedByLabel                = "argocd.argoproj.io/managed-by"
+	timeout                             = time.Minute * 2
+	interval                            = time.Millisecond * 250
 )
 
 func TestAPIs(t *testing.T) {
@@ -107,8 +113,8 @@ var _ = BeforeSuite(func() {
 	}
 	// set cluster config argocd instance
 	Expect(os.Setenv(clusterConfigEnv, argoCDNamespace)).To(Succeed())
-	// disable dex by default
-	Expect(os.Setenv(disableDexEnv, "true")).To(Succeed())
+	// enable dex by default
+	Expect(os.Setenv(disableDexEnv, "false")).To(Succeed())
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
