@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -30,19 +31,18 @@ import (
 )
 
 var _ = Describe("Argo CD metrics controller", func() {
-
-	BeforeEach(func() {
-		buildYAML := filepath.Join("..", "appcrs", "build_appcr.yaml")
-		ocPath, err := exec.LookPath("oc")
-		Expect(err).NotTo(HaveOccurred())
-
-		cmd := exec.Command(ocPath, "apply", "-f", buildYAML)
-		err = cmd.Run()
-		Expect(err).NotTo(HaveOccurred())
-	})
-
 	Context("Check if monitoring resources are created", func() {
 		It("Role is created", func() {
+			buildYAML := filepath.Join("..", "appcrs", "build_appcr.yaml")
+			ocPath, err := exec.LookPath("oc")
+			Expect(err).NotTo(HaveOccurred())
+
+			cmd := exec.Command(ocPath, "apply", "-f", buildYAML)
+			err = cmd.Run()
+			Expect(err).NotTo(HaveOccurred())
+			// Alert delay
+			time.Sleep(60 * time.Second)
+
 			role := rbacv1.Role{}
 			readRoleName := fmt.Sprintf("%s-read", argoCDNamespace)
 			checkIfPresent(types.NamespacedName{Name: readRoleName, Namespace: argoCDNamespace}, &role)
