@@ -91,7 +91,19 @@ test-all: manifests generate fmt vet ## Run all tests.
 test-e2e: manifests generate fmt vet ## Run e2e tests.
 	go test ./test/e2e -coverprofile cover.out -ginkgo.v
 	go test ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
-	
+
+test-metrics:
+	go test ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
+
+test-route:
+	go test ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
+
+test-gitopsservice:
+	go test ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
+
+test-gitopsservice-nondefault:
+	go test ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
+
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
