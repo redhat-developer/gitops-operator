@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	_ "github.com/argoproj-labs/argocd-operator/pkg/reconciler/openshift"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
