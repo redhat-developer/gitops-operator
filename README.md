@@ -44,6 +44,7 @@ That's it, your API `route` should be created for you. You don't need to explicl
 
 **Note:** Please check that you're using [operator-sdk]( https://github.com/operator-framework/operator-sdk/releases/tag/v0.17.2) version 0.17 or earlier. Since the community-operators do not support `v1` version of `CustomResourceDefinition`, the operator is using `v1beta1` version of `CustomResourceDefinition`.
 
+**Update:** As of kubernetes v1.22.0, `v1beta1` version of `CustomResourceDefinition` has been deprecated and is no longer supported. Hence, `CustomResourceDefinition` has been upgraded to `v1` in order to make the operator compliant with OCP 4.9
 ## Tests
 
 ```
