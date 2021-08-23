@@ -557,7 +557,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: gitops-operator
                 - name: DISABLE_DEX
-                  value: "true"
+                  value: "false"
                 image: quay.io/redhat-developer/gitops-operator:v0.0.3
                 livenessProbe:
                   httpGet:

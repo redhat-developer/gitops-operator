@@ -62,6 +62,12 @@ var _ = Describe("GitOpsServiceController", func() {
 
 		It("Argo CD instance is created", func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argoCDInstance)
+			checkIfPresent(types.NamespacedName{Name: defaultApplicationControllerName, Namespace: argoCDNamespace}, &appsv1.StatefulSetList{})
+			checkIfPresent(types.NamespacedName{Name: defaultApplicationSetControllerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
+			checkIfPresent(types.NamespacedName{Name: defaultDexInstanceName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
+			checkIfPresent(types.NamespacedName{Name: defaultRedisName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
+			checkIfPresent(types.NamespacedName{Name: defaultRepoServerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
+			checkIfPresent(types.NamespacedName{Name: defaultServerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 		})
 
 		It("Manual modification of Argo CD CR is allowed", func() {
