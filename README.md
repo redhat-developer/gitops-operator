@@ -6,7 +6,7 @@ An operator that gets you an Argo CD for cluster configuration out-of-the-box on
 
 ## Making the operator available on the in-cluster OperatorHub
 
-1. Add the following resource to your cluster
+1. Add the following resource to your cluster:
 
 ```
 apiVersion: operators.coreos.com/v1alpha1
@@ -27,15 +27,15 @@ spec:
 
 ![a relative link](docs/assets/operatorhub-listing.png)
 
-3. Install the operator using the defaults in the wizard, and wait for it to show up in the list of "Installed Operators". I it doesn't go check on it's status in the "Installed Operators" in the `openshift-operators` namespace.
+3. Install the operator using the defaults in the wizard, and wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-operators` namespace.
 
 ![a relative link](docs/assets/installed-operator.png)
 
-4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-gitops` namespace. Note, the namespace doesn't have to exist in advance, the operator creates it for you.
+4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-gitops` namespace. Note: the namespace doesn't have to exist in advance, the operator creates it for you.
 
-That's it, your API `route` should be created for you. You don't need to expliclty create any operand/CR.
+That's it! Your API `route` should be created for you. You don't need to expliclty create any operand/CR.
 
-## Contribute
+## Contributing
 
 
 1. Clone the repository.
@@ -58,13 +58,13 @@ make test-e2e
 
 ## Re-build and Deploy
 
-This operator currently deploys the following payload.
+This operator currently deploys the following payload:
 
 ```
 quay.io/redhat-developer/gitops-backend:v0.0.1
 ```
 
-If that's all what you are changing, the following steps are not needed in development
+If that's all that you are changing, the following steps are not needed in development
 mode. You could update your image "payload" and re-install the operator.
 
 Set the base image and version for building operator, bundle and index images.
@@ -73,7 +73,7 @@ Set the base image and version for building operator, bundle and index images.
 export IMAGE=quay.io/redhat-developer/gitops-backend-operator VERSION=0.0.4
 ```
 
-* Build and push the operator image.
+1. Build and push the operator image.
 
 ```
 make docker-build docker-push
