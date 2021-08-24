@@ -1,6 +1,6 @@
 # OpenShift GitOps  Operator
 
-An operator that gets you an ArgoCD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
+An operator that gets you an Argo CD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
 
 # Getting started
 
@@ -40,14 +40,20 @@ That's it, your API `route` should be created for you. You don't need to explicl
 
 1. Clone the repository.
 2. Login to a cluster on your command-line.
-3. `OPERATOR_NAME=gitops-operator operator-sdk run local --watch-namespace=openshift-gitops`
-
-**Note:** Please check that you're using [operator-sdk]( https://github.com/operator-framework/operator-sdk/releases/tag/v0.17.2) version 0.17 or earlier. Since the community-operators do not support `v1` version of `CustomResourceDefinition`, the operator is using `v1beta1` version of `CustomResourceDefinition`.
+3. Execute `make run` to run the operator locally.
 
 ## Tests
 
+#### Unit tests
+
 ```
-operator-sdk test local ./test/e2e --operator-namespace gitops-test --up-local
+make test
+```
+
+#### e2e tests
+
+```
+make test-e2e
 ```
 
 ## Re-build and Deploy
@@ -61,26 +67,36 @@ quay.io/redhat-developer/gitops-backend:v0.0.1
 If that's all what you are changing, the following steps are not needed in development
 mode. You could update your image "payload" and re-install the operator.
 
-* Build the operator image.
+Set the base image and version for building operator, bundle and index images.
 
 ```
-docker build -t quay.io/redhat-developer/gitops-backend-operator:v0.0.1 .
-docker push quay.io/redhat-developer/gitops-backend-operator:v0.0.1
+export IMAGE=quay.io/redhat-developer/gitops-backend-operator VERSION=0.0.4
+```
+
+* Build and push the operator image.
+
+```
+make docker-build docker-push
 ```
 
 
-2. Build the Bundle image ( operator + OLM manifests )
+2. Build and push the Bundle image ( operator + OLM manifests )
 
 ```
-operator-sdk bundle create quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1
-docker push quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1
+make bundle
+make bundle-build bundle-push
 ```
 
-3. Build the Index image
+3. Build and push the Index image
+
+Install `opm` binary which is required to build index images
 
 ```
-opm index add --bundles quay.io/redhat-developer/gitops-backend-operator-bundle:v0.0.1  --tag quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1 --build-tool=docker
-docker push quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1
+make opm
+```
+
+```
+make catalog-build catalog-push
 ```
 
 The Index image powers the listing of the Operator on OperatorHub.
