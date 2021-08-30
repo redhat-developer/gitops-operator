@@ -819,5 +819,18 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 				"watch",
 			},
 		},
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"secrets",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"watch",
+			},
+		},
 	}
 }
