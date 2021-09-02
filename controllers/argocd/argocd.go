@@ -25,6 +25,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var (
+	defaultAdminPolicy = "g, system:cluster-admins, role:admin"
+	defaultScope       = "[groups]"
+)
+
 // resource exclusions for the ArgoCD CR.
 type resource struct {
 	APIGroups []string `json:"apiGroups"`
@@ -64,6 +69,7 @@ func getArgoControllerSpec() argoapp.ArgoCDApplicationControllerSpec {
 
 func getArgoDexSpec() argoapp.ArgoCDDexSpec {
 	return argoapp.ArgoCDDexSpec{
+		OpenShiftOAuth: true,
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("128Mi"),
@@ -154,6 +160,13 @@ func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 	}
 }
 
+func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
+	return argoapp.ArgoCDRBACSpec{
+		Policy: &defaultAdminPolicy,
+		Scopes: &defaultScope,
+	}
+}
+
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
 // with Tekton
 func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
@@ -178,15 +191,15 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Namespace: ns,
 		},
 		Spec: argoapp.ArgoCDSpec{
-			ApplicationSet: getArgoApplicationSetSpec(),
-			Controller:     getArgoControllerSpec(),
-			Dex:            getArgoDexSpec(),
-			Grafana:        getArgoGrafanaSpec(),
-			HA:             getArgoHASpec(),
-			Redis:          getArgoRedisSpec(),
-			Repo:           getArgoRepoServerSpec(),
-			Server:         getArgoServerSpec(),
-
+			ApplicationSet:     getArgoApplicationSetSpec(),
+			Controller:         getArgoControllerSpec(),
+			Dex:                getArgoDexSpec(),
+			Grafana:            getArgoGrafanaSpec(),
+			HA:                 getArgoHASpec(),
+			Redis:              getArgoRedisSpec(),
+			Repo:               getArgoRepoServerSpec(),
+			Server:             getArgoServerSpec(),
+			RBAC:               getDefaultRBAC(),
 			ResourceExclusions: string(b),
 		},
 	}, nil
