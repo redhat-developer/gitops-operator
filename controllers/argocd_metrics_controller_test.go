@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -37,7 +37,7 @@ import (
 
 func newScheme() *runtime.Scheme {
 	s := scheme.Scheme
-	s.AddKnownTypes(argoapp.SchemeGroupVersion, &argoapp.ArgoCD{})
+	s.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Namespace{})
 	s.AddKnownTypes(monitoringv1.SchemeGroupVersion, &monitoringv1.ServiceMonitor{})
 	s.AddKnownTypes(monitoringv1.SchemeGroupVersion, &monitoringv1.PrometheusRule{})
@@ -88,7 +88,7 @@ func TestReconcile_add_namespace_label(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		_, err := r.Reconcile(newRequest(tc.namespace, tc.instanceName))
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
 		ns := corev1.Namespace{}
@@ -115,7 +115,7 @@ func TestReconcile_add_read_role(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		_, err := r.Reconcile(newRequest(tc.namespace, tc.instanceName))
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
 		role := rbacv1.Role{}
@@ -158,7 +158,7 @@ func TestReconcile_add_read_role_binding(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		_, err := r.Reconcile(newRequest(tc.namespace, tc.instanceName))
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
 		roleBinding := rbacv1.RoleBinding{}
@@ -202,7 +202,7 @@ func TestReconcile_add_service_monitors(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		_, err := r.Reconcile(newRequest(tc.namespace, tc.instanceName))
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
 		serviceMonitor := monitoringv1.ServiceMonitor{}
@@ -268,7 +268,7 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		_, err := r.Reconcile(newRequest(tc.namespace, tc.instanceName))
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
 		rule := monitoringv1.PrometheusRule{}
