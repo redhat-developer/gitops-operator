@@ -48,6 +48,7 @@ metadata:
               }
             },
             "dex": {
+              "openShiftOAuth": true,
               "resources": {
                 "limits": {
                   "cpu": "500m",
@@ -71,6 +72,11 @@ metadata:
                   "memory": "128Mi"
                 }
               }
+            },
+            "rbac": {
+              "defaultPolicy": "",
+              "policy": "g, system:cluster-admins, role:admin\n",
+              "scopes": "[groups]"
             },
             "redis": {
               "resources": {
