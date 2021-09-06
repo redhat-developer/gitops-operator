@@ -19,6 +19,7 @@ package argocd
 import (
 	"testing"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
@@ -123,4 +124,21 @@ func TestArgoCD(t *testing.T) {
 		},
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.Server.Resources, testServerResources)
+}
+
+func TestDexConfiguration(t *testing.T) {
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+
+	// Verify Dex OpenShift Configuration
+	assert.Equal(t, testArgoCD.Spec.Dex.OpenShiftOAuth, true)
+
+	// Verify the default RBAC
+	testAdminPolicy := "g, system:cluster-admins, role:admin"
+	testDefaultScope := "[groups]"
+
+	testRBAC := argoapp.ArgoCDRBACSpec{
+		Policy: &testAdminPolicy,
+		Scopes: &testDefaultScope,
+	}
+	assert.DeepEqual(t, testArgoCD.Spec.RBAC, testRBAC)
 }
