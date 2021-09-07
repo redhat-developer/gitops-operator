@@ -14,4 +14,4 @@ data:
       resourceName: 2b63967d.openshift.io
 kind: ConfigMap
 metadata:
-  name: manager-config
+  name: gitops-operator-manager-config
