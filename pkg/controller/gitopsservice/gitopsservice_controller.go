@@ -316,37 +316,26 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		} else {
 			return reconcile.Result{}, err
 		}
-	}
-
-	// Ensure compute resource quotas are set for the default ArgoCD namespace
-	resourceQuotaName := argocdNS.Name + "-compute-resources"
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourceQuotaName, Namespace: argocdNS.Name}, &corev1.ResourceQuota{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Setting compute resource quotas for ArgoCD namespace", "Name", argocdNS.Name)
-		resourceQuota := corev1.ResourceQuota{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ResourceQuota",
-				APIVersion: "v1",
-			},
+	} else {
+		// Delete if resource quota is set on the default ArgoCD instance namespace.
+		// Fix for v1.2 - https://github.com/redhat-developer/gitops-operator/issues/206
+		resourceQuotaName := argocdNS.Name + "-compute-resources"
+		resourceQuotaObj := &corev1.ResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      resourceQuotaName,
 				Namespace: argocdNS.Name,
 			},
-			Spec: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{
-					corev1.ResourceMemory:       resourcev1.MustParse("4544Mi"),
-					corev1.ResourceCPU:          resourcev1.MustParse("6688m"),
-					corev1.ResourceLimitsMemory: resourcev1.MustParse("9070Mi"),
-					corev1.ResourceLimitsCPU:    resourcev1.MustParse("13750m"),
-				},
-				Scopes: []corev1.ResourceQuotaScope{
-					"NotTerminating",
-				},
-			},
 		}
-		err = r.client.Create(context.TODO(), &resourceQuota)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourceQuotaName, Namespace: argocdNS.Name}, resourceQuotaObj)
 		if err != nil {
-			return reconcile.Result{}, err
+			if errors.IsNotFound(err) {
+				reqLogger.Info("No ResourceQuota set for namespace", "Name", argocdNS.Name)
+			}
+		} else {
+			err = r.client.Delete(context.TODO(), resourceQuotaObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -368,59 +357,8 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		} else {
 			return reconcile.Result{}, err
 		}
-	} else {
-		changed := false
-
-		if existingArgoCD.Spec.ApplicationSet != nil {
-			if existingArgoCD.Spec.ApplicationSet.Resources == nil {
-				existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
-				changed = true
-			}
-		}
-
-		if existingArgoCD.Spec.Controller.Resources == nil {
-			existingArgoCD.Spec.Controller.Resources = defaultArgoCDInstance.Spec.Controller.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Dex.Resources == nil {
-			existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.Dex.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Grafana.Resources == nil {
-			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.HA.Resources == nil {
-			existingArgoCD.Spec.HA.Resources = defaultArgoCDInstance.Spec.HA.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Redis.Resources == nil {
-			existingArgoCD.Spec.Redis.Resources = defaultArgoCDInstance.Spec.Redis.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Repo.Resources == nil {
-			existingArgoCD.Spec.Repo.Resources = defaultArgoCDInstance.Spec.Repo.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Server.Resources == nil {
-			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
-			changed = true
-		}
-
-		if changed {
-			reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
-			err = r.client.Update(context.TODO(), existingArgoCD)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
 	}
+
 	return reconcile.Result{}, nil
 }
 

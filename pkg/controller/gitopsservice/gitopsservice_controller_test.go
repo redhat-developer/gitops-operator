@@ -2,6 +2,7 @@ package gitopsservice
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -19,7 +20,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -288,28 +289,6 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 	}
 }
 
-func TestReconcile_GitOpsNamespaceResourceQuotas(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
-
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
-	reconciler := newReconcileGitOpsService(fakeClient, s)
-
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
-	assertNoError(t, err)
-
-	resourceQuota := corev1.ResourceQuota{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace + "-compute-resources", Namespace: serviceNamespace}, &resourceQuota)
-	assertNoError(t, err)
-
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceCPU], resourcev1.MustParse("6688m"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceMemory], resourcev1.MustParse("4544Mi"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsCPU], resourcev1.MustParse("13750m"))
-	assert.Equal(t, resourceQuota.Spec.Hard[corev1.ResourceLimitsMemory], resourcev1.MustParse("9070Mi"))
-	assert.DeepEqual(t, resourceQuota.Spec.Scopes, []corev1.ResourceQuotaScope{"NotTerminating"})
-}
-
 func TestReconcile_BackendResourceLimits(t *testing.T) {
 	logf.SetLogger(logf.ZapLogger(true))
 	s := scheme.Scheme
@@ -332,7 +311,7 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
 }
 
-func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
+func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 	logf.SetLogger(logf.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
@@ -340,44 +319,29 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	// Create a basic ArgoCD CR. ArgoCD created by Operator version less than v1.2
-	existingArgoCD := &argoapp.ArgoCD{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      serviceNamespace,
+	// Create namespace object for default ArgoCD instance and set resource quota to it.
+	defaultArgoNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceNamespace,
+		},
+	}
+	fakeClient.Create(context.TODO(), defaultArgoNS)
+
+	dummyResourceObj := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-compute-resources", serviceNamespace),
 			Namespace: serviceNamespace,
 		},
-		Spec: argoapp.ArgoCDSpec{
-			Server: argoapp.ArgoCDServerSpec{
-				Route: argoapp.ArgoCDRouteSpec{
-					Enabled: true,
-				},
-			},
-			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
-		},
 	}
+	fakeClient.Create(context.TODO(), dummyResourceObj)
 
-	err := fakeClient.Create(context.TODO(), existingArgoCD)
+	_, err := reconciler.Reconcile(newRequest("test", "test"))
 	assertNoError(t, err)
 
-	_, err = reconciler.Reconcile(newRequest("test", "test"))
-	assertNoError(t, err)
-
-	// ArgoCD instance SHOULD be updated with resource request/limits for each workload.
-	updateArgoCD := &argoapp.ArgoCD{}
-
-	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
-		updateArgoCD); err != nil {
-		t.Fatalf("ArgoCD instance should exist in namespace, error: %v", err)
-	}
-
-	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Dex.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Repo.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Server.Resources != nil)
+	// Verify that resource quota object is deleted after reconciliation.
+	resourceQuota := corev1.ResourceQuota{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace + "-compute-resources", Namespace: serviceNamespace}, &resourceQuota)
+	assert.Error(t, err, "resourcequotas \"openshift-gitops-compute-resources\" not found")
 }
 
 func TestGetBackendNamespace(t *testing.T) {
