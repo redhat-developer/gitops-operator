@@ -25,12 +25,11 @@ import (
 	"strings"
 	"time"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	. "github.com/onsi/ginkgo"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -108,7 +107,7 @@ func ApplicationSyncStatus(appname string, namespace string) error {
 // ResourceList is used by waitForResourcesByName
 type ResourceList struct {
 	// resource is the type of resource to verify that it exists
-	Resource runtime.Object
+	Resource client.Object
 
 	// expectedResources are the names of the resources of the above type
 	ExpectedResources []string
@@ -122,7 +121,7 @@ func WaitForResourcesByName(k8sClient client.Client, resourceList []ResourceList
 	err := wait.Poll(time.Second*1, timeout, func() (bool, error) {
 		for _, resourceListEntry := range resourceList {
 			for _, resourceName := range resourceListEntry.ExpectedResources {
-				resource := resourceListEntry.Resource.DeepCopyObject()
+				resource := resourceListEntry.Resource
 				namespacedName := types.NamespacedName{Name: resourceName, Namespace: namespace}
 				if err := k8sClient.Get(context.TODO(), namespacedName, resource); err != nil {
 					log.Printf("Unable to retrieve expected resource %s: %v", resourceName, err)

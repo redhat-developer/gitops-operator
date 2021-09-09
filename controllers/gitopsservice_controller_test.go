@@ -24,7 +24,8 @@ import (
 
 	"gotest.tools/assert"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -42,8 +43,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 func TestImageFromEnvVariable(t *testing.T) {
@@ -95,7 +97,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
 func TestReconcileDisableDefault(t *testing.T) {
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
@@ -105,7 +107,7 @@ func TestReconcileDisableDefault(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	reconciler.DisableDefaultInstall = true
 
-	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	argoCD := &argoapp.ArgoCD{}
@@ -135,7 +137,7 @@ func TestReconcileDisableDefault(t *testing.T) {
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is deleted if it already exists.
 func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
@@ -145,7 +147,7 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	reconciler.DisableDefaultInstall = false
 
-	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	argoCD := &argoapp.ArgoCD{}
@@ -158,7 +160,7 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 	}
 
 	reconciler.DisableDefaultInstall = true
-	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// ArgoCD instance SHOULD be deleted from namespace (in openshift-gitops namespace)
@@ -184,14 +186,14 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 }
 
 func TestReconcile(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewFakeClient(newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// Check if backend resources are created in openshift-gitops namespace
@@ -236,7 +238,7 @@ func TestReconcile(t *testing.T) {
 	assertNoError(t, err)
 
 	// reconcile
-	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + serviceName}, role)
@@ -249,14 +251,14 @@ func TestReconcile(t *testing.T) {
 }
 
 func TestReconcile_AppDeliveryNamespace(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.6.15"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// Check if both openshift-gitops and openshift-pipelines-app-delivey namespace is created
@@ -284,14 +286,14 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 }
 
 func TestReconcile_GitOpsNamespace(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// Check if only openshift-gitops namespace is created
@@ -306,14 +308,14 @@ func TestReconcile_GitOpsNamespace(t *testing.T) {
 }
 
 func TestReconcile_BackendResourceLimits(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	deployment := appsv1.Deployment{}
@@ -328,7 +330,7 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 }
 
 func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
@@ -351,7 +353,7 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 	}
 	fakeClient.Create(context.TODO(), dummyResourceObj)
 
-	_, err := reconciler.Reconcile(newRequest("test", "test"))
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// Verify that resource quota object is deleted after reconciliation.
@@ -361,7 +363,7 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 }
 
 func TestGetBackendNamespace(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
@@ -396,7 +398,7 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
-	scheme.AddKnownTypes(argoapp.SchemeGroupVersion, &argoapp.ArgoCD{})
+	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
 }
 
