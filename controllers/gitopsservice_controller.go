@@ -321,6 +321,23 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
+	//to add infra nodeselector to default argocd pods
+	if instance.Spec.InfraNodeEnabled {
+		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+			NodeSelector: map[string]string{
+				"node-role.kubernetes.io/infra": "",
+			},
+		}
+	}
+	if len(instance.Spec.Tolerations) > 0 {
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				Tolerations: instance.Spec.Tolerations,
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.Tolerations = instance.Spec.Tolerations
+		}
+	}
 
 	// Get or create ArgoCD instance in default namespace
 	existingArgoCD := &argoapp.ArgoCD{}
@@ -377,6 +394,10 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		if existingArgoCD.Spec.Server.Resources == nil {
 			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
+		}
+
+		if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 			changed = true
 		}
 
