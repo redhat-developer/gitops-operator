@@ -27,8 +27,8 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argoapi "github.com/argoproj-labs/argocd-operator/pkg/apis"
-	argocdprovisioner "github.com/argoproj-labs/argocd-operator/pkg/controller/argocd"
+	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -45,7 +45,6 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -151,7 +150,10 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = argocdprovisioner.Add(mgr)
+	err = (&argocdprovisioner.ReconcileArgoCD{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	go func() {
@@ -181,7 +183,7 @@ var _ = AfterSuite(func() {
 
 // checks if a given resource is present in the cluster
 // continouslly polls until it returns nil or a timeout occurs
-func checkIfPresent(ns types.NamespacedName, obj runtime.Object) {
+func checkIfPresent(ns types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.TODO(), ns, obj)
 		if err != nil {
@@ -193,7 +195,7 @@ func checkIfPresent(ns types.NamespacedName, obj runtime.Object) {
 
 // checks if a given resource is deleted
 // continouslly polls until the object is deleted or a timeout occurs
-func checkIfDeleted(ns types.NamespacedName, obj runtime.Object) {
+func checkIfDeleted(ns types.NamespacedName, obj client.Object) {
 	Eventually(func() error {
 		err := k8sClient.Get(context.TODO(), ns, obj)
 		if errors.IsNotFound(err) {
