@@ -525,9 +525,9 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: gitops-operator
+        serviceAccountName: gitops-operator-controller-manager
       deployments:
-      - name: controller-manager
+      - name: gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -583,7 +583,7 @@ spec:
                   allowPrivilegeEscalation: false
               securityContext:
                 runAsNonRoot: true
-              serviceAccountName: gitops-operator
+              serviceAccountName: gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -618,7 +618,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: gitops-operator
+        serviceAccountName: gitops-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: false
