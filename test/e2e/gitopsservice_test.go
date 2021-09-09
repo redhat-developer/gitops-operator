@@ -31,8 +31,8 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
-	"github.com/argoproj-labs/argocd-operator/pkg/common"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-operator/common"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -62,7 +62,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 		It("Argo CD instance is created", func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argoCDInstance)
-			checkIfPresent(types.NamespacedName{Name: defaultApplicationControllerName, Namespace: argoCDNamespace}, &appsv1.StatefulSetList{})
+			checkIfPresent(types.NamespacedName{Name: defaultApplicationControllerName, Namespace: argoCDNamespace}, &appsv1.StatefulSet{})
 			checkIfPresent(types.NamespacedName{Name: defaultApplicationSetControllerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 			checkIfPresent(types.NamespacedName{Name: defaultDexInstanceName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 			checkIfPresent(types.NamespacedName{Name: defaultRedisName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
@@ -636,7 +636,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			Eventually(func() error {
 				for _, resourceListEntry := range resourceList {
 					for _, resourceName := range resourceListEntry.ExpectedResources {
-						resource := resourceListEntry.Resource.DeepCopyObject()
+						resource := resourceListEntry.Resource
 						namespacedName := types.NamespacedName{Name: resourceName, Namespace: argocdTargetNamespace}
 						if err := k8sClient.Get(context.TODO(), namespacedName, resource); err == nil {
 							GinkgoT().Logf("Resource %s was not deleted", resourceName)

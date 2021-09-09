@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -63,13 +63,13 @@ func (r *ArgoCDMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses;prometheusrules;servicemonitors,verbs=*
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=create;get
 
-func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	var logs = logf.Log.WithName("controller_argocd_metrics")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Metrics")
 
 	namespace := corev1.Namespace{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: request.Namespace}, &namespace)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: request.Namespace}, &namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Namespace not found, could have been deleted after reconcile request.
@@ -83,7 +83,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 	}
 
 	argocd := &argoapp.ArgoCD{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: request.Name, Namespace: request.Namespace}, argocd)
+	err = r.Client.Get(ctx, types.NamespacedName{Name: request.Name, Namespace: request.Namespace}, argocd)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// ArgoCD not found, could have been deleted after reconcile request.
@@ -102,7 +102,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(request reconcile.Request) (reconcil
 			namespace.Labels = make(map[string]string)
 		}
 		namespace.Labels[clusterMonitoringLabel] = "true"
-		err = r.Client.Update(context.TODO(), &namespace)
+		err = r.Client.Update(ctx, &namespace)
 		if err != nil {
 			reqLogger.Error(err, "Error updating namespace",
 				"Namespace", namespace.Name)

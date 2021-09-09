@@ -23,7 +23,7 @@ import (
 	"reflect"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/pkg/apis/argoproj/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -78,7 +78,7 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 	pred := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			// Ignore updates to CR status in which case metadata.Generation does not change
-			return e.MetaOld.GetGeneration() != e.MetaNew.GetGeneration()
+			return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
 			// Evaluates to false if the object has been confirmed deleted.
@@ -161,13 +161,13 @@ type ReconcileGitopsService struct {
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
-func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
 
 	// Fetch the GitopsService instance
 	instance := &pipelinesv1alpha1.GitopsService{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, instance)
+	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -186,11 +186,11 @@ func (r *ReconcileGitopsService) Reconcile(request reconcile.Request) (reconcile
 
 	// Create namespace if it doesn't already exist
 	namespaceRef := newNamespace(namespace)
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", namespace)
-			err = r.Client.Create(context.TODO(), namespaceRef)
+			err = r.Client.Create(ctx, namespaceRef)
 			if err != nil {
 				return reconcile.Result{}, err
 			}

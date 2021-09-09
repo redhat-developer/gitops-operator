@@ -70,14 +70,14 @@ func (r *ReconcileArgoCDRoute) SetupWithManager(mgr ctrl.Manager) error {
 func filterPredicate(assert func(namespace, name string) bool) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			return assert(e.MetaNew.GetNamespace(), e.MetaNew.GetName()) &&
-				e.MetaNew.GetResourceVersion() != e.MetaOld.GetResourceVersion()
+			return assert(e.ObjectNew.GetNamespace(), e.ObjectNew.GetName()) &&
+				e.ObjectNew.GetResourceVersion() != e.ObjectOld.GetResourceVersion()
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			return assert(e.Meta.GetNamespace(), e.Meta.GetName())
+			return assert(e.Object.GetNamespace(), e.Object.GetName())
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
-			return assert(e.Meta.GetNamespace(), e.Meta.GetName())
+			return assert(e.Object.GetNamespace(), e.Object.GetName())
 		},
 	}
 }
@@ -102,12 +102,10 @@ type ReconcileArgoCDRoute struct {
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileArgoCDRoute) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	var logs = logf.Log.WithName("controller_argocd_route")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Route")
-
-	ctx := context.Background()
 
 	// Fetch ArgoCD server route
 	argoCDRoute := &routev1.Route{}

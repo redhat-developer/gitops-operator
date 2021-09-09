@@ -61,7 +61,7 @@ func TestReconcile_create_consolelink(t *testing.T) {
 	reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute)
 	want := newConsoleLink("https://test.com", "Cluster Argo CD")
 
-	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdInstanceName))
+	result, err := reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdInstanceName))
 	assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, want)
 }
 
@@ -71,7 +71,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 	err := fakeClient.Delete(context.TODO(), &routev1.Route{ObjectMeta: v1.ObjectMeta{Name: argocdRouteName, Namespace: argocdNS}})
 	assertNoError(t, err)
 
-	result, err := reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdRouteName))
+	result, err := reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdRouteName))
 	assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
 }
 
@@ -82,7 +82,7 @@ func TestReconcile_update_consolelink(t *testing.T) {
 	err := fakeClient.Update(context.TODO(), argoCDRoute)
 	assertNoError(t, err)
 
-	_, err = reconcileArgoCD.Reconcile(newRequest(argocdNS, argocdRouteName))
+	_, err = reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdRouteName))
 	assertNoError(t, err)
 
 	cl, err := getConsoleLink(fakeClient)
