@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
@@ -178,7 +179,14 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-
+	if cr.Spec.InfraNodeEnabled {
+		deploymentObj.Spec.Template.Spec.NodeSelector = map[string]string{
+			"node-role.kubernetes.io/infra": "",
+		}
+	}
+	if len(cr.Spec.Tolerations) > 0 {
+		deploymentObj.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
+	}
 	// Check if this Deployment already exists
 	existingDeployment := &appsv1.Deployment{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingDeployment)
@@ -193,8 +201,21 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 			return reconcile.Result{}, err
 		}
 	} else {
+		changed := false
 		if existingDeployment.Spec.Template.Spec.Containers[0].Resources.Requests == nil {
 			existingDeployment.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
+			changed = true
+		}
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
+			existingDeployment.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
+			changed = true
+		}
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
+			existingDeployment.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
+			changed = true
+		}
+
+		if changed {
 			err = r.Client.Update(context.TODO(), existingDeployment)
 			if err != nil {
 				return reconcile.Result{}, err

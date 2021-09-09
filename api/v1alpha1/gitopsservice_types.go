@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -24,6 +25,11 @@ import (
 type GitopsServiceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// InfraNodeEnabled will add infra NodeSelector to all the default workloads of gitops operator
+	InfraNodeEnabled bool `json:"infraNodeEnabled,omitempty"`
+	// Tolerations allow the pods to schedule onto nodes with matching taints
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService

@@ -482,7 +482,14 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
 		}
-
+		if instance.Spec.InfraNodeEnabled {
+			deploymentObj.Spec.Template.Spec.NodeSelector = map[string]string{
+				"node-role.kubernetes.io/infra": "",
+			}
+		}
+		if len(instance.Spec.Tolerations) > 0 {
+			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
+		}
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}
 		if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace},
@@ -514,6 +521,14 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
+				found.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
+				found.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
 				changed = true
 			}
 
