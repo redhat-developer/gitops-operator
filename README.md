@@ -40,7 +40,8 @@ That's it! Your API `route` should be created for you. You don't need to explicl
 
 1. Clone the repository.
 2. Login to a cluster on your command-line.
-3. Execute `make run` to run the operator locally.
+3. Execute `make install` to apply the CRDs.
+4. Execute `make run` to run the operator locally.
 
 ## Tests
 
