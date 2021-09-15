@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -309,6 +310,54 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	assert.Equal(t, resources.Requests[corev1.ResourceMemory], resourcev1.MustParse("128Mi"))
 	assert.Equal(t, resources.Limits[corev1.ResourceCPU], resourcev1.MustParse("500m"))
 	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
+}
+
+func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
+	logf.SetLogger(logf.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	// Create a basic ArgoCD CR. ArgoCD created by Operator version less than v1.2
+	existingArgoCD := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      serviceNamespace,
+			Namespace: serviceNamespace,
+		},
+		Spec: argoapp.ArgoCDSpec{
+			Server: argoapp.ArgoCDServerSpec{
+				Route: argoapp.ArgoCDRouteSpec{
+					Enabled: true,
+				},
+			},
+			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+		},
+	}
+
+	err := fakeClient.Create(context.TODO(), existingArgoCD)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// ArgoCD instance SHOULD be updated with resource request/limits for each workload.
+	updateArgoCD := &argoapp.ArgoCD{}
+
+	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		updateArgoCD); err != nil {
+		t.Fatalf("ArgoCD instance should exist in namespace, error: %v", err)
+	}
+
+	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Dex.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Repo.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Server.Resources != nil)
 }
 
 func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
