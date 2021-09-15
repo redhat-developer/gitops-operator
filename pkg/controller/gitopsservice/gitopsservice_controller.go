@@ -316,37 +316,26 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		} else {
 			return reconcile.Result{}, err
 		}
-	}
-
-	// Ensure compute resource quotas are set for the default ArgoCD namespace
-	resourceQuotaName := argocdNS.Name + "-compute-resources"
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourceQuotaName, Namespace: argocdNS.Name}, &corev1.ResourceQuota{})
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Setting compute resource quotas for ArgoCD namespace", "Name", argocdNS.Name)
-		resourceQuota := corev1.ResourceQuota{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "ResourceQuota",
-				APIVersion: "v1",
-			},
+	} else {
+		// Delete if resource quota is set on the default ArgoCD instance namespace.
+		// Fix for v1.2 - https://github.com/redhat-developer/gitops-operator/issues/206
+		resourceQuotaName := argocdNS.Name + "-compute-resources"
+		resourceQuotaObj := &corev1.ResourceQuota{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      resourceQuotaName,
 				Namespace: argocdNS.Name,
 			},
-			Spec: corev1.ResourceQuotaSpec{
-				Hard: corev1.ResourceList{
-					corev1.ResourceMemory:       resourcev1.MustParse("4544Mi"),
-					corev1.ResourceCPU:          resourcev1.MustParse("6688m"),
-					corev1.ResourceLimitsMemory: resourcev1.MustParse("9070Mi"),
-					corev1.ResourceLimitsCPU:    resourcev1.MustParse("13750m"),
-				},
-				Scopes: []corev1.ResourceQuotaScope{
-					"NotTerminating",
-				},
-			},
 		}
-		err = r.client.Create(context.TODO(), &resourceQuota)
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: resourceQuotaName, Namespace: argocdNS.Name}, resourceQuotaObj)
 		if err != nil {
-			return reconcile.Result{}, err
+			if errors.IsNotFound(err) {
+				reqLogger.Info("No ResourceQuota set for namespace", "Name", argocdNS.Name)
+			}
+		} else {
+			err = r.client.Delete(context.TODO(), resourceQuotaObj)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 		}
 	}
 
@@ -421,6 +410,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 

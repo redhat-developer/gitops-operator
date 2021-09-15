@@ -90,7 +90,7 @@ func TestArgoCD(t *testing.T) {
 			v1.ResourceCPU:    resourcev1.MustParse("250m"),
 		},
 		Limits: v1.ResourceList{
-			v1.ResourceMemory: resourcev1.MustParse("512Mi"),
+			v1.ResourceMemory: resourcev1.MustParse("1024Mi"),
 			v1.ResourceCPU:    resourcev1.MustParse("1000m"),
 		},
 	}
