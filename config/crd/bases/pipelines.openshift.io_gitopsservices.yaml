@@ -36,7 +36,7 @@ spec:
           spec:
             description: GitopsServiceSpec defines the desired state of GitopsService
             properties:
-              infraNodeEnabled:
+              runOnInfra:
                 description: InfraNodeEnabled will add infra NodeSelector to all the
                   default workloads of gitops operator
                 type: boolean

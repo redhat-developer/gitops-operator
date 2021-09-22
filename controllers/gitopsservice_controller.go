@@ -321,30 +321,11 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	if err := controllerutil.SetControllerReference(instance, defaultArgoCDInstance, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	//to add infra nodeselector to default argocd pods
-	if instance.Spec.InfraNodeEnabled {
-		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-			NodeSelector: map[string]string{
-				"node-role.kubernetes.io/infra": "",
-			},
-		}
-	}
-	if len(instance.Spec.Tolerations) > 0 {
-		if defaultArgoCDInstance.Spec.NodePlacement == nil {
-			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-				Tolerations: instance.Spec.Tolerations,
-			}
-		} else {
-			defaultArgoCDInstance.Spec.NodePlacement.Tolerations = instance.Spec.Tolerations
-		}
-	}
 
 	//to add infra nodeselector to default argocd pods
-	if instance.Spec.InfraNodeEnabled {
+	if instance.Spec.RunOnInfra {
 		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-			NodeSelector: map[string]string{
-				"node-role.kubernetes.io/infra": "",
-			},
+			NodeSelector: common.InfraNodeSelector(),
 		}
 	}
 	if len(instance.Spec.Tolerations) > 0 {
@@ -412,6 +393,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		if existingArgoCD.Spec.Server.Resources == nil {
 			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
+			changed = true
 		}
 
 		if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
@@ -521,10 +503,8 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
 		}
-		if instance.Spec.InfraNodeEnabled {
-			deploymentObj.Spec.Template.Spec.NodeSelector = map[string]string{
-				"node-role.kubernetes.io/infra": "",
-			}
+		if instance.Spec.RunOnInfra {
+			deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
 		}
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations

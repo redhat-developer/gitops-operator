@@ -27,7 +27,7 @@ type GitopsServiceSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// InfraNodeEnabled will add infra NodeSelector to all the default workloads of gitops operator
-	InfraNodeEnabled bool `json:"infraNodeEnabled,omitempty"`
+	RunOnInfra bool `json:"runOnInfra,omitempty"`
 	// Tolerations allow the pods to schedule onto nodes with matching taints
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }

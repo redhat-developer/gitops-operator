@@ -22,3 +22,9 @@ const (
 	// DisableDefaultInstallEnvVar is an env variable to disable the default instance
 	DisableDefaultInstallEnvVar = "DISABLE_DEFAULT_ARGOCD_INSTANCE"
 )
+
+func InfraNodeSelector() map[string]string {
+	return map[string]string{
+		"node-role.kubernetes.io/infra": "",
+	}
+}

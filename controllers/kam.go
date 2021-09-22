@@ -28,6 +28,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -179,10 +180,8 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	if cr.Spec.InfraNodeEnabled {
-		deploymentObj.Spec.Template.Spec.NodeSelector = map[string]string{
-			"node-role.kubernetes.io/infra": "",
-		}
+	if cr.Spec.RunOnInfra {
+		deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
 	}
 	if len(cr.Spec.Tolerations) > 0 {
 		deploymentObj.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
