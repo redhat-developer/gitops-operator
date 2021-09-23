@@ -90,6 +90,7 @@ rules:
   - list
   - get
   - create
+  - delete
   - watch
 - apiGroups:
   - route.openshift.io
