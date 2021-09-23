@@ -353,6 +353,7 @@ spec:
           - list
           - get
           - create
+          - delete
           - watch
         - apiGroups:
           - oauth.openshift.io
