@@ -322,6 +322,22 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		return reconcile.Result{}, err
 	}
 
+	//to add infra nodeselector to default argocd pods
+	if instance.Spec.RunOnInfra {
+		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+			NodeSelector: common.InfraNodeSelector(),
+		}
+	}
+	if len(instance.Spec.Tolerations) > 0 {
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				Tolerations: instance.Spec.Tolerations,
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.Tolerations = instance.Spec.Tolerations
+		}
+	}
+
 	// Get or create ArgoCD instance in default namespace
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
@@ -377,6 +393,11 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		if existingArgoCD.Spec.Server.Resources == nil {
 			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
+			changed = true
+		}
+
+		if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 			changed = true
 		}
 
@@ -482,7 +503,12 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
 		}
-
+		if instance.Spec.RunOnInfra {
+			deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
+		}
+		if len(instance.Spec.Tolerations) > 0 {
+			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
+		}
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}
 		if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace},
@@ -514,6 +540,14 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
+				found.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
+				found.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
 				changed = true
 			}
 

@@ -443,6 +443,40 @@ func TestGetBackendNamespace(t *testing.T) {
 	})
 }
 
+func TestReconcile_InfrastructureNode(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			RunOnInfra:  true,
+			Tolerations: deploymentDefaultTolerations(),
+		},
+	}
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, common.InfraNodeSelector())
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
+
+	argoCD := &argoapp.ArgoCD{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		argoCD)
+	assertNoError(t, err)
+	assert.DeepEqual(t, argoCD.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
+	assert.DeepEqual(t, argoCD.Spec.NodePlacement.Tolerations, deploymentDefaultTolerations())
+
+}
+
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
@@ -472,4 +506,21 @@ func assertNoError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func deploymentDefaultTolerations() []corev1.Toleration {
+	toleration := []corev1.Toleration{
+		{
+			Key:    "test_key1",
+			Value:  "test_value1",
+			Effect: corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "test_key2",
+			Value:    "test_value2",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+	}
+	return toleration
 }

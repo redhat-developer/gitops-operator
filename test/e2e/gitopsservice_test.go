@@ -41,6 +41,8 @@ import (
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	gitopscommon "github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 	appsv1 "k8s.io/api/apps/v1"
@@ -842,6 +844,57 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			templateInstance := &templatev1.TemplateInstance{}
 			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
+		})
+	})
+
+	Context("Verify Configuring Infrastructure NodeSelector ", func() {
+		name := "cluster"
+		gitopsService := &pipelinesv1alpha1.GitopsService{}
+
+		It("Add runOnInfra spec to gitopsService CR", func() {
+			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
+			gitopsService.Spec.RunOnInfra = true
+			err = k8sClient.Update(context.TODO(), gitopsService)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() error {
+				deployment := &appsv1.Deployment{}
+				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(gitopscommon.InfraNodeSelector()))
+
+				argocd := &argoapp.ArgoCD{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(argocd.Spec.NodePlacement.NodeSelector).To(Equal(gitopscommon.InfraNodeSelector()))
+				return nil
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+
+		})
+		It("Remove runOnInfra spec from gitopsService CR", func() {
+			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
+			gitopsService.Spec.RunOnInfra = false
+			err = k8sClient.Update(context.TODO(), gitopsService)
+			Expect(err).NotTo(HaveOccurred())
+
+			Eventually(func() error {
+				deployment := &appsv1.Deployment{}
+				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
+				Expect(err).NotTo(HaveOccurred())
+				if len(deployment.Spec.Template.Spec.NodeSelector) > 0 {
+					return fmt.Errorf("expected no nodeSelector in deployment")
+				}
+
+				argocd := &argoapp.ArgoCD{}
+				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
+				Expect(err).NotTo(HaveOccurred())
+				if argocd.Spec.NodePlacement != nil {
+					return fmt.Errorf("expected no NodePlacement in argocd ")
+				}
+
+				return nil
+			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+
 		})
 	})
 
