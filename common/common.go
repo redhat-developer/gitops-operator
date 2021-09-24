@@ -23,7 +23,7 @@ const (
 	DisableDefaultInstallEnvVar = "DISABLE_DEFAULT_ARGOCD_INSTANCE"
 )
 
-// InfraNodeSelector is openshift label for infrastructure nodes
+// InfraNodeSelector returns openshift label for infrastructure nodes
 func InfraNodeSelector() map[string]string {
 	return map[string]string{
 		"node-role.kubernetes.io/infra": "",
