@@ -59,6 +59,7 @@ rules:
   - resourcequotas
   verbs:
   - create
+  - delete
   - get
   - list
   - watch
