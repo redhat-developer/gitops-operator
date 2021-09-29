@@ -78,6 +78,11 @@ var _ = Describe("GitOpsServiceController", func() {
 			// update verifyTLS = false to ensure operator(when run locally) can create RHSSO resources.
 			argoCDInstance.Spec.DisableAdmin = true
 			insecure := false
+			// remove dex configuration, only one SSO is supported.
+			argoCDInstance.Spec.Dex = argoapp.ArgoCDDexSpec{
+				Config:         "",
+				OpenShiftOAuth: false,
+			}
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
 				Provider:  "keycloak",
 				VerifyTLS: &insecure,
@@ -91,6 +96,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				}
 				updatedInstance.Spec.DisableAdmin = argoCDInstance.Spec.DisableAdmin
 				updatedInstance.Spec.SSO = argoCDInstance.Spec.SSO
+				updatedInstance.Spec.Dex = argoCDInstance.Spec.Dex
 				return k8sClient.Update(context.TODO(), updatedInstance)
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -839,7 +845,15 @@ var _ = Describe("GitOpsServiceController", func() {
 				Provider:  defaultKeycloakIdentifier,
 				VerifyTLS: &insecure,
 			}
-			err := k8sClient.Update(context.TODO(), argocd)
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				updatedInstance := &argoapp.ArgoCD{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, updatedInstance)
+				if err != nil {
+					return err
+				}
+				updatedInstance.Spec.SSO = argocd.Spec.SSO
+				return k8sClient.Update(context.TODO(), updatedInstance)
+			})
 			Expect(err).NotTo(HaveOccurred())
 
 			templateInstance := &templatev1.TemplateInstance{}
