@@ -93,11 +93,11 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&pipelinesv1alpha1.GitopsService{}).
-		Owns(&rbacv1.ClusterRoleBinding{}, builder.WithPredicates(pred)).
-		Owns(&rbacv1.ClusterRole{}, builder.WithPredicates(pred)).
-		Owns(&corev1.ServiceAccount{}, builder.WithPredicates(pred)).
-		Owns(&corev1.ConfigMap{}, builder.WithPredicates(pred)).
+		For(&pipelinesv1alpha1.GitopsService{}, builder.WithPredicates(pred)).
+		Owns(&rbacv1.ClusterRoleBinding{}).
+		Owns(&rbacv1.ClusterRole{}).
+		Owns(&corev1.ServiceAccount{}).
+		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
 		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
 		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
