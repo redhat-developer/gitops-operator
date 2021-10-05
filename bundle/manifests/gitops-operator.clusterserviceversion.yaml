@@ -283,6 +283,18 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - oauthclients
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - pods
           verbs:
           - get
