@@ -1,0 +1,2 @@
+- op: remove
+  path: "/metadata/annotations/operators.operatorframework.io~1internal-objects"

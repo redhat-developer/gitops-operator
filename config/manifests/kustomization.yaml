@@ -39,3 +39,9 @@ patchesJson6902:
     kind: ClusterServiceVersion
     name: gitops-operator.v0.0.3
   path: patches/description.yaml
+- target:
+    group: operators.coreos.com
+    version: v1alpha1
+    kind: ClusterServiceVersion
+    name: gitops-operator.v0.0.3
+  path: patches/annotation.yaml
