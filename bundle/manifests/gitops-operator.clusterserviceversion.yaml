@@ -133,7 +133,6 @@ metadata:
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
-    operators.operatorframework.io/internal-objects: '["gitopsservices.pipelines.openshift.io"]'
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
   name: gitops-operator.v0.0.3
   namespace: placeholder
