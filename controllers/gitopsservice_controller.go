@@ -153,7 +153,7 @@ type ReconcileGitopsService struct {
 
 //+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=*
 //+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=*
-//+kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=*
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=*
 
 //+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
 
