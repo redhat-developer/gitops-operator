@@ -193,7 +193,6 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 		Spec: argoapp.ArgoCDSpec{
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
-			Dex:                getArgoDexSpec(),
 			Grafana:            getArgoGrafanaSpec(),
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),
@@ -201,6 +200,9 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			Server:             getArgoServerSpec(),
 			RBAC:               getDefaultRBAC(),
 			ResourceExclusions: string(b),
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Dex: getArgoDexSpec(),
+			},
 		},
 	}, nil
 }
