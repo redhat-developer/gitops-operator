@@ -201,7 +201,8 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 			RBAC:               getDefaultRBAC(),
 			ResourceExclusions: string(b),
 			SSO: &argoapp.ArgoCDSSOSpec{
-				Dex: getArgoDexSpec(),
+				Provider: argoapp.SSOProviderTypeDex,
+				Dex:      getArgoDexSpec(),
 			},
 		},
 	}, nil

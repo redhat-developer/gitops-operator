@@ -21,7 +21,7 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-operator => /home/jrao/go/src/github.com/argoproj-labs/argocd-operator
+	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20211118154739-a2a0422f3a02
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

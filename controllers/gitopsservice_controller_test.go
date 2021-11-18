@@ -370,7 +370,8 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 
 	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.SSO.Dex.Resources != nil)
+	// assert.Check(t, updateArgoCD.Spec.SSO.Dex.Resources != nil)
+	// Commenting this out since we should only set dex resources if SSO is enabled and set to dex
 	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
