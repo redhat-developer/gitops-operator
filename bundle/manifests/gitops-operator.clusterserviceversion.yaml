@@ -134,7 +134,7 @@ metadata:
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: gitops-operator.v1.4.0-2
+  name: gitops-operator.v1.4.0-3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -279,6 +279,18 @@ spec:
           - services/finalizers
           verbs:
           - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - oauthclients
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
@@ -564,7 +576,7 @@ spec:
                   value: gitops-operator
                 - name: DISABLE_DEX
                   value: "false"
-                image: quay.io/jrao/gitops-backend-operator:v1.4.0-2
+                image: quay.io/jrao/gitops-backend-operator:v1.4.0-3
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -645,4 +657,4 @@ spec:
   provider:
     name: Red Hat Inc
   replaces: gitops-operator.v0.0.2
-  version: 1.4.0-2
+  version: 1.4.0-3
