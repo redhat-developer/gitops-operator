@@ -733,14 +733,6 @@ github.com/integr8ly/grafana-operator/v3 v3.6.0/go.mod h1:pWWg9RerCkkwmTcmaygmfh
 github.com/ishidawataru/sctp v0.0.0-20190723014705-7c296d48a2b5/go.mod h1:DM4VvS+hD/kDi1U1QsX2fnZowwBhqD0Dk3bRPKF/Oc8=
 github.com/jackc/fake v0.0.0-20150926172116-812a484cc733/go.mod h1:WrMFNQdiFJ80sQsxDoMokWK1W5TQtxBFNpzWTD84ibQ=
 github.com/jackc/pgx v3.2.0+incompatible/go.mod h1:0ZGrqGqkRlliWnWB4zKnWtjbSWbGkVEFm4TeybAXq+I=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211118154739-a2a0422f3a02 h1:kCYOeavijgDniU44ye993LtUZNK6SVVoL6AVcjfPo+o=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211118154739-a2a0422f3a02/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211129145421-18d776b55e89 h1:gTHHig0YAR4JVQxz8c2jGwGL0MQ+ISHpIzYuAKiZg38=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211129145421-18d776b55e89/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211129164943-1e428f07f5c1 h1:HwrL11teYl73Z3kMtEgMg8oSxlNyVPXVdWTwRU3SbjU=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211129164943-1e428f07f5c1/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211130182515-2fafb60a2c07 h1:Ru7qOIZ7mqxXornkElRzgYXo+8H5zDtR+lHXH32F534=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20211130182515-2fafb60a2c07/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
 github.com/jaideepr97/argocd-operator v0.0.16-0.20211130200516-1b128c52f178 h1:DJFR0ZOyt8B4LnZPgwURU/oKsTtl1JvRwPl4elMeGcg=
 github.com/jaideepr97/argocd-operator v0.0.16-0.20211130200516-1b128c52f178/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=

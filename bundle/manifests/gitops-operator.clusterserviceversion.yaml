@@ -169,13 +169,13 @@ spec:
         version: v1
       - kind: CronJob
         name: ""
-        version: v1beta1
+        version: v1
       - kind: Deployment
         name: ""
         version: v1
       - kind: Ingress
         name: ""
-        version: v1beta1
+        version: v1
       - kind: Job
         name: ""
         version: v1
@@ -442,6 +442,18 @@ spec:
           - ingresses
           verbs:
           - '*'
+        - apiGroups:
+          - oauth.openshift.io
+          resources:
+          - oauthclients
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - operators.coreos.com
           resources:
