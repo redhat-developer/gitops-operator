@@ -42,7 +42,7 @@ spec:
         version: v1
       - kind: Ingress
         name: ""
-        version: v1beta1
+        version: v1
       - kind: Job
         name: ""
         version: v1
