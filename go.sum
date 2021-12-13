@@ -137,8 +137,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20210928170708-aa791aacb5fe h1:jwrOc5t36CaxjwXq4MYQZCrl+5DhnzDvM+Jj6T/pX6s=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20210928170708-aa791aacb5fe/go.mod h1:giR01w2SS5Yci3qigAPPshEiHCk4QhBZPerSED0xrAU=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20211202043934-0eacaa512be8 h1:Wwd/jSU2yQ9m2vhOQ5+OadnzYUp7umru2M1pXqsQBiY=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20211202043934-0eacaa512be8/go.mod h1:7MvsUMh5eintTQF8HpS/64hH7BU87lVyFuYIEc+ydd8=
 github.com/argoproj/argo-cd v1.8.7 h1:CkIu8p/gcTY/fOZWM2tHuSCIAV2HggXjJftrT1IIT3k=
 github.com/argoproj/argo-cd v1.8.7/go.mod h1:tqFZW5Lr9KBCDsvOaE5Fh8M1eJ1ThvR58pyyLv8Zqvs=
 github.com/argoproj/gitops-engine v0.2.2/go.mod h1:OxXp8YaT73rw9gEBnGBWg55af80nkV/uIjWCbJu1Nw0=
@@ -1661,8 +1661,8 @@ golang.org/x/tools v0.0.0-20200619180055-7c47624df98f/go.mod h1:EkVYQZoAsY45+roY
 golang.org/x/tools v0.0.0-20201224043029-2b0845dc783e/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
 golang.org/x/tools v0.0.0-20210106214847-113979e3529a/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
 golang.org/x/tools v0.1.0/go.mod h1:xkSsbof2nBLbhDlRMhhhyNLN/zl3eTqcnHD5viDpcZ0=
-golang.org/x/tools v0.1.2 h1:kRBLX7v7Af8W7Gdbbc908OJcdgtK8bOz9Uaj8/F1ACA=
-golang.org/x/tools v0.1.2/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+golang.org/x/tools v0.1.5 h1:ouewzE6p+/VEB31YYnTbEJdi8pFqKp4P4n85vwo3DHA=
+golang.org/x/tools v0.1.5/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
 golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=

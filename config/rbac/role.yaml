@@ -192,6 +192,18 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - oauth.openshift.io
+  resources:
+  - oauthclients
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - operators.coreos.com
   resources:
   - clusterserviceversions
