@@ -134,6 +134,8 @@ metadata:
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    repository: https://github.com/redhat-developer/gitops-operator
+    support: Red Hat
   name: gitops-operator.v0.0.3
   namespace: placeholder
 spec:
