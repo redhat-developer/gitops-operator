@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20211202043934-0eacaa512be8
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20211221113827-6de5fc2585ac
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v0.4.0
 	github.com/google/go-cmp v0.5.6
@@ -21,7 +21,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20211208170650-ffc6e978fc7b
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1

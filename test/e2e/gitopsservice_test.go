@@ -84,8 +84,10 @@ var _ = Describe("GitOpsServiceController", func() {
 				OpenShiftOAuth: false,
 			}
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  "keycloak",
-				VerifyTLS: &insecure,
+				Provider: "keycloak",
+				Keycloak: argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -842,8 +844,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Add SSO field back and verify reconcilation", func() {
 			insecure := false
 			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  defaultKeycloakIdentifier,
-				VerifyTLS: &insecure,
+				Provider: defaultKeycloakIdentifier,
+				Keycloak: argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				updatedInstance := &argoapp.ArgoCD{}

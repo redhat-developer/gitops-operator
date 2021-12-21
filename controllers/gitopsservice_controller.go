@@ -367,9 +367,17 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if existingArgoCD.Spec.SSO != nil && existingArgoCD.Spec.SSO.Provider == argoapp.SSOProviderTypeDex && existingArgoCD.Spec.SSO.Dex.Resources == nil {
-			existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
-			changed = true
+		if existingArgoCD.Spec.SSO != nil {
+			existingKeycloak := &existingArgoCD.Spec.SSO.Keycloak
+			if existingKeycloak != nil && existingKeycloak.Resources == nil {
+				existingArgoCD.Spec.SSO.Keycloak.Resources = defaultArgoCDInstance.Spec.SSO.Keycloak.Resources
+				changed = true
+			}
+			existingDex := &existingArgoCD.Spec.SSO.Dex
+			if existingDex != nil && existingDex.Resources == nil {
+				existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+				changed = true
+			}
 		}
 
 		if existingArgoCD.Spec.Grafana.Resources == nil {
