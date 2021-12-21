@@ -79,13 +79,15 @@ var _ = Describe("GitOpsServiceController", func() {
 			argoCDInstance.Spec.DisableAdmin = true
 			insecure := false
 			// remove dex configuration, only one SSO is supported.
-			argoCDInstance.Spec.Dex = argoapp.ArgoCDDexSpec{
+			argoCDInstance.Spec.SSO.Dex = argoapp.ArgoCDDexSpec{
 				Config:         "",
 				OpenShiftOAuth: false,
 			}
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  "keycloak",
-				VerifyTLS: &insecure,
+				Provider: "keycloak",
+				Keycloak: argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -96,7 +98,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				}
 				updatedInstance.Spec.DisableAdmin = argoCDInstance.Spec.DisableAdmin
 				updatedInstance.Spec.SSO = argoCDInstance.Spec.SSO
-				updatedInstance.Spec.Dex = argoCDInstance.Spec.Dex
+				updatedInstance.Spec.SSO.Dex = argoCDInstance.Spec.SSO.Dex
 				return k8sClient.Update(context.TODO(), updatedInstance)
 			})
 			Expect(err).NotTo(HaveOccurred())
@@ -842,8 +844,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Add SSO field back and verify reconcilation", func() {
 			insecure := false
 			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  defaultKeycloakIdentifier,
-				VerifyTLS: &insecure,
+				Provider: defaultKeycloakIdentifier,
+				Keycloak: argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				updatedInstance := &argoapp.ArgoCD{}

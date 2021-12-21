@@ -62,7 +62,7 @@ func TestArgoCD(t *testing.T) {
 			v1.ResourceCPU:    resourcev1.MustParse("500m"),
 		},
 	}
-	assert.DeepEqual(t, testArgoCD.Spec.Dex.Resources, testDexResources)
+	assert.DeepEqual(t, testArgoCD.Spec.SSO.Dex.Resources, testDexResources)
 
 	testGrafanaResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
@@ -130,7 +130,7 @@ func TestDexConfiguration(t *testing.T) {
 	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
 
 	// Verify Dex OpenShift Configuration
-	assert.Equal(t, testArgoCD.Spec.Dex.OpenShiftOAuth, true)
+	assert.Equal(t, testArgoCD.Spec.SSO.Dex.OpenShiftOAuth, true)
 
 	// Verify the default RBAC
 	testAdminPolicy := "g, system:cluster-admins, role:admin"
