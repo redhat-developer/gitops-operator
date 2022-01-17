@@ -16,7 +16,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   displayName: 'Gitops Service by Red Hat'
-  image: 'quay.io/redhat-developer/gitops-backend-operator-index:v0.0.1'
+  image: 'quay.io/<quay-username>/gitops-backend-operator-index:v0.0.1'
   publisher: 'Red Hat Developer'
   sourceType: grpc
 ```
@@ -62,7 +62,7 @@ make test-e2e
 This operator currently deploys the following payload:
 
 ```
-quay.io/redhat-developer/gitops-backend:v0.0.1
+quay.io/<quay-username>/gitops-backend:v0.0.1
 ```
 
 If that's all that you are changing, the following steps are not needed in development
@@ -71,7 +71,7 @@ mode. You could update your image "payload" and re-install the operator.
 Set the base image and version for building operator, bundle and index images.
 
 ```
-export IMAGE=quay.io/redhat-developer/gitops-backend-operator VERSION=0.0.4
+export IMAGE=quay.io/<quay-username>/gitops-backend-operator VERSION=0.0.4
 ```
 
 1. Build and push the operator image.
