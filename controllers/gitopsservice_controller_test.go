@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
-	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -124,10 +123,6 @@ func TestReconcileDisableDefault(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	// backend Route SHOULD be created
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &routev1.Route{})
-	assertNoError(t, err)
-
 	// backend Deployment SHOULD be created
 	deploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
@@ -175,10 +170,6 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
-	// backend Route SHOULD still exist
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &routev1.Route{})
-	assertNoError(t, err)
-
 	// backend Deployment SHOULD still exist
 	deploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
@@ -217,9 +208,6 @@ func TestReconcile(t *testing.T) {
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &corev1.Service{})
-	assertNoError(t, err)
-
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &routev1.Route{})
 	assertNoError(t, err)
 
 	// Check if argocd instance is created in openshift-gitops namespace
@@ -276,9 +264,6 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 	assertNoError(t, err)
 
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: deprecatedServiceNamespace}, &corev1.Service{})
-	assertNoError(t, err)
-
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: deprecatedServiceNamespace}, &routev1.Route{})
 	assertNoError(t, err)
 
 	// Check if argocd instance is created in openshift-gitops namespace
@@ -480,7 +465,6 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
-	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
 }
