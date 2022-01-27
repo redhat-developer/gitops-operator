@@ -587,31 +587,6 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		}
 	}
 
-	// Create backend Route
-	{
-		routeRef := newBackendRoute(gitopsserviceNamespacedName)
-		// Set GitopsService instance as the owner and controller
-		if err := controllerutil.SetControllerReference(instance, routeRef, r.Scheme); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		existingRoute := &routev1.Route{}
-
-		if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace},
-			existingRoute); err != nil {
-
-			if errors.IsNotFound(err) {
-				reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
-				err = r.Client.Create(context.TODO(), routeRef)
-				if err != nil {
-					return reconcile.Result{}, err
-				}
-			} else {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
 	return reconcile.Result{}, nil
 }
 
@@ -744,29 +719,6 @@ func newBackendService(ns types.NamespacedName) *corev1.Service {
 		Spec: spec,
 	}
 	return svc
-}
-
-func newBackendRoute(ns types.NamespacedName) *routev1.Route {
-	routeSpec := routev1.RouteSpec{
-		To: routev1.RouteTargetReference{
-			Kind: "Service",
-			Name: ns.Name,
-		},
-		Port: &routev1.RoutePort{
-			TargetPort: intstr.IntOrString{IntVal: port},
-		},
-		TLS: &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationReencrypt,
-			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyAllow,
-		},
-	}
-
-	routeObj := &routev1.Route{
-		ObjectMeta: objectMeta(ns.Name, ns.Namespace),
-		Spec:       routeSpec,
-	}
-
-	return routeObj
 }
 
 func newNamespace(ns string) *corev1.Namespace {

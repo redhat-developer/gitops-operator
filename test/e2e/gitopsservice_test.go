@@ -118,10 +118,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &corev1.Service{})
 		})
 
-		It("Backend route is created", func() {
-			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &routev1.Route{})
-		})
-
 		It("RBAC for backend service is created", func() {
 			prefixedName := fmt.Sprintf("%s-%s", "gitops-service", name)
 			checkIfPresent(types.NamespacedName{Name: prefixedName}, &rbacv1.ClusterRole{})

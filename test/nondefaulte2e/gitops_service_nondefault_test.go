@@ -58,7 +58,6 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 				{
 					Resource: &routev1.Route{},
 					ExpectedResources: []string{
-						"cluster",
 						"kam",
 					},
 				},
