@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	defaultAdminPolicy = "g, system:cluster-admins, role:admin"
+	defaultAdminPolicy = "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
 	defaultScope       = "[groups]"
 )
 
