@@ -387,6 +387,7 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 							Type:   intstr.String,
 							StrVal: expr,
 						},
+						For: "5m",
 						Labels: map[string]string{
 							"severity": "warning",
 						},
