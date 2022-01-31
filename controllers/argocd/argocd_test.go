@@ -133,7 +133,7 @@ func TestDexConfiguration(t *testing.T) {
 	assert.Equal(t, testArgoCD.Spec.Dex.OpenShiftOAuth, true)
 
 	// Verify the default RBAC
-	testAdminPolicy := "g, system:cluster-admins, role:admin"
+	testAdminPolicy := "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
 	testDefaultScope := "[groups]"
 
 	testRBAC := argoapp.ArgoCDRBACSpec{
