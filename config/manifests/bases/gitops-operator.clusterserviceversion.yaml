@@ -2,10 +2,11 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    capabilities: Basic Install
+    capabilities: Deep Insights
     containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
+    operators.openshift.io/infrastructure-features: '["disconnected"]'
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
   name: gitops-operator.v0.0.3
