@@ -12,6 +12,7 @@ require (
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/rakyll/statik v0.1.7
+	github.com/stretchr/testify v1.7.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
@@ -21,6 +22,7 @@ require (
 )
 
 replace (
+	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20220207153734-3c9644210a3e
 	k8s.io/api => k8s.io/api v0.22.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.4-rc.0

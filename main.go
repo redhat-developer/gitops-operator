@@ -31,6 +31,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
 	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -47,10 +48,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	_ "github.com/argoproj-labs/argocd-operator/controllers/openshift"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
+	"github.com/redhat-developer/gitops-operator/controllers/openshift"
+	_ "github.com/redhat-developer/gitops-operator/controllers/openshift"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	//+kubebuilder:scaffold:imports
 )
@@ -152,6 +154,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	argocd.Register(openshift.ReconcilerHook)
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

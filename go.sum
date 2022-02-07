@@ -786,6 +786,8 @@ github.com/itchyny/gojq v0.12.3/go.mod h1:mi4PdXSlFllHyByM68JKUrbiArtEdEnNEmjbwx
 github.com/itchyny/timefmt-go v0.1.2/go.mod h1:0osSSCQSASBJMsIZnhAaF1C2fCBTJZXrnj37mG8/c+A=
 github.com/jackc/fake v0.0.0-20150926172116-812a484cc733/go.mod h1:WrMFNQdiFJ80sQsxDoMokWK1W5TQtxBFNpzWTD84ibQ=
 github.com/jackc/pgx v3.2.0+incompatible/go.mod h1:0ZGrqGqkRlliWnWB4zKnWtjbSWbGkVEFm4TeybAXq+I=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20220207153734-3c9644210a3e h1:xoTH5wvzAluLHxg/sb8PeVYLuS6hwOYBRovFkDKZf/Y=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20220207153734-3c9644210a3e/go.mod h1:AeLeUZmGqk9deCZKR9i7dW1GTBkS8v6y4G0JpARpSx8=
 github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99/go.mod h1:1lJo3i6rXxKeerYnT8Nvf0QmHCRC1n8sfWVwXF2Frvo=
 github.com/jessevdk/go-flags v0.0.0-20180331124232-1c38ed7ad0cc/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
