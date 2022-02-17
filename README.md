@@ -101,3 +101,17 @@ make catalog-build catalog-push
 ```
 
 The Index image powers the listing of the Operator on OperatorHub.
+
+
+## Differences between the GitOps Operator and ArgoCD community Operator 
+
+| Feature | GitOps Operator | Argo CD Community Operator |
+| -------- | -------- | -------- |
+| Out of the box Argo CD Instance     |  ✅    | ❌     |
+| Certified by Red Hat     |   ✅     |   ❌   |
+| Red Hat Productized components     |   ✅     |   ❌   |
+| OpenShift Cluster Configuration using Argo CD    |   ✅     |   OpenShift package in community operator is not bundled properly. This can also be considered as a bug.   |
+| Support for Red Hat Single Sign-on     |   ✅     |   Supports Keycloak   | 
+| Support for Redis 6     |  Supports Redis 5     |   ✅    |
+| Support for Argo CD exports     |  ❌     |   ✅    |
+| Support for Kubernetes     |  ❌     |   ✅    |
