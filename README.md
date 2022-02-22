@@ -110,8 +110,10 @@ The Index image powers the listing of the Operator on OperatorHub.
 | Out of the box Argo CD Instance     |  ✅    | ❌     |
 | Certified by Red Hat     |   ✅     |   ❌   |
 | Red Hat Productized components     |   ✅     |   ❌   |
-| OpenShift Cluster Configuration using Argo CD    |   ✅     |   OpenShift package in community operator is not bundled properly. This can also be considered as a bug.   |
+| Environments page for visualizing gitops environments on OpenShift Console   |   ✅     |   ❌   |
+| OpenShift Cluster Configuration using Argo CD    |   ✅     |   ❌  |
 | Support for Red Hat Single Sign-on     |   ✅     |   Supports Keycloak   | 
 | Support for Redis 6     |  Supports Redis 5     |   ✅    |
 | Support for Argo CD exports     |  ❌     |   ✅    |
+| Supports Single Namespace Installation     |  ❌     |   ✅    |
 | Support for Kubernetes     |  ❌     |   ✅    |
