@@ -60,7 +60,7 @@ openshift-gitops-server-5785f7668b-wj57t                  	1/1 	Running   0     
 
 When installing the OpenShift GitOps operator to ROSA/OSD, cluster administrators may wish to exclude users from modifying resources within the *openshift-** namespaces, including the *openshift-gitops* namespace which is the default location for an Argo CD install.
 
-To disable the default ‘ready-to-use’ installation of Argo CD: as an admin, update the existing Subscription Object for Gitops Operator and add `DISABLE_DEFAULT_Argo CD_INSTANCE = true` to the spec.
+To disable the default ‘ready-to-use’ installation of Argo CD: as an admin, update the existing Subscription Object for Gitops Operator and add `DISABLE_DEFAULT_ARGOCD_INSTANCE = true` to the spec.
 
 **Warning**: setting this option to true will cause the existing Argo CD install in the *openshift-gitops* namespace to be deleted. Argo CD instances in other namespaces should not be affected.
 
@@ -93,7 +93,7 @@ For the pre-created Argo CD instance under **_openshift-gitops_** project, you�
 
 * Navigate to the "openshift-gitops" project
 
-* Go to "Secrets" tab and find the secret \<Argo CD-instance-name\>-cluster.   *openshift-gitops-cluster *in this case for the pre-created Argo CD instance.
+* Go to "Secrets" tab and find the secret \<argocd-instance-name\>-cluster.   *openshift-gitops-cluster *in this case for the pre-created Argo CD instance.
 
 
 ![image alt text](assets/image_5.png)
@@ -148,12 +148,12 @@ oc patch subscriptions.operators.coreos.com/openshift-gitops-operator \
 
 User/Admin needs to patch the Argo CD instance/s with the below command.
 
-`oc -n <namespace> patch Argo CD <Argo CD-instance-name> --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
+`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
 
 
 Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
 
-`oc -n openshift-gitops patch Argo CD openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
+`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
 
 
 **Note: Make sure the keycloak pods are up and running and the available replica count is 1. It usually takes 2-3 minutes.**
@@ -213,7 +213,7 @@ Exit oc remote shell to keycloak pod
 
 Go to the OpenShift Console -> Networking -> Routes 
 
-Click on the \<Argo CD-instance\>-server route url to access the Argo CD UI.
+Click on the \<argocd-instance\>-server route url to access the Argo CD UI.
 
 ![image alt text](assets/image_8.png)
 
@@ -255,9 +255,9 @@ By default, any user logged into Argo CD using RHSSO will be a read-only user.
 `policy.default: role:readonly`
 
 
-This behavior can be modified by updating the *Argo CD-rbac-cm*  configmap data section.
+This behavior can be modified by updating the *argocd-rbac-cm*  configmap data section.
 
-`oc edit cm Argo CD-rbac-cm -n x`
+`oc edit cm argocd-rbac-cm -n x`
 
 
 ```
@@ -271,7 +271,7 @@ data:
 
 You can also do this via a patch
 
-`oc patch cm/Argo CD-rbac-cm -n openshift-gitops --type=merge -p '{"data":{"policy.default":"role:admin"}}'`
+`oc patch cm/argocd-rbac-cm -n openshift-gitops --type=merge -p '{"data":{"policy.default":"role:admin"}}'`
 
 **User Level Access**
 
@@ -279,7 +279,7 @@ Admin needs to configure the Argo CD RBAC configmap to manage user level access.
 
 Adding the below configuration(policy.csv) to *Argo CD-rbac-cm*  configmap data section will grant **Admin** access to a user **foo** with email-id **foo@example.com**
 
-`oc edit cm Argo CD-rbac-cm -n <namespace>`
+`oc edit cm argocd-rbac-cm -n <namespace>`
 
 ```
 metadata
@@ -324,7 +324,7 @@ RHSSO container by default gets created with default resource requests and limit
 
 Users can modify the default resource requirements by patching the Argo CD CR as shown below. 
 
-`oc -n openshift-gitops patch Argo CD openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}} }}]'`
+`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}} }}]'`
 
 
 ### **Persistence**
@@ -337,11 +337,11 @@ Note: RHSSO created by this feature **only persists the changes that are made by
 
 You can delete RHSSO and its relevant configuration by removing the SSO field from Argo CD Custom Resource Spec.
 
-`oc -n <namespace> patch Argo CD <Argo CD-instance-name> --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
+`oc -n <namespace> patch argocd <argocd-instance-name> --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
 
 Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
 
-`oc -n openshift-gitops patch Argo CD openshift-gitops --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
+`oc -n openshift-gitops patch argocd openshift-gitops --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
 
 
 Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
@@ -409,7 +409,7 @@ Since we will always want group information, I recommend using the Default categ
 
 ![image alt text](assets/image_19.png)
 
-**Create a group called ****_Argo CDAdmins_****.**
+**Create a group called ****_ArgoCDAdmins_****.**
 
 ![image alt text](assets/image_20.png)
 
@@ -437,17 +437,17 @@ data:
 
 Now we can edit the Argo CD cr and add the oidc configuration to enable our keycloak authentication. You can use 
 
-`$ kubectl edit Argo CD -n openshift-gitops`.
+`$ kubectl edit argocd -n openshift-gitops`.
 
 Your Argo CD cr should look like this:
 
 ```
 apiVersion: argoproj.io/v1alpha1
-kind: Argo CD
+kind: ArgoCD
 metadata:
   creationTimestamp: null
-  name: Argo CD
-  namespace: Argo CD
+  name: argocd
+  namespace: argocd
 spec:
   resourceExclusions: |
     - apiGroups:
@@ -460,7 +460,7 @@ spec:
   oidcConfig: |
     name: OpenShift Single Sign-On
     issuer: https://keycloak.example.com/auth/realms/myrelam
-    clientID: Argo CD
+    clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     requestedScopes: ["openid", "profile", "email", "groups"]
   server:
@@ -472,7 +472,7 @@ spec:
 Make sure that:
 - **issuer** ends with the correct realm (in this example *myrealm*)
 - **clientID** is set to the Client ID you configured in Keycloak 
-- **clientSecret** points to the right key you created in the *Argo CD-secret* Secret 
+- **clientSecret** points to the right key you created in the *argocd-secret* Secret 
 - **requestedScopes** contains the *groups* claim if you didn't add it to the Default scope.
 
 ### Login via Keycloak (RHSSO)
@@ -519,24 +519,24 @@ Now you can log into Argo CD using your Openshift Credentials through Keycloak a
 
 After this point, You must provide relevant access to the user to create applications, projects e.t.c.,. This can be achieved in two steps.
 
-1. Add the logged in user to the keycloak group *Argo CDAdmins* created earlier. 
+1. Add the logged in user to the keycloak group *ArgoCDAdmins* created earlier. 
 
 ![image alt text](assets/image_23.png)
 
-2. Make sure *Argo CDAdmins* group has required permissions in the Argo CD-rbac configmap. Please refer to the Argo CD RBAC documentation [here](https://argoproj.github.io/argo-cd/operator-manual/rbac/).
+2. Make sure *ArgoCDAdmins* group has required permissions in the Argo CD-rbac configmap. Please refer to the Argo CD RBAC documentation [here](https://argoproj.github.io/argo-cd/operator-manual/rbac/).
 
-In this case, I wish to provide admin access to the users in *Argo CDAdmins* group 
+In this case, I wish to provide admin access to the users in *ArgoCDAdmins* group 
 
-`$ kubectl edit configmap Argo CD-rbac-cm -n openshift-gitops`
+`$ kubectl edit configmap argocd-rbac-cm -n openshift-gitops`
 
 ```
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: Argo CD-rbac-cm
+  name: argocd-rbac-cm
 data:
   policy.csv: |
-    g, Argo CDAdmins, role:admin
+    g, ArgoCDAdmins, role:admin
 ```
 
 ### Working with Dex
@@ -582,12 +582,12 @@ spec:
 ```
 
 
-`oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "rbac": { "defaultPolicy": "role:readonly", "scopes": "[groups]", "policy": "g, system:cluster-admins, role:admin\ng, ocp-admins, role:admin" } } }'`
+`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "rbac": { "defaultPolicy": "role:readonly", "scopes": "[groups]", "policy": "g, system:cluster-admins, role:admin\ng, ocp-admins, role:admin" } } }'`
 
 
 #### Restricting dex / openShiftOAuth to only a set of groups
 
-As discussed here [https://cloud.redhat.com/blog/openshift-authentication-integration-with-Argo CD](https://cloud.redhat.com/blog/openshift-authentication-integration-with-Argo CD) you can restrict oauth access to certain groups. Currently it is not possible to restrict the Argo CD to only a set of groups, through `openShiftOAuth: true`, the RFE is tracked upstream [here](https://github.com/argoproj-labs/Argo CD-operator/issues/391). However, you can let the operator generate the oauth client and dex.config and then configure it manually and thus be able to extend it.
+As discussed here [https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd](https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd) you can restrict oauth access to certain groups. Currently it is not possible to restrict the Argo CD to only a set of groups, through `openShiftOAuth: true`, the RFE is tracked upstream [here](https://github.com/argoproj-labs/argocd-operator/issues/391). However, you can let the operator generate the oauth client and dex.config and then configure it manually and thus be able to extend it.
 
 Assuming you have done the above steps to enable `openShiftOAuth: true`: you can use the following commands to:
 
@@ -600,9 +600,9 @@ Assuming you have done the above steps to enable `openShiftOAuth: true`: you can
 This will disable any automatic (and further) full management of the dex / OpenShift integration.
 
 ```
-oidc_config=$(oc get cm -n openshift-gitops Argo CD-cm -o json | jq '.data["dex.config"]' | sed 's@/callback@/callback\\n	groups:\\n  	- cluster-admins@' | sed 's/"//g')
-oc patch Argo CD/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/dex/openShiftOAuth" }]'
-oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"dex\": { \"config\": \"${oidc_config}\" } } }"
+oidc_config=$(oc get cm -n openshift-gitops argocd-cm -o json | jq '.data["dex.config"]' | sed 's@/callback@/callback\\n	groups:\\n  	- cluster-admins@' | sed 's/"//g')
+oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/dex/openShiftOAuth" }]'
+oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"dex\": { \"config\": \"${oidc_config}\" } } }"
 ```
 
 
@@ -649,7 +649,7 @@ The new instance of Argo CD is granted permissions to manage/deploy resources on
 
 * Click on "Create" button to create Argo CD Instance and specify following configuration:
 
-    * Name: /<Argo CD-instance-name/>
+    * Name: /<argocd-instance-name/>
 
     * Server -> Route -> Enable Route = true (creates an external OS Route to access Argo CD server)
 
@@ -665,9 +665,9 @@ A user can enable a number of replicas for the Argo CD-server and Argo CD-repo-s
 
 ```
 apiVersion: argoproj.io/v1alpha1
-kind: Argo CD
+kind: ArgoCD
 metadata:
-  name: example-Argo CD
+  name: example-argocd
   labels:
     example: repo
 spec:
@@ -699,7 +699,7 @@ kind: Namespace
 metadata:
   name: bar // new namespace to be managed by an existing Argo CD instance
   labels:
-    Argo CD.argoproj.io/managed-by: foo // namespace of the Argo CD instance
+    argocd.argoproj.io/managed-by: foo // namespace of the Argo CD instance
 ```
 
 
@@ -727,7 +727,7 @@ This would open up a form, which would guide you through the process of creating
 
     * Subject Namespace: openshift-gitops
 
-    * Subject Name: openshift-gitops-Argo CD-application-controller
+    * Subject Name: openshift-gitops-argocd-application-controller
 
 * Click on **Create** to create the RoleBinding
 
@@ -735,7 +735,7 @@ This would open up a form, which would guide you through the process of creating
 
 #### Deploy resources to a different namespace with custom role
 
-As an administrative user, when you give Argo CD access to a namespace by using the `Argo CD.argoproj.io/managed-by` label, it assumes namespace-admin privileges. These privileges are an issue for administrators who provide namespaces to non-administrators, such as development teams, because the privileges enable non-administrators to modify objects such as network policies.
+As an administrative user, when you give Argo CD access to a namespace by using the `argocd.argoproj.io/managed-by` label, it assumes namespace-admin privileges. These privileges are an issue for administrators who provide namespaces to non-administrators, such as development teams, because the privileges enable non-administrators to modify objects such as network policies.
 
 With this update, administrators can configure a common cluster role for all the managed namespaces. In role bindings for the Argo CD application controller, the Operator refers to the `CONTROLLER_CLUSTER_ROLE` environment variable. In role bindings for the Argo CD server, the Operator refers to the `SERVER_CLUSTER_ROLE` environment variable. If these environment variables contain custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.
 
@@ -745,8 +745,8 @@ With this update, administrators can configure a common cluster role for all the
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: Argo CD-operator
-  namespace: Argo CD
+  name: argocd-operator
+  namespace: argocd
 spec:
   config:
     env:
@@ -762,8 +762,8 @@ spec:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: Argo CD-operator-controller-manager
-  namespace: Argo CD
+  name: argocd-operator-controller-manager
+  namespace: argocd
 spec:
   replicas: 1
   template:
@@ -828,13 +828,13 @@ To manage cluster-config, deploy an ArgoCD instance using the steps provided abo
 ![image alt text](assets/image_30.png)
 
 
-Select the **YAML** tab and edit the Subscription yaml to add ENV, **Argo CD_CLUSTER_CONFIG_NAMESPACES** as defined below.
+Select the **YAML** tab and edit the Subscription yaml to add ENV, **ARGOCD_CLUSTER_CONFIG_NAMESPACES** as defined below.
 
 ```
 spec:
   config:
     env:
-    - name: Argo CD_CLUSTER_CONFIG_NAMESPACES
+    - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
       value: openshift-gitops, <namespace where Argo CD instance is installed>
 ```
 
@@ -978,7 +978,7 @@ roleRef:
   name: secrets-cluster-role # Name of cluster role to be referenced
 subjects:
 - kind: ServiceAccount
-  name: openshift-gitops-Argo CD-application-controller
+  name: openshift-gitops-argocd-application-controller
   namespace: openshift-gitops 
 ```
 
@@ -1005,7 +1005,7 @@ subjects:
 
     * Subject Namespace: openshift-gitops
 
-    * Subject Name: openshift-gitops-Argo CD-application-controller
+    * Subject Name: openshift-gitops-argocd-application-controller
 
 * Click on **Create** to create the Cluster Role Binding
 
@@ -1021,7 +1021,7 @@ For example, the below Argo CD instance deploys the Argo CD workloads such as Ap
 
 ```
 apiVersion: argoproj.io/v1alpha1
-kind: Argo CD
+kind: ArgoCD
 metadata:
   name: example
 spec:
@@ -1083,16 +1083,16 @@ A User can update the resource requirements for all or any of your workloads pos
 
 For example, A user can update the Application Controller **resource requests** of an Argo CD instance named "example" in Argo CD namespace using the below commands.
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/requests/cpu", "value":"1"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/requests/cpu", "value":"1"}]'`
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/requests/memory", "value":"512Mi"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/requests/memory", "value":"512Mi"}]'`
 
 
 Similarly, A user can update the Application Controller **resource limits** of an Argo CD instance named "example" in Argo CD namespace using the below commands.
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/limits/cpu", "value":"4"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/limits/cpu", "value":"4"}]'`
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/limits/memory", "value":"2048Mi"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/limits/memory", "value":"2048Mi"}]'`
 
 **The above commands can be modified to replace application controller with any other OpenShift GitOps workloads such as ApplicationSet Controller, Dex, Redis, Repo Server, Server, Keycloak e.t.c.,.**
 
@@ -1102,15 +1102,15 @@ A User can also remove resource requirements for all or any of your workloads po
 
 For example, A user can remove the Application Controller resource requests an Argo CD instance named "example" in Argo CD namespace using the below command.
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/requests/cpu"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/requests/cpu"}]'`
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/requests/memory"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/requests/memory"}]'`
 
 Similarly, A user can remove the Application Controller resource limits of example Argo CD instance in Argo CD namespace using the below command.
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/limits/cpu"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/limits/cpu"}]'`
 
-`kubectl -n Argo CD patch Argo CD example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/limits/memory"}]'`
+`kubectl -n argocd patch argocd example --type='json' -p='[{"op": "remove", "path": "/spec/controller/resources/limits/memory"}]'`
 
 
 The above commands can be modified to replace controller with any other Argo CD workloads such as ApplicationSet Controller, Dex, Redis, Repo Server, Server and others.
@@ -1179,7 +1179,7 @@ To run simple queries against the Argo CD metrics, you can go to the metrics pag
 
 <table>
   <tr>
-    <td>sum(Argo CD_app_info{dest_namespace=~"default",health_status!=""}) by (health_status)</td>
+    <td>sum(argocd_app_info{dest_namespace=~"default",health_status!=""}) by (health_status)</td>
   </tr>
 </table>
 
