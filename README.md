@@ -103,17 +103,19 @@ make catalog-build catalog-push
 The Index image powers the listing of the Operator on OperatorHub.
 
 
-## Differences between the GitOps Operator and ArgoCD community Operator 
+## GitOps Operator vs [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator)
 
-| Feature | GitOps Operator | Argo CD Community Operator |
+| Features | GitOps Operator | Argo CD Community Operator |
 | -------- | -------- | -------- |
-| Out of the box Argo CD Instance     |  ✅    | ❌     |
-| Certified by Red Hat     |   ✅     |   ❌   |
-| Red Hat Productized components     |   ✅     |   ❌   |
-| Environments page for visualizing gitops environments on OpenShift Console   |   ✅     |   ❌   |
-| OpenShift Cluster Configuration using Argo CD    |   ✅     |   ❌  |
-| Support for Red Hat Single Sign-on     |   ✅     |   Supports Keycloak   | 
-| Support for Redis 6     |  Supports Redis 5     |   ✅    |
-| Support for Argo CD exports     |  ❌     |   ✅    |
-| Supports Single Namespace Installation     |  ❌     |   ✅    |
-| Support for Kubernetes     |  ❌     |   ✅    |
+| Default Cluster Argo CD instance | ✅ | ❌ |
+| Cluster  Argo CD instances in namespaces defined by envrionment variable ARGOCD_CLUSTER_CONFIG_NAMESPACES | openshift-gitops| ❌ |
+| Cluster Configuration RBAC/Policy Rules | All APIGroups,Resources,`get`,`list`,`watch` Verbs appended with `admin` ClusterRoles. Additional APIGroups: `operator.openshift.io`,`user.openshift.io`, `config.openshift.io`, `console.openshift.io`, `machine.openshift.io`, `machineconfig.openshift.io`, `compliance.openshift.io`, `rbac.authorization.k8s.io`, `storage.k8s.io`, etc. | All APIGroups,Resources,Verbs
+| Integrated with OpenShift Console Environments page for visualizing GitOps environments | ✅ | ❌ |
+| Air-gapped environments | OCP | ❌ |
+| Installed tools | helm 3, kustomize | helm 2 and 3, kustomize, ksonnet |
+| Single Sign-on | RHSSO, Dex | Keycloak, Dex |
+| Redis Server | Redis 5, Secure connection is not yet supported | Redis 6 |
+| ArgoCDExport | ❌ | ✅ |
+| Install Modes | All Namepaces | Single, All Namespaces |
+| Support for Kubernetes | ❌ | ✅ |
+| Maintained by | Red Hat | Community  |
