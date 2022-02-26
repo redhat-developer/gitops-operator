@@ -110,7 +110,7 @@ The Index image powers the listing of the Operator on OperatorHub.
 | Default Cluster Argo CD instance | ✅ | ❌ |
 | Cluster  Argo CD instances in namespaces defined by envrionment variable ARGOCD_CLUSTER_CONFIG_NAMESPACES | openshift-gitops| ❌ |
 | Cluster Configuration RBAC/Policy Rules | All APIGroups,Resources,`get`,`list`,`watch` Verbs appended with `admin` ClusterRoles. Additional APIGroups: `operator.openshift.io`,`user.openshift.io`, `config.openshift.io`, `console.openshift.io`, `machine.openshift.io`, `machineconfig.openshift.io`, `compliance.openshift.io`, `rbac.authorization.k8s.io`, `storage.k8s.io`, etc. | All APIGroups,Resources,Verbs
-| Integrated with OpenShift Console Environments page for visualizing GitOps environments | ✅ | ❌ |
+| Integrated with OpenShift Console Environments page for visualizing GitOps environments and applications | ✅ | ❌ |
 | Air-gapped environments | OCP | ❌ |
 | Installed tools | helm 3, kustomize | helm 2 and 3, kustomize, ksonnet |
 | Single Sign-on | RHSSO, Dex | Keycloak, Dex |
