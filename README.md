@@ -116,6 +116,6 @@ The Index image powers the listing of the Operator on OperatorHub.
 | Single Sign-on | RHSSO, Dex | Keycloak, Dex |
 | Redis Server | Redis 5, Secure connection is not yet supported | Redis 6 |
 | ArgoCDExport | ❌ | ✅ |
-| Install Modes | All Namepaces | Single, All Namespaces |
+| Installation Modes | All Namepaces | Single, All Namespaces |
 | Support for Kubernetes | ❌ | ✅ |
 | Maintained by | Red Hat | Community  |
