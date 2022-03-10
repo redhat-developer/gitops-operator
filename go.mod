@@ -11,7 +11,6 @@ require (
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
-	github.com/rakyll/statik v0.1.7
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
@@ -21,6 +20,8 @@ require (
 )
 
 replace (
+	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.22.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.22.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.22.4-rc.0
@@ -37,6 +38,7 @@ replace (
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.22.2
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.22.2
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.22.2
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20210323165736-1a6458611d18
 	k8s.io/kube-proxy => k8s.io/kube-proxy v0.22.2
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.22.2
 	k8s.io/kubectl => k8s.io/kubectl v0.22.2
@@ -45,15 +47,8 @@ replace (
 	k8s.io/metrics => k8s.io/metrics v0.22.2
 	k8s.io/mount-utils => k8s.io/mount-utils v0.22.4-rc.0
 	k8s.io/node-api => k8s.io/node-api v0.21.1
+	k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.22.2
 	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.22.2
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.22.2
 	k8s.io/sample-controller => k8s.io/sample-controller v0.22.2
 )
-
-replace k8s.io/pod-security-admission => k8s.io/pod-security-admission v0.22.2
-
-replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20210323165736-1a6458611d18
-
-replace github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
-
-replace github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
