@@ -20,13 +20,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-	"log"
+
+	// embed the Argo icon during compile time
+	_ "embed"
 
 	"github.com/go-logr/logr"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	"github.com/rakyll/statik/fs"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,9 +38,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	// register the statik zip content data
-	_ "github.com/redhat-developer/gitops-operator/controllers/argocd/statik"
 )
 
 const (
@@ -51,11 +48,15 @@ const (
 	iconFilePath       = "/argo.png"
 )
 
-//go:generate statik --src ./img -f
-var image string
+var (
+	encodedArgoImage string
+
+	//go:embed argocd/img/argo.png
+	argoImage []byte
+)
 
 func init() {
-	image = imageDataURL(base64.StdEncoding.EncodeToString(readStatikImage()))
+	encodedArgoImage = imageDataURL(base64.StdEncoding.EncodeToString(argoImage))
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -158,7 +159,7 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 			Location: console.ApplicationMenu,
 			ApplicationMenu: &console.ApplicationMenuSpec{
 				Section:  "OpenShift GitOps",
-				ImageURL: image,
+				ImageURL: encodedArgoImage,
 			},
 		},
 	}
@@ -174,23 +175,6 @@ func (r *ReconcileArgoCDRoute) deleteConsoleLinkIfPresent(ctx context.Context, l
 	}
 	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLinkName)
 	return r.Client.Delete(ctx, &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLinkName}})
-}
-
-func readStatikImage() []byte {
-	statikFs, err := fs.New()
-	if err != nil {
-		log.Fatalf("Failed to create a new statik filesystem: %v", err)
-	}
-	file, err := statikFs.Open(iconFilePath)
-	if err != nil {
-		log.Fatalf("Failed to open ArgoCD icon file: %v", err)
-	}
-	defer file.Close()
-	data, err := ioutil.ReadAll(file)
-	if err != nil {
-		log.Fatalf("Failed to read ArgoCD icon file: %v", err)
-	}
-	return data
 }
 
 func imageDataURL(data string) string {
