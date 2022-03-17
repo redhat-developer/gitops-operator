@@ -1,5 +1,22 @@
 # OpenShift GitOps Usage Guide
 
+## Table of Contents
+1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
+2. [Configure RHSSO for OpenShift GitOps(>= v1.2)](#configure-rhsso-for-openshift-gitops-v12)  
+3. [Setting up OpenShift Login (=< v1.1.2)](#setting-up-openshift-login--v112)  
+4. [Configuring the groups claim](#configuring-the-groups-claim-)  
+5. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
+6. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
+7. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
+8. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
+9. [Monitoring](#monitoring)  
+10. [Logging](#logging)  
+11. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
+12. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
+13. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
+14. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
+15. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
+
 ## Installing OpenShift GitOps
 
 ### Operator Install GUI
