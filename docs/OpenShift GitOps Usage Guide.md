@@ -23,15 +23,15 @@
 
 To install OpenShift GitOps, find the OpenShift GitOps Operator in OperatorHub by typing "gitops" in the search box and click on the OpenShift GitOps Operator.
 
-![image alt text](assets/image_0.png)
+![image alt text](assets/1.operator_hub_searchbox.png)
 
 The Operator UI guides you through to install the OpenShift GitOps Operator.  You can go ahead with the default installation options (this operator installs to all namespaces on the cluster).
 
-![image alt text](assets/image_1.png)
+![image alt text](assets/2.operator_install_guide.png)
 
 Click the "Install" button to finish the installation.
 
-![image alt text](assets/image_2.png)
+![image alt text](assets/3.operator_install_button.png)
 
 * * *
 
@@ -85,7 +85,7 @@ To disable the default ‘ready-to-use’ installation of Argo CD: as an admin, 
 
     * **Administration -> CustomResourceDefinition -> Subscription -> Instances** and select **"openshift-gitops-operator**"
 
-![image alt text](assets/image_3.png)
+![image alt text](assets/4.subscription_instance.png)
 
 
 Select the **YAML** tab and edit the Subscription
@@ -97,7 +97,7 @@ A ready-to-use Argo CD instance is created by GitOps Operator in the *openshift-
 
 You can launch into this Argo CD instance from the Console Application Launcher.
 
-![image alt text](assets/image_4.png)
+![image alt text](assets/5.console_application_launcher.png)
 
 Alternatively, the DNS hostname of the Argo CD Web Console can be retrieved by the command line.  
 
@@ -113,12 +113,12 @@ For the pre-created Argo CD instance under **_openshift-gitops_** project, you�
 * Go to "Secrets" tab and find the secret \<argocd-instance-name\>-cluster.   *openshift-gitops-cluster *in this case for the pre-created Argo CD instance.
 
 
-![image alt text](assets/image_5.png)
+![image alt text](assets/6.default_instance_password.png)
 
 * Copy the password to the clipboard
 
 
-![image alt text](assets/image_6.png)
+![image alt text](assets/7.copy_secret_to_clipboard.png)
 
 Alternatively, you may fetch the Argo CD instance’s  admin password running the command line.
 
@@ -126,7 +126,7 @@ Alternatively, you may fetch the Argo CD instance’s  admin password running th
 
 And now you can log in to the Argo CD UI as *admin* using the retrieved password.
 
-![image alt text](assets/image_7.png)
+![image alt text](assets/8.argocd_login_ui.png)
 
 ### Create an Argo CD Application
 
@@ -232,19 +232,19 @@ Go to the OpenShift Console -> Networking -> Routes
 
 Click on the \<argocd-instance\>-server route url to access the Argo CD UI.
 
-![image alt text](assets/image_8.png)
+![image alt text](assets/9.gitops_server_route_url.png)
 
 You will be redirected to Argo CD Login Page.
 
 You can see an option to **LOG IN VIA KEYCLOAK** apart from the usual Argo CD login. Click on the button. (Please choose a different browser or incognito window to avoid caching issues).
 
-![image alt text](assets/image_9.png)
+![image alt text](assets/10.login_via_keycloak.png)
 
 You will be redirected to a new page which provides you an option to **Login with OpenShift.**Click on the button to get redirected to the OpenShift Login Page.
 
-![image alt text](assets/image_10.png)
+![image alt text](assets/11.keycloak_login_with_openshift.png)
 
-### ![image alt text](assets/image_11.png)
+### ![image alt text](assets/12.login_page_openshift.png)
 
 Provide the OpenShift login credentials to get redirected to Argo CD. You can look at the user details by clicking on the User Information Tab as shown below.
 
@@ -263,7 +263,7 @@ As an option, You can configure an htpasswd Identity Provider using this [link](
 </table>
 
 
-![image alt text](assets/image_12.png)
+![image alt text](assets/13.argocd_user_info.png)
 
 ### **Configure Argo CD RBAC**
 
@@ -398,37 +398,37 @@ First we need to set up a new client. Start by logging into your keycloak server
 
 Add a new client using Client ID as Argo CD, protocol as openid-connect and Root url as the Argo CD route URL. Refer to the Argo CD Installation section under Setting up a new Argo CD Instance.
 
-![image alt text](assets/image_13.png)
+![image alt text](assets/14.new_keycloak_instance.png)
 
 Configure the client by setting the **Access Type** to *confidential* and set the Valid Redirect URIs to the callback url for your Argo CD hostname. It should be https://{hostname}/auth/callback (you can also leave the default less secure https://{hostname}/* ). You can also set the **Base URL** to */applications*.
 
-![image alt text](assets/image_14.png)
+![image alt text](assets/15.configure_keycloak_instance.png)
 
 Make sure to click **Save**. You should now have a new tab called **Credentials**. You can copy the Secret that we'll use in our Argo CD configuration.
 
-![image alt text](assets/image_15.png)
+![image alt text](assets/16.credentials_setup.png)
 
 ## **Configuring the groups claim**[ ¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#configuring-the-groups-claim)
 
 In order for Argo CD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token. To do this we'll start by creating a new **Client Scope** called *groups*.
 
-![image alt text](assets/image_16.png)
+![image alt text](assets/17.groups_claim_client_scope.png)
 
 Once you've created the client scope you can now add a Token Mapper which will add the groups claim to the token when the client requests the groups scope. Make sure to set the **Name** as well as the **Token Claim Name** to *groups*.
 
-![image alt text](assets/image_17.png)
+![image alt text](assets/18.groups_claim_token_mapper.png)
 
 We can now configure the client to provide the *groups* scope. You can now assign the *groups* scope either to the **Assigned Default Client Scopes** or to the **Assigned Optional Client Scopes**. If you put it in the Optional category you will need to make sure that Argo CD requests the scope in it's OIDC configuration.
 
-![image alt text](assets/image_18.png)
+![image alt text](assets/19.groups_claim_assigning_scope.png)
 
 Since we will always want group information, I recommend using the Default category. Make sure you click **Add selected** and that the *groups* claim is in the correct list on the **right**.
 
-![image alt text](assets/image_19.png)
+![image alt text](assets/20.groups_claim_assign_default_scope.png)
 
 **Create a group called ****_ArgoCDAdmins_****.**
 
-![image alt text](assets/image_20.png)
+![image alt text](assets/21.group_claim_admin_group.png)
 
 ### **Configuring Argo CD OIDC**
 
@@ -494,7 +494,7 @@ Make sure that:
 
 ### Login via Keycloak (RHSSO)
 
-![image alt text](assets/image_21.png)
+![image alt text](assets/22.argocd_login_keycloak_rhsso.png)
 
 ### **Keycloak Identity brokering with OpenShift OAuthClient**
 
@@ -530,7 +530,7 @@ Now you can log into Argo CD using your Openshift Credentials through Keycloak a
 
 
 
-![image alt text](assets/image_22.png)
+![image alt text](assets/23.argocd_ui_keycloak_rhsso.png)
 
 **Configure Groups and Argo CD RBAC**
 
@@ -538,7 +538,7 @@ After this point, You must provide relevant access to the user to create applica
 
 1. Add the logged in user to the keycloak group *ArgoCDAdmins* created earlier. 
 
-![image alt text](assets/image_23.png)
+![image alt text](assets/24.add_user_to_keycloak.png)
 
 2. Make sure *ArgoCDAdmins* group has required permissions in the Argo CD-rbac configmap. Please refer to the Argo CD RBAC documentation [here](https://argoproj.github.io/argo-cd/operator-manual/rbac/).
 
@@ -627,9 +627,9 @@ oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \
 
 ### Download the kam CLI
 
-![image alt text](assets/image_24.png)
+![image alt text](assets/25.download_kam_cli.png)
 
-![image alt text](assets/image_25.png)
+![image alt text](assets/26.kam_download_index.png)
 
 
 ### **Bootstrap a GitOps repository**
@@ -658,11 +658,11 @@ The new instance of Argo CD is granted permissions to manage/deploy resources on
 
 2. Create a new project or select an existing project where you want to install the Argo CD instance.
 
-![image alt text](assets/image_26.png)
+![image alt text](assets/27.create_new_project.png)
 
 * Select Openshift GitOps Operator from installed operators and select Argo CD tab.
 
-![image alt text](assets/image_27.png)
+![image alt text](assets/28.create_new_argocd_instance.png)
 
 * Click on "Create" button to create Argo CD Instance and specify following configuration:
 
@@ -672,7 +672,7 @@ The new instance of Argo CD is granted permissions to manage/deploy resources on
 
 * Open the Argo CD web UI by clicking on the route which is created in the project where the Argo CD is installed.
 
-![image alt text](assets/image_28.png) 
+![image alt text](assets/29.argocd_new_instance_route.png) 
 
 #### **Enable Replicas for Argo CD Server and Repo Server**
 
@@ -748,7 +748,7 @@ This would open up a form, which would guide you through the process of creating
 
 * Click on **Create** to create the RoleBinding
 
-![image alt text](assets/image_29.png)
+![image alt text](assets/30.create_role_binding.png)
 
 #### Deploy resources to a different namespace with custom role
 
@@ -842,7 +842,7 @@ To manage cluster-config, deploy an ArgoCD instance using the steps provided abo
 
 * On Openshift Console, go to * **Administration -> CustomResourceDefinition -> Subscription -> Instances** and select **"openshift-gitops-operator".**
 
-![image alt text](assets/image_30.png)
+![image alt text](assets/4.subscription_instance.png)
 
 
 Select the **YAML** tab and edit the Subscription yaml to add ENV, **ARGOCD_CLUSTER_CONFIG_NAMESPACES** as defined below.
@@ -1184,7 +1184,7 @@ metadata:
 
 ###### Verify that the workloads in  openshift-gitops  namespace are now scheduled on infrastructure nodes, if you click on any pod and see its details, you can see the nodeSelector and tolerations added.
 
-Note - Any manually added nodeSelectors and tolerations in the default Argo CD CR will be overwritten by the toggle and tolerations in gitops service CR.![image alt text](assets/image_31.jpg)
+Note - Any manually added nodeSelectors and tolerations in the default Argo CD CR will be overwritten by the toggle and tolerations in gitops service CR.![image alt text](assets/31.operator_nodeSelector_tolerations.jpg)
 
 ## Monitoring 
 
@@ -1201,7 +1201,7 @@ To run simple queries against the Argo CD metrics, you can go to the metrics pag
 </table>
 
 
-![image alt text](assets/image_32.png)
+![image alt text](assets/32.monitoring.png)
 
 To take full advantage of the metrics provided by Argo CD, you can install Grafana to help analyze and visualize the metrics.  This [blog post](https://www.redhat.com/en/blog/custom-grafana-dashboards-red-hat-openshift-container-platform-4) walks you through deploying a custom Grafana instance to your cluster using the community provided Grafana operator.  *Note that community Operators are operators which have not been vetted or verified by Red Hat. Community Operators should be used with caution because their stability is unknown. Red Hat provides no support for Community Operators.*
 
@@ -1219,11 +1219,11 @@ Steps:
 
 * First, we need to open the Kibana Dashboard. Users can access the Kibana Dashboard by clicking **Logging** under the **Observability** tab. 
 
-![image alt text](assets/image_33.png)
+![image alt text](assets/33.logging.png)
 
-* If this is the first time the Kibana dashboard is launched, an index pattern needs to be created in Kibana. A simple `"*"` index will do for now.![image alt text](assets/image_34.png)
+* If this is the first time the Kibana dashboard is launched, an index pattern needs to be created in Kibana. A simple `"*"` index will do for now.![image alt text](assets/34.kibana_index_pattern.png)
 
-Use **_@timestamp_** as Time Filter Field Name. ![image alt text](assets/image_35.png)
+Use **_@timestamp_** as Time Filter Field Name. ![image alt text](assets/35.kibana_timestamp_field.png)
 
 * After the creation of the Index, select the **_Discover_**  tab on the left hand side. Provide filters to retrieve logs for Argo CD. 
 
@@ -1231,7 +1231,7 @@ Following filters can be created to retrieve logs for OOTB Argo CD instance in *
 
 * Under the search bar, click on "add a filter".
 
-* Provide `kubernetes.namespace_name` as the filter with value `openshift-gitops`. This filter would retrieve logs for all the pods in "openshift-gitops" namespace. ![image alt text](assets/image_36.png)  
+* Provide `kubernetes.namespace_name` as the filter with value `openshift-gitops`. This filter would retrieve logs for all the pods in "openshift-gitops" namespace. ![image alt text](assets/36.kibana_add_filter.png)  
 
 * To retrieve logs for particular pods, additional filters like **kubernetes.pod_name** can be added to the filter list.
 
@@ -1263,14 +1263,14 @@ This enhancement adds support to display the Health status of OpenShift resource
 
 Create an Argo CD Application with the below details.
 
-![image alt text](assets/image_37.png)
+![image alt text](assets/37.jenkins_application_summary.png)
 
 
 Sync the application and wait for the resources to be created. After a while you will notice that the deployment config resource is created. Click on the deployment config resource to get the health and status information.
 
-![image alt text](assets/image_38.png) 
+![image alt text](assets/38.jenkins_app.png) 
 
-![image alt text](assets/image_39.png)
+![image alt text](assets/37.jenkins_application_summary.png)
 
 ## Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)
 
