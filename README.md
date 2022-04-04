@@ -119,3 +119,7 @@ The Index image powers the listing of the Operator on OperatorHub.
 | Installation Modes | All Namepaces | Single, All Namespaces |
 | Support for Kubernetes | ❌ | ✅ |
 | Maintained by | Red Hat | Community  |
+
+## Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
+
+Please follow the steps mentioned in the doc to migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator.
