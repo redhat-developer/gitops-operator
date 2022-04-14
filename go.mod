@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.16
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220325140653-2c781b2a038d
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220413145640-22ba4220a63e
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.0
 	github.com/google/go-cmp v0.5.6
