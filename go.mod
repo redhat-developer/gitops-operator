@@ -11,6 +11,7 @@ require (
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
+	github.com/stretchr/testify v1.7.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.23.0
 	k8s.io/apimachinery v0.23.0
