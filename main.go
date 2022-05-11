@@ -47,10 +47,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	_ "github.com/argoproj-labs/argocd-operator/controllers/openshift"
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
+	"github.com/redhat-developer/gitops-operator/controllers/argocd/openshift"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	//+kubebuilder:scaffold:imports
 )
@@ -151,6 +153,8 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
+
+	argocd.Register(openshift.ReconcilerHook)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
