@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/yaml"
 )
 
 var log = logf.Log.WithName("openshift_controller_argocd")
@@ -22,10 +23,18 @@ var log = logf.Log.WithName("openshift_controller_argocd")
 // func init() {
 // 	argocd.Register(reconcilerHook)
 // }
+type resource struct {
+	APIGroups []string `json:"apiGroups"`
+	Kinds     []string `json:"kinds"`
+	Clusters  []string `json:"clusters"`
+}
 
 func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) error {
 
 	logv := log.WithValues("ArgoCD Namespace", cr.Namespace, "ArgoCD Name", cr.Name)
+
+	cr.Spec.ResourceExclusions = getResourceExclusionsforPipeline()
+
 	switch o := v.(type) {
 	case *rbacv1.ClusterRole:
 		if o.ObjectMeta.Name == argocd.GenerateUniqueResourceName("argocd-application-controller", cr) {
@@ -344,4 +353,21 @@ func initK8sClient() (*kubernetes.Clientset, error) {
 	}
 
 	return kClient, nil
+}
+
+func getResourceExclusionsforPipeline() string {
+	b, err := yaml.Marshal([]resource{
+		{
+			APIGroups: []string{"tekton.dev"},
+			Kinds:     []string{"TaskRun", "PipelineRun"},
+			Clusters:  []string{"*"},
+		},
+	})
+	if err != nil {
+		log.Error(err, "Failed to convert default Resource Exclusions")
+		return ""
+	}
+
+	return string(b)
+
 }
