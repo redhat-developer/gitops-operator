@@ -448,7 +448,6 @@ var _ = Describe("GitOpsServiceController", func() {
 					Resource: &rbacv1.Role{},
 					ExpectedResources: []string{
 						argocdInstance + "-argocd-application-controller",
-						argocdInstance + "-argocd-redis-ha",
 						argocdInstance + "-argocd-server",
 					},
 				},
@@ -456,7 +455,6 @@ var _ = Describe("GitOpsServiceController", func() {
 					Resource: &rbacv1.RoleBinding{},
 					ExpectedResources: []string{
 						argocdInstance + "-argocd-application-controller",
-						argocdInstance + "-argocd-redis-ha",
 						argocdInstance + "-argocd-server",
 					},
 				},
@@ -524,7 +522,6 @@ var _ = Describe("GitOpsServiceController", func() {
 					Resource: &rbacv1.Role{},
 					ExpectedResources: []string{
 						argoCDInstanceName + "-argocd-application-controller",
-						argoCDInstanceName + "-argocd-redis-ha",
 						argoCDInstanceName + "-argocd-server",
 					},
 				},
@@ -532,7 +529,6 @@ var _ = Describe("GitOpsServiceController", func() {
 					Resource: &rbacv1.RoleBinding{},
 					ExpectedResources: []string{
 						argoCDInstanceName + "-argocd-application-controller",
-						argoCDInstanceName + "-argocd-redis-ha",
 						argoCDInstanceName + "-argocd-server",
 					},
 				},
@@ -574,7 +570,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				Resource: &rbacv1.Role{},
 				ExpectedResources: []string{
 					argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
-					argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
 					argocdNonDefaultNamespaceInstanceName + "-argocd-server",
 				},
 			},
@@ -582,7 +577,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				Resource: &rbacv1.RoleBinding{},
 				ExpectedResources: []string{
 					argocdNonDefaultNamespaceInstanceName + "-argocd-application-controller",
-					argocdNonDefaultNamespaceInstanceName + "-argocd-redis-ha",
 					argocdNonDefaultNamespaceInstanceName + "-argocd-server",
 				},
 			},
