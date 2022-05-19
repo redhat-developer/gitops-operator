@@ -9,6 +9,7 @@ export PATH=$PATH:$GOPATH/bin
 
 go env
 go mod vendor
+echo $( which controller-gen)
 if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
     echo "not well formatted sources are found"
     exit 1
