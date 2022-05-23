@@ -157,9 +157,9 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-currentver=$(go version | { read _ _ v _; echo ${v#go}; }) ;\
+currentver=$$(go version | { read _ _ v _; echo $$v; } | sed  's/go//g') ;\
 requiredver="1.18" ;\
-if [ "$(shell printf '%s\n' "${requiredver}" "${currentver}" | sort -V | head -n1)" = "${requiredver}" ]; then GOBIN=$(PROJECT_DIR)/bin go install $(2);  else GOBIN=$(PROJECT_DIR)/bin go get $(2); fi;\
+if [ $$(printf '%s\n' $$requiredver $$currentver | sort -V | head -n1) = $$requiredver ]; then GOBIN=$(PROJECT_DIR)/bin go install $(2);  else  GOBIN=$(PROJECT_DIR)/bin go get $(2); fi;\
 rm -rf $$TMP_DIR ;\
 }
 endef
