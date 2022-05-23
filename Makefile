@@ -77,6 +77,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	ls $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))/bin	
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -157,7 +158,9 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+currentver=$(go version | { read _ _ v _; echo ${v#go}; }) ;\
+requiredver="1.18.1" ;\
+if [ "$(printf '%s\n' "$requiredver" "$currentver" | sort -V | head -n1)" = "$requiredver" ]; then GOBIN=$(PROJECT_DIR)/bin go install $(2);  else GOBIN=$(PROJECT_DIR)/bin go get $(2); fi;\
 rm -rf $$TMP_DIR ;\
 }
 endef
