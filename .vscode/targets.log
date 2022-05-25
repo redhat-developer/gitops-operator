@@ -1,0 +1,569 @@
+make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+# GNU Make 4.2.1
+# Built for x86_64-redhat-linux-gnu
+# Copyright (C) 1988-2016 Free Software Foundation, Inc.
+# License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+# This is free software: you are free to change and redistribute it.
+# There is NO WARRANTY, to the extent permitted by law.
+
+# Make data base, printed on Wed May 25 17:00:09 2022
+
+# Variables
+
+# 'override' directive
+GNUMAKEFLAGS := 
+# automatic
+<D = $(patsubst %/,%,$(dir $<))
+# automatic
+?F = $(notdir $?)
+# environment
+DESKTOP_SESSION = gnome
+# makefile (from 'Makefile', line 57)
+.SHELLFLAGS = -ec
+# environment
+XDG_SESSION_TYPE = x11
+# environment
+VSCODE_LOG_NATIVE = false
+# automatic
+?D = $(patsubst %/,%,$(dir $?))
+# makefile (from 'Makefile', line 152)
+PROJECT_DIR := /home/skatyal/gitops-operator
+# automatic
+@D = $(patsubst %/,%,$(dir $@))
+# environment
+XAUTHORITY = /run/user/4202327/gdm/Xauthority
+# environment
+GDMSESSION = gnome
+# environment
+XMODIFIERS = @im=ibus
+# makefile
+CURDIR := /home/skatyal/gitops-operator
+# makefile (from 'Makefile', line 56)
+SHELL = /usr/bin/env bash -o pipefail
+# environment
+GDM_LANG = en_US.UTF-8
+# environment
+VTE_VERSION = 5204
+# environment
+VSCODE_NLS_CONFIG = {"locale":"en-us","availableLanguages":{},"_languagePackSupport":true}
+# environment
+_ = /usr/bin/make
+# environment
+LESSOPEN = ||/usr/bin/lesspipe.sh %s
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST :=  Makefile
+# automatic
+@F = $(notdir $@)
+# environment
+HISTCONTROL = ignoreboth
+# makefile (from 'Makefile', line 181)
+OPM = ./bin/opm
+# environment
+USERNAME = skatyal
+# environment
+XDG_DATA_DIRS = /home/skatyal/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop
+# environment
+DBUS_SESSION_BUS_ADDRESS = unix:path=/run/user/4202327/bus
+# makefile (from 'Makefile', line 6)
+VERSION = 0.0.3
+# environment
+VSCODE_VERBOSE_LOGGING = true
+# environment
+VSCODE_IPC_HOOK_EXTHOST = /run/user/4202327/vscode-ipc-81c9d293-4ca3-441b-9cd1-9d1b1c8e21e5.sock
+# environment
+VSCODE_CWD = /home/skatyal/gitops-operator
+# environment
+GOPROXY = https://proxy.golang.org,direct
+# environment
+GOMODCACHE = /home/skatyal/go/pkg/mod
+# makefile (from 'Makefile', line 153)
+go-get-tool = @[ -f $(1) ] || { set -e ; TMP_DIR=$$(mktemp -d) ; cd $$TMP_DIR ; go mod init tmp ; echo "Downloading $(2)" ; GOBIN=$(PROJECT_DIR)/bin go get $(2) ; rm -rf $$TMP_DIR ; }
+# environment
+KRB5CCNAME = KCM:
+# default
+MAKE_HOST := x86_64-redhat-linux-gnu
+# environment
+PATH = /home/skatyal/.local/bin:/home/skatyal/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/var/lib/snapd/snap/bin
+# environment
+SESSION_MANAGER = local/unix:@/tmp/.ICE-unix/3684,unix/unix:/tmp/.ICE-unix/3684
+# environment
+XDG_RUNTIME_DIR = /run/user/4202327
+# environment
+GOPATH = /home/skatyal/go
+# environment
+XDG_MENU_PREFIX = gnome-
+# environment
+VSCODE_LOG_STACK = false
+# environment
+ELECTRON_RUN_AS_NODE = 1
+# default
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell archives jobserver output-sync check-symlink load
+# makefile (from 'Makefile', line 143)
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+# environment
+LS_COLORS = rs=0:di=38;5;33:ln=38;5;51:mh=00:pi=40;38;5;11:so=38;5;13:do=38;5;5:bd=48;5;232;38;5;11:cd=48;5;232;38;5;3:or=48;5;232;38;5;9:mi=01;05;37;41:su=48;5;196;38;5;15:sg=48;5;11;38;5;16:ca=48;5;196;38;5;226:tw=48;5;10;38;5;16:ow=48;5;10;38;5;21:st=48;5;21;38;5;15:ex=38;5;40:*.tar=38;5;9:*.tgz=38;5;9:*.arc=38;5;9:*.arj=38;5;9:*.taz=38;5;9:*.lha=38;5;9:*.lz4=38;5;9:*.lzh=38;5;9:*.lzma=38;5;9:*.tlz=38;5;9:*.txz=38;5;9:*.tzo=38;5;9:*.t7z=38;5;9:*.zip=38;5;9:*.z=38;5;9:*.dz=38;5;9:*.gz=38;5;9:*.lrz=38;5;9:*.lz=38;5;9:*.lzo=38;5;9:*.xz=38;5;9:*.zst=38;5;9:*.tzst=38;5;9:*.bz2=38;5;9:*.bz=38;5;9:*.tbz=38;5;9:*.tbz2=38;5;9:*.tz=38;5;9:*.deb=38;5;9:*.rpm=38;5;9:*.jar=38;5;9:*.war=38;5;9:*.ear=38;5;9:*.sar=38;5;9:*.rar=38;5;9:*.alz=38;5;9:*.ace=38;5;9:*.zoo=38;5;9:*.cpio=38;5;9:*.7z=38;5;9:*.rz=38;5;9:*.cab=38;5;9:*.wim=38;5;9:*.swm=38;5;9:*.dwm=38;5;9:*.esd=38;5;9:*.jpg=38;5;13:*.jpeg=38;5;13:*.mjpg=38;5;13:*.mjpeg=38;5;13:*.gif=38;5;13:*.bmp=38;5;13:*.pbm=38;5;13:*.pgm=38;5;13:*.ppm=38;5;13:*.tga=38;5;13:*.xbm=38;5;13:*.xpm=38;5;13:*.tif=38;5;13:*.tiff=38;5;13:*.png=38;5;13:*.svg=38;5;13:*.svgz=38;5;13:*.mng=38;5;13:*.pcx=38;5;13:*.mov=38;5;13:*.mpg=38;5;13:*.mpeg=38;5;13:*.m2v=38;5;13:*.mkv=38;5;13:*.webm=38;5;13:*.ogm=38;5;13:*.mp4=38;5;13:*.m4v=38;5;13:*.mp4v=38;5;13:*.vob=38;5;13:*.qt=38;5;13:*.nuv=38;5;13:*.wmv=38;5;13:*.asf=38;5;13:*.rm=38;5;13:*.rmvb=38;5;13:*.flc=38;5;13:*.avi=38;5;13:*.fli=38;5;13:*.flv=38;5;13:*.gl=38;5;13:*.dl=38;5;13:*.xcf=38;5;13:*.xwd=38;5;13:*.yuv=38;5;13:*.cgm=38;5;13:*.emf=38;5;13:*.ogv=38;5;13:*.ogx=38;5;13:*.aac=38;5;45:*.au=38;5;45:*.flac=38;5;45:*.m4a=38;5;45:*.mid=38;5;45:*.midi=38;5;45:*.mka=38;5;45:*.mp3=38;5;45:*.mpc=38;5;45:*.ogg=38;5;45:*.ra=38;5;45:*.wav=38;5;45:*.oga=38;5;45:*.opus=38;5;45:*.spx=38;5;45:*.xspf=38;5;45:
+# environment
+XDG_SESSION_DESKTOP = gnome
+# environment
+SSH_AUTH_SOCK = /run/user/4202327/keyring/ssh
+# makefile (from 'Makefile', line 202)
+CATALOG_IMG = $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+# automatic
+%F = $(notdir $%)
+# makefile (from 'Makefile', line 48)
+GOBIN = $(shell go env GOPATH)/bin
+# environment
+DISPLAY = :1
+# makefile (from 'Makefile', line 28)
+IMAGE = quay.io/redhat-developer/gitops-backend-operator
+# environment
+VSCODE_PIPE_LOGGING = true
+# makefile (from 'Makefile', line 199)
+BUNDLE_IMGS = $(BUNDLE_IMG)
+# environment
+PWD = /home/skatyal/gitops-operator
+# default
+.LOADED := 
+# environment
+XDG_SEAT = seat0
+# environment
+HISTTIMEFORMAT = %F %T 
+# environment
+ORIGINAL_XDG_CURRENT_DESKTOP = GNOME
+# environment
+VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
+# environment
+HOME = /home/skatyal
+# environment
+VSCODE_CLI = 1
+# environment
+VSCODE_CODE_CACHE_PATH = /home/skatyal/.config/Code/CachedData/da15b6fd3ef856477bf6f4fb29ba1b7af717770d
+# environment
+LOGNAME = skatyal
+# environment
+TERM = xterm-256color
+# environment
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
+# environment
+ELECTRON_NO_ATTACH_CONSOLE = 1
+# environment
+VSCODE_HANDLES_UNCAUGHT_ERRORS = true
+# default
+MAKE_VERSION := 4.2.1
+# environment
+GNOME_DESKTOP_SESSION_ID = this-is-deprecated
+# automatic
+^D = $(patsubst %/,%,$(dir $^))
+# environment
+HOSTNAME = skatyal.remote.csb
+# environment
+XDG_VTNR = 2
+# environment
+MAKELEVEL := 0
+# environment
+SSH_ASKPASS = /usr/libexec/openssh/gnome-ssh-askpass
+# environment
+COLORTERM = truecolor
+# makefile (from 'Makefile', line 44)
+CRD_OPTIONS = "crd:trivialVersions=true,preserveUnknownFields=false"
+# default
+MAKE = $(MAKE_COMMAND)
+# default
+MAKECMDGOALS := all
+# environment
+QT_IM_MODULE = ibus
+# environment
+SHLVL = 4
+# environment
+XDG_SESSION_ID = 2
+# environment
+USER = skatyal
+# makefile
+.DEFAULT_GOAL := all
+# environment
+XDG_CURRENT_DESKTOP = GNOME
+# automatic
+%D = $(patsubst %/,%,$(dir $%))
+# default
+MAKE_COMMAND := make
+# environment
+OLDPWD = /home/skatyal
+# makefile (from 'Makefile', line 147)
+KUSTOMIZE = $(shell pwd)/bin/kustomize
+# default
+.VARIABLES := 
+# automatic
+*F = $(notdir $*)
+# makefile (from 'Makefile', line 42)
+IMG = $(IMAGE):v$(VERSION)
+# makefile (from 'Makefile', line 25)
+BUNDLE_METADATA_OPTS = $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
+# environment
+VSCODE_IPC_HOOK = /run/user/4202327/vscode-f8063356-1.67.1-main.sock
+# makefile
+MAKEFLAGS = pqrR
+# environment
+MFLAGS = -pqrR
+# automatic
+*D = $(patsubst %/,%,$(dir $*))
+# environment
+MAIL = /var/spool/mail/skatyal
+# automatic
++D = $(patsubst %/,%,$(dir $+))
+# environment
+GDK_BACKEND = x11
+# automatic
++F = $(notdir $+)
+# environment
+NO_AT_BRIDGE = 1
+# environment
+define BASH_FUNC_which%%
+() {  ( alias;
+ eval ${which_declare} ) | /usr/bin/which --tty-only --read-alias --read-functions --show-tilde --show-dot "$@"
+}
+endef
+# environment
+TC_LIB_DIR = /usr/lib64/tc
+# 'override' directive
+.SHELLSTATUS := 0
+# default
+MAKEFILES := 
+# automatic
+<F = $(notdir $<)
+# makefile (from 'Makefile', line 39)
+BUNDLE_IMG = $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
+# environment
+LC_ALL = C
+# environment
+GJS_DEBUG_TOPICS = JS ERROR;JS LOG
+# environment
+GNOME_TERMINAL_SCREEN = /org/gnome/Terminal/screen/7a6d739d_2d65_4c26_8b6f_728e2fe8a897
+# automatic
+^F = $(notdir $^)
+# environment
+GNOME_TERMINAL_SERVICE = :1.166
+# default
+SUFFIXES := 
+# environment
+HISTSIZE = 10000
+# environment
+CHROME_DESKTOP = code-url-handler.desktop
+# environment
+WINDOWPATH = 2
+# default
+.INCLUDE_DIRS = /usr/include /usr/local/include /usr/include
+# environment
+GJS_DEBUG_OUTPUT = stderr
+# makefile (from 'Makefile', line 35)
+IMAGE_TAG_BASE = $(IMAGE)
+# default
+.RECIPEPREFIX := 
+# environment
+LANG = C
+# environment
+which_declare = declare -f
+# environment
+VSCODE_PID = 19037
+# variable set hash-table stats:
+# Load=125/1024=12%, Rehash=0, Collisions=19/183=10%
+
+# Pattern-specific Variable Values
+
+# No pattern-specific variable values.
+
+# Directories
+
+# . (device 64770, inode 67897699): 33 files, no impossibilities.
+
+# 33 files, no impossibilities in 1 directories.
+
+# Implicit Rules
+
+# No implicit rules.
+
+# Files
+
+test-gitopsservice-nondefault:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 108):
+	go test -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
+ 
+
+all: build
+#  Command line target.
+#  Implicit rule search has been done.
+#  File does not exist.
+#  File has been updated.
+#  Needs to be updated (-q is set).
+# variable set hash-table stats:
+# Load=0/32=0%, Rehash=0, Collisions=0/10=0%
+
+catalog-push:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 219):
+	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+docker-build: test
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 122):
+	docker build -t ${IMG} .
+
+.PHONY: bundle bundle-build bundle-push opm catalog-build catalog-push
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+opm:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+
+bundle: manifests kustomize
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 167):
+	operator-sdk generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	operator-sdk bundle validate ./bundle
+
+# Not a target:
+.SUFFIXES:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+uninstall: manifests kustomize
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 133):
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+
+# Not a target:
+Makefile:
+#  Implicit rule search has been done.
+#  Last modified 2022-05-25 16:58:38.866959383
+#  File has been updated.
+#  Successfully updated.
+
+test: manifests generate fmt vet
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 111):
+	go test `go list ./... | grep -v test` -coverprofile cover.out
+
+bundle-push:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 178):
+	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+catalog-build: opm
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 214):
+	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+
+build: generate fmt vet
+#  Implicit rule search has not been done.
+#  Last modified 2021-09-02 17:45:09.622465146
+#  File has been updated.
+#  Needs to be updated (-q is set).
+# variable set hash-table stats:
+# Load=0/32=0%, Rehash=0, Collisions=0/10=0%
+#  recipe to execute (from 'Makefile', line 116):
+	go build -o bin/manager main.go
+
+test-metrics:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 99):
+	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
+
+vet:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 89):
+	go vet ./...
+
+test-all: manifests generate fmt vet
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 92):
+	go test -timeout 1h ./... -coverprofile cover.out
+
+test-route:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 102):
+	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
+
+help:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 75):
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+kustomize:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 149):
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+
+generate: controller-gen
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has been updated.
+#  Needs to be updated (-q is set).
+# variable set hash-table stats:
+# Load=0/32=0%, Rehash=0, Collisions=0/10=0%
+#  recipe to execute (from 'Makefile', line 83):
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+undeploy:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 140):
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+manifests: controller-gen
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 80):
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+# Not a target:
+.DEFAULT:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+
+run: manifests generate fmt vet
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 119):
+	go run ./main.go
+
+test-e2e: manifests generate fmt vet
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 95):
+	go test -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
+	go test -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+
+bundle-build:
+#  Phony target (prerequisite of .PHONY).
+#  Implicit rule search has not been done.
+#  File does not exist.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 174):
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+fmt:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 86):
+	go fmt ./...
+
+deploy: manifests kustomize
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 136):
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+# 'override' directive
+controller-gen: .SHELLSTATUS := 0
+controller-gen:
+#  Implicit rule search has not been done.
+#  Implicit/static pattern stem: ''
+#  File does not exist.
+#  File has been updated.
+#  Needs to be updated (-q is set).
+# automatic
+# @ := controller-gen
+# automatic
+# % := 
+# automatic
+# * := 
+# automatic
+# + := 
+# automatic
+# | := 
+# automatic
+# < := 
+# automatic
+# ^ := 
+# automatic
+# ? := 
+# variable set hash-table stats:
+# Load=9/32=28%, Rehash=0, Collisions=4/19=21%
+#  recipe to execute (from 'Makefile', line 145):
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+
+docker-push:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 125):
+	docker push ${IMG}
+
+test-gitopsservice:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 105):
+	go test -timeout 1h ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
+
+install: manifests kustomize
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 130):
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+# files hash-table stats:
+# Load=33/1024=3%, Rehash=0, Collisions=4/97=4%
+# VPATH Search Paths
+
+# No 'vpath' search paths.
+
+# No general ('VPATH' variable) search path.
+
+# strcache buffers: 1 (0) / strings = 64 / storage = 599 B / avg = 9 B
+# current buf: size = 8162 B / used = 599 B / count = 64 / avg = 9 B
+
+# strcache performance: lookups = 151 / hit rate = 57%
+# hash-table stats:
+# Load=64/8192=1%, Rehash=0, Collisions=4/151=3%
+# Finished Make data base on Wed May 25 17:00:09 2022
+
+ 
