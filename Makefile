@@ -92,8 +92,8 @@ test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
 
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	go test -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	go test -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+	go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
+	go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
 
 test-metrics:
 	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
@@ -102,10 +102,10 @@ test-route:
 	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
 
 test-gitopsservice:
-	go test -timeout 1h ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
+	go test -p 1 -timeout 1h ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
 
 test-gitopsservice-nondefault:
-	go test -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
+	go test -p 1 -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
 
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
