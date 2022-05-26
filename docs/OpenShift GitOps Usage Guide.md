@@ -144,6 +144,8 @@ The scope of this section is to describe the steps to Install, Configure(**Setup
 
 **Prerequisite:**
 
+:warning: DISABLE_DEX will be deprecated in OpenShift GitOps v1.9
+
 * Make sure you disable dex 
 
 ```
