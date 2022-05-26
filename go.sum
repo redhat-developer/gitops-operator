@@ -141,8 +141,6 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/argoproj-labs/argocd-operator v0.0.16-0.20220516154109-5954e7f63a96 h1:4xlkAco20HagKl2UFjEIHzqSUpdjIwyeQX26NBXAv38=
 github.com/argoproj-labs/argocd-operator v0.0.16-0.20220516154109-5954e7f63a96/go.mod h1:5/mjJVUzt+8kDZsDftYglO8JSi2/xoqErzK3VoIiZjk=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20220518071638-6046671dc8b5 h1:IKk4c9Ik9kRO4mPAHgYhFZN1fx16qjNCxzuVLQX73Gk=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20220518071638-6046671dc8b5/go.mod h1:5/mjJVUzt+8kDZsDftYglO8JSi2/xoqErzK3VoIiZjk=
 github.com/argoproj/argo-cd/v2 v2.3.3 h1:SE1Cb8MDqP5T2iUtyL9bwpKYIvpGkVUsgzKCAqZZ5Vc=
 github.com/argoproj/argo-cd/v2 v2.3.3/go.mod h1:EuPH0/rLe/FdHGwQ/EVucspMnF3v4qd7da6N6CG+oJA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
