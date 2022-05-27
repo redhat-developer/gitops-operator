@@ -350,7 +350,7 @@ Users can modify the default resource requirements by patching the Argo CD CR as
 
 The main purpose of RHSSO created by the operator is to allow users to login into Argo CD with their OpenShift users. It is not expected and not supported to update and use this RHSSO instance for any other use-cases.
 
-Note: RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
+**Note**:** RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
 
 ### **Uninstall** 
 
@@ -562,7 +562,7 @@ data:
 
 ### Working with Dex
 
-:note: For a fresh install of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
+**NOTE:** For a fresh install of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
 **For upgrades,** We can enable it by updating the Subscription resource for the OpenShift Gitops Operator.
 
@@ -601,7 +601,7 @@ spec:
 
 `oc patch argocd argocd --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
 
-:note: **Until release v1.5.z, Dex was installed by default for all the Argo CD instances created by the operator. However, v1.6.0 onward, users must explicitly set `DISABLE_DEX` to `false` (before upgrading) if they want to continue using Dex through this environment variable. Further, It is now mandatory to specify `.spec.dex` either with OpenShift configuration through `.spec.dex.openShiftOAuth: true` or valid custom configuration supplied through `.spec.dex.config`. Absence of either will result in an error due to failing health checks on Dex**
+**NOTE: Until release v1.5.z, Dex was installed by default for all the Argo CD instances created by the operator. However, v1.6.0 onward, users must explicitly set `DISABLE_DEX` to `false` (before upgrading) if they want to continue using Dex through this environment variable. Further, It is now mandatory to specify `.spec.dex` either with OpenShift configuration through `.spec.dex.openShiftOAuth: true` or valid custom configuration supplied through `.spec.dex.config`. Absence of either will result in an error due to failing health checks on Dex**
 
 #### Uninstalling Dex
 
@@ -609,7 +609,7 @@ spec:
 
 Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider 
 
-:note: 
+**NOTE:** 
     **Dex cannot be uninstalled if it is configured either with OpenShift configuration through `.spec.sso.dex.openShiftOAuth: true` or valid custom configuration supplied through `.spec.sso.dex.config`. Please remove any specified configuration to allow Dex to be uninstalled and its resources to be deleted from the cluster.**
 
 #### Using the DISABLE_DEX environment variable
@@ -624,7 +624,7 @@ spec:
       value: "true"
 ```
 
-:note:
+**NOTE:**
     **Dex cannot be uninstalled if it is configured either with OpenShift configuration through `.spec.dex.openShiftOAuth: true` or valid custom configuration supplied through `.spec.dex.config`. Please remove any specified configuration to allow Dex to be uninstalled and its resources to be deleted from the cluster.**
 
 :warning:
