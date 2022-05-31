@@ -19,23 +19,28 @@ package controllers
 import (
 	"context"
 	"net/url"
+	"os"
 	"testing"
 
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	argocdInstanceName = "openshift-gitops"
+	argocdInstanceName       = "openshift-gitops"
+	disableArgoCDConsoleLink = "DISABLE_DEFAULT_ARGOCD_CONSOLELINK"
 )
 
 var (
@@ -66,13 +71,80 @@ func TestReconcile_create_consolelink(t *testing.T) {
 }
 
 func TestReconcile_delete_consolelink(t *testing.T) {
-	reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
+	logf.SetLogger(argocd.ZapLogger(true))
 
-	err := fakeClient.Delete(context.TODO(), &routev1.Route{ObjectMeta: v1.ObjectMeta{Name: argocdRouteName, Namespace: argocdNS}})
-	assertNoError(t, err)
+	restoreEnvFunc := func() {
+		os.Unsetenv(disableArgoCDConsoleLink)
+	}
 
-	result, err := reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdRouteName))
-	assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
+	tests := []struct {
+		name                   string
+		setEnvVarFunc          func(string)
+		envVar                 string
+		consoleLinkShouldExist bool
+		wantErr                bool
+		Err                    error
+	}{
+		{
+			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to true and consoleLink gets deleted",
+			setEnvVarFunc: func(envVar string) {
+				os.Setenv(disableArgoCDConsoleLink, envVar)
+			},
+			consoleLinkShouldExist: false,
+			envVar:                 "true",
+			wantErr:                false,
+		},
+		{
+			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to false and consoleLink doesn't get deleted",
+			setEnvVarFunc: func(envVar string) {
+				os.Setenv(disableArgoCDConsoleLink, envVar)
+			},
+			envVar:                 "false",
+			consoleLinkShouldExist: true,
+			wantErr:                false,
+		},
+		{
+			name:                   "DISABLE_DEFAULT_ARGOCD_CONSOLELINK isn't set and consoleLink doesn't get deleted",
+			setEnvVarFunc:          nil,
+			envVar:                 "",
+			consoleLinkShouldExist: true,
+			wantErr:                false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restoreEnvFunc()
+
+			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
+			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
+			fakeClient.Create(context.TODO(), consoleLink)
+
+			if test.setEnvVarFunc != nil {
+				test.setEnvVarFunc(test.envVar)
+			}
+
+			result, err := reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdInstanceName))
+			if !test.consoleLinkShouldExist {
+				assertConsoleLinkDeletion(t, fakeClient, reconcileResult{result, err})
+			} else {
+				assertConsoleLinkExists(t, fakeClient, reconcileResult{result, err}, consoleLink)
+			}
+			if err != nil {
+				if !test.wantErr {
+					t.Errorf("Got unexpected error")
+				} else {
+					assert.Equal(t, test.Err, err)
+				}
+			} else {
+				if test.wantErr {
+					t.Errorf("expected error but didn't get one")
+				}
+			}
+			restoreEnvFunc()
+		})
+	}
+
 }
 
 func TestReconcile_update_consolelink(t *testing.T) {
