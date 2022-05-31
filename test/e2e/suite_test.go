@@ -86,7 +86,7 @@ const (
 	clusterConfigEnv                    = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
 	disableDexEnv                       = "DISABLE_DEX"
 	argocdManagedByLabel                = "argocd.argoproj.io/managed-by"
-	timeout                             = time.Minute * 2
+	timeout                             = time.Minute * 5
 	interval                            = time.Millisecond * 250
 )
 
