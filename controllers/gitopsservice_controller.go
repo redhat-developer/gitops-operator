@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -367,9 +368,17 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if existingArgoCD.Spec.Dex.Resources == nil {
-			existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.Dex.Resources
-			changed = true
+		if argocdcontroller.UseDex(existingArgoCD) {
+			if existingArgoCD.Spec.SSO != nil && existingArgoCD.Spec.SSO.Provider == argoapp.SSOProviderTypeDex {
+				if existingArgoCD.Spec.SSO.Dex.Resources == nil {
+					existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+				} else {
+					if existingArgoCD.Spec.Dex.Resources == nil {
+						existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+					}
+				}
+				changed = true
+			}
 		}
 
 		if existingArgoCD.Spec.Grafana.Resources == nil {

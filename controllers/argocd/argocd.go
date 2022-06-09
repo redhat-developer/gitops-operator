@@ -67,8 +67,8 @@ func getArgoControllerSpec() argoapp.ArgoCDApplicationControllerSpec {
 	}
 }
 
-func getArgoDexSpec() argoapp.ArgoCDDexSpec {
-	return argoapp.ArgoCDDexSpec{
+func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
+	return &argoapp.ArgoCDDexSpec{
 		OpenShiftOAuth: true,
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
@@ -80,6 +80,13 @@ func getArgoDexSpec() argoapp.ArgoCDDexSpec {
 				v1.ResourceCPU:    resourcev1.MustParse("500m"),
 			},
 		},
+	}
+}
+
+func getArgoSSOSpec() *argoapp.ArgoCDSSOSpec {
+	return &argoapp.ArgoCDSSOSpec{
+		Provider: argoapp.SSOProviderTypeDex,
+		Dex:      getArgoDexSpec(),
 	}
 }
 
@@ -193,7 +200,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 		Spec: argoapp.ArgoCDSpec{
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
-			Dex:                getArgoDexSpec(),
+			SSO:                getArgoSSOSpec(),
 			Grafana:            getArgoGrafanaSpec(),
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),

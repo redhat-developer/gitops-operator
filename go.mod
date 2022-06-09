@@ -30,7 +30,7 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/argoproj/argo-cd/v2 v2.3.3 // indirect
+	github.com/argoproj/argo-cd/v2 v2.3.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -97,6 +97,7 @@ require (
 )
 
 replace (
+	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20220609095630-5eac66200edf
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.23.6
