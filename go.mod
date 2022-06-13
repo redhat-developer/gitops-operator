@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220527172704-5fbe1a9be37b
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220613174934-612ac5e6db05
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.2
 	github.com/google/go-cmp v0.5.6
@@ -74,6 +74,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
+	golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4 // indirect
 	golang.org/x/net v0.0.0-20211209124913-491a49abca63 // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
 	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
@@ -97,7 +98,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20220609095630-5eac66200edf
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.23.6
