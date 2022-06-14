@@ -102,6 +102,7 @@ metadata:
                 }
               }
             },
+            "resourceExclusions": "- apiGroups:\n  - tekton.dev\n  clusters:\n  - '*'\n  kinds:\n  - TaskRun\n  - PipelineRun        \n",
             "server": {
               "resources": {
                 "limits": {

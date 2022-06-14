@@ -52,6 +52,14 @@ spec:
       requests:
         cpu: 250m
         memory: 128Mi
+  resourceExclusions: |
+    - apiGroups:
+      - tekton.dev
+      clusters:
+      - '*'
+      kinds:
+      - TaskRun
+      - PipelineRun        
   controller:
     resources:
       limits:

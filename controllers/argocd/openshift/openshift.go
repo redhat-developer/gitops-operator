@@ -285,7 +285,7 @@ func policyRulesForClusterConfig() []rbacv1.PolicyRule {
 			},
 		}, {
 			APIGroups: []string{
-				"machineconfig.openshift.io",
+				"machineconfiguration.openshift.io",
 			},
 			Resources: []string{
 				"*",
