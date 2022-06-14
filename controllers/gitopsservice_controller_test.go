@@ -336,6 +336,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 				},
 			},
 			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			Dex:            &argoapp.ArgoCDDexSpec{},
 		},
 	}
 

@@ -67,8 +67,8 @@ func getArgoControllerSpec() argoapp.ArgoCDApplicationControllerSpec {
 	}
 }
 
-func getArgoDexSpec() argoapp.ArgoCDDexSpec {
-	return argoapp.ArgoCDDexSpec{
+func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
+	return &argoapp.ArgoCDDexSpec{
 		OpenShiftOAuth: true,
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{

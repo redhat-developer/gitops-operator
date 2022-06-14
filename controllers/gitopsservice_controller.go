@@ -367,7 +367,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if existingArgoCD.Spec.Dex.Resources == nil {
+		if existingArgoCD.Spec.Dex != nil && existingArgoCD.Spec.Dex.Resources == nil {
 			existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.Dex.Resources
 			changed = true
 		}

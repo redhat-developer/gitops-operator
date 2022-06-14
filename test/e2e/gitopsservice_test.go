@@ -79,7 +79,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			argoCDInstance.Spec.DisableAdmin = true
 			insecure := false
 			// remove dex configuration, only one SSO is supported.
-			argoCDInstance.Spec.Dex = argoapp.ArgoCDDexSpec{
+			argoCDInstance.Spec.Dex = &argoapp.ArgoCDDexSpec{
 				Config:         "",
 				OpenShiftOAuth: false,
 			}
