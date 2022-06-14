@@ -725,20 +725,6 @@ var _ = Describe("GitOpsServiceController", func() {
 	Context("Verify RHSSO configuration", func() {
 		namespace := argoCDNamespace
 
-		It("Verify OIDC Configuration is created", func() {
-			Eventually(func() error {
-				cm := &corev1.ConfigMap{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
-				if err != nil {
-					return err
-				}
-				if cm.Data[common.ArgoCDKeyOIDCConfig] == "" {
-					return fmt.Errorf("expected OIDC configuration to be created")
-				}
-				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
-		})
-
 		It("Verify RHSSO Realm creation", func() {
 			By("get keycloak URL and credentials")
 			route := &routev1.Route{}
@@ -796,6 +782,21 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(idp["providerId"]).To(Equal("openshift-v4"))
 			Expect(idp["firstBrokerLoginFlowAlias"]).To(Equal("first broker login"))
 		})
+
+		It("Verify OIDC Configuration is created", func() {
+			Eventually(func() error {
+				cm := &corev1.ConfigMap{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
+				if err != nil {
+					return err
+				}
+				if cm.Data[common.ArgoCDKeyOIDCConfig] == "" {
+					return fmt.Errorf("expected OIDC configuration to be created")
+				}
+				return nil
+			}, timeout, interval).ShouldNot(HaveOccurred())
+		})
+
 	})
 
 	Context("Verify RHSSO uninstallation", func() {
