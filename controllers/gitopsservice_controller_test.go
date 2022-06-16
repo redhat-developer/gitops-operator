@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -336,6 +337,9 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 				},
 			},
 			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			Dex: &argoapp.ArgoCDDexSpec{
+				Config: "test-config",
+			},
 		},
 	}
 
@@ -467,6 +471,7 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
 	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
+	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 }
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {
