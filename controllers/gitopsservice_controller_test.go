@@ -337,6 +337,9 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 				},
 			},
 			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			Dex: &argoapp.ArgoCDDexSpec{
+				Config: "test-config",
+			},
 		},
 	}
 
@@ -356,6 +359,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 
 	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.Dex.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)

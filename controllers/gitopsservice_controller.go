@@ -370,12 +370,16 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		if argocdcontroller.UseDex(existingArgoCD) {
 			if existingArgoCD.Spec.SSO != nil && existingArgoCD.Spec.SSO.Provider == argoapp.SSOProviderTypeDex {
-				if existingArgoCD.Spec.SSO.Dex.Resources == nil {
-					existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+				if existingArgoCD.Spec.SSO.Dex != nil {
+					if existingArgoCD.Spec.SSO.Dex.Resources == nil {
+						existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+					}
 				}
 			} else {
-				if existingArgoCD.Spec.Dex.Resources == nil {
-					existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+				if existingArgoCD.Spec.Dex != nil {
+					if existingArgoCD.Spec.Dex.Resources == nil {
+						existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
+					}
 				}
 			}
 			changed = true
