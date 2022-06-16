@@ -144,6 +144,8 @@ The scope of this section is to describe the steps to Install, Configure(**Setup
 
 **Prerequisite:**
 
+:warning: DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be enabled/disabled using `.spec.sso.provider`. 
+
 * Make sure you disable dex 
 
 ```
@@ -348,7 +350,7 @@ Users can modify the default resource requirements by patching the Argo CD CR as
 
 The main purpose of RHSSO created by the operator is to allow users to login into Argo CD with their OpenShift users. It is not expected and not supported to update and use this RHSSO instance for any other use-cases.
 
-Note: RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
+**Note**:** RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
 
 ### **Uninstall** 
 
@@ -362,6 +364,8 @@ Below `oc` command can be used to patch the default Argo CD Instance in the open
 
 
 Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
+
+:warning: **`.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Keycloak can be configured using `.spec.sso.keycloak`**. 
 
 ### **Skip the Keycloak Login page and display the OpenShift Login page.**
 
@@ -558,23 +562,23 @@ data:
 
 ### Working with Dex
 
-**Note:**For a fresh install of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
+**NOTE:** For a fresh install of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
+:warning: **DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows:**
 
-
-**For upgrades,**We can enable it by updating the Subscription resource for the OpenShift Gitops Operator.
+:warning: **`.spec.dex` is deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be configured through `.spec.sso.dex` as follows** : 
 
 ```
 spec:
-  config:
-    env:
-    - name: DISABLE_DEX
-      value: "false"
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
 ```
 
-`oc patch subscriptions.operators.coreos.com/openshift-gitops-operator -n openshift-operators --type='merge' --patch '{ "spec": { "config": { "env": [ { "name": "DISABLE_DEX", "value": "false" } ] } } }'`
+`oc patch argocd argocd --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
 
-This will get the Argo CD-cluster-dex-server instance running. To enable login with OpenShift, you need to update the Argo CD CR with the below field in spec. 
+**NOTE** As of v1.6.0, leaving `DISABLE_DEX` environment variable unset, or setting it to `false` will no longer trigger creation of Dex resources, unless there is valid Dex configuration expressed through `.spec.dex`. This could either be using the default openShift configuration:
 
 ```
 spec:
@@ -583,6 +587,47 @@ spec:
 ```
 
 `oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "dex": { "openShiftOAuth": true } } }'`
+
+
+or it could be custom Dex configuration provided by the user:
+
+```
+spec:
+  dex:
+    config: <custom-dex-config>
+```
+
+`oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "dex": { "config": <custom-dex-config> } } }'`
+
+
+**NOTE:Absence of either will result in an error due to failing health checks on Dex**
+
+#### Uninstalling Dex
+
+#### Using `.spec.sso`
+
+Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider 
+#### Using the DISABLE_DEX environment variable
+
+Dex can be uninstalled by setting `DISABLE_DEX` to `true` in the Subscription resource of the operator.
+
+```yaml
+spec:
+  config:
+    env:
+    - name: DISABLE_DEX
+      value: "true"
+```
+:warning:
+    **`DISABLE_DEX` is deprecated and support will be removed in Argo CD operator v0.6.0. Please use `.spec.sso.provider` to enable/disable Dex.**
+
+#### Using `.spec.dex`
+
+Dex can be uninstalled by either removing `.spec.dex` from the Argo CD CR, or ensuring `.spec.dex.config` is empty and `.spec.dex.openShiftOAuth` is set to `false`.
+
+:warning: 
+    **`.spec.dex` is deprecated and support will be removed in Argo CD operator v0.6.0. Please use `.spec.sso.dex` to configure Dex.**
+
 
 You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
 
