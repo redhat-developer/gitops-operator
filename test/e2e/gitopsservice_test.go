@@ -79,10 +79,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			argoCDInstance.Spec.DisableAdmin = true
 			insecure := false
 			// remove dex configuration, only one SSO is supported.
-			argoCDInstance.Spec.Dex = argoapp.ArgoCDDexSpec{
-				Config:         "",
-				OpenShiftOAuth: false,
-			}
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
 				Provider:  "keycloak",
 				VerifyTLS: &insecure,
@@ -96,7 +92,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				}
 				updatedInstance.Spec.DisableAdmin = argoCDInstance.Spec.DisableAdmin
 				updatedInstance.Spec.SSO = argoCDInstance.Spec.SSO
-				updatedInstance.Spec.Dex = argoCDInstance.Spec.Dex
 				return k8sClient.Update(context.TODO(), updatedInstance)
 			})
 			Expect(err).NotTo(HaveOccurred())
