@@ -746,6 +746,21 @@ spec:
       wildcardPolicy: None
 ```
 
+#### Enable Notifications with Argo CD instance
+
+Argo CD Notifications controller can be enabled/disabled using a new toggle within the Argo CD CR with default specs as follows:
+
+``` yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  notifications:
+    enabled: True
+```
+
+Notifications are disabled by default. Please refer to [upstream documentation](https://argocd-operator.readthedocs.io/en/latest/usage/notifications/) for further information
 
 #### Deploy resources to a different namespace
 
