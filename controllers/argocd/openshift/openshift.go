@@ -39,6 +39,9 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 		} else if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-haproxy" {
 			logv.Info("configuring openshift redis haproxy")
 			o.Spec.Template.Spec.Containers[0].Command = append(getCommandForRedhatRedisHaProxy(), o.Spec.Template.Spec.Containers[0].Command...)
+			o.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities.Add = []corev1.Capability{
+				"NET_BIND_SERVICE",
+			}
 		}
 	case *appsv1.StatefulSet:
 		if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-server" {
