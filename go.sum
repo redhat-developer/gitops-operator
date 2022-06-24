@@ -156,6 +156,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/argoproj-labs/argocd-operator v0.2.1 h1:OP6OOLfKixFZfPKwzyEZv0Nsgkpt3DzQc75iddUqRF0=
 github.com/argoproj-labs/argocd-operator v0.2.1/go.mod h1:l214z29p7ViikfRikLcZN4isJTJQ2ExCfCIPzf4CgpA=
+github.com/argoproj-labs/argocd-operator v0.2.2 h1:v3LjSQKNgCBMqJ2HA7AT0CCQm9LJY+ua9urRWt8LkqY=
+github.com/argoproj-labs/argocd-operator v0.2.2/go.mod h1:l214z29p7ViikfRikLcZN4isJTJQ2ExCfCIPzf4CgpA=
 github.com/argoproj/argo-cd/v2 v2.2.5 h1:Amthb2SRNixwl6q/1dk+3SbfXouNApk+eS0Zy9TsYqc=
 github.com/argoproj/argo-cd/v2 v2.2.5/go.mod h1:J51If+krhtBEbNP/Y/l9sh9HctPHiiGueqPAkfFXXBo=
 github.com/argoproj/gitops-engine v0.5.2/go.mod h1:K2RYpGXh11VdFwDksS23SyFTOJaPcsF+MVJ/FHlqEOE=
