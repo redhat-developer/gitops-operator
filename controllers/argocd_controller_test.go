@@ -114,7 +114,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			restoreEnvFunc()
+			defer restoreEnvFunc()
 
 			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
@@ -141,7 +141,6 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 					t.Errorf("expected error but didn't get one")
 				}
 			}
-			restoreEnvFunc()
 		})
 	}
 

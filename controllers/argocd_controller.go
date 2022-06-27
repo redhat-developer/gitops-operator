@@ -64,11 +64,7 @@ func init() {
 
 // if DISABLE_DEFAULT_ARGOCD_CONSOLELINK env variable is true, Argo CD ConsoleLink will be deleted
 func isConsoleLinkDisabled() bool {
-	v := strings.ToLower(os.Getenv(common.DisableDefaultArgoCDConsoleLink))
-	if v == "true" {
-		return strings.ToLower(v) == "true"
-	}
-	return false
+	return strings.ToLower(os.Getenv(common.DisableDefaultArgoCDConsoleLink)) == "true"
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -149,15 +145,12 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
 			}
 		}
-		reqLogger.Error(err, "Failed to create ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+		reqLogger.Error(err, "ConsoleLink not found", "ConsoleLink.Name", consoleLink.Name)
 		return reconcile.Result{}, err
 	}
 	if isConsoleLinkDisabled() {
-		reqLogger.Info("consoleLink deleted", "Route.Host", argoCDRoute.Spec.Host)
 		return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
-	}
-
-	if found.Spec.Href != argoCDRouteURL {
+	} else if found.Spec.Href != argoCDRouteURL {
 		reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
 		found.Spec.Href = argoCDRouteURL
 		return reconcile.Result{}, r.Client.Update(ctx, found)
