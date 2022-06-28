@@ -141,10 +141,19 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 		},
 	}
 
-	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
+	assert.NoError(t, ReconcilerHook(a, testDeployment, "4.11.0"))
 	assert.Equal(t, testDeployment.Spec.Template.Spec.Containers[0].Command, want)
 	assert.Equal(t, 0, len(testDeployment.Spec.Template.Spec.Containers[0].Args))
 	assert.Equal(t, wantc, *testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
+
+	testDeployment = makeTestDeployment()
+	testDeployment.ObjectMeta.Name = a.Name + "-redis-ha-haproxy"
+	testDeployment.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
+		Capabilities: &corev1.Capabilities{},
+	}
+
+	assert.NoError(t, ReconcilerHook(a, testDeployment, "4.10.0"))
+	assert.Nil(t, testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
 
 	testDeployment = makeTestDeployment()
 	testDeployment.ObjectMeta.Name = a.Name + "-" + "not-redis-ha-haproxy"
