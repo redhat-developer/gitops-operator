@@ -92,8 +92,8 @@ test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
 
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+	go test -p 1 -v -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v -ginkgo.failFast
+	go test -p 1 -v -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
 
 test-metrics:
 	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
