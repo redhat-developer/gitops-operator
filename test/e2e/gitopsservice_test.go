@@ -467,7 +467,13 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
-				err := helper.ApplicationHealthStatus("nginx", sourceNS)
+				cmd := exec.Command(ocPath, "get", "-n", sourceNS, "application/nginx", "-o", "yaml")
+				out, err := cmd.Output()
+				if err != nil {
+					return err
+				}
+				fmt.Printf("Application state:\n%s", out)
+				err = helper.ApplicationHealthStatus("nginx", sourceNS)
 				if err != nil {
 					return err
 				}
