@@ -70,6 +70,14 @@ var _ = Describe("GitOpsServiceController", func() {
 			checkIfPresent(types.NamespacedName{Name: defaultRedisName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 			checkIfPresent(types.NamespacedName{Name: defaultRepoServerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
 			checkIfPresent(types.NamespacedName{Name: defaultServerName, Namespace: argoCDNamespace}, &appsv1.Deployment{})
+			Eventually(func() error {
+				err := helper.ArgoCDAvailable("openshift-gitops", "openshift-gitops")
+				if err != nil {
+					return err
+				}
+				return nil
+			}, 1*time.Minute, 250*time.Millisecond)
+
 		})
 
 		It("Manual modification of Argo CD CR is allowed", func() {
@@ -177,7 +185,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*2, interval).ShouldNot(HaveOccurred())
 
 			existingImage := &configv1.Image{
 				ObjectMeta: metav1.ObjectMeta{
@@ -206,6 +214,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			By("create a new Argo CD instance in test ns")
 			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
+			Expect(err).NotTo(HaveOccurred())
 			err = k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceInstance)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -214,8 +223,12 @@ var _ = Describe("GitOpsServiceController", func() {
 				if err != nil {
 					return err
 				}
+				err = helper.ArgoCDAvailable(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
+				if err != nil {
+					return err
+				}
 				return nil
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			}, 180*time.Second, interval).ShouldNot(HaveOccurred())
 		})
 
 		It("Create a sample application", func() {

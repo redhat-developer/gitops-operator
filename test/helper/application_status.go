@@ -216,3 +216,49 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 	return nil
 
 }
+
+type expectationFunc func(input string, match string) (bool, string)
+
+func matchString(input string, match string) (bool, string) {
+	return input == match, fmt.Sprintf("should: '%s', is: '%s'", match, input)
+}
+
+func isNotEmpty(input string, match string) (bool, string) {
+	return len(input) > 0, "should not be empty value, but is"
+}
+
+// ArgoCDAvailable makes sure that the ArgoCD instance is up and running and
+// ready to reconcile manifests
+func ArgoCDAvailable(instance string, namespace string) error {
+	var stdout, stderr bytes.Buffer
+	ocPath, err := exec.LookPath("oc")
+	if err != nil {
+		return err
+	}
+
+	resources := []struct {
+		name     string
+		restype  string
+		resname  string
+		field    string
+		expected expectationFunc
+	}{
+		{"Repo server", "argocds", instance, ".status.repo", matchString},
+	}
+
+	for _, res := range resources {
+		cmd := exec.Command(ocPath, "get", res.restype+"/"+res.resname, "-n", namespace, "-o", "jsonpath='{"+res.field+"}'")
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("oc command failed: %s%s", stdout.String(), stderr.String())
+		}
+
+		output := strings.TrimSpace(stdout.String())
+		if match, msg := res.expected(output, "'Running'"); !match {
+			return fmt.Errorf("%s '%s' does not match required state: %s", res.name, res.resname, msg)
+		}
+	}
+
+	return nil
+}
