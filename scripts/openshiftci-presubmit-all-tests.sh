@@ -24,5 +24,8 @@ cp $KUBECONFIG $TMP_DIR/kubeconfig
 chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
 
+# Get OpenShift version
+oc version
+
 # Run e2e test
 make test-e2e
