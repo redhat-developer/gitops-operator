@@ -21,6 +21,8 @@ const (
 	ArgoCDInstanceName = "openshift-gitops"
 	// DisableDefaultInstallEnvVar is an env variable to disable the default instance
 	DisableDefaultInstallEnvVar = "DISABLE_DEFAULT_ARGOCD_INSTANCE"
+	// DisableDefaultArgoCDConsoleLink is an env variable to disable the default Argo CD ConsoleLink
+	DisableDefaultArgoCDConsoleLink = "DISABLE_DEFAULT_ARGOCD_CONSOLELINK"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes
