@@ -551,12 +551,12 @@ spec:
           replicas: 1
           selector:
             matchLabels:
-              control-plane: controller-manager
+              name: openshift-gitops-operator
           strategy: {}
           template:
             metadata:
               labels:
-                control-plane: controller-manager
+                name: openshift-gitops-operator
             spec:
               containers:
               - args:
