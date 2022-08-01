@@ -16,8 +16,8 @@ source $(dirname $0)/e2e-common.sh
 
 # Script entry point.
 TARGET=${TARGET:-openshift}
-IMAGE=${IMAGE:-"quay.io/praveen4g0/gitops-backend-operator"}
-VERSION=${VERSION:-"0.3.0-fix1"}
+IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
+VERSION=${VERSION:-"0.0.3"}
 CATALOG_SOURCE=${CATALOG_SOURCE:-"openshift-gitops-operator"}
 CHANNEL=${CHANNEL:-"alpha"}
 
@@ -37,8 +37,6 @@ KUBECONFIG_PARAM=${KUBECONFIG:+"--kubeconfig $KUBECONFIG"}
 unsubscribe_to_operator() {
     header "Uninstalling operator resources"
     uninstall_operator_resources
-    rm -rf bundle 
-    rm -rf bundle.*
 
     echo "Cleaning custom catalo source"
     kubectl delete -f $TMP_DIR/catalog-source.yaml
