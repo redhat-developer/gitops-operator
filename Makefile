@@ -110,6 +110,9 @@ test-gitopsservice-nondefault:
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
+kuttl-e2e: ## Run operator e2e tests
+	kubectl kuttl test ./test/openshift --config ./test/openshift/kuttl-tests.yaml 	
+
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
@@ -130,14 +133,14 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=true -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen

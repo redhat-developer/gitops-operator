@@ -16,8 +16,12 @@ source $(dirname $0)/e2e-common.sh
 
 # Script entry point.
 TARGET=${TARGET:-openshift}
-IMAGE=${IMAGE:-"quay.io/praveen4g0/gitops-backend-operator"}
-VERSION=${VERSION:-"0.3.0-fix1"}
+KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}
+# By default we disable uninstall, so you can comment that out if you run locally so it helps in cleanup
+E2E_SKIP_UNINSTALL=true
+# E2E_SKIP_BUILD_TOOL_INSTALLATION=true # This flag helps to skip build tool installation on your local system
+IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
+VERSION=${VERSION:-"0.0.3"}
 CATALOG_SOURCE=${CATALOG_SOURCE:-"openshift-gitops-operator"}
 CHANNEL=${CHANNEL:-"alpha"}
 
@@ -34,19 +38,19 @@ KUBECONFIG_PARAM=${KUBECONFIG:+"--kubeconfig $KUBECONFIG"}
 
 # make sure you export IMAGE and version so it builds and pushes code to right registry. 
 
-unsubscribe_to_operator() {
+uninstall_operator() {
     header "Uninstalling operator resources"
     uninstall_operator_resources
-    rm -rf bundle 
-    rm -rf bundle.*
 
-    echo "Cleaning custom catalo source"
-    kubectl delete -f $TMP_DIR/catalog-source.yaml
+    if [ -d "$TMP_DIR/catalog-source.yaml" ]; then
+       echo "Cleaning catalog source"
+       kubectl delete --ignore-not-found=true -f $TMP_DIR/catalog-source.yaml
+    fi
 
     echo -e "Enabling default catalog sources"
     kubectl patch operatorhub.config.openshift.io/cluster -p='{"spec":{"disableAllDefaultSources":false}}' --type=merge
 }
-trap unsubscribe_to_operator EXIT
+[[ -z ${E2E_SKIP_UNINSTALL} ]] && trap uninstall_operator EXIT
 
 
 echo ">> Running tests on ${TARGET}"
