@@ -30,6 +30,8 @@ type GitopsServiceSpec struct {
 	RunOnInfra bool `json:"runOnInfra,omitempty"`
 	// Tolerations allow the pods to schedule onto nodes with matching taints
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a field of PodSpec, it is a map of key value pairs used for node selection
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService

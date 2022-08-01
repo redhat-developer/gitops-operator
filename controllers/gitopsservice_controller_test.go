@@ -22,9 +22,8 @@ import (
 	"os"
 	"testing"
 
-	"gotest.tools/assert"
-
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
@@ -32,6 +31,8 @@ import (
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
+	"golang.org/x/exp/maps"
+	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -454,7 +455,9 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 	deployment := appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
 	assertNoError(t, err)
-	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, common.InfraNodeSelector())
+	nSelector := common.InfraNodeSelector()
+	maps.Copy(nSelector, argocommon.DefaultNodeSelector())
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
 	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
 
 	argoCD := &argoapp.ArgoCD{}
