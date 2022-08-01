@@ -12,6 +12,7 @@ require (
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/stretchr/testify v1.7.1
+	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.23.6
@@ -98,6 +99,7 @@ require (
 )
 
 replace (
+	github.com/argoproj-labs/argocd-operator => /home/skatyal/argocd-operator
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.23.6

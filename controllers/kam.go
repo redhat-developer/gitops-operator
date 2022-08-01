@@ -22,11 +22,12 @@ import (
 	"os"
 	"reflect"
 
+	"golang.org/x/exp/maps"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
-
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	appsv1 "k8s.io/api/apps/v1"
@@ -177,12 +178,18 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	deploymentObj := newDeploymentForCLI()
 
+	deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
+
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	if cr.Spec.RunOnInfra {
-		deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
+		deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
 	}
+	if len(cr.Spec.NodeSelector) > 0 {
+		maps.Copy(deploymentObj.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
+	}
+
 	if len(cr.Spec.Tolerations) > 0 {
 		deploymentObj.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}

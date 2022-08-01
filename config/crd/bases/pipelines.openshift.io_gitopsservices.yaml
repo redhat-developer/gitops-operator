@@ -36,6 +36,12 @@ spec:
           spec:
             description: GitopsServiceSpec defines the desired state of GitopsService
             properties:
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector is a field of PodSpec, it is a map of key
+                  value pairs used for node selection
+                type: object
               runOnInfra:
                 description: InfraNodeEnabled will add infra NodeSelector to all the
                   default workloads of gitops operator
