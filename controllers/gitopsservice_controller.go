@@ -27,9 +27,11 @@ import (
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
-	"golang.org/x/exp/maps"
+
+	//"golang.org/x/exp/maps"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
@@ -333,8 +335,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		}
 	}
 	if len(instance.Spec.NodeSelector) > 0 {
-		//defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = instance.Spec.NodeSelector
-		maps.Copy(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
+		defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
 	}
 	if len(instance.Spec.Tolerations) > 0 {
 		if defaultArgoCDInstance.Spec.NodePlacement == nil {
@@ -528,7 +529,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
 		}
 		if len(instance.Spec.NodeSelector) > 0 {
-			maps.Copy(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
+			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
 		}
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
