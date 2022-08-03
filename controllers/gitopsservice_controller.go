@@ -24,14 +24,11 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
-
-	//"golang.org/x/exp/maps"
-
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
