@@ -22,10 +22,10 @@ import (
 	"os"
 	"reflect"
 
-	"golang.org/x/exp/maps"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
@@ -187,7 +187,7 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 		deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
 	}
 	if len(cr.Spec.NodeSelector) > 0 {
-		maps.Copy(deploymentObj.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
+		deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
 	}
 
 	if len(cr.Spec.Tolerations) > 0 {
