@@ -3,7 +3,7 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    name: openshift-gitops-operator
+    control-plane: argocd-operator
   name: gitops-operator-controller-manager-metrics-service
 spec:
   ports:
@@ -11,6 +11,6 @@ spec:
     port: 8443
     targetPort: https
   selector:
-    name: openshift-gitops-operator
+    control-plane: argocd-operator
 status:
   loadBalancer: {}
