@@ -551,12 +551,12 @@ spec:
           replicas: 1
           selector:
             matchLabels:
-              name: openshift-gitops-operator
+              control-plane: argocd-operator
           strategy: {}
           template:
             metadata:
               labels:
-                name: openshift-gitops-operator
+                control-plane: argocd-operator
             spec:
               containers:
               - args:
