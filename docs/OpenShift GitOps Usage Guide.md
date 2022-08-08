@@ -1241,8 +1241,25 @@ The above commands can be modified to replace controller with any other Argo CD 
 
 ## Running default Gitops workloads on Infrastructure Nodes
 
+Infrastructure nodes prevent additional billing cost against subscription counts. 
+OpenShift allows certain workloads installed by the OpenShift GitOps Operator to run on Infrastructure Nodes. This comprises the workloads that are installed by the GitOps Operator by default in the openshift-gitops namespace, including the default Argo CD instance in that namespace.
+Note: Other Argo CD instances installed to user namespaces are not eligible to run on Infrastructure nodes.
+	
+Follow the steps to move these default workloads to infrastructure node
+* kam deployment
+* cluster deployment (backend service)
+* openshift-gitops-applicationset-controller deployment
+* openshift-gitops-dex-server deployment
+* openshift-gitops-redis deployment
+* openshift-gitops-redis-ha-haproxy deployment
+* openshift-gitops-repo-sever deployment
+* openshift-gitops-server deployment
+* openshift-gitops-application-controller statefulset
+* openshift-gitops-redis-server statefulset
+	
 #### Adding label to existing nodes
 
+	
 * Please refer to official docs about infrastructure nodes -                                                   [https://access.redhat.com/solutions/5034771](https://access.redhat.com/solutions/5034771) [https://docs.openshift.com/container-platform/4.6/machine_management/creating-infrastructure-machinesets.html](https://docs.openshift.com/container-platform/4.6/machine_management/creating-infrastructure-machinesets.html) 
 
 * Label your existing nodes as **Infrastructure** via cli or from openshift UI -  
