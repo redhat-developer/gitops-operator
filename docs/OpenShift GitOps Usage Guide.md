@@ -968,7 +968,7 @@ By default Argo CD instance is provided the following permissions -
 
 * Argo CD instance is provided with ADMIN privileges for the namespace it is installed in. For instance, if an Argo CD instance is deployed in **foo** namespace, it will have **ADMIN privileges** to manage resources for that namespace. 
 
-* Argo CD is provided the following cluster scoped permissions: 
+* Argo CD is provided the following cluster scoped permissions because Argo CD requires cluster-wide read privileges on resources to function properly. (Please see https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#cluster-rbac for more details.): 
 
 ```
  - verbs:
