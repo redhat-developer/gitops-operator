@@ -208,9 +208,9 @@ ifeq (,$(shell which operator-sdk 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPERATOR_SDK)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -LO https://github.com/operator-framework/operator-sdk/releases/download/v1.22.2/operator-sdk_${OS}_${ARCH} ;\
-    chmod +x operator-sdk_${OS}_${ARCH} && mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk ;\
-	operator-sdk version ;\
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v0.17.0/operator-sdk-v0.17.0-$${ARCH}-$${OS}-gnu ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	operator-sdk version ; \
 	}
 else
 OPERATOR_SDK = $(shell which operator-sdk)
