@@ -128,7 +128,7 @@ function build_and_push_catalog_image(){
   [[ -z ${E2E_SKIP_BUILD_TOOL_INSTALLATION} ]] && make operator-sdk opm
 
   echo ">> Building and pushing operator images"
-  make docker-build docker-push
+  make podman-build podman-push
 
   echo ">> Making bundle"
   make bundle
