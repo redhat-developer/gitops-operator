@@ -327,12 +327,22 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 	//to add infra nodeselector to default argocd pods
 	if instance.Spec.RunOnInfra {
-		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-			NodeSelector: common.InfraNodeSelector(),
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: common.InfraNodeSelector(),
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
 		}
 	}
 	if len(instance.Spec.NodeSelector) > 0 {
-		defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: instance.Spec.NodeSelector,
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
+		}
 	}
 	if len(instance.Spec.Tolerations) > 0 {
 		if defaultArgoCDInstance.Spec.NodePlacement == nil {
