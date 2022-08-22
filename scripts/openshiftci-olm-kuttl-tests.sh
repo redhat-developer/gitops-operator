@@ -5,6 +5,8 @@ set -e
 
 # Do not show token in CI log
 set +x
+export QUAY_CREDENTIAL=`cat $QUAY_CREDENTIAL`
+
 
 # show commands
 set -x
@@ -12,7 +14,7 @@ export CI="prow"
 go mod vendor
 # make prepare-test-cluster
 
-source $(dirname $0)/e2e-common.sh
+# source $(dirname $0)/e2e-common.sh
 
 # Script entry point.
 TARGET=${TARGET:-openshift}
@@ -52,18 +54,25 @@ uninstall_operator() {
 }
 [[ -z ${E2E_SKIP_UNINSTALL} ]] && trap uninstall_operator EXIT
 
+docker login quay.io -u redhat-developer -p QUAY_CREDENTIAL
 
+oc get catalogsources -A
+oc projects | grep openshift-gitops
+oc get subscription openshift-gitops-operator -n openshift-operators
+oc get pods -n openshift-gitops
+
+docker logout quay.io
 
 echo ">> Running tests on ${TARGET}"
 
-header "Building and pushing catalog image"
-build_and_push_catalog_image
+# header "Building and pushing catalog image"
+# build_and_push_catalog_image
 
-header "Setting up environment"
-[[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && configure_operator
+# header "Setting up environment"
+# [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && configure_operator
 
-header "Install gitops operator"
-[[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
+# header "Install gitops operator"
+# [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
 
 header "Running kuttl e2e tests"
 make kuttl-e2e || fail_test "Kuttl tests failed"
