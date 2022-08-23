@@ -54,7 +54,7 @@ uninstall_operator() {
 }
 [[ -z ${E2E_SKIP_UNINSTALL} ]] && trap uninstall_operator EXIT
 
-docker login quay.io -u redhat-developer -p QUAY_CREDENTIAL
+# docker login quay.io -u redhat-developer -p QUAY_CREDENTIAL
 
 oc get catalogsources -A
 oc projects | grep openshift-gitops
