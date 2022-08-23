@@ -581,8 +581,6 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                - name: DISABLE_DEX
-                  value: "false"
                 image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 livenessProbe:
                   httpGet:
