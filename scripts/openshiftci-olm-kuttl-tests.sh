@@ -62,9 +62,6 @@ argocd version
 oc get pods -n openshift-gitops
 oc get subscription -A
 
-
-docker logout quay.io
-
 echo ">> Running tests on ${TARGET}"
 
 # header "Building and pushing catalog image"
