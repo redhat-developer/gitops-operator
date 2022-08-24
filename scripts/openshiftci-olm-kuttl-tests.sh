@@ -60,7 +60,6 @@ oc projects | grep openshift-gitops
 oc get pods -n openshift-gitops || true
 oc get subscription -A || true
 kubectl-kuttl version || true
-argocd version
 
 
 echo ">> Running tests on ${TARGET}"
