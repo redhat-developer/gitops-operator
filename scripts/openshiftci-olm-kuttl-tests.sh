@@ -54,11 +54,14 @@ uninstall_operator() {
 }
 [[ -z ${E2E_SKIP_UNINSTALL} ]] && trap uninstall_operator EXIT
 
-
+# Checks to ensure the proper environment
 oc get catalogsources -A
 oc projects | grep openshift-gitops
-oc get subscription openshift-gitops-operator -n openshift-operators
+kubectl-kuttl version
+argocd version
 oc get pods -n openshift-gitops
+oc get subscription -A
+
 
 docker logout quay.io
 
