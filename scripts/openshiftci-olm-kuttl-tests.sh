@@ -57,9 +57,9 @@ uninstall_operator() {
 # Checks to ensure the proper environment
 oc get catalogsources -A
 oc projects | grep openshift-gitops
-oc get pods -n openshift-gitops
-oc get subscription -A
-kubectl-kuttl version
+oc get pods -n openshift-gitops || true
+oc get subscription -A || true
+kubectl-kuttl version || true
 argocd version
 
 
