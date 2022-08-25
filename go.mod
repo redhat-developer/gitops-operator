@@ -98,7 +98,6 @@ require (
 )
 
 replace (
-	github.com/argoproj-labs/argocd-operator => /home/skatyal/argocd-operator
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.23.6
