@@ -2,8 +2,11 @@ package openshift
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
+
+	"golang.org/x/mod/semver"
 
 	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
@@ -39,6 +42,17 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 		} else if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-haproxy" {
 			logv.Info("configuring openshift redis haproxy")
 			o.Spec.Template.Spec.Containers[0].Command = append(getCommandForRedhatRedisHaProxy(), o.Spec.Template.Spec.Containers[0].Command...)
+			version := hint
+			// The Red Hat haproxy image sets the net_bind_service capability on the binary.  For 4.11
+			// we need to add this to the capabilities.  For earlier versions, the default SCCs
+			// won't let us add capabilities so we remove the "drop all" capability.
+			if version == "" || semver.Compare(fmt.Sprintf("v%s", version), "v4.10.999") > 0 {
+				o.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities.Add = []corev1.Capability{
+					"NET_BIND_SERVICE",
+				}
+			} else {
+				o.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities = nil
+			}
 		}
 	case *appsv1.StatefulSet:
 		if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-server" {
