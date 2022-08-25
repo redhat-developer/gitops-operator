@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-1-10-custom
+  labels:
+    kubernetes.io/metadata.name: test-1-10-custom
+    argocd.argoproj.io/managed-by: openshift-gitops

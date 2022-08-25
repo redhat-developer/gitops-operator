@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch argocd argocd \
+    -n $NAMESPACE \
+    --type='json' \
+    -p='[{"op": "replace", "path": "/spec/server/replicas", "value": 1 }]'
+    exit 0

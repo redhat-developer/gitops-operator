@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patches the subscription to set the environment variable
+- script: |
+    set -e
+    oc patch -n openshift-operators subscription openshift-gitops-operator \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "value": "true"}]}}}'
+- script: sleep 10

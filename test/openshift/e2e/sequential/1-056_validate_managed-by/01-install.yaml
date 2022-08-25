@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  server:
+    route:
+      enabled: true
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-1-56-custom
