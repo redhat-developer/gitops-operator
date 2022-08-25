@@ -26,5 +26,4 @@ testbin/*
 
 # ignore vendor
 vendor/
-
 .vscode/
