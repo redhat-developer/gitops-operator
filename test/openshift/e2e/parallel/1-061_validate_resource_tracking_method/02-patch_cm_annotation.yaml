@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    oc patch argocds.argoproj.io argocd --type=merge -p '{"spec":{"resourceTrackingMethod":"annotation"}}' -n $NAMESPACE

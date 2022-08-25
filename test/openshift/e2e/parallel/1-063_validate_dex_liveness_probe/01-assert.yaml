@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+status:
+  phase: Available
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: openshift-gitops
+  labels:
+    app.kubernetes.io/name: openshift-gitops-dex-server
+spec:
+  containers:
+  - livenessProbe:
+      failureThreshold: 3
+      httpGet:
+        path: /healthz/live
+        port: 5558
+        scheme: HTTP
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      successThreshold: 1
+      timeoutSeconds: 1

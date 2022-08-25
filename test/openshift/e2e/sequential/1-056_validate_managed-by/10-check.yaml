@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+    label_value=$(oc get ns/test-1-56-custom-2 -o go-template=$'{{index .metadata.labels "argocd.argoproj.io/managed-by"}}')
+
+    echo "label value: ${label_value}"
+
+    if [[ "${label_value}" == "${NAMESPACE}" ]]; then
+      echo "Error: managed-by label still exists"
+      exit 1
+    fi
+    exit 0
