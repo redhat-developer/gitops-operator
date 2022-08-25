@@ -5,7 +5,7 @@ set -e
 
 # Do not show token in CI log
 set +x
-export QUAY_CREDENTIAL=`cat $QUAY_CREDENTIAL`
+#export QUAY_CREDENTIAL=`cat $QUAY_CREDENTIAL`
 
 
 # show commands
@@ -74,6 +74,4 @@ echo ">> Running tests on ${TARGET}"
 # [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
 
 # header "Running kuttl e2e tests"
-make kuttl-e2e || fail_test "Kuttl tests failed"
-
-success
+make kuttl-e2e
