@@ -30,7 +30,7 @@ E2E_SKIP_BUILD_TOOL_INSTALLATION=false # This flag helps to skip build tool inst
 IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
 VERSION=${VERSION:-"0.0.3"}
 CATALOG_SOURCE=${CATALOG_SOURCE:-"openshift-gitops-operator"}
-CHANNEL=${CHANNEL:-"alpha"}
+CHANNEL=${CHANNEL:-"latest"}
 
 export PATH="$PATH:$(pwd)"
 

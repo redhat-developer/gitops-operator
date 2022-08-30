@@ -189,7 +189,7 @@ function build_and_push_catalog_image(){
   make docker-build docker-push
 
   echo ">> Making bundle"
-  make bundle
+  make bundle CHANNELS=$CHANNEL DEFAULT_CHANNEL=$CHANNEL
 
   echo ">> Building and pushing Bundle images"
   make bundle-build bundle-push
