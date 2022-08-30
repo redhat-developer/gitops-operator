@@ -3,16 +3,16 @@ module github.com/redhat-developer/gitops-operator
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220628202300-cc5bfb77ce14
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20220825143513-85ca7c683441
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.3
-	github.com/google/go-cmp v0.5.7
+	github.com/google/go-cmp v0.5.8
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.3.18
 	github.com/stretchr/testify v1.7.1
-	golang.org/x/mod v0.5.1-0.20210830214625-1b1db11ec8f4
+	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.23.6
 	k8s.io/apimachinery v0.23.6
@@ -31,7 +31,7 @@ require (
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/argoproj/argo-cd/v2 v2.4.3 // indirect
+	github.com/argoproj/argo-cd/v2 v2.4.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
