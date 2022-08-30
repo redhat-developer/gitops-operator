@@ -11,4 +11,4 @@ commands:
       exit 1
     fi
 
-    argocd app wait validate-machine-config --sync --timeout 60
+    argocd app wait validate-machine-config --sync --timeout 70
