@@ -2,5 +2,5 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    oc patch subscription/openshift-gitops-operator -n openshift-operators --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
+    oc patch subscription/gitops-operator -n openshift-operators --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
 - script: sleep 10

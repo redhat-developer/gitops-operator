@@ -1,3 +1,4 @@
+# Wait for the Operator to reconcile
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
@@ -32,14 +33,3 @@ commands:
     }
     
     wait_until_pods_running "test-1-27-custom"
-- script: |
-    api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
-    password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
-
-    output=$(argocd login $api_server --username admin --password $password --insecure)
-
-    if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
-      exit 1
-    fi
-
-    argocd app wait 1-27-argocd --sync --timeout 60 

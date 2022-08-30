@@ -2,6 +2,6 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    oc patch -n openshift-operators subscription openshift-gitops-operator \
+    oc patch -n openshift-operators subscription gitops-operator \
       --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": ""}]}}}'
 - script: sleep 30
