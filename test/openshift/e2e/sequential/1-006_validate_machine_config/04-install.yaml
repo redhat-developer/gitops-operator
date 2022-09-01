@@ -5,4 +5,4 @@ metadata:
   namespace: openshift-gitops
 spec:
   repo:
-    replicas: 2
+    replicas: 1
