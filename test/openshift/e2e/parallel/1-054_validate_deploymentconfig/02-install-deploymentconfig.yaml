@@ -26,8 +26,5 @@ commands:
       syncPolicy:
         automated: {}
     EOF
-
-    # Give some time to Application before asserting
-    sleep 10
-    
-    exit 0
+- script: |
+    kubectl wait deploymentconfig -n $NAMESPACE test-deploymentconfig --for condition=Available=True --timeout=30s
