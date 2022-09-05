@@ -74,6 +74,8 @@ metadata:
   namespace: test-argocd
 EOF
 
+oc get events -n test-argocd
+
 oc get pods -n test-argocd
 
 # echo ">> Running tests on ${TARGET}"
