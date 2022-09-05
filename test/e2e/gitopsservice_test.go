@@ -870,7 +870,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				argocd := &argoapp.ArgoCD{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(argocd.Spec.NodePlacement.NodeSelector).To(Equal(nodeSelector))
+				Expect(argocd.Spec.NodePlacement.NodeSelector).To(Equal(gitopscommon.InfraNodeSelector()))
 				return nil
 			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 
@@ -885,7 +885,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				if len(deployment.Spec.Template.Spec.NodeSelector) > 0 {
+				if len(deployment.Spec.Template.Spec.NodeSelector) > 1 {
 					return fmt.Errorf("expected no nodeSelector in deployment")
 				}
 
