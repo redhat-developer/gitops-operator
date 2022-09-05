@@ -13,4 +13,4 @@ kind: DeploymentConfig
 metadata:
   name: test-deploymentconfig
 status:
-  replicas: 2
+  replicas: 0
