@@ -62,8 +62,21 @@ oc get subscription -A || true
 kubectl-kuttl version || true
 pod=gitops-operator-controller-manager && oc logs `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators || true
 
+# Check argocd instance creation
 
-echo ">> Running tests on ${TARGET}"
+oc create ns test-argocd
+
+cat << EOF | oc apply -f -
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: test-argocd
+EOF
+
+oc get pods -n test-argocd
+
+# echo ">> Running tests on ${TARGET}"
 
 # header "Building and pushing catalog image"
 # build_and_push_catalog_image
@@ -75,4 +88,4 @@ echo ">> Running tests on ${TARGET}"
 # [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
 
 # header "Running kuttl e2e tests"
-make kuttl-e2e
+# make kuttl-e2e
