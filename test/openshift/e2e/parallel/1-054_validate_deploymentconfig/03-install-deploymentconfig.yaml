@@ -27,4 +27,5 @@ commands:
         automated: {}
     EOF
 - script: |
-    kubectl wait deploymentconfig -n $NAMESPACE test-deploymentconfig --for condition=Available=True --timeout=30s
+    oc wait deploymentconfig --for=condition=Ready -n $NAMESPACE test-deploymentconfig --timeout=5m
+    oc wait deploymentconfig -n $NAMESPACE test-deploymentconfig --for condition=Available=True --timeout=5m
