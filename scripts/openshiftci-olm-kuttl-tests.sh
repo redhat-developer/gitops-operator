@@ -29,7 +29,6 @@ CHANNEL=${CHANNEL:-"alpha"}
 
 export PATH="$PATH:$(pwd)"
 
-
 # Copy kubeconfig to temporary kubeconfig file and grant
 # read and Write permission to temporary kubeconfig file
 TMP_DIR=$(mktemp -d)
@@ -74,6 +73,8 @@ metadata:
   name: argocd
   namespace: test-argocd
 EOF
+
+sleep 300
 
 oc get events -n test-argocd
 
