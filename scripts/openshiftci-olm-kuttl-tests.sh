@@ -74,13 +74,11 @@ metadata:
   namespace: test-argocd
 EOF
 
-sleep 300
-
-oc get events -n test-argocd
+sleep 120
 
 oc get pods -n test-argocd
 
-# echo ">> Running tests on ${TARGET}"
+echo ">> Running tests on ${TARGET}"
 
 # header "Building and pushing catalog image"
 # build_and_push_catalog_image
@@ -92,4 +90,4 @@ oc get pods -n test-argocd
 # [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
 
 # header "Running kuttl e2e tests"
-# make kuttl-e2e
+make kuttl-e2e
