@@ -875,7 +875,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 
 		})
-		It("Remove runOnInfra spec from gitopsService CR", func() {
+		FIt("Remove runOnInfra spec from gitopsService CR", func() {
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
 			gitopsService.Spec.RunOnInfra = false
 			err = k8sClient.Update(context.TODO(), gitopsService)
@@ -885,8 +885,8 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				if len(deployment.Spec.Template.Spec.NodeSelector) > 1 {
-					return fmt.Errorf("expected no nodeSelector in deployment")
+				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
+					return fmt.Errorf("expected one nodeSelector in deployment")
 				}
 
 				argocd := &argoapp.ArgoCD{}
