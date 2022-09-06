@@ -875,7 +875,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}, time.Second*180, interval).ShouldNot(HaveOccurred())
 
 		})
-		FIt("Remove runOnInfra spec from gitopsService CR", func() {
+		It("Remove runOnInfra spec from gitopsService CR", func() {
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
 			gitopsService.Spec.RunOnInfra = false
 			err = k8sClient.Update(context.TODO(), gitopsService)
