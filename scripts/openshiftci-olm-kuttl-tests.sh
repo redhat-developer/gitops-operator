@@ -59,7 +59,6 @@ oc projects | grep openshift-gitops
 oc get pods -n openshift-gitops || true
 oc get subscription -A || true
 kubectl-kuttl version || true
-pod=gitops-operator-controller-manager && oc logs `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators || true
 pod=gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators -o yaml || true
 
 # Check argocd instance creation
