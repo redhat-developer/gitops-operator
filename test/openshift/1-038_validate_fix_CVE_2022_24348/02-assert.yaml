@@ -1,0 +1,13 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 60
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-guestbook
+status:
+  health:
+    status: Healthy
+  sync:
+    status: Unknown
