@@ -913,6 +913,11 @@ spec:
                       are in the form:   g, subject, inherited-subject See https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
                       for additional information.'
                     type: string
+                  policyMatcherMode:
+                    description: PolicyMatcherMode configures the matchers function
+                      mode for casbin. There are two options for this, 'glob' for
+                      glob matcher or 'regex' for regex matcher.
+                    type: string
                   scopes:
                     description: 'Scopes controls which OIDC scopes to examine during
                       rbac enforcement (in addition to `sub` scope). If omitted, defaults
@@ -5757,6 +5762,10 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
                         type: object
+                      rootCA:
+                        description: Custom root CA certificate for communicating
+                          with the Keycloak OIDC provider
+                        type: string
                       verifyTLS:
                         description: VerifyTLS set to false disables strict TLS validation.
                         type: boolean
