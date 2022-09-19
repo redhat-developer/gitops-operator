@@ -80,8 +80,10 @@ var _ = Describe("GitOpsServiceController", func() {
 			insecure := false
 			// remove dex configuration, only one SSO is supported.
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  "keycloak",
-				VerifyTLS: &insecure,
+				Provider: "keycloak",
+				Keycloak: &argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
