@@ -12,7 +12,7 @@ set +x
 set -x
 export CI="prow"
 go mod vendor
-sh ./prepare-test-cluster
+sh scripts/prepare-test-cluster.sh
 
 # source $(dirname $0)/e2e-common.sh
 
