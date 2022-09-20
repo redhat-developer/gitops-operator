@@ -37,6 +37,9 @@ chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
 KUBECONFIG_PARAM=${KUBECONFIG:+"--kubeconfig $KUBECONFIG"}
 
+# install CRDs
+make install
+
 # make sure you export IMAGE and version so it builds and pushes code to right registry. 
 
 uninstall_operator() {
