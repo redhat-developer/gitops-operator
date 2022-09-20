@@ -110,8 +110,7 @@ test-gitopsservice-nondefault:
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
-kuttl-e2e: ## Run operator e2e tests
-	manifests generate fmt vet
+kuttl-e2e: manifests generate fmt vet ## Run operator e2e tests
 	kubectl-kuttl test ./test/openshift --config ./test/openshift/kuttl-tests.yaml 	
 
 ##@ Build
