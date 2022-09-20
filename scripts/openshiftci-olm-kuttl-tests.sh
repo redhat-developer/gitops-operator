@@ -12,7 +12,7 @@ set +x
 set -x
 export CI="prow"
 go mod vendor
-# make prepare-test-cluster
+make prepare-test-cluster
 
 # source $(dirname $0)/e2e-common.sh
 
@@ -38,7 +38,7 @@ export KUBECONFIG=$TMP_DIR/kubeconfig
 KUBECONFIG_PARAM=${KUBECONFIG:+"--kubeconfig $KUBECONFIG"}
 
 # install CRDs
-make install
+# make install
 
 # make sure you export IMAGE and version so it builds and pushes code to right registry. 
 
