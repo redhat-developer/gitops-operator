@@ -5,7 +5,7 @@ FROM registry.ci.openshift.org/openshift/release:golang-1.18
 RUN yum -y install dnf httpd-tools podman docker
 
 # Install kubectl tool which is used in e2e-tests
-RUN curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+RUN curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
      chmod +x /usr/local/bin/kubectl
 
 # Install kubectl-kuttl tool which is used in e2e-tests
