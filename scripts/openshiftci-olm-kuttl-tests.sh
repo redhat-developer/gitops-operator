@@ -37,8 +37,10 @@ chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
 KUBECONFIG_PARAM=${KUBECONFIG:+"--kubeconfig $KUBECONFIG"}
 
+cp $KUBECONFIG /go/src/github.com/redhat-developer/gitops-operator/kubeconfig
+
 # install CRDs
-make install
+# make install
 
 # make sure you export IMAGE and version so it builds and pushes code to right registry. 
 
