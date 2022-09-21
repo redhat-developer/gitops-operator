@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-redis-ha-server
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-redis-ha
+            topologyKey: kubernetes.io/hostname

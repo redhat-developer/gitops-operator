@@ -111,7 +111,8 @@ test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
 kuttl-e2e: manifests generate fmt vet ## Run operator e2e tests
-	kubectl-kuttl test ./test/openshift --config ./test/openshift/kuttl-tests.yaml 	
+	kubectl-kuttl test ./test/openshift-sequential --config ./test/openshift-sequential/kuttl-tests.yaml || true
+	kubectl-kuttl test ./test/openshift-parallel --config ./test/openshift-parallel/kuttl-tests.yaml 	
 
 ##@ Build
 
