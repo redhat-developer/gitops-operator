@@ -33,6 +33,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -856,6 +857,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Add runOnInfra spec to gitopsService CR", func() {
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
 			gitopsService.Spec.RunOnInfra = true
+			nodeSelector := argoutil.AppendStringMap(gitopscommon.InfraNodeSelector(), common.DefaultNodeSelector())
 			err = k8sClient.Update(context.TODO(), gitopsService)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -863,7 +865,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(gitopscommon.InfraNodeSelector()))
+				Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(nodeSelector))
 
 				argocd := &argoapp.ArgoCD{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
@@ -883,8 +885,8 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				if len(deployment.Spec.Template.Spec.NodeSelector) > 0 {
-					return fmt.Errorf("expected no nodeSelector in deployment")
+				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
+					return fmt.Errorf("expected one nodeSelector in deployment")
 				}
 
 				argocd := &argoapp.ArgoCD{}
