@@ -24,10 +24,11 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	routev1 "github.com/openshift/api/route/v1"
-
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
@@ -326,8 +327,21 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 	//to add infra nodeselector to default argocd pods
 	if instance.Spec.RunOnInfra {
-		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-			NodeSelector: common.InfraNodeSelector(),
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: common.InfraNodeSelector(),
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
+		}
+	}
+	if len(instance.Spec.NodeSelector) > 0 {
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: instance.Spec.NodeSelector,
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
 		}
 	}
 	if len(instance.Spec.Tolerations) > 0 {
@@ -513,12 +527,16 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 	{
 		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
 
+		deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 		if instance.Spec.RunOnInfra {
-			deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
+			deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
+		}
+		if len(instance.Spec.NodeSelector) > 0 {
+			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
 		}
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
