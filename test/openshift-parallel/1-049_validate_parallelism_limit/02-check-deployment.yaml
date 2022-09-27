@@ -5,7 +5,7 @@ commands:
     set -e
     set -o pipefail
     expected=10
-    wlCommand=$(oc get -n $NAMESPACE statefulset/argocd-application-controller -o jsonpath='{.spec.template.spec.containers[0].command}'| jq -r '.[]' )
+    wlCommand=$(oc get -n $NAMESPACE statefulset/argocd-argocd-application-controller -o jsonpath='{.spec.template.spec.containers[0].command}'| jq -r '.[]' )
     if ! echo "$wlCommand" | grep -qPz -- "--kubectl-parallelism-limit\\n${expected}(\$|\\n)"; then
       echo "Incorrect or missing --kubectl-parallelism-limit detected."
       echo "$wlCommand"
