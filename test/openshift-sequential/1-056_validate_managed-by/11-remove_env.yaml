@@ -3,7 +3,7 @@ kind: TestStep
 commands:
 # patches the subscription to set an environment variable
 - script: |
-    if [ -z $CI ]
+    if [ -z $CI ]; then
       oc patch -n openshift-operators subscription openshift-gitops-operator \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     else
