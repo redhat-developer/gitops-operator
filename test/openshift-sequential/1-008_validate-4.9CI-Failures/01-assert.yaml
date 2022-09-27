@@ -28,11 +28,11 @@ status:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: argocd-application-controller
+  name: argocd-argocd-application-controller
   namespace: target-ns
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: argocd-application-controller
+  name: argocd-argocd-application-controller
   namespace: target-ns

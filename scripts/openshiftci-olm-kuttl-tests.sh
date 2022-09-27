@@ -60,11 +60,13 @@ uninstall_operator() {
 
 # Checks to ensure the proper environment
 oc get catalogsources -A
+oc projects | grep default
 oc projects | grep openshift-gitops
 oc get pods -n openshift-gitops || true
 oc get subscription -A || true
 kubectl-kuttl version || true
 pod=gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators -o yaml || true
+subscription=oo- && oc get subscription `oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators
 
 # Check argocd instance creation
 

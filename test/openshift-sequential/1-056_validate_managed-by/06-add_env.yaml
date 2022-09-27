@@ -1,16 +1,17 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-# patches the subscription to set an environment variable
+# patches the subscription to set the environment variable
 - script: |
+    set -e
+
     if [ -z $CI ]; then 
 
       oc patch -n openshift-operators subscription openshift-gitops-operator \
-        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_INSTANCE", "value": "true"}]}}}'
-
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "value": "true"}]}}}'
     else
-    
+
       oc patch -n openshift-operators subscription `subscription=oo- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
-        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_INSTANCE", "value": "true"}]}}}'
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "value": "true"}]}}}'
     fi
 - script: sleep 10

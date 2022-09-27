@@ -4,5 +4,4 @@ kind: TestStep
 commands:
 - script: |
     oc patch gitopsservice cluster --type=json --patch='[{"op": "remove", "path": "/spec/tolerations"}, {"op": "remove", "path": "/spec/runOnInfra"}]'
-    # Quick and dirty hack - statefulsets don't handle this situation well
-    oc -n openshift-gitops delete pod openshift-gitops-application-controller-0
+    oc patch statefulset openshift-gitops-application-controller -n openshift-gitops -p '{"spec":{"replicas":0}}'

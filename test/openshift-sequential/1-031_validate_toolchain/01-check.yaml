@@ -7,28 +7,24 @@ commands:
 
     # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
     expected_kustomizeVersion='v4.4.1'
-    expected_helmVersion='v3.8.0'
-    expected_argocdVersion='v2.3.7'
-    expected_appsetVersion='v0.4.1'
+    expected_helmVersion='v3.8.1'
+    expected_argocdVersion='v2.4.11'
     expected_dexVersion='v2.30.3'
-
-    # redis Image version1-171.1654147905
-    # https://catalog.redhat.com/software/containers/rhel8/redis-5/5c401b0cbed8bd75a2c4c287
-    expected_redisImageSha='b4aa364cc2a15a6eef2fabc72d9c570791e61ab561e241d9995bd9dec3d1d21e'
+    expected_redisVersion='6'
 
     gitops_server_pod=$(oc get -n openshift-gitops pods \
       -o custom-columns=NAME:.metadata.name --no-headers | \
       grep openshift-gitops-server | \
       head -1
     )
-    appset_pod=$(oc get -n openshift-gitops pods \
-      -o custom-columns=NAME:.metadata.name --no-headers | \
-      grep openshift-gitops-applicationset-controller | \
-      head -1
-    )
     dex_pod=$(oc get -n openshift-gitops pods \
       -o custom-columns=NAME:.metadata.name --no-headers | \
       grep openshift-gitops-dex-server | \
+      head -1
+    )
+    redis_pod=$(oc get -n openshift-gitops pods \
+      -o custom-columns=NAME:.metadata.name --no-headers | \
+      grep openshift-gitops-redis | \
       head -1
     )
     route=$(oc get route -n openshift-gitops \
@@ -54,16 +50,13 @@ commands:
       sed -e 's/\+unknown//' | \
       awk -F' ' '{ print $2 }'
     )
-    appsetVersion=$(oc logs -n openshift-gitops $appset_pod | \
-      awk 'NR<=1' | \
-      awk -F' ' '{ print $6 }'
-    )
     dexVersion=$(oc -n openshift-gitops exec $dex_pod -- dex version 2>&1 | \
       grep '^Dex Version' | \
       awk -F': ' '{ print $2 }'
     )
-    redisImageSha=$(oc get deployment.apps/openshift-gitops-redis -n openshift-gitops \
-    --template '{{range .spec.template.spec.containers}}{{.image}}{{end}}' | cut -d':' -f 2
+
+    redisVersion=$(oc -n openshift-gitops exec $redis_pod -- \
+      redis-server -v | awk -F '=' '{ print $2 }' | cut -d'.' -f 1
     )
 
     if test "${kustomizeVersion}" != "${expected_kustomizeVersion}"; then
@@ -78,15 +71,11 @@ commands:
       echo "ArgoCD version mismatch. Should be ${expected_argocdVersion}, is ${argocdVersion}"
       exit 1
     fi
-    if test "${appsetVersion}" != "${expected_appsetVersion}"; then
-      echo "ApplicationSet version mismatch. Should be ${expected_appsetVersion}, is ${appsetVersion}"
-      exit 1
-    fi
     if test "${dexVersion}" != "${expected_dexVersion}"; then
       echo "Dex version mismatch. Should be ${expected_dexVersion}, is ${dexVersion}"
       exit 1
     fi
-    if test "${redisImageSha}" != "${expected_redisImageSha}"; then
-      echo "Redis Image Sha mismatch. Sha should be ${expected_redisImageSha}, is ${redisImageSha}"
+    if test "${redisVersion}" != "${expected_redisVersion}"; then
+      echo "Redis version mismatch. Should be ${expected_redisVersion}, is ${redisVersion}"
       exit 1
     fi
