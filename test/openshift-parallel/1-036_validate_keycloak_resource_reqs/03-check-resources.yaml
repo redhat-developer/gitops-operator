@@ -2,6 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
+    oc get pods -n $NAMESPACE
     resources=$(oc get -n $NAMESPACE pod/keycloak-1-deploy -o jsonpath='{.spec.containers[0].resources}')
     if [[ -n ${resources} ]]; then
       if [[ "${resources}" != '{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}' ]]; then
