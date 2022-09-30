@@ -19,7 +19,9 @@ package util
 import (
 	"context"
 
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
+	console "github.com/openshift/api/console/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -28,6 +30,10 @@ import (
 
 const (
 	clusterVersionName = "version"
+)
+
+var (
+	consoleAPIFound = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -58,4 +64,29 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 			},
 		},
 	}
+}
+
+func InspectCluster() error {
+	if err := verifyConsoleAPI(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func IsConsoleAPIFound() bool {
+	return consoleAPIFound
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetConsoleAPIFound(found bool) {
+	consoleAPIFound = found
+}
+
+func verifyConsoleAPI() error {
+	found, err := argoutil.VerifyAPI(console.GroupName, console.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	consoleAPIFound = found
+	return nil
 }
