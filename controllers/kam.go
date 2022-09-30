@@ -29,6 +29,7 @@ import (
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -174,6 +175,11 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+
+	if !util.IsConsoleAPIFound() {
+		reqLogger.Info("Skip cli server reconcile: OpenShift Console API not found")
+		return reconcile.Result{}, nil
+	}
 
 	deploymentObj := newDeploymentForCLI()
 
