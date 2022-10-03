@@ -3,7 +3,7 @@ kind: TestStep
 commands:
 - script: |
     set -e
-    sleep 5
+    sleep 10
     
     label_value=$(oc get ns/test-1-56-custom-2 -o go-template=$'{{index .metadata.labels "argocd.argoproj.io/managed-by"}}')
 
