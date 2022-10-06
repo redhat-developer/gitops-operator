@@ -12,11 +12,6 @@ kind: Namespace
 metadata:
   name: target-ns
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: default
----
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
@@ -25,6 +20,12 @@ metadata:
 status:
   phase: Available
 ---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: source-ns
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -32,7 +33,19 @@ metadata:
   namespace: target-ns
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-server
+  namespace: target-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: argocd-argocd-application-controller
+  namespace: target-ns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-argocd-server
   namespace: target-ns
