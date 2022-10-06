@@ -27,6 +27,7 @@ import (
 	"github.com/go-logr/logr"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,6 +108,11 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 	var logs = logf.Log.WithName("controller_argocd_route")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Route")
+
+	if !util.IsConsoleAPIFound() {
+		reqLogger.Info("Skip argocd route reconcile: OpenShift Console API not found")
+		return reconcile.Result{}, nil
+	}
 
 	// Fetch ArgoCD server route
 	argoCDRoute := &routev1.Route{}
