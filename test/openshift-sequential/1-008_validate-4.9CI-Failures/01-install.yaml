@@ -3,11 +3,6 @@ kind: Namespace
 metadata:
   name: source-ns
 ---
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: target-ns
----
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
