@@ -97,4 +97,4 @@ echo ">> Running tests on ${TARGET}"
 # [[ -z ${E2E_SKIP_OPERATOR_INSTALLATION} ]] && install_operator_resources
 
 # header "Running kuttl e2e tests"
-make kuttl-e2e
+# make kuttl-e2e
