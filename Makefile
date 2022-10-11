@@ -114,9 +114,11 @@ kuttl-e2e: manifests generate fmt vet ## Run operator e2e tests
 	kubectl-kuttl test ./test/openshift-sequential --config ./test/openshift-sequential/kuttl-tests.yaml || true
 	kubectl-kuttl test ./test/openshift-parallel --config ./test/openshift-parallel/kuttl-test.yaml
 
-kuttl-parallel: kubectl-kuttl test ./test/openshift-parallel --config ./test/openshift-parallel/kuttl-test.yaml
+kuttl-parallel: manifests generate fmt vet
+	kubectl-kuttl test ./test/openshift-parallel --config ./test/openshift-parallel/kuttl-test.yaml
 
-kuttl-sequential: kubectl-kuttl test ./test/openshift-sequential --config ./test/openshift-sequential/kuttl-tests.yaml
+kuttl-sequential: manifests generate fmt vet
+	kubectl-kuttl test ./test/openshift-sequential --config ./test/openshift-sequential/kuttl-tests.yaml
 
 ##@ Build
 
