@@ -67,7 +67,7 @@ oc get subscription -A || true
 kubectl-kuttl version || true
 pod=gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators -o yaml || true
 subscription=oo- && oc get subscription `oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators
-oc wait --for=condition=Ready -n openshift-gitops pod --timeout=5m  -l 'app.kubernetes.io/name in (cluster,kam,openshift-gitops-application-controller,openshift-gitops-applicationset-controller,openshift-gitops-dex-server,openshift-gitops-redis,openshift-gitops-repo-server,openshift-gitops-server)' 
+oc wait --for=condition=Ready -n openshift-gitops pod --timeout=10m  -l 'app.kubernetes.io/name in (cluster,kam,openshift-gitops-application-controller,openshift-gitops-applicationset-controller,openshift-gitops-dex-server,openshift-gitops-redis,openshift-gitops-repo-server,openshift-gitops-server)' 
 
 # Check argocd instance creation
 
