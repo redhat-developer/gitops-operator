@@ -10,13 +10,14 @@
 7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
 8. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
 9. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
-10. [Monitoring](#monitoring)  
-11. [Logging](#logging)  
-12. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
-13. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
-14. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
-15. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-16. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
+10. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
+11. [Monitoring](#monitoring)  
+12. [Logging](#logging)  
+13. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
+14. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
+15. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
+16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
+17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
 
 ## Installing OpenShift GitOps
 
@@ -1310,6 +1311,25 @@ metadata:
 
 Note - Any manually added nodeSelectors and tolerations in the default Argo CD CR will be overwritten by the toggle and tolerations in gitops service CR.![image alt text](assets/31.operator_nodeSelector_tolerations.jpg)
 
+## Using NodeSelector and Tolerations in Default Instance of Openshift GitOps	
+
+Users can set custom nodeSelectors and tolerations in their default workloads by editing their GitopsService CR like so:
+
+```
+kind: GitopsService
+metadata:
+  name: cluster	
+spec:
+  nodeSelector:
+    key1: value1
+  tolerations:
+  - effect: NoSchedule
+    key: key1
+    value: value1 	
+```
+	
+Note: The operator also has default nodeSelector for Linux, and runOnInfra toggle also sets Infrastructure nodeSelector in the workloads. All these nodeSelectors will be merged with precedence given to the custom nodeSelector in case the keys match.
+	
 
 ## Managing MachineSets with OpenShift GitOps
 
