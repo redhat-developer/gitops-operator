@@ -12,10 +12,10 @@ rules:
   - configmaps
   - endpoints
   - events
-  - namespaces
   - persistentvolumeclaims
   - pods
   - secrets
+  - serviceaccounts
   - services
   - services/finalizers
   verbs:
@@ -29,13 +29,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - pods/log
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
+  - namespaces
   - resourcequotas
   verbs:
   - create
@@ -43,6 +37,12 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
 - apiGroups:
   - apps
   resources:
@@ -240,8 +240,32 @@ rules:
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
   - clusterrolebindings
   - clusterroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - '*'
   verbs:
   - create
   - delete
