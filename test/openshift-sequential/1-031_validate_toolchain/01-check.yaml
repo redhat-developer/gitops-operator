@@ -8,8 +8,8 @@ commands:
     # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
     expected_kustomizeVersion='v4.4.1'
     expected_helmVersion='v3.8.1'
-    expected_argocdVersion='v2.4.11'
-    expected_dexVersion='v2.30.3'
+    expected_argocdVersion='v2.4.14'
+    expected_dexVersion='v2.35.1'
     expected_redisVersion='6'
 
     gitops_server_pod=$(oc get -n openshift-gitops pods \
