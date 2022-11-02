@@ -126,41 +126,36 @@ type ReconcileGitopsService struct {
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=*
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=*
-//+kubebuilder:rbac:groups="",resources=pods;pods/log,verbs=get
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get
-//+kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets;namespaces,verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="",resources=pods/log,verbs=get
+//+kubebuilder:rbac:groups="",resources=namespaces;resourcequotas,verbs=get;list;watch;create;delete
 //+kubebuilder:rbac:groups="oauth.openshift.io",resources=oauthclients,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=apps,resources=deployments;replicasets;statefulsets,verbs=*
 //+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=apps,resourceNames=gitops-operator,resources=deployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=replicasets;deployments,verbs=get
 
-//+kubebuilder:rbac:groups=apps.openshift.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=apps.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=*
-//+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
 
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
 
-//+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=*
-//+kubebuilder:rbac:groups=argoproj.io,resources=argocds,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=*
-//+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=*
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=*
+//+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
 
-//+kubebuilder:rbac:groups=template.openshift.io,resources=templates;templateinstances;templateconfigs,verbs=*
+//+kubebuilder:rbac:groups=template.openshift.io,resources=templates;templateinstances;templateconfigs,verbs=get;list;watch;create;delete;patch;update
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
