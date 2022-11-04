@@ -18,15 +18,15 @@ source $(dirname $0)/e2e-common.sh
 TARGET=${TARGET:-openshift}
 KUBECONFIG=${KUBECONFIG:-$HOME/.kube/config}
 # By default we disable uninstall, so you can comment that out if you run locally so it helps in cleanup
-E2E_SKIP_UNINSTALL=true
+E2E_SKIP_UNINSTALL=${E2E_SKIP_UNINSTALL:-true}
 
 # By default on CI operator we don't bulid & push operator bundle, as it is handled by CI.
-E2E_SKIP_BUNDLE_BUILD=true
+E2E_SKIP_BUNDLE_BUILD=${E2E_SKIP_BUNDLE_BUILD:-true}
 
-# By default on CI operator we operator using catalog source.
-E2E_SKIP_OPERATOR_INSTALLATION=false
+# By default on CI operator we install operator using catalog source.
+E2E_SKIP_OPERATOR_INSTALLATION=${E2E_SKIP_OPERATOR_INSTALLATION:-false}
 
-E2E_SKIP_BUILD_TOOL_INSTALLATION=false # This flag helps to skip build tool installation on your local system
+E2E_SKIP_BUILD_TOOL_INSTALLATION=${E2E_SKIP_BUILD_TOOL_INSTALLATION:-false} # This flag helps to skip build tool installation on your local system
 IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
 VERSION=${VERSION:-"0.0.3"}
 CATALOG_SOURCE=${CATALOG_SOURCE:-"openshift-gitops-operator"}
