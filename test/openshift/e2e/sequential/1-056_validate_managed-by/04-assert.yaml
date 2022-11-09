@@ -1,0 +1,10 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: gitops-operator
+  namespace: openshift-operators
+spec:
+  config:
+    env:
+    - name: REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION
+      value: "true"

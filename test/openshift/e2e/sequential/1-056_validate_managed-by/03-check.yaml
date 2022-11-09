@@ -7,7 +7,7 @@ commands:
 
     echo "label value: ${label_value}"
 
-    if [[ "${label_value}" == "${NAMESPACE}" ]]; then
+    if [[ "${label_value}" == "test-1-56-target" ]]; then
       echo "managed-by label exists, set REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION variable to delete the label"
       exit 0
     fi
