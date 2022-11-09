@@ -6,4 +6,3 @@ commands:
     set -e
     oc patch -n openshift-operators subscription gitops-operator \
       --type merge --patch '{"spec": {"config": {"env": [{"name": "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "value": "true"}]}}}'
-- script: sleep 10
