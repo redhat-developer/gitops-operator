@@ -26,6 +26,9 @@ E2E_SKIP_BUNDLE_BUILD=${E2E_SKIP_BUNDLE_BUILD:-true}
 # By default on CI operator we install operator using catalog source.
 E2E_SKIP_OPERATOR_INSTALLATION=${E2E_SKIP_OPERATOR_INSTALLATION:-false}
 
+# By default on CI we don't ignore parallel tests but in case of any flaky it would easy to configure
+IGNORE_PARALLEL_TESTS=${IGNORE_PARALLEL_TESTS:-true}
+
 E2E_SKIP_BUILD_TOOL_INSTALLATION=${E2E_SKIP_BUILD_TOOL_INSTALLATION:-false} # This flag helps to skip build tool installation on your local system
 IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
 VERSION=${VERSION:-"0.0.3"}
@@ -82,7 +85,10 @@ fi
 
 header "Running kuttl e2e tests"
 make e2e-tests-sequential || failed=1
-make e2e-tests-parallel || failed=1
+
+if [[ "$IGNORE_PARALLEL_TESTS" = "false" ]]; then
+   make e2e-tests-parallel || failed=1 
+fi 
 
 (( failed )) && dump_cluster_state
 (( failed )) && fail_test "E2E tests failed"
