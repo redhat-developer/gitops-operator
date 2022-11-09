@@ -242,8 +242,11 @@ rules:
   resources:
   - '*'
   verbs:
+  - bind
   - create
   - delete
+  - deletecollection
+  - escalate
   - get
   - list
   - patch
@@ -255,8 +258,11 @@ rules:
   - clusterrolebindings
   - clusterroles
   verbs:
+  - bind
   - create
   - delete
+  - deletecollection
+  - escalate
   - get
   - list
   - patch
