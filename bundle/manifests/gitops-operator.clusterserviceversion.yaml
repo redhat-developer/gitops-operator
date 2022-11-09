@@ -141,7 +141,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v0.0.3
+  name: gitops-operator.v0.0.6
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -488,8 +488,11 @@ spec:
           resources:
           - '*'
           verbs:
+          - bind
           - create
           - delete
+          - deletecollection
+          - escalate
           - get
           - list
           - patch
@@ -501,8 +504,11 @@ spec:
           - clusterrolebindings
           - clusterroles
           verbs:
+          - bind
           - create
           - delete
+          - deletecollection
+          - escalate
           - get
           - list
           - patch
@@ -598,7 +604,7 @@ spec:
                   value: gitops-operator
                 - name: DISABLE_DEX
                   value: "false"
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
+                image: quay.io/saumeyakatyal/gitops-backend-operator:v0.0.6
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -679,4 +685,4 @@ spec:
   provider:
     name: Red Hat Inc
   replaces: gitops-operator.v0.0.2
-  version: 0.0.3
+  version: 0.0.6
