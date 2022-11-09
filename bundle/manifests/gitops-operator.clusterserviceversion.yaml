@@ -141,7 +141,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v0.0.6
+  name: gitops-operator.v0.0.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
