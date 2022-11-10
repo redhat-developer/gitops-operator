@@ -87,6 +87,14 @@ header "Running kuttl e2e tests"
 make e2e-tests-sequential || failed=1
 
 if [[ "$IGNORE_PARALLEL_TESTS" = "false" ]]; then
+   
+   # Now we untaint master nodes to schedule workloads to master (Hack for HA tests)
+   master_nodes=$(oc get node -l node-role.kubernetes.io/master --no-headers 2>/dev/null)
+   while read node ; do
+      node_to_taint=(`echo -n ${node} | cut -f1 -d' '`)
+      oc adm taint nodes $node_to_taint node-role.kubernetes.io/master-
+   done <<< $(echo "${master_nodes}")
+   
    make e2e-tests-parallel || failed=1 
 fi 
 
