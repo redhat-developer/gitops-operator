@@ -27,7 +27,7 @@ E2E_SKIP_BUNDLE_BUILD=${E2E_SKIP_BUNDLE_BUILD:-true}
 E2E_SKIP_OPERATOR_INSTALLATION=${E2E_SKIP_OPERATOR_INSTALLATION:-false}
 
 # By default on CI we don't ignore parallel tests but in case of any flaky it would easy to configure
-IGNORE_PARALLEL_TESTS=${IGNORE_PARALLEL_TESTS:-true}
+IGNORE_PARALLEL_TESTS=${IGNORE_PARALLEL_TESTS:-false}
 
 E2E_SKIP_BUILD_TOOL_INSTALLATION=${E2E_SKIP_BUILD_TOOL_INSTALLATION:-false} # This flag helps to skip build tool installation on your local system
 IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
