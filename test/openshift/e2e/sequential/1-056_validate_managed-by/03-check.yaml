@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+    label_value=$(oc get ns/test-1-56-custom -o go-template=$'{{index .metadata.labels "argocd.argoproj.io/managed-by"}}')
+
+    echo "label value: ${label_value}"
+
+    if [[ "${label_value}" == "test-1-56-target" ]]; then
+      echo "managed-by label exists, set REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION variable to delete the label"
+      exit 0
+    fi
+    exit 1

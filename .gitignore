@@ -7,6 +7,10 @@
 *.dylib
 bin
 testbin/*
+scripts/results
+scripts/tmp*
+kubeconfig
+kuttl-test.json
 
 # Test binary, build with `go test -c`
 *.test
