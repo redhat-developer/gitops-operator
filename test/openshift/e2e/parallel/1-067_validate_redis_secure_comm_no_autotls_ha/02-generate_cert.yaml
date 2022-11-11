@@ -1,0 +1,16 @@
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -e
+
+#     openssl req -new -x509 -sha256 \
+#     -subj "/C=XX/ST=XX/O=Testing/CN=redis" \
+#     -reqexts SAN -extensions SAN \
+#     -config <(printf "\n[SAN]\nsubjectAltName=DNS:argocd-redis-ha-haproxy.$NAMESPACE.svc.cluster.local\n[req]\ndistinguished_name=req") \
+#     -keyout ${PWD}/redis-ha.key \
+#     -out ${PWD}/redis-ha.crt \
+#     -newkey rsa:4096 \
+#     -nodes \
+#     -sha256 \
+#     -days 10

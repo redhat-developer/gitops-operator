@@ -488,8 +488,11 @@ spec:
           resources:
           - '*'
           verbs:
+          - bind
           - create
           - delete
+          - deletecollection
+          - escalate
           - get
           - list
           - patch
@@ -501,8 +504,11 @@ spec:
           - clusterrolebindings
           - clusterroles
           verbs:
+          - bind
           - create
           - delete
+          - deletecollection
+          - escalate
           - get
           - list
           - patch
