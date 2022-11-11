@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-deploymentconfig
+status:
+  health:
+    status: Healthy
+  operationState:
+    phase: Succeeded
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: test-deploymentconfig
+status:
+  replicas: 0

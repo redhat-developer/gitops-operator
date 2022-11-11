@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    output=$(argocd proj role create default somerole)
+
+    if ! [[ "$output" =~ "Role 'somerole' created" ]]; then
+        echo "Error creating role"
+        exit 1
+    fi
+    exit 0

@@ -1,0 +1,52 @@
+# ServiceMonitor for openshift-gitops
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  namespaceSelector: {}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-gitops-metrics
+---
+# ServiceMonitor for openshift-gitops-repo-server
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops-repo-server
+  namespace: openshift-gitops
+spec:
+  namespaceSelector: {}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-gitops-repo-server
+---
+# ServiceMonitor for openshift-gitops-repo-server
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+spec:
+  namespaceSelector: {}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openshift-gitops-server-metrics
+---
+# Validate PrometheusRule for openshift-gitops
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-operator-argocd-alerts
+  namespace: openshift-gitops
+spec:
+  groups:
+  - name: GitOpsOperatorArgoCD
+    rules:
+    - alert: ArgoCDSyncAlert
+      annotations:
+        message: ArgoCD application {{ $labels.name }} is out of sync
+      expr: argocd_app_info{namespace="openshift-gitops",sync_status="OutOfSync"} > 0
+      labels:
+        severity: warning

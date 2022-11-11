@@ -1,0 +1,8 @@
+# Add env variables specifying custom roles
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch -n openshift-operators subscription gitops-operator \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "CONTROLLER_CLUSTER_ROLE", "value": "custom-argocd-role"},{"name": "SERVER_CLUSTER_ROLE", "value": "custom-argocd-role"}]}}}'
+- script: sleep 10

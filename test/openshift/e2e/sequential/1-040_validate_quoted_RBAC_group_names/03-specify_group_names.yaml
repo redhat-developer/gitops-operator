@@ -1,0 +1,15 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    output=$(argocd proj role add-group default somerole '"CN=foo,OU=bar,O=baz"')
+
+    cleanup() {
+        argocd proj role delete default somerole
+    }
+    trap cleanup INT TERM EXIT
+
+    if ! [[ "${output}" =~ "added to role 'somerole'" ]]; then
+      echo "Contains comma characters!"
+      exit 1
+    fi

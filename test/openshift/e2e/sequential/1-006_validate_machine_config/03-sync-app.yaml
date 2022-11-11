@@ -1,0 +1,31 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    for (( i=0; i<10; ++i)); do
+        cmd=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server)
+        if [ $? -eq 0 ] ; then
+            break
+        else
+            echo "Trying again.."
+        fi
+    done
+    api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
+
+    for (( i=0; i<10; ++i)); do
+        cmd=$(oc get secret openshift-gitops-cluster -n openshift-gitops)
+        if [ $? -eq 0 ] ; then
+            break
+        else
+            echo "Trying again.."
+        fi
+    done
+    password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+    
+    output=$(argocd login $api_server --username admin --password $password --insecure)
+
+    if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
+      exit 1
+    fi
+
+    argocd app wait validate-machine-config --sync --timeout 70
