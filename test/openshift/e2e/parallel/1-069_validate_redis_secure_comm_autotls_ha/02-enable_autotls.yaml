@@ -1,0 +1,15 @@
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -e
+
+#     oc patch argocds.argoproj.io argocd --type=merge -p '{"spec":{"redis":{"autotls":"openshift"}}}' -n $NAMESPACE
+
+#     echo "Waiting for statefull set pods to be up and running"
+    
+#     oc wait --namespace=$NAMESPACE --for=condition=ready pod --timeout=80s -l statefulset.kubernetes.io/pod-name=argocd-redis-ha-server-0
+
+#     oc wait --namespace=$NAMESPACE --for=condition=ready pod --timeout=80s -l statefulset.kubernetes.io/pod-name=argocd-redis-ha-server-1
+
+#     oc wait --namespace=$NAMESPACE --for=condition=ready pod --timeout=80s -l statefulset.kubernetes.io/pod-name=argocd-redis-ha-server-2

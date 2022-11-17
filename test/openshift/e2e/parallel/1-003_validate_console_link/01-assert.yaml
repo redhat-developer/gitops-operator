@@ -1,0 +1,8 @@
+# Check that our console link is installed correctly
+apiVersion: console.openshift.io/v1
+kind: ConsoleLink
+metadata:
+  name: argocd
+spec:
+  location: ApplicationMenu
+  text: Cluster Argo CD
