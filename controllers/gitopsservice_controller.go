@@ -131,7 +131,7 @@ type ReconcileGitopsService struct {
 
 //+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups="",resources=pods/log,verbs=get
-//+kubebuilder:rbac:groups="",resources=namespaces;resourcequotas,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="",resources=namespaces;resourcequotas,verbs=get;list;watch;create;delete;update
 //+kubebuilder:rbac:groups="oauth.openshift.io",resources=oauthclients,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
