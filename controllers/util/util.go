@@ -59,7 +59,7 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 			Channel: "stable",
 		},
 		Status: configv1.ClusterVersionStatus{
-			Desired: configv1.Update{
+			Desired: configv1.Release{
 				Version: version,
 			},
 		},
