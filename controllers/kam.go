@@ -161,7 +161,7 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 			Name: consoleLinkName,
 		},
 		Spec: console.ConsoleCLIDownloadSpec{
-			Links: []console.Link{
+			Links: []console.CLIDownloadLink{
 				{
 					Text: text,
 					Href: href,
