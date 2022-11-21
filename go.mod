@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20221116175842-0e3ccd56e27a
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20221121122742-4e6dc06c8389
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.8
@@ -16,8 +16,6 @@ require (
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.25.0
 	k8s.io/apimachinery v0.25.0
-	k8s.io/api v0.24.2
-	k8s.io/apimachinery v0.24.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 	sigs.k8s.io/controller-runtime v0.11.0
@@ -90,14 +88,13 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.24.2 // indirect
 	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
-	k8s.io/kube-openapi v0.0.0-20220627174259-011e075b9cb8 // indirect
-	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
-	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect
+	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
 
 replace (
