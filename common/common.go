@@ -25,6 +25,10 @@ const (
 	DisableDefaultArgoCDConsoleLink = "DISABLE_DEFAULT_ARGOCD_CONSOLELINK"
 	// InfraNodeLabelSelector is a nodeSelector for infrastructure nodes in Openshift
 	InfraNodeLabelSelector = "node-role.kubernetes.io/infra"
+	// Default console plugin image
+	DefaultConsoleImage = "quay.io/redhat-developer/gitops-console-plugin"
+	// Default console plugin version
+	DefaultConsoleVersion = "v0.1.0"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes

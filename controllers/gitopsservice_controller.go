@@ -146,6 +146,7 @@ type ReconcileGitopsService struct {
 
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=console.openshift.io,resources=consoleplugins,verbs=create;delete;get;list;patch;update;watch
 
 //+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=get;list;watch;create;delete;patch;update
 
@@ -219,7 +220,11 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
-	return r.reconcileCLIServer(instance, request)
+	if result, err := r.reconcileCLIServer(instance, request); err != nil {
+		return result, err
+	}
+
+	return r.reconcilePlugin(instance, request)
 }
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {

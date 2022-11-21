@@ -133,6 +133,7 @@ metadata:
         }
       ]
     capabilities: Deep Insights
+    console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
@@ -389,6 +390,18 @@ spec:
           - console.openshift.io
           resources:
           - consolelinks
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - console.openshift.io
+          resources:
+          - consoleplugins
           verbs:
           - create
           - delete
