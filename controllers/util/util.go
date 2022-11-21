@@ -18,10 +18,13 @@ package util
 
 import (
 	"context"
+	"os"
+	"strings"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -89,4 +92,27 @@ func verifyConsoleAPI() error {
 	}
 	consoleAPIFound = found
 	return nil
+}
+
+func ProxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {
+	result := []corev1.EnvVar{}
+	result = append(result, vars...)
+	proxyKeys := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
+	for _, p := range proxyKeys {
+		if k, v := caseInsensitiveGetenv(p); k != "" {
+			result = append(result, corev1.EnvVar{Name: k, Value: v})
+		}
+	}
+	return result
+}
+
+func caseInsensitiveGetenv(s string) (string, string) {
+	if v := os.Getenv(s); v != "" {
+		return s, v
+	}
+	ls := strings.ToLower(s)
+	if v := os.Getenv(ls); v != "" {
+		return ls, v
+	}
+	return "", ""
 }
