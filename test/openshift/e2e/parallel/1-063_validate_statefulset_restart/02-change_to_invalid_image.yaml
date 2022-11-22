@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    oc patch statefulset/example-argocd-application-controller \
+      -n $NAMESPACE \
+      --type "json" \
+      -p '[{"op":"replace","path":"/spec/template/spec/containers/0/image","value":"invalid_image"}]'
+    sleep 10

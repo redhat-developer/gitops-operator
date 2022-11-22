@@ -36,6 +36,7 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
@@ -53,6 +54,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd/openshift"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	//+kubebuilder:scaffold:imports
 )
@@ -86,6 +88,10 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	if err := util.InspectCluster(); err != nil {
+		setupLog.Info("unable to inspect cluster")
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -105,6 +111,7 @@ func main() {
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argoapi.AddToScheme)
 	registerComponentOrExit(mgr, configv1.AddToScheme)
+	registerComponentOrExit(mgr, consolepluginv1.AddToScheme)
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)

@@ -1,0 +1,11 @@
+---
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: v1
+  kind: Namespace
+  name: test-1-10-custom
+- apiVersion: argoproj.io/v1alpha1
+  kind: Application
+  name: test-1-10-custom
+  namespace: openshift-gitops

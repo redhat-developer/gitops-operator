@@ -1,0 +1,9 @@
+# Check for the openshift-gitops Argo CD Operand to be installed and in phase
+# available.
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+status:
+  phase: Available

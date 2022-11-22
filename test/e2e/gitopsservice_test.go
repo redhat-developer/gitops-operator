@@ -33,6 +33,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -80,8 +81,10 @@ var _ = Describe("GitOpsServiceController", func() {
 			insecure := false
 			// remove dex configuration, only one SSO is supported.
 			argoCDInstance.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  "keycloak",
-				VerifyTLS: &insecure,
+				Provider: "keycloak",
+				Keycloak: &argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -378,112 +381,112 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 	})
 
-	Context("Validate granting permissions by label", func() {
-		sourceNS := "source-ns"
-		argocdInstance := "argocd-label"
-		targetNS := "target-ns"
+	// Context("Validate granting permissions by label", func() {
+	// 	sourceNS := "source-ns"
+	// 	argocdInstance := "argocd-label"
+	// 	targetNS := "target-ns"
 
-		It("Create source and target namespaces", func() {
-			// create a new source namespace
-			sourceNamespaceObj := &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: sourceNS,
-				},
-			}
-			err := k8sClient.Create(context.TODO(), sourceNamespaceObj)
-			if !kubeerrors.IsAlreadyExists(err) {
-				Expect(err).NotTo(HaveOccurred())
-			}
+	// 	It("Create source and target namespaces", func() {
+	// 		// create a new source namespace
+	// 		sourceNamespaceObj := &corev1.Namespace{
+	// 			ObjectMeta: metav1.ObjectMeta{
+	// 				Name: sourceNS,
+	// 			},
+	// 		}
+	// 		err := k8sClient.Create(context.TODO(), sourceNamespaceObj)
+	// 		if !kubeerrors.IsAlreadyExists(err) {
+	// 			Expect(err).NotTo(HaveOccurred())
+	// 		}
 
-			// create an ArgoCD instance in the source namespace
-			argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
-			Expect(err).NotTo(HaveOccurred())
-			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
-			if !kubeerrors.IsAlreadyExists(err) {
-				Expect(err).NotTo(HaveOccurred())
-			}
+	// 		// create an ArgoCD instance in the source namespace
+	// 		argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
+	// 		Expect(err).NotTo(HaveOccurred())
+	// 		err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
+	// 		if !kubeerrors.IsAlreadyExists(err) {
+	// 			Expect(err).NotTo(HaveOccurred())
+	// 		}
 
-			// Wait for the default project to exist; this avoids a race condition where the Application
-			// can be created before the Project that it targets.
-			Eventually(func() error {
-				_, err := helper.ProjectExists("default", sourceNS)
-				if err != nil {
-					return err
-				}
-				return nil
-			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
+	// 		// Wait for the default project to exist; this avoids a race condition where the Application
+	// 		// can be created before the Project that it targets.
+	// 		Eventually(func() error {
+	// 			_, err := helper.ProjectExists("default", sourceNS)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			return nil
+	// 		}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
-			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
-			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
-			// Thus, applying missing rules for 'argocd-application-controller'
-			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			if err := applyMissingPermissions(argocdInstance, sourceNS); err != nil {
-				Expect(err).NotTo(HaveOccurred())
-			}
+	// 		// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
+	// 		// the 'argoproj.io' Role rules for the 'argocd-application-controller'
+	// 		// Thus, applying missing rules for 'argocd-application-controller'
+	// 		// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
+	// 		if err := applyMissingPermissions(argocdInstance, sourceNS); err != nil {
+	// 			Expect(err).NotTo(HaveOccurred())
+	// 		}
 
-			// create a target namespace to deploy resources
-			// allow argocd to create resources in the target namespace by adding managed-by label
-			targetNamespaceObj := &corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: targetNS,
-					Labels: map[string]string{
-						"argocd.argoproj.io/managed-by": sourceNS,
-					},
-				},
-			}
-			err = k8sClient.Create(context.TODO(), targetNamespaceObj)
-			if !kubeerrors.IsAlreadyExists(err) {
-				Expect(err).NotTo(HaveOccurred())
-			}
-		})
+	// 		// create a target namespace to deploy resources
+	// 		// allow argocd to create resources in the target namespace by adding managed-by label
+	// 		targetNamespaceObj := &corev1.Namespace{
+	// 			ObjectMeta: metav1.ObjectMeta{
+	// 				Name: targetNS,
+	// 				Labels: map[string]string{
+	// 					"argocd.argoproj.io/managed-by": sourceNS,
+	// 				},
+	// 			},
+	// 		}
+	// 		err = k8sClient.Create(context.TODO(), targetNamespaceObj)
+	// 		if !kubeerrors.IsAlreadyExists(err) {
+	// 			Expect(err).NotTo(HaveOccurred())
+	// 		}
+	// 	})
 
-		It("Required RBAC resources are created in the target namespace", func() {
-			resourceList := []helper.ResourceList{
-				{
-					Resource: &rbacv1.Role{},
-					ExpectedResources: []string{
-						argocdInstance + "-argocd-application-controller",
-						argocdInstance + "-argocd-server",
-					},
-				},
-				{
-					Resource: &rbacv1.RoleBinding{},
-					ExpectedResources: []string{
-						argocdInstance + "-argocd-application-controller",
-						argocdInstance + "-argocd-server",
-					},
-				},
-			}
-			err := helper.WaitForResourcesByName(k8sClient, resourceList, targetNS, time.Second*180)
-			Expect(err).NotTo(HaveOccurred())
-		})
+	// 	It("Required RBAC resources are created in the target namespace", func() {
+	// 		resourceList := []helper.ResourceList{
+	// 			{
+	// 				Resource: &rbacv1.Role{},
+	// 				ExpectedResources: []string{
+	// 					argocdInstance + "-argocd-application-controller",
+	// 					argocdInstance + "-argocd-server",
+	// 				},
+	// 			},
+	// 			{
+	// 				Resource: &rbacv1.RoleBinding{},
+	// 				ExpectedResources: []string{
+	// 					argocdInstance + "-argocd-application-controller",
+	// 					argocdInstance + "-argocd-server",
+	// 				},
+	// 			},
+	// 		}
+	// 		err := helper.WaitForResourcesByName(k8sClient, resourceList, targetNS, time.Second*180)
+	// 		Expect(err).NotTo(HaveOccurred())
+	// 	})
 
-		It("Check if an application could be deployed in target namespace", func() {
-			nginxAppCr := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
-			ocPath, err := exec.LookPath("oc")
-			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
-			err = cmd.Run()
-			Expect(err).NotTo(HaveOccurred())
+	// 	It("Check if an application could be deployed in target namespace", func() {
+	// 		nginxAppCr := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
+	// 		ocPath, err := exec.LookPath("oc")
+	// 		Expect(err).NotTo(HaveOccurred())
+	// 		cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
+	// 		err = cmd.Run()
+	// 		Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func() error {
-				err := helper.ApplicationHealthStatus("nginx", sourceNS)
-				if err != nil {
-					return err
-				}
-				err = helper.ApplicationSyncStatus("nginx", sourceNS)
-				if err != nil {
-					return err
-				}
-				return nil
-			}, time.Second*300, interval).ShouldNot(HaveOccurred())
-		})
+	// 		Eventually(func() error {
+	// 			err := helper.ApplicationHealthStatus("nginx", sourceNS)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			err = helper.ApplicationSyncStatus("nginx", sourceNS)
+	// 			if err != nil {
+	// 				return err
+	// 			}
+	// 			return nil
+	// 		}, time.Second*300, interval).ShouldNot(HaveOccurred())
+	// 	})
 
-		It("Clean up resources", func() {
-			Expect(helper.DeleteNamespace(k8sClient, sourceNS)).NotTo(HaveOccurred())
-			Expect(helper.DeleteNamespace(k8sClient, targetNS)).NotTo(HaveOccurred())
-		})
-	})
+	// 	It("Clean up resources", func() {
+	// 		Expect(helper.DeleteNamespace(k8sClient, sourceNS)).NotTo(HaveOccurred())
+	// 		Expect(helper.DeleteNamespace(k8sClient, targetNS)).NotTo(HaveOccurred())
+	// 	})
+	// })
 
 	Context("Validate permission label feature for OOTB Argo CD instance", func() {
 		argocdTargetNamespace := "argocd-target"
@@ -854,6 +857,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Add runOnInfra spec to gitopsService CR", func() {
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
 			gitopsService.Spec.RunOnInfra = true
+			nodeSelector := argoutil.AppendStringMap(gitopscommon.InfraNodeSelector(), common.DefaultNodeSelector())
 			err = k8sClient.Update(context.TODO(), gitopsService)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -861,7 +865,7 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(gitopscommon.InfraNodeSelector()))
+				Expect(deployment.Spec.Template.Spec.NodeSelector).To(Equal(nodeSelector))
 
 				argocd := &argoapp.ArgoCD{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
@@ -881,8 +885,8 @@ var _ = Describe("GitOpsServiceController", func() {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
 				Expect(err).NotTo(HaveOccurred())
-				if len(deployment.Spec.Template.Spec.NodeSelector) > 0 {
-					return fmt.Errorf("expected no nodeSelector in deployment")
+				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
+					return fmt.Errorf("expected one nodeSelector in deployment")
 				}
 
 				argocd := &argoapp.ArgoCD{}

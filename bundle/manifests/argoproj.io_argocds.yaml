@@ -81,6 +81,142 @@ spec:
                     description: Version is the Argo CD ApplicationSet image tag.
                       (optional)
                     type: string
+                  webhookServer:
+                    description: WebhookServerSpec defines the options for the ApplicationSet
+                      Webhook Server component.
+                    properties:
+                      host:
+                        description: Host is the hostname to use for Ingress/Route
+                          resources.
+                        type: string
+                      ingress:
+                        description: Ingress defines the desired state for an Ingress
+                          for the Application set webhook component.
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations is the map of annotations to
+                              apply to the Ingress.
+                            type: object
+                          enabled:
+                            description: Enabled will toggle the creation of the Ingress.
+                            type: boolean
+                          ingressClassName:
+                            description: IngressClassName for the Ingress resource.
+                            type: string
+                          path:
+                            description: Path used for the Ingress resource.
+                            type: string
+                          tls:
+                            description: TLS configuration. Currently the Ingress
+                              only supports a single TLS port, 443. If multiple members
+                              of this list specify different hosts, they will be multiplexed
+                              on the same port according to the hostname specified
+                              through the SNI TLS extension, if the ingress controller
+                              fulfilling the ingress supports SNI.
+                            items:
+                              description: IngressTLS describes the transport layer
+                                security associated with an Ingress.
+                              properties:
+                                hosts:
+                                  description: Hosts are a list of hosts included
+                                    in the TLS certificate. The values in this list
+                                    must match the name/s used in the tlsSecret. Defaults
+                                    to the wildcard host setting for the loadbalancer
+                                    controller fulfilling this Ingress, if left unspecified.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                secretName:
+                                  description: SecretName is the name of the secret
+                                    used to terminate TLS traffic on port 443. Field
+                                    is left optional to allow TLS routing based on
+                                    SNI hostname alone. If the SNI host in a listener
+                                    conflicts with the "Host" header field used by
+                                    an IngressRule, the SNI host is used for termination
+                                    and value of the Host header is used for routing.
+                                  type: string
+                              type: object
+                            type: array
+                        required:
+                        - enabled
+                        type: object
+                      route:
+                        description: Route defines the desired state for an OpenShift
+                          Route for the Application set webhook component.
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations is the map of annotations to
+                              use for the Route resource.
+                            type: object
+                          enabled:
+                            description: Enabled will toggle the creation of the OpenShift
+                              Route.
+                            type: boolean
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels is the map of labels to use for the
+                              Route resource
+                            type: object
+                          path:
+                            description: Path the router watches for, to route traffic
+                              for to the service.
+                            type: string
+                          tls:
+                            description: TLS provides the ability to configure certificates
+                              and termination for the Route.
+                            properties:
+                              caCertificate:
+                                description: caCertificate provides the cert authority
+                                  certificate contents
+                                type: string
+                              certificate:
+                                description: certificate provides certificate contents
+                                type: string
+                              destinationCACertificate:
+                                description: destinationCACertificate provides the
+                                  contents of the ca certificate of the final destination.  When
+                                  using reencrypt termination this file should be
+                                  provided in order to have routers use it for health
+                                  checks on the secure connection. If this field is
+                                  not specified, the router may provide its own destination
+                                  CA and perform hostname validation using the short
+                                  service name (service.namespace.svc), which allows
+                                  infrastructure generated certificates to automatically
+                                  verify.
+                                type: string
+                              insecureEdgeTerminationPolicy:
+                                description: "insecureEdgeTerminationPolicy indicates
+                                  the desired behavior for insecure connections to
+                                  a route. While each router may make its own decisions
+                                  on which ports to expose, this is normally port
+                                  80. \n * Allow - traffic is sent to the server on
+                                  the insecure port (default) * Disable - no traffic
+                                  is allowed on the insecure port. * Redirect - clients
+                                  are redirected to the secure port."
+                                type: string
+                              key:
+                                description: key provides key file contents
+                                type: string
+                              termination:
+                                description: termination indicates termination type.
+                                type: string
+                            required:
+                            - termination
+                            type: object
+                          wildcardPolicy:
+                            description: WildcardPolicy if any for the route. Currently
+                              only 'Subdomain' or 'None' is allowed.
+                            type: string
+                        required:
+                        - enabled
+                        type: object
+                    type: object
                 type: object
               banner:
                 description: Banner defines an additional banner to be displayed in
@@ -106,8 +242,8 @@ spec:
                 properties:
                   appSync:
                     description: "AppSync is used to control the sync frequency, by
-                      default the ArgoCD controller polls Git every 3m by default.
-                      \n Set this to a duration, e.g. 10m or 600s to control the synchronisation
+                      default the ArgoCD controller polls Git every 3m. \n Set this
+                      to a duration, e.g. 10m or 600s to control the synchronisation
                       frequency."
                     type: string
                   env:
@@ -388,6 +524,9 @@ spec:
                       enabled:
                         description: Enabled will toggle the creation of the Ingress.
                         type: boolean
+                      ingressClassName:
+                        description: IngressClassName for the Ingress resource.
+                        type: string
                       path:
                         description: Path used for the Ingress resource.
                         type: string
@@ -704,6 +843,117 @@ spec:
                     description: Enabled defines whether argocd-notifications controller
                       should be deployed or not
                     type: boolean
+                  env:
+                    description: Env let you specify environment variables for Notifications
+                      pods
+                    items:
+                      description: EnvVar represents an environment variable present
+                        in a Container.
+                      properties:
+                        name:
+                          description: Name of the environment variable. Must be a
+                            C_IDENTIFIER.
+                          type: string
+                        value:
+                          description: 'Variable references $(VAR_NAME) are expanded
+                            using the previously defined environment variables in
+                            the container and any service environment variables. If
+                            a variable cannot be resolved, the reference in the input
+                            string will be unchanged. Double $$ are reduced to a single
+                            $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+                            "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+                            Escaped references will never be expanded, regardless
+                            of whether the variable exists or not. Defaults to "".'
+                          type: string
+                        valueFrom:
+                          description: Source for the environment variable's value.
+                            Cannot be used if value is not empty.
+                          properties:
+                            configMapKeyRef:
+                              description: Selects a key of a ConfigMap.
+                              properties:
+                                key:
+                                  description: The key to select.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind,
+                                    uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the ConfigMap or its
+                                    key must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                            fieldRef:
+                              description: 'Selects a field of the pod: supports metadata.name,
+                                metadata.namespace, `metadata.labels[''<KEY>'']`,
+                                `metadata.annotations[''<KEY>'']`, spec.nodeName,
+                                spec.serviceAccountName, status.hostIP, status.podIP,
+                                status.podIPs.'
+                              properties:
+                                apiVersion:
+                                  description: Version of the schema the FieldPath
+                                    is written in terms of, defaults to "v1".
+                                  type: string
+                                fieldPath:
+                                  description: Path of the field to select in the
+                                    specified API version.
+                                  type: string
+                              required:
+                              - fieldPath
+                              type: object
+                            resourceFieldRef:
+                              description: 'Selects a resource of the container: only
+                                resources limits and requests (limits.cpu, limits.memory,
+                                limits.ephemeral-storage, requests.cpu, requests.memory
+                                and requests.ephemeral-storage) are currently supported.'
+                              properties:
+                                containerName:
+                                  description: 'Container name: required for volumes,
+                                    optional for env vars'
+                                  type: string
+                                divisor:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  description: Specifies the output format of the
+                                    exposed resources, defaults to "1"
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                resource:
+                                  description: 'Required: resource to select'
+                                  type: string
+                              required:
+                              - resource
+                              type: object
+                            secretKeyRef:
+                              description: Selects a key of a secret in the pod's
+                                namespace
+                              properties:
+                                key:
+                                  description: The key of the secret to select from.  Must
+                                    be a valid secret key.
+                                  type: string
+                                name:
+                                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    TODO: Add other useful fields. apiVersion, kind,
+                                    uid?'
+                                  type: string
+                                optional:
+                                  description: Specify whether the Secret or its key
+                                    must be defined
+                                  type: boolean
+                              required:
+                              - key
+                              type: object
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    type: array
                   image:
                     description: Image is the Argo CD Notifications image (optional)
                     type: string
@@ -778,6 +1028,9 @@ spec:
                       enabled:
                         description: Enabled will toggle the creation of the Ingress.
                         type: boolean
+                      ingressClassName:
+                        description: IngressClassName for the Ingress resource.
+                        type: string
                       path:
                         description: Path used for the Ingress resource.
                         type: string
@@ -910,6 +1163,11 @@ spec:
                       resource, action, object, effect Role definitions and bindings
                       are in the form:   g, subject, inherited-subject See https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/rbac.md
                       for additional information.'
+                    type: string
+                  policyMatcherMode:
+                    description: PolicyMatcherMode configures the matchers function
+                      mode for casbin. There are two options for this, 'glob' for
+                      glob matcher or 'regex' for regex matcher.
                     type: string
                   scopes:
                     description: 'Scopes controls which OIDC scopes to examine during
@@ -5439,6 +5697,9 @@ spec:
                           enabled:
                             description: Enabled will toggle the creation of the Ingress.
                             type: boolean
+                          ingressClassName:
+                            description: IngressClassName for the Ingress resource.
+                            type: string
                           path:
                             description: Path used for the Ingress resource.
                             type: string
@@ -5494,6 +5755,9 @@ spec:
                       enabled:
                         description: Enabled will toggle the creation of the Ingress.
                         type: boolean
+                      ingressClassName:
+                        description: IngressClassName for the Ingress resource.
+                        type: string
                       path:
                         description: Path used for the Ingress resource.
                         type: string
@@ -5662,6 +5926,12 @@ spec:
                     - type
                     type: object
                 type: object
+              sourceNamespaces:
+                description: SourceNamespaces defines the namespaces application resources
+                  are allowed to be created in
+                items:
+                  type: string
+                type: array
               sso:
                 description: SSO defines the Single Sign-on configuration for Argo
                   CD
@@ -5755,6 +6025,10 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                             type: object
                         type: object
+                      rootCA:
+                        description: Custom root CA certificate for communicating
+                          with the Keycloak OIDC provider
+                        type: string
                       verifyTLS:
                         description: VerifyTLS set to false disables strict TLS validation.
                         type: boolean
