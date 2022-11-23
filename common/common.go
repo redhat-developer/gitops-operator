@@ -29,6 +29,8 @@ const (
 	DefaultConsoleImage = "quay.io/redhat-developer/gitops-console-plugin"
 	// Default console plugin version
 	DefaultConsoleVersion = "v0.1.0"
+	// Default console plugin installation OCP version
+	DefaultDynamicPluginStartOCPVersion = "4.15.0"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes

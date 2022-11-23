@@ -188,7 +188,7 @@ func TestReconcile(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(newGitopsService())
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.15.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -304,6 +304,38 @@ func TestReconcile_consoleAPINotFound(t *testing.T) {
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewFakeClient(newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Check consolePlugin and other resources are not created
+	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
+	assert.Error(t, err, "consoleplugins.console.openshift.io \"gitops-plugin\" not found")
+
+	pluginDeploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
+	assert.Error(t, err, "deployments.apps \"gitops-plugin\" not found")
+
+	pluginService := &corev1.Service{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginService)
+	assert.Error(t, err, "services \"gitops-plugin\" not found")
+
+	pluginConfigMap := &corev1.ConfigMap{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, pluginConfigMap)
+	assert.Error(t, err, "configmaps \"httpd-cfg\" not found")
+}
+
+func TestReconcile_ocpVersionLowerThan4_15(t *testing.T) {
+	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+	util.SetConsoleAPIFound(false)
+
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.11.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
