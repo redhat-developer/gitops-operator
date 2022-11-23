@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
+	version "github.com/hashicorp/go-version"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -57,15 +59,16 @@ var logs = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
 var (
-	port                       int32  = 8080
-	portTLS                    int32  = 8443
-	backendImage               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	backendImageEnvName               = "BACKEND_IMAGE"
-	serviceName                       = "cluster"
-	insecureEnvVar                    = "INSECURE"
-	insecureEnvVarValue               = "true"
-	serviceNamespace                  = "openshift-gitops"
-	deprecatedServiceNamespace        = "openshift-pipelines-app-delivery"
+	port                            int32  = 8080
+	portTLS                         int32  = 8443
+	backendImage                    string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImageEnvName                    = "BACKEND_IMAGE"
+	serviceName                            = "cluster"
+	insecureEnvVar                         = "INSECURE"
+	insecureEnvVarValue                    = "true"
+	serviceNamespace                       = "openshift-gitops"
+	deprecatedServiceNamespace             = "openshift-pipelines-app-delivery"
+	dynamicPluginStartOCPVersionEnv        = "DYNAMIC_PLUGIN_START_OCP_VERSION"
 )
 
 const (
@@ -224,7 +227,40 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
-	return r.reconcilePlugin(instance, request)
+	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
+	if dynamicPluginStartOCPVersion == "" {
+		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
+	}
+
+	OCPVersion, err := util.GetClusterVersion(r.Client)
+	if err != nil {
+		log.Printf("Unable to get cluster version: %v", err)
+		return reconcile.Result{}, nil
+	}
+
+	v1, err := version.NewVersion(OCPVersion)
+	if err != nil {
+		log.Printf("Unable to retrieve current OCP version: %v", err)
+		return reconcile.Result{}, nil
+	}
+	realVersion := v1.Segments()
+	realMajorVersion := realVersion[0]
+	realMinorVersion := realVersion[1]
+
+	v2, err := version.NewVersion(dynamicPluginStartOCPVersion)
+	if err != nil {
+		return reconcile.Result{}, nil
+	}
+	startVersion := v2.Segments()
+	startMajorVersion := startVersion[0]
+	startMinorVersion := startVersion[1]
+
+	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
+		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
+		return reconcile.Result{}, nil
+	} else {
+		return r.reconcilePlugin(instance, request)
+	}
 }
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
