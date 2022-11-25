@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+    oc adm policy add-scc-to-user anyuid -z argocd-argocd-dex-server -n $NAMESPACE
