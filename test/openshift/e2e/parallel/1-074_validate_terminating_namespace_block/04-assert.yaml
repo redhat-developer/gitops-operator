@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops-2242-ns-second
+  labels:
+    argocd.argoproj.io/managed-by: gitops-2242-ns-main
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-2242-argocd-argocd-server
+  namespace: gitops-2242-ns-second
+  annotations:
+    argocds.argoproj.io/name: gitops-2242-argocd
+    argocds.argoproj.io/namespace: gitops-2242-ns-main
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-2242-argocd-argocd-application-controller
+  namespace: gitops-2242-ns-second
+  annotations:
+    argocds.argoproj.io/name: gitops-2242-argocd
+    argocds.argoproj.io/namespace: gitops-2242-ns-main
