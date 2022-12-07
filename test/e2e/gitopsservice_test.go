@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -384,7 +383,7 @@ var _ = Describe("GitOpsServiceController", func() {
 
 	Context("Validate granting permissions by label", func() {
 
-		version := os.Getenv("OCP_VERSION")
+		//version := os.Getenv("OCP_VERSION")
 
 		//if !strings.Contains(version, "Server Version: 4.9") {
 
