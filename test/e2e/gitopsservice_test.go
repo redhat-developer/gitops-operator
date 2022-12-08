@@ -484,7 +484,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Second*2000, interval).ShouldNot(HaveOccurred())
+			}, time.Second*600, interval).ShouldNot(HaveOccurred())
 		})
 
 		It("Clean up resources", func() {
