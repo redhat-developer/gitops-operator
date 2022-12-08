@@ -31,3 +31,8 @@ kuttl-test.json
 # ignore vendor
 vendor/
 .vscode/
+
+
+# catalog temporary files
+catalog/
+catalog.Dockerfile

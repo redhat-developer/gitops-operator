@@ -243,7 +243,14 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	rm -fr catalog/ catalog.Dockerfile
+	mkdir -p catalog/
+	$(OPM) generate dockerfile catalog
+	$(OPM) init gitops-operator --default-channel=preview --description=./README.md --icon=./docs/assets/gitops-operator.svg --output yaml > catalog/operator.yaml
+	$(OPM) render $(BUNDLE_IMG) --output=yaml >> catalog/operator.yaml
+	sed  s/OPERATOR_NAME/gitops-operator/g build/catalog/channel.yaml.tpl | sed s/OPERATOR_VERSION/v$(VERSION)/g >> catalog/operator.yaml
+	docker build -f catalog.Dockerfile -t $(CATALOG_IMG) .
+	# $(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
