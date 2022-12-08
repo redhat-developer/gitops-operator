@@ -24,8 +24,5 @@ cp $KUBECONFIG $TMP_DIR/kubeconfig
 chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
 
-export OCP_VERSION="$(oc version)"
-echo $OCP_VERSION
-
 # Run e2e test
 make test-e2e

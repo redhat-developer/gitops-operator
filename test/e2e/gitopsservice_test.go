@@ -382,11 +382,6 @@ var _ = Describe("GitOpsServiceController", func() {
 	})
 
 	Context("Validate granting permissions by label", func() {
-
-		//version := os.Getenv("OCP_VERSION")
-
-		//if !strings.Contains(version, "Server Version: 4.9") {
-
 		sourceNS := "source-ns"
 		argocdInstance := "argocd-label"
 		targetNS := "target-ns"
@@ -419,7 +414,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					return err
 				}
 				return nil
-			}, time.Minute*30, interval).ShouldNot(HaveOccurred())
+			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
@@ -462,7 +457,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					},
 				},
 			}
-			err := helper.WaitForResourcesByName(k8sClient, resourceList, targetNS, time.Second*1200)
+			err := helper.WaitForResourcesByName(k8sClient, resourceList, targetNS, time.Second*180)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
