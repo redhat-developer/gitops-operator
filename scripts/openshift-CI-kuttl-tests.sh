@@ -32,6 +32,10 @@ metadata:
   namespace: test-argocd
 EOF
 
-oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
+sleep 60s
+
+oc get pods -n test-argocd
+
+# oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
 
 echo ">> Running tests on ${TARGET}"
