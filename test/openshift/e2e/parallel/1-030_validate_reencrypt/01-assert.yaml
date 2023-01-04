@@ -1,7 +1,10 @@
+
+
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd
+  namespace: test-1-30-argo1
 status:
   phase: Available
 ---
@@ -9,6 +12,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: argocd-server
+  namespace: test-1-30-argo1
 spec:
   port:
     targetPort: https
@@ -29,3 +33,4 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: argocd-server-tls
+  namespace: test-1-30-argo1
