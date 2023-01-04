@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  notifications:
+    enabled: True
+    env:
+      - name: foo
+        value: bar
+  server:
+    route:
+      enabled: true
