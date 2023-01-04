@@ -13,7 +13,7 @@ spec:
         - --staticassets
         - /shared/app
         - --dex-server
-        - http://argocd-dex-server.test-1-23-custom.svc.cluster.local:5556
+        - https://argocd-dex-server.test-1-23-custom.svc.cluster.local:5556
         - --repo-server
         - argocd-repo-server.test-1-23-custom.svc.cluster.local:8081
         - --redis
