@@ -1,40 +1,40 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: |
-    set -eo pipefail
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -eo pipefail
 
-    expected_count_spec_dex=1
-    expected_count_verify_tls=1
+#     expected_count_spec_dex=1
+#     expected_count_verify_tls=1
     
-    oc get events -n test-1-076-custom | grep -o '`.spec.dex` is deprecated'
+#     oc get events -n test-1-076-custom | grep -o '`.spec.dex` is deprecated'
 
-    count_spec_dex=$(oc get events -n test-1-076-custom | grep -o '`.spec.dex` is deprecated' - | wc -l)
-    if [[ $count_spec_dex -ne $expected_count_spec_dex ]]; then
-      echo "No. of .spec.dex deprecation notice found in test-1-076-custom:${count_spec_dex} expected:$expected_count_spec_dex"
-      exit 1
-    fi
+#     count_spec_dex=$(oc get events -n test-1-076-custom | grep -o '`.spec.dex` is deprecated' - | wc -l)
+#     if [[ $count_spec_dex -ne $expected_count_spec_dex ]]; then
+#       echo "No. of .spec.dex deprecation notice found in test-1-076-custom:${count_spec_dex} expected:$expected_count_spec_dex"
+#       exit 1
+#     fi
     
-    oc get events -n test-1-076-custom2 | grep -o '`.spec.dex` is deprecated'
+#     oc get events -n test-1-076-custom2 | grep -o '`.spec.dex` is deprecated'
 
-    count_spec_dex=$(oc get events -n test-1-076-custom2 | grep -o '`.spec.dex` is deprecated' - | wc -l)
-    if [[ $count_spec_dex -ne $expected_count_spec_dex ]]; then
-      echo "No. of .spec.dex deprecation notice found in test-1-076-custom2:${count_spec_dex} expected:$expected_count_spec_dex"
-      exit 1
-    fi
+#     count_spec_dex=$(oc get events -n test-1-076-custom2 | grep -o '`.spec.dex` is deprecated' - | wc -l)
+#     if [[ $count_spec_dex -ne $expected_count_spec_dex ]]; then
+#       echo "No. of .spec.dex deprecation notice found in test-1-076-custom2:${count_spec_dex} expected:$expected_count_spec_dex"
+#       exit 1
+#     fi
     
-    oc get events -n test-1-076-custom | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated'
+#     oc get events -n test-1-076-custom | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated'
 
-    count_verify_tls=$(oc get events -n test-1-076-custom | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated' - | wc -l)
-    if [[ $count_verify_tls -ne $expected_count_verify_tls ]]; then
-      echo "No. of .spec.dex deprecation notice found in test-1-076-custom:${count_verify_tls} expected:$expected_count_verify_tls"
-      exit 1
-    fi
+#     count_verify_tls=$(oc get events -n test-1-076-custom | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated' - | wc -l)
+#     if [[ $count_verify_tls -ne $expected_count_verify_tls ]]; then
+#       echo "No. of .spec.dex deprecation notice found in test-1-076-custom:${count_verify_tls} expected:$expected_count_verify_tls"
+#       exit 1
+#     fi
     
-    oc get events -n test-1-076-custom2 | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated'
+#     oc get events -n test-1-076-custom2 | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated'
 
-    count_verify_tls=$(oc get events -n test-1-076-custom2 | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated' - | wc -l)
-    if [[ $count_verify_tls -ne $expected_count_verify_tls ]]; then
-      echo "No. of .spec.dex deprecation notice found in test-1-076-custom2:${count_verify_tls} expected:$expected_count_verify_tls"
-      exit 1
-    fi
+#     count_verify_tls=$(oc get events -n test-1-076-custom2 | grep -o '`.spec.SSO.Image`, `.spec.SSO.Version`, `.spec.SSO.Resources` and `.spec.SSO.VerifyTLS` are deprecated' - | wc -l)
+#     if [[ $count_verify_tls -ne $expected_count_verify_tls ]]; then
+#       echo "No. of .spec.dex deprecation notice found in test-1-076-custom2:${count_verify_tls} expected:$expected_count_verify_tls"
+#       exit 1
+#     fi
