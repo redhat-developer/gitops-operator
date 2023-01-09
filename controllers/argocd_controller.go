@@ -116,54 +116,73 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Route")
 
+	// Stop, if OpenShift Console API is unavailable
 	if !util.IsConsoleAPIFound() {
-		reqLogger.Info("Skip argocd route reconcile: OpenShift Console API not found")
+		reqLogger.Info("Skipping reconcile: OpenShift Console API not found")
 		return reconcile.Result{}, nil
 	}
 
-	// Fetch ArgoCD server route
-	argoCDRoute := &routev1.Route{}
-	err := r.Client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
+	// Fetch the Argo CD server route object (represents the URL to access ArgoCD console).
+	argoCDRoute, err := getArgoCDRoute(r.Client, ctx, reqLogger)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
-			// if argocd-server route is deleted, remove the ConsoleLink if present
-			return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
-		}
 		return reconcile.Result{}, err
 	}
 
-	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
+	if argoCDRoute == nil {
+		// if argocd-server route is not found or deleted, remove the ConsoleLink if present
+		if err := r.deleteConsoleLinkIfPresent(ctx, reqLogger); err != nil {
+			reqLogger.Error(err, "Failed to delete ConsoleLink")
+			return reconcile.Result{}, err
+		}
+	}
 
+	// Get the URL, or stop if it's empty.
+	if argoCDRoute.Spec.Host == "" {
+		reqLogger.Info("Skipping reconcile: Argo CD route host is empty")
+		return reconcile.Result{}, nil
+	}
 	argoCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
+	reqLogger.Info("Route found for argocd-server", "Route.Spec.Host", argoCDRouteURL)
 
+	// Helper code: checks whether the ConsoleLink already exists in the Kubernetes API server,
+	// and prepares an "expected" ConsoleLink for comparison (see ACTIONS below).
 	consoleLink := newConsoleLink(argoCDRouteURL, "Cluster Argo CD")
-
 	found := &console.ConsoleLink{}
 	err = r.Client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
-
-	if err != nil {
-		if errors.IsNotFound(err) {
-			if !isConsoleLinkDisabled() {
-				reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
-			}
-		}
-		reqLogger.Error(err, "ConsoleLink not found", "ConsoleLink.Name", consoleLink.Name)
+	consoleLinkExists := err == nil // true if err is nil (i.e., if the ConsoleLink was found), and false otherwise.
+	if !consoleLinkExists && !errors.IsNotFound(err) {
+		reqLogger.Error(err, "consoleLink exists but failed get it.", "consoleLink.Name", consoleLink.Name)
 		return reconcile.Result{}, err
 	}
-	if isConsoleLinkDisabled() {
-		return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
-	} else if found.Spec.Href != argoCDRouteURL {
-		reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-		found.Spec.Href = argoCDRouteURL
-		return reconcile.Result{}, r.Client.Update(ctx, found)
+
+	// If the ConsoleLink exists, take one of the following (a,b,c) actions:
+	if consoleLinkExists {
+		// a. If the ConsoleLink is disabled, delete it.
+		if isConsoleLinkDisabled() {
+			return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
+		}
+		// b. If the ConsoleLink URL is different from the Argo CD server route URL, update the ConsoleLink.
+		if found.Spec.Href != argoCDRouteURL {
+			reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+			found.Spec.Href = argoCDRouteURL
+			return reconcile.Result{}, r.Client.Update(ctx, found)
+		}
+		// c. If the ConsoleLink URL is already correct, do nothing.
+		reqLogger.Info("Skip reconcile: ConsoleLink already exists", "consoleLink.Name", consoleLink.Name)
+		return reconcile.Result{}, nil
 	}
 
-	reqLogger.Info("Skip reconcile: ConsoleLink already exists", "ConsoleLink.Name", consoleLink.Name)
+	// If the ConsoleLink does not exist and is enabled, create it.
+	if !isConsoleLinkDisabled() {
+		reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+		return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
+	}
+
+	// If the ConsoleLink does not exist and is disabled, do nothing.
 	return reconcile.Result{}, nil
 }
 
+// newConsoleLink returns a new ConsoleLink object with the specified href and text.
 func newConsoleLink(href, text string) *console.ConsoleLink {
 	return &console.ConsoleLink{
 		ObjectMeta: metav1.ObjectMeta{
@@ -183,18 +202,49 @@ func newConsoleLink(href, text string) *console.ConsoleLink {
 	}
 }
 
+// deleteConsoleLinkIfPresent deletes the ConsoleLink object if it exists in the Kubernetes API server.
+// If it doesn't exist, it simply returns nil. If there is any other error, it returns the error.
 func (r *ReconcileArgoCDRoute) deleteConsoleLinkIfPresent(ctx context.Context, log logr.Logger) error {
-	err := r.Client.Get(ctx, types.NamespacedName{Name: consoleLinkName}, &console.ConsoleLink{})
+	// Check if the ConsoleLink object exists.
+	consoleLink := &console.ConsoleLink{}
+	err := r.Client.Get(ctx, types.NamespacedName{Name: consoleLinkName}, consoleLink)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	log.Info("Deleting ConsoleLink", "ConsoleLink.Name", consoleLinkName)
-	return r.Client.Delete(ctx, &console.ConsoleLink{ObjectMeta: metav1.ObjectMeta{Name: consoleLinkName}})
+	// The ConsoleLink object exists - delete it.
+	log.Info("Deleting ConsoleLink", "consoleLink.Name", consoleLinkName)
+	return r.Client.Delete(ctx, consoleLink)
 }
 
+// imageDataURL returns the data URL of the image data in PNG format.
 func imageDataURL(data string) string {
 	return fmt.Sprintf("data:image/png;base64,%s", data)
+}
+
+// getArgoCDRoute fetches the Argo CD server route object from the Kubernetes API server.
+func getArgoCDRoute(client client.Client, ctx context.Context, logger logr.Logger) (*routev1.Route, error) {
+	// Define the name and namespace of the route to fetch
+	routeName := types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}
+
+	// Create a new Route object to hold the fetched route
+	argoCDRoute := &routev1.Route{}
+
+	// Fetch the route from the Kubernetes API server
+	err := client.Get(ctx, routeName, argoCDRoute)
+	if err != nil {
+		// If the route is not found, this is not considered to be an error
+		// so return nil for the Route object and nil for the error as well
+		if errors.IsNotFound(err) {
+			logger.Info("ArgoCD server route not found", "Route.Namespace", argocdNS)
+			return nil, nil
+		}
+		// If another error occurred, return nil for the Route object and the error
+		return nil, err
+	}
+
+	// Return the fetched Route object and nil for the error
+	return argoCDRoute, nil
 }
