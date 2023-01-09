@@ -189,7 +189,7 @@ func newFakeReconcileArgoCD(objs ...runtime.Object) (*ReconcileArgoCDRoute, clie
 	s.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
 	s.AddKnownTypes(console.GroupVersion, &console.ConsoleLink{})
 	s.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
-	fakeClient := fake.NewFakeClient(objs...)
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objs...).Build()
 	return &ReconcileArgoCDRoute{
 		Client: fakeClient,
 		Scheme: s,
