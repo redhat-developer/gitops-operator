@@ -8,7 +8,7 @@ An operator that gets you an Argo CD for cluster configuration out-of-the-box on
 
 1. Add the following resource to your cluster:
 
-```
+```yaml
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
@@ -23,8 +23,6 @@ spec:
 
 2. Go to the OperatorHub on OpenShift Webconsole and look for the "OpenShift GitOps" operator.
 
-
-
 ![a relative link](docs/assets/operatorhub-listing.png)
 
 3. Install the operator using the defaults in the wizard, and wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-operators` namespace.
@@ -37,7 +35,6 @@ That's it! Your API `route` should be created for you. You don't need to explicl
 
 ## Contributing
 
-
 1. Clone the repository.
 2. Login to a cluster on your command-line.
 3. Execute `make install` to apply the CRDs.
@@ -47,21 +44,23 @@ That's it! Your API `route` should be created for you. You don't need to explicl
 
 #### Unit tests
 
-```
+```shell
 make test
 ```
 
 #### e2e tests
 
+```shell
+make test-e2e       # Runs via OpenShift CI
 ```
-make test-e2e
-```
+
+**Note**: To debug and run the e2e tests locally, get a cluster and run `make test-e2e-local`.
 
 ## Re-build and Deploy
 
 This operator currently deploys the following payload:
 
-```
+```shell
 quay.io/<quay-username>/gitops-backend:v0.0.1
 ```
 
@@ -70,20 +69,19 @@ mode. You could update your image "payload" and re-install the operator.
 
 Set the base image and version for building operator, bundle and index images.
 
-```
+```shell
 export IMAGE=quay.io/<quay-username>/gitops-backend-operator VERSION=0.0.4
 ```
 
 1. Build and push the operator image.
 
-```
+```shell
 make docker-build docker-push
 ```
 
-
 2. Build and push the Bundle image ( operator + OLM manifests )
 
-```
+```shell
 make bundle
 make bundle-build bundle-push
 ```
@@ -92,16 +90,15 @@ make bundle-build bundle-push
 
 Install `opm` binary which is required to build index images
 
-```
+```shell
 make opm
 ```
 
-```
+```shell
 make catalog-build catalog-push
 ```
 
 The Index image powers the listing of the Operator on OperatorHub.
-
 
 ## GitOps Operator vs [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator)
 

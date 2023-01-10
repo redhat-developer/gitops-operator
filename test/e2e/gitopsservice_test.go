@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -687,11 +688,19 @@ var _ = Describe("GitOpsServiceController", func() {
 	Context("Verify RHSSO installation", func() {
 		namespace := argoCDNamespace
 		It("Template instance is created", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			tInstance := &templatev1.TemplateInstance{}
 			checkIfPresent(types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, tInstance)
 		})
 
 		It("Keycloak deployment is created", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			Eventually(func() error {
 				dc := &osappsv1.DeploymentConfig{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, dc)
@@ -710,11 +719,19 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Keycloak service is created", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			svc := &corev1.Service{}
 			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, svc)
 		})
 
 		It("Keycloak service route is created", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			route := &routev1.Route{}
 			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
 		})
@@ -724,6 +741,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		namespace := argoCDNamespace
 
 		It("Verify RHSSO Realm creation", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			By("get keycloak URL and credentials")
 			route := &routev1.Route{}
 			checkIfPresent(types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, route)
@@ -782,6 +803,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Verify OIDC Configuration is created", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			Eventually(func() error {
 				cm := &corev1.ConfigMap{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
@@ -801,6 +826,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		namespace := argoCDNamespace
 		argocd := &argoapp.ArgoCD{}
 		It("Remove SSO field from Argo CD CR", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
 
 			argocd.Spec.SSO = nil
@@ -809,6 +838,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("OIDC configuration is removed", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			Eventually(func() bool {
 				cm := &corev1.ConfigMap{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDConfigMapName, Namespace: namespace}, cm)
@@ -818,6 +851,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Template instance is deleted", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			Eventually(func() error {
 				templateInstance := &templatev1.TemplateInstance{}
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultTemplateIdentifier, Namespace: namespace}, templateInstance)
@@ -829,6 +866,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Add SSO field back and verify reconcilation", func() {
+			// Skip this test if LOCAL_TESTING is set to true
+			if os.Getenv("LOCAL_TESTING") == "true" {
+				Skip("Skipping test in local mode")
+			}
 			insecure := false
 			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
 				Provider:  defaultKeycloakIdentifier,
