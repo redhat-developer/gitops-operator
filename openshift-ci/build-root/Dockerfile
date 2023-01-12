@@ -2,7 +2,6 @@
 
 FROM registry.ci.openshift.org/openshift/release:golang-1.18
 
-RUN yum -y install dnf httpd-tools
 RUN yum -y install dnf httpd-tools podman docker
 
 # Install kubectl tool which is used in e2e-tests
