@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+  namespace: source-ns
+spec:
+  destination:
+    namespace: target-ns
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    path: test/examples/nginx
+    repoURL: 'https://github.com/redhat-developer/gitops-operator'
+    targetRevision: HEAD
+  syncPolicy:
+    automated: {}
+status: {}
