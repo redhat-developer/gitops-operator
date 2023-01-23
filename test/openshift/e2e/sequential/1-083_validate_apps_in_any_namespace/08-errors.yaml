@@ -1,0 +1,29 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    argocd.argoproj.io/managed-by-cluster-argocd: openshift-gitops
+    kubernetes.io/metadata.name: test-1-24-custom
+  name: test-1-24-custom
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: openshift-gitops_test-1-24-custom
+  namespace: test-1-24-custom
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: openshift-gitops_test-1-24-custom
+  namespace: test-1-24-custom
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: openshift-gitops_test-1-24-custom
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-server
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
