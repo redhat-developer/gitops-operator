@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: namespace-gitops-2038
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: namespace-gitops-2038
+spec:
+  server:
+    route:
+      enabled: true

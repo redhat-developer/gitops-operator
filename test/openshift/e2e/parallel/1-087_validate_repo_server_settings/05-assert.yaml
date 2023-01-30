@@ -1,0 +1,11 @@
+# Add checks for serviceAccountName and serviceAccount after fixing https://issues.redhat.com/browse/GITOPS-2452
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: example-argocd-repo-server
+spec:
+  template:
+    spec:
+      automountServiceAccountToken: false
+status:
+  readyReplicas: 1

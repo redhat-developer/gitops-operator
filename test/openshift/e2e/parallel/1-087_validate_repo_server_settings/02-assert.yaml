@@ -1,0 +1,12 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: example-argocd-repo-server
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      serviceAccount: default
+status:
+  readyReplicas: 1
