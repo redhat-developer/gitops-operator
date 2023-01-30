@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -x
 # Setup to find necessary data from cluster setup
 # Overrideable information
