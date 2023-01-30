@@ -1,0 +1,12 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patches the subscription to set an environment variable
+- script: |
+    if [ -z $CI ]; then
+      oc patch -n openshift-operators subscription openshift-gitops-operator \
+        --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
+    else
+      oc patch -n openshift-operators subscription `subscription=oo- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+        --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
+    fi

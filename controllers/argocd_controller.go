@@ -20,6 +20,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"os"
+	"strings"
 
 	// embed the Argo icon during compile time
 	_ "embed"
@@ -27,6 +29,8 @@ import (
 	"github.com/go-logr/logr"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/common"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,10 +63,16 @@ func init() {
 	encodedArgoImage = imageDataURL(base64.StdEncoding.EncodeToString(argoImage))
 }
 
+// if DISABLE_DEFAULT_ARGOCD_CONSOLELINK env variable is true, Argo CD ConsoleLink will be deleted
+func isConsoleLinkDisabled() bool {
+	return strings.ToLower(os.Getenv(common.DisableDefaultArgoCDConsoleLink)) == "true"
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReconcileArgoCDRoute) SetupWithManager(mgr ctrl.Manager) error {
 	// Watch for changes to argocd-server route in the default argocd instance namespace
 	// The ConsoleLink holds the route URL and should be regenerated when route is updated
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&routev1.Route{}, builder.WithPredicates(filterPredicate(filterArgoCDRoute))).
 		Complete(r)
@@ -108,6 +118,11 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Route")
 
+	if !util.IsConsoleAPIFound() {
+		reqLogger.Info("Skip argocd route reconcile: OpenShift Console API not found")
+		return reconcile.Result{}, nil
+	}
+
 	// Fetch ArgoCD server route
 	argoCDRoute := &routev1.Route{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: argocdRouteName, Namespace: argocdNS}, argoCDRoute)
@@ -119,26 +134,31 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 		}
 		return reconcile.Result{}, err
 	}
+
 	reqLogger.Info("Route found for argocd-server", "Route.Host", argoCDRoute.Spec.Host)
 
-	argocCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
+	argoCDRouteURL := fmt.Sprintf("https://%s", argoCDRoute.Spec.Host)
 
-	consoleLink := newConsoleLink(argocCDRouteURL, "Cluster Argo CD")
+	consoleLink := newConsoleLink(argoCDRouteURL, "Cluster Argo CD")
 
 	found := &console.ConsoleLink{}
 	err = r.Client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
+
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-			return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
+			if !isConsoleLinkDisabled() {
+				reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
+			}
 		}
-		reqLogger.Error(err, "Failed to create ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+		reqLogger.Error(err, "ConsoleLink not found", "ConsoleLink.Name", consoleLink.Name)
 		return reconcile.Result{}, err
 	}
-
-	if found.Spec.Href != argocCDRouteURL {
+	if isConsoleLinkDisabled() {
+		return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
+	} else if found.Spec.Href != argoCDRouteURL {
 		reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-		found.Spec.Href = argocCDRouteURL
+		found.Spec.Href = argoCDRouteURL
 		return reconcile.Result{}, r.Client.Update(ctx, found)
 	}
 

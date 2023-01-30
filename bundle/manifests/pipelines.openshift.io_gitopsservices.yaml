@@ -34,13 +34,19 @@ spec:
           spec:
             description: GitopsServiceSpec defines the desired state of GitopsService
             properties:
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector is a map of key value pairs used for node
+                  selection in the default workloads
+                type: object
               runOnInfra:
                 description: InfraNodeEnabled will add infra NodeSelector to all the
                   default workloads of gitops operator
                 type: boolean
               tolerations:
-                description: Tolerations allow the pods to schedule onto nodes with
-                  matching taints
+                description: Tolerations allow the default workloads to schedule onto
+                  nodes with matching taints
                 items:
                   description: The pod this Toleration is attached to tolerates any
                     taint that matches the triple <key,value,effect> using the matching

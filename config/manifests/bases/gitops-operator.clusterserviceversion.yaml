@@ -3,6 +3,7 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     capabilities: Deep Insights
+    console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.

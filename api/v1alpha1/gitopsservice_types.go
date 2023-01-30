@@ -28,8 +28,10 @@ type GitopsServiceSpec struct {
 
 	// InfraNodeEnabled will add infra NodeSelector to all the default workloads of gitops operator
 	RunOnInfra bool `json:"runOnInfra,omitempty"`
-	// Tolerations allow the pods to schedule onto nodes with matching taints
+	// Tolerations allow the default workloads to schedule onto nodes with matching taints
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// NodeSelector is a map of key value pairs used for node selection in the default workloads
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService

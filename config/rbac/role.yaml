@@ -12,10 +12,10 @@ rules:
   - configmaps
   - endpoints
   - events
-  - namespaces
   - persistentvolumeclaims
   - pods
   - secrets
+  - serviceaccounts
   - services
   - services/finalizers
   verbs:
@@ -29,40 +29,21 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - configmaps
-  - endpoints
-  - events
-  - persistentvolumeclaims
-  - pods
-  - secrets
-  - serviceaccounts
-  - services
-  - services/finalizers
-  verbs:
-  - '*'
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - pods/log
-  verbs:
-  - get
-- apiGroups:
-  - ""
-  resources:
+  - namespaces
   - resourcequotas
   verbs:
   - create
   - delete
   - get
   - list
+  - update
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
 - apiGroups:
   - apps
   resources:
@@ -80,21 +61,6 @@ rules:
   - watch
 - apiGroups:
   - apps
-  resources:
-  - deployments
-  - replicasets
-  verbs:
-  - get
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - replicasets
-  - statefulsets
-  verbs:
-  - '*'
-- apiGroups:
-  - apps
   resourceNames:
   - gitops-operator
   resources:
@@ -106,7 +72,13 @@ rules:
   resources:
   - '*'
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -116,29 +88,38 @@ rules:
   - argocds/finalizers
   - argocds/status
   verbs:
-  - '*'
-- apiGroups:
-  - argoproj.io
-  resources:
-  - argocds
-  verbs:
   - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - autoscaling
   resources:
   - horizontalpodautoscalers
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - batch
   resources:
   - cronjobs
   - jobs
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - config.openshift.io
   resources:
@@ -171,26 +152,43 @@ rules:
   - update
   - watch
 - apiGroups:
+  - console.openshift.io
+  resources:
+  - consoleplugins
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - monitoring.coreos.com
   resources:
   - prometheuses
   - prometheusrules
   - servicemonitors
   verbs:
-  - '*'
-- apiGroups:
-  - monitoring.coreos.com
-  resources:
-  - servicemonitors
-  verbs:
   - create
+  - delete
   - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - oauth.openshift.io
   resources:
@@ -257,27 +255,57 @@ rules:
   resources:
   - '*'
   verbs:
-  - '*'
+  - bind
+  - create
+  - delete
+  - deletecollection
+  - escalate
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterrolebindings
   - clusterroles
   verbs:
-  - '*'
+  - bind
+  - create
+  - delete
+  - deletecollection
+  - escalate
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - route.openshift.io
   resources:
   - '*'
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - route.openshift.io
   resources:
   - routes
   - routes/custom-host
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - template.openshift.io
   resources:
@@ -285,4 +313,10 @@ rules:
   - templateinstances
   - templates
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

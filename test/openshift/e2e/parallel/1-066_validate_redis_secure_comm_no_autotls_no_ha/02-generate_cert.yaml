@@ -1,0 +1,18 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    echo -e "\n[SAN]\nsubjectAltName=DNS:argocd-redis.$NAMESPACE.svc.cluster.local\n[req]\ndistinguished_name=req" > ${PWD}/openssl_test.cnf
+
+    openssl req -new -x509 -sha256 \
+     -subj "/C=XX/ST=XX/O=Testing/CN=redis" \
+     -reqexts SAN -extensions SAN \
+     -config ${PWD}/openssl_test.cnf \
+     -keyout ${PWD}/redis.key \
+     -out ${PWD}/redis.crt \
+     -newkey rsa:4096 \
+     -nodes \
+     -sha256 \
+     -days 10

@@ -110,6 +110,16 @@ test-gitopsservice-nondefault:
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
+.PHONY: e2e-tests-sequential
+e2e-tests-sequential: ## Runs kuttl e2e sequentail tests
+	@echo "Running GitOps Operator sequential E2E tests..."
+	. ./scripts/run-kuttl-tests.sh  sequential
+
+.PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-tests-parallel:
+	@echo "Running GitOps Operator parallel E2E tests..."
+	. ./scripts/run-kuttl-tests.sh  parallel
+
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
@@ -130,14 +140,14 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=true -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
 
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -146,7 +156,7 @@ controller-gen: ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.2)
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -193,6 +203,24 @@ ifeq (,$(shell which opm 2>/dev/null))
 	}
 else
 OPM = $(shell which opm)
+endif
+endif
+
+.PHONY: operator-sdk
+OPERATOR_SDK = ./bin/operator-sdk
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifeq (,$(wildcard $(OPERATOR_SDK)))
+ifeq (,$(shell which operator-sdk 2>/dev/null))
+	@{ \
+	set -e ;\
+	mkdir -p $(dir $(OPERATOR_SDK)) ;\
+	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
+	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/v1.22.2/operator-sdk_$${OS}_$${ARCH} ;\
+	chmod +x $(OPERATOR_SDK) ;\
+	$(OPERATOR_SDK) version ; \
+	}
+else
+OPERATOR_SDK = $(shell which operator-sdk)
 endif
 endif
 

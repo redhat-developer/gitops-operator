@@ -24,11 +24,13 @@ import (
 
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
-
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -159,7 +161,7 @@ func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleC
 			Name: consoleLinkName,
 		},
 		Spec: console.ConsoleCLIDownloadSpec{
-			Links: []console.Link{
+			Links: []console.CLIDownloadLink{
 				{
 					Text: text,
 					Href: href,
@@ -175,14 +177,25 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
+	if !util.IsConsoleAPIFound() {
+		reqLogger.Info("Skip cli server reconcile: OpenShift Console API not found")
+		return reconcile.Result{}, nil
+	}
+
 	deploymentObj := newDeploymentForCLI()
+
+	deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	if cr.Spec.RunOnInfra {
-		deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
+		deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
 	}
+	if len(cr.Spec.NodeSelector) > 0 {
+		deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
+	}
+
 	if len(cr.Spec.Tolerations) > 0 {
 		deploymentObj.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}

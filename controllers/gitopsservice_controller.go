@@ -19,15 +19,18 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"reflect"
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
+	version "github.com/hashicorp/go-version"
 	routev1 "github.com/openshift/api/route/v1"
-
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
@@ -56,15 +59,16 @@ var logs = logf.Log.WithName("controller_gitopsservice")
 
 // defaults must some somewhere else..
 var (
-	port                       int32  = 8080
-	portTLS                    int32  = 8443
-	backendImage               string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
-	backendImageEnvName               = "BACKEND_IMAGE"
-	serviceName                       = "cluster"
-	insecureEnvVar                    = "INSECURE"
-	insecureEnvVarValue               = "true"
-	serviceNamespace                  = "openshift-gitops"
-	deprecatedServiceNamespace        = "openshift-pipelines-app-delivery"
+	port                            int32  = 8080
+	portTLS                         int32  = 8443
+	backendImage                    string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImageEnvName                    = "BACKEND_IMAGE"
+	serviceName                            = "cluster"
+	insecureEnvVar                         = "INSECURE"
+	insecureEnvVarValue                    = "true"
+	serviceNamespace                       = "openshift-gitops"
+	deprecatedServiceNamespace             = "openshift-pipelines-app-delivery"
+	dynamicPluginStartOCPVersionEnv        = "DYNAMIC_PLUGIN_START_OCP_VERSION"
 )
 
 const (
@@ -125,41 +129,37 @@ type ReconcileGitopsService struct {
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=*,verbs=create;delete;get;list;patch;update;watch
 
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=*
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles;clusterrolebindings,verbs=get;list;watch;create;delete;patch;update;deletecollection;escalate;bind
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=*,verbs=get;list;watch;create;delete;patch;update;deletecollection;escalate;bind
 
-//+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=*
-//+kubebuilder:rbac:groups="",resources=pods;pods/log,verbs=get
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get
-//+kubebuilder:rbac:groups="",resources=pods;services;services/finalizers;endpoints;persistentvolumeclaims;events;configmaps;secrets;namespaces,verbs=create;delete;get;list;patch;update;watch
-//+kubebuilder:rbac:groups="",resources=resourcequotas,verbs=get;list;watch;create;delete
+//+kubebuilder:rbac:groups="",resources=configmaps;endpoints;events;persistentvolumeclaims;pods;secrets;serviceaccounts;services;services/finalizers,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups="",resources=pods/log,verbs=get
+//+kubebuilder:rbac:groups="",resources=namespaces;resourcequotas,verbs=get;list;watch;create;delete;update
 //+kubebuilder:rbac:groups="oauth.openshift.io",resources=oauthclients,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=apps,resources=deployments;replicasets;statefulsets,verbs=*
 //+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=apps,resourceNames=gitops-operator,resources=deployments/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=replicasets;deployments,verbs=get
 
-//+kubebuilder:rbac:groups=apps.openshift.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=apps.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=*
-//+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=*
+//+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
 
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
+//+kubebuilder:rbac:groups=console.openshift.io,resources=consoleplugins,verbs=create;delete;get;list;patch;update;watch
 
-//+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=*
-//+kubebuilder:rbac:groups=argoproj.io,resources=argocds,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=argoproj.io,resources=argocds;argocds/finalizers;argocds/status;applications;appprojects,verbs=get;list;watch;create;delete;patch;update
 
-//+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=*
-//+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=*
-//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=*
+//+kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=batch,resources=cronjobs;jobs,verbs=get;list;watch;create;delete;patch;update
+//+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
 
-//+kubebuilder:rbac:groups=template.openshift.io,resources=templates;templateinstances;templateconfigs,verbs=*
+//+kubebuilder:rbac:groups=template.openshift.io,resources=templates;templateinstances;templateconfigs,verbs=get;list;watch;create;delete;patch;update
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
@@ -223,7 +223,44 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
-	return r.reconcileCLIServer(instance, request)
+	if result, err := r.reconcileCLIServer(instance, request); err != nil {
+		return result, err
+	}
+
+	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
+	if dynamicPluginStartOCPVersion == "" {
+		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
+	}
+
+	OCPVersion, err := util.GetClusterVersion(r.Client)
+	if err != nil {
+		log.Printf("Unable to get cluster version: %v", err)
+		return reconcile.Result{}, nil
+	}
+
+	v1, err := version.NewVersion(OCPVersion)
+	if err != nil {
+		log.Printf("Unable to retrieve current OCP version: %v", err)
+		return reconcile.Result{}, nil
+	}
+	realVersion := v1.Segments()
+	realMajorVersion := realVersion[0]
+	realMinorVersion := realVersion[1]
+
+	v2, err := version.NewVersion(dynamicPluginStartOCPVersion)
+	if err != nil {
+		return reconcile.Result{}, nil
+	}
+	startVersion := v2.Segments()
+	startMajorVersion := startVersion[0]
+	startMinorVersion := startVersion[1]
+
+	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
+		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
+		return reconcile.Result{}, nil
+	} else {
+		return r.reconcilePlugin(instance, request)
+	}
 }
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
@@ -326,8 +363,21 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 	//to add infra nodeselector to default argocd pods
 	if instance.Spec.RunOnInfra {
-		defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-			NodeSelector: common.InfraNodeSelector(),
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: common.InfraNodeSelector(),
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
+		}
+	}
+	if len(instance.Spec.NodeSelector) > 0 {
+		if defaultArgoCDInstance.Spec.NodePlacement == nil {
+			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
+				NodeSelector: instance.Spec.NodeSelector,
+			}
+		} else {
+			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
 		}
 	}
 	if len(instance.Spec.Tolerations) > 0 {
@@ -513,12 +563,16 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 	{
 		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
 
+		deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
 		}
 		if instance.Spec.RunOnInfra {
-			deploymentObj.Spec.Template.Spec.NodeSelector = common.InfraNodeSelector()
+			deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
+		}
+		if len(instance.Spec.NodeSelector) > 0 {
+			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
 		}
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations

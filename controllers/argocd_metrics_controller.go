@@ -60,8 +60,7 @@ func (r *ArgoCDMetricsReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses;prometheusrules;servicemonitors,verbs=*
-//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=create;get
+//+kubebuilder:rbac:groups=monitoring.coreos.com,resources=prometheuses;prometheusrules;servicemonitors,verbs=get;list;watch;create;delete;patch;update
 
 func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	var logs = logf.Log.WithName("controller_argocd_metrics")

@@ -22,16 +22,18 @@ import (
 	"os"
 	"testing"
 
-	"gotest.tools/assert"
-
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
+	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
+	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -179,11 +181,14 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 }
 
 func TestReconcile(t *testing.T) {
+	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+	util.SetConsoleAPIFound(true)
+
 	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(newGitopsService())
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.15.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -238,6 +243,24 @@ func TestReconcile(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
 	assertNoError(t, err)
 	assert.DeepEqual(t, deploy.Spec.Template.Spec.Containers[0].Image, backendImage)
+
+	// Check if plugin instance is created in openshift-gitops namespace
+	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
+	assertNoError(t, err)
+	assert.DeepEqual(t, consolePlugin.Spec.Service.Name, gitopsPluginName)
+
+	pluginDeploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
+	assertNoError(t, err)
+
+	pluginService := &corev1.Service{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginService)
+	assertNoError(t, err)
+
+	pluginConfigMap := &corev1.ConfigMap{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, pluginConfigMap)
+	assertNoError(t, err)
 }
 
 func TestReconcile_AppDeliveryNamespace(t *testing.T) {
@@ -270,6 +293,70 @@ func TestReconcile_AppDeliveryNamespace(t *testing.T) {
 	// Check if argocd instance is created in openshift-gitops namespace
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "openshift-gitops", Namespace: serviceNamespace}, &argoapp.ArgoCD{})
 	assertNoError(t, err)
+}
+
+func TestReconcile_consoleAPINotFound(t *testing.T) {
+	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+	util.SetConsoleAPIFound(false)
+
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClient(newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Check consolePlugin and other resources are not created
+	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
+	assert.Error(t, err, "consoleplugins.console.openshift.io \"gitops-plugin\" not found")
+
+	pluginDeploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
+	assert.Error(t, err, "deployments.apps \"gitops-plugin\" not found")
+
+	pluginService := &corev1.Service{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginService)
+	assert.Error(t, err, "services \"gitops-plugin\" not found")
+
+	pluginConfigMap := &corev1.ConfigMap{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, pluginConfigMap)
+	assert.Error(t, err, "configmaps \"httpd-cfg\" not found")
+}
+
+func TestReconcile_ocpVersionLowerThan4_15(t *testing.T) {
+	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+	util.SetConsoleAPIFound(false)
+
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.11.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Check consolePlugin and other resources are not created
+	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
+	assert.Error(t, err, "consoleplugins.console.openshift.io \"gitops-plugin\" not found")
+
+	pluginDeploy := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
+	assert.Error(t, err, "deployments.apps \"gitops-plugin\" not found")
+
+	pluginService := &corev1.Service{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginService)
+	assert.Error(t, err, "services \"gitops-plugin\" not found")
+
+	pluginConfigMap := &corev1.ConfigMap{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, pluginConfigMap)
+	assert.Error(t, err, "configmaps \"httpd-cfg\" not found")
 }
 
 func TestReconcile_GitOpsNamespace(t *testing.T) {
@@ -454,7 +541,9 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 	deployment := appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
 	assertNoError(t, err)
-	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, common.InfraNodeSelector())
+	nSelector := common.InfraNodeSelector()
+	argoutil.AppendStringMap(nSelector, argocommon.DefaultNodeSelector())
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
 	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
 
 	argoCD := &argoapp.ArgoCD{}
@@ -472,6 +561,7 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
+	scheme.AddKnownTypes(consolepluginv1.GroupVersion, &consolepluginv1.ConsolePlugin{})
 }
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {

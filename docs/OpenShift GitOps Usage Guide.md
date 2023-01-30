@@ -3,19 +3,21 @@
 ## Table of Contents
 1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
 2. [Configure RHSSO for OpenShift GitOps(>= v1.2)](#configure-rhsso-for-openshift-gitops-v12)  
-3. [Setting up OpenShift Login (=< v1.1.2)](#setting-up-openshift-login--v112)  
-4. [Configuring the groups claim](#configuring-the-groups-claim-)  
-5. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
-6. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
-7. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
-8. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
-9. [Monitoring](#monitoring)  
-10. [Logging](#logging)  
-11. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
-12. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
-13. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
-14. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-15. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
+3. [Setting up OpenShift Login (=< v1.1.2)](#setting-up-openshift-login--v112)
+4. [Setting environment variables](#setting-environment-variables)    
+5. [Configuring the groups claim](#configuring-the-groups-claim-)  
+6. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
+7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
+8. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
+9. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
+10. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
+11. [Monitoring](#monitoring)  
+12. [Logging](#logging)  
+13. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
+14. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
+15. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
+16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
+17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
 
 ## Installing OpenShift GitOps
 
@@ -98,6 +100,8 @@ A ready-to-use Argo CD instance is created by GitOps Operator in the *openshift-
 You can launch into this Argo CD instance from the Console Application Launcher.
 
 ![image alt text](assets/5.console_application_launcher.png)
+
+**Note: To disable the Link to Argo CD in the Console Application Launcher, see the documentation on how to disable consoleLink in the [setting environment variables section](#setting-environment-variables)**
 
 Alternatively, the DNS hostname of the Argo CD Web Console can be retrieved by the command line.  
 
@@ -412,6 +416,50 @@ Make sure to click **Save**. You should now have a new tab called **Credentials*
 
 ![image alt text](assets/16.credentials_setup.png)
 
+## **Setting environment variables**
+
+Updating the following environment variables in the existing Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
+
+<table>
+  <tr>
+    <td>Environment variable</td>
+    <td>Default value</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td>ARGOCD_CLUSTER_CONFIG_NAMESPACES</td>
+    <td>none</td>
+    <td>When provided with a namespace, Argo CD is granted permissions to manage specific cluster-scoped resources which include
+    platform operators, optional OLM operators, user management, etc. Argo CD is not granted cluster-admin.</td>
+  </tr>
+  <tr>
+    <td>CONTROLLER_CLUSTER_ROLE</td>
+    <td>none</td>
+    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD application controller with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn't create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
+  </tr>
+  <tr>
+    <td>DISABLE_DEFAULT_ARGOCD_CONSOLELINK</td>
+    <td>false</td>
+    <td>When set to `true`, will disable the ConsoleLink for Argo CD, which appears as the link to Argo CD in the Application Launcher. This can be beneficial to users of multi-tenant clusters who have multiple instances of Argo CD.</td>
+  </tr>
+  <tr>
+    <td>DISABLE_DEFAULT_ARGOCD_INSTANCE</td>
+    <td>false</td>
+    <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace.</td>
+  </tr>
+  <tr>
+    <td>DISABLE_DEX</td>
+    <td>false</td>
+    <td> When set to `true`, will remove the Dex deployment from the openshift-gitops namespace. Note: Disabling Dex will not be supported in v.1.9.0+. 
+    </td>
+  </tr>
+  <tr>
+    <td>SERVER_CLUSTER_ROLE</td>
+    <td>none</td>
+    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD server with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
+  </tr>
+</table>
+
 ## **Configuring the groups claim**[ ¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#configuring-the-groups-claim)
 
 In order for Argo CD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token. To do this we'll start by creating a new **Client Scope** called *groups*.
@@ -562,7 +610,7 @@ data:
 
 ### Working with Dex
 
-**NOTE:** For a fresh install of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
+**NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
 :warning: **DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows:**
 
@@ -921,7 +969,7 @@ By default Argo CD instance is provided the following permissions -
 
 * Argo CD instance is provided with ADMIN privileges for the namespace it is installed in. For instance, if an Argo CD instance is deployed in **foo** namespace, it will have **ADMIN privileges** to manage resources for that namespace. 
 
-* Argo CD is provided the following cluster scoped permissions: 
+* Argo CD is provided the following cluster scoped permissions because Argo CD requires cluster-wide read privileges on resources to function properly. (Please see https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#cluster-rbac for more details.): 
 
 ```
  - verbs:
@@ -1194,8 +1242,25 @@ The above commands can be modified to replace controller with any other Argo CD 
 
 ## Running default Gitops workloads on Infrastructure Nodes
 
+Infrastructure nodes prevent additional billing cost against subscription counts. 
+OpenShift allows certain workloads installed by the OpenShift GitOps Operator to run on Infrastructure Nodes. This comprises the workloads that are installed by the GitOps Operator by default in the openshift-gitops namespace, including the default Argo CD instance in that namespace.
+Note: Other Argo CD instances installed to user namespaces are not eligible to run on Infrastructure nodes.
+	
+Follow the steps to move these default workloads to infrastructure node
+* kam deployment
+* cluster deployment (backend service)
+* openshift-gitops-applicationset-controller deployment
+* openshift-gitops-dex-server deployment
+* openshift-gitops-redis deployment
+* openshift-gitops-redis-ha-haproxy deployment
+* openshift-gitops-repo-sever deployment
+* openshift-gitops-server deployment
+* openshift-gitops-application-controller statefulset
+* openshift-gitops-redis-server statefulset
+	
 #### Adding label to existing nodes
 
+	
 * Please refer to official docs about infrastructure nodes -                                                   [https://access.redhat.com/solutions/5034771](https://access.redhat.com/solutions/5034771) [https://docs.openshift.com/container-platform/4.6/machine_management/creating-infrastructure-machinesets.html](https://docs.openshift.com/container-platform/4.6/machine_management/creating-infrastructure-machinesets.html) 
 
 * Label your existing nodes as **Infrastructure** via cli or from openshift UI -  
@@ -1245,6 +1310,51 @@ metadata:
 ###### Verify that the workloads in  openshift-gitops  namespace are now scheduled on infrastructure nodes, if you click on any pod and see its details, you can see the nodeSelector and tolerations added.
 
 Note - Any manually added nodeSelectors and tolerations in the default Argo CD CR will be overwritten by the toggle and tolerations in gitops service CR.![image alt text](assets/31.operator_nodeSelector_tolerations.jpg)
+
+## Using NodeSelector and Tolerations in Default Instance of Openshift GitOps	
+
+Users can set custom nodeSelectors and tolerations in their default workloads by editing their GitopsService CR like so:
+
+```
+kind: GitopsService
+metadata:
+  name: cluster	
+spec:
+  nodeSelector:
+    key1: value1
+  tolerations:
+  - effect: NoSchedule
+    key: key1
+    value: value1 	
+```
+	
+Note: The operator also has default nodeSelector for Linux, and runOnInfra toggle also sets Infrastructure nodeSelector in the workloads. All these nodeSelectors will be merged with precedence given to the custom nodeSelector in case the keys match.
+	
+
+## Managing MachineSets with OpenShift GitOps
+
+Machinesets are resources that are created during an OpenShift cluster's installation and can be used to manipulate compute units or "machines" on said OpenShift cluster. They typically contain cluster specific information such as availability zones that are hard to predict, and randomly generated names that cannot be known beforehand. As such, machinesets are hard targets to manage in a GitOps way. However, users wanting to manage their machinests using Argo CD can still do so, with a little manual effort, by leveraging server-side apply.
+
+Users can manually find out the resource names for the machinesets available on their clusters by running the command:
+`oc get machinesets -n openshift-machine-api`
+
+Users can then create a patch for this resouce by only expressing the name of the target machineset and the specific set of fields and values that they would like to modify and manage through Argo CD. For example:
+
+```
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  name: rhoms-4-10-081004-6jgmc-worker-us-east-2a
+spec:
+  replicas: 3
+
+```
+
+Users can store the above described patch within their GitOps repositories to be applied and managed along with other Argo CD managed resources.
+
+[Kubernetes Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) allows users to patch existing resources and manage specific sets of fields only by setting the 'field manager' for those fields appropriately. Argo CD will soon include the ability to support server-side apply for manifests as described in this [accepted proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/server-side-apply.md#server-side-apply-support-for-argocd). Users will have the option to express that they would like to enforce server-side apply through a new sync option either at application level, or at individual resource level by leveraging appropriate annotations (more details [here](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/server-side-apply.md#use-cases)).
+
+On following these steps, users should be able to manage their machinesets using Argo CD v2.5 and upwards (available with OpenShift GitOps v1.7 and upwards). They should be able to have Argo CD apply their patches to existing resources using server-side apply, see the changes reflected on cluster, and have the 'field manager' updated appropriately for their resources. 
 
 ## Monitoring 
 
