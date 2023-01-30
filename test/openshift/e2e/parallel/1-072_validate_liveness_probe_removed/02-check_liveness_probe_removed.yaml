@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+    if ! test -z $(oc get statefulset.apps/argocd-application-controller -n $NAMESPACE -o jsonpath='{.spec.template.spec.containers[].livenessProbe}'); then
+      echo "livenessProbe should not exist on statefulset.apps/argocd-application-controller."
+      exit 1
+    fi
