@@ -147,8 +147,8 @@ github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.m
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230105213846-10f11b638e42 h1:maWW2eQc80sZ7P9+p7QWgSs2jiwZu7Bh7fGiUFERYdk=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230105213846-10f11b638e42/go.mod h1:6ueQsZrV9UuTivIJUifa6aixCZn8cKrPRqHaODVY288=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230126140958-2371eebbc80d h1:41v19pBE/bIs8aC4oIKNO6BGFfvbNKEbFrUonEJ1e0M=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230126140958-2371eebbc80d/go.mod h1:L5Wg6Fj7MwpVgiV1ntO8uK0fmATvGxQvMzbxXOJj2/I=
 github.com/argoproj/argo-cd/v2 v2.5.3 h1:U52CiRiY60lPnWR/2OvRISZJRq7iMlwDdOZ+xnAmR9Q=
 github.com/argoproj/argo-cd/v2 v2.5.3/go.mod h1:3ToENm286PFVlZKNMutBzOwNyhevz4fw9dcgyiq3FIY=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
