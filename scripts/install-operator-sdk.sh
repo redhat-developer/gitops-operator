@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Download the release binary
 export VERSION="v0.17.0"

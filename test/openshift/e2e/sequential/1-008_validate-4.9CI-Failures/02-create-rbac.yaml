@@ -1,0 +1,25 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: source-ns-openshift-gitops-argocd-application-controller
+  namespace: source-ns
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: source-ns-openshift-gitops-argocd-application-controller
+  namespace: source-ns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: source-ns-openshift-gitops-argocd-application-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-argocd-application-controller
