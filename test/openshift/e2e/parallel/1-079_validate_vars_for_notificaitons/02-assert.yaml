@@ -1,0 +1,37 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  notifications:
+    enabled: true
+    env:
+      - name: foo
+        value: bar
+status:
+  server: Running
+  notificationsController: Running
+  phase: Available
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: example-argocd-notifications-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: example-argocd-notifications-controller
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: example-argocd-notifications-controller
+    spec:
+      containers:
+        - resources: {}
+          env:
+            - name: foo
+              value: bar
+status:
+  readyReplicas: 1
