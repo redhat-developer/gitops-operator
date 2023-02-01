@@ -134,26 +134,26 @@ func newServiceForCLI() *corev1.Service {
 	return svc
 }
 
-func newRouteForCLI() *routev1.Route {
-	routeSpec := routev1.RouteSpec{
-		To: routev1.RouteTargetReference{
-			Kind: "Service",
-			Name: cliName,
-		},
-		Port: &routev1.RoutePort{
-			TargetPort: intstr.IntOrString{IntVal: portTLS},
-		},
-		TLS: &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationPassthrough,
-			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-		},
-	}
+// func newRouteForCLI() *routev1.Route {
+// 	routeSpec := routev1.RouteSpec{
+// 		To: routev1.RouteTargetReference{
+// 			Kind: "Service",
+// 			Name: cliName,
+// 		},
+// 		Port: &routev1.RoutePort{
+// 			TargetPort: intstr.IntOrString{IntVal: portTLS},
+// 		},
+// 		TLS: &routev1.TLSConfig{
+// 			Termination:                   routev1.TLSTerminationPassthrough,
+// 			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+// 		},
+// 	}
 
-	return &routev1.Route{
-		ObjectMeta: objectMeta(cliName, serviceNamespace),
-		Spec:       routeSpec,
-	}
-}
+// 	return &routev1.Route{
+// 		ObjectMeta: objectMeta(cliName, serviceNamespace),
+// 		Spec:       routeSpec,
+// 	}
+// }
 
 func newConsoleCLIDownload(consoleLinkName, href, text string) *console.ConsoleCLIDownload {
 	return &console.ConsoleCLIDownload{
@@ -253,10 +253,10 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 		}
 	}
 
-	routeRef := newRouteForCLI()
-	if err := controllerutil.SetControllerReference(cr, routeRef, r.Scheme); err != nil {
-		return reconcile.Result{}, err
-	}
+	//routeRef := newRouteForCLI()
+	// if err := controllerutil.SetControllerReference(cr, routeRef, r.Scheme); err != nil {
+	// 	return reconcile.Result{}, err
+	// }
 
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, &routev1.Route{})
 	if err != nil {
