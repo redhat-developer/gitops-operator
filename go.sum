@@ -107,7 +107,7 @@ github.com/GoogleCloudPlatform/k8s-cloud-provider v0.0.0-20200415212048-7901bc82
 github.com/JeffAshton/win_pdh v0.0.0-20161109143554-76bb4ee9f0ab/go.mod h1:3VYc5hodBMJ5+l/7J4xAyMeuM2PNuepvHlGs8yilUCA=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
 github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd/go.mod h1:64YHyfSL2R96J44Nlwm39UHepQbyR5q10x7iYa1ks2E=
-github.com/Masterminds/goutils v1.1.0/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
+github.com/Masterminds/goutils v1.1.1/go.mod h1:8cTjp+g8YejhMuvIA5y2vz3BpJxksy863GQaJW2MFNU=
 github.com/Masterminds/semver v1.5.0/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Masterminds/semver/v3 v3.1.0/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/Masterminds/sprig/v3 v3.1.0/go.mod h1:ONGMf7UfYGAbMXCZmQLy8x3lCDIPrEZE/rU8pmrbihA=
@@ -154,8 +154,6 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.3.3 h1:e6KDQIQ4MYPDaeW4MZemtI13Q+6HIc+RZiJXVVWrte4=
-github.com/argoproj-labs/argocd-operator v0.3.3/go.mod h1:vek9zUEC9jJ2iP8DHS+dPW5bZ5fV7bVgjsGdL8+jdBc=
 github.com/argoproj-labs/argocd-operator v0.3.4-0.20220831175202-5e9e50f90bf5 h1:61zww4+mCRDwVRosIOl4KqQwGbuQTe/8o3TW4Z3AjVA=
 github.com/argoproj-labs/argocd-operator v0.3.4-0.20220831175202-5e9e50f90bf5/go.mod h1:vek9zUEC9jJ2iP8DHS+dPW5bZ5fV7bVgjsGdL8+jdBc=
 github.com/argoproj/argo-cd/v2 v2.2.4 h1:PoxrWuwGV8UhDkvOE2iYDRa799jnT68tU6XvDZzLzL0=
