@@ -233,7 +233,7 @@ spec:
     Audit trails of rollouts to the clusters\n* Monitoring and logging integration
     with OpenShift\n* Automated GitOps bootstrapping using Tekton and Argo CD with
     [GitOps Application Manager CLI](https://github.com/redhat-developer/kam)\n\n##
-    Components\n* Argo CD 2.0.0\n* GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))\n\n##
+    Components\n* Argo CD 2.6.0\n* GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))\n\n##
     How to Install \nAfter installing the OpenShift GitOps operator, an instance  of
     Argo CD is installed in the `openshift-gitops` namespace which has sufficent privileges
     for managing cluster configurations. You can create additional Argo CD instances
@@ -594,47 +594,35 @@ spec:
                 control-plane: argocd-operator
             spec:
               containers:
-              - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080/
-                - --logtostderr=true
-                - --v=10
-                image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: https
-                resources: {}
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
-                - --leader-elect
-                command:
-                - /manager
-                env:
-                - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
-                  value: openshift-gitops
-                - name: OPERATOR_NAME
-                  value: gitops-operator
-                - name: DISABLE_DEX
-                  value: "false"
-                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
-                livenessProbe:
-                  httpGet:
-                    path: /healthz
-                    port: 8081
-                  initialDelaySeconds: 15
-                  periodSeconds: 20
-                name: manager
-                readinessProbe:
-                  httpGet:
-                    path: /readyz
-                    port: 8081
-                  initialDelaySeconds: 5
-                  periodSeconds: 10
-                resources: {}
-                securityContext:
-                  allowPrivilegeEscalation: false
+                - command:
+                    - /usr/local/bin/manager
+                  env:
+                  - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+                    value: openshift-gitops
+                  - name: OPERATOR_NAME
+                    value: gitops-operator
+                  image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
+                  livenessProbe:
+                    httpGet:
+                      path: /healthz
+                      port: 8081
+                    initialDelaySeconds: 15
+                    periodSeconds: 20
+                  name: manager
+                  readinessProbe:
+                    httpGet:
+                      path: /readyz
+                      port: 8081
+                    initialDelaySeconds: 5
+                    periodSeconds: 10
+                  resources: {}
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    capabilities:
+                      drop:
+                        - ALL
+                    readOnlyRootFilesystem: true
+                    runAsNonRoot: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: gitops-operator-controller-manager
