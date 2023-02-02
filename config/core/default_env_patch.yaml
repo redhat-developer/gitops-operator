@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        env:
+        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
+          value: "true"
+        - name: DISABLE_DEFAULT_ARGOCD_CONSOLELINK
+          value: "true"
+        - name: DISABLE_DEX
+          value: "true"
+  

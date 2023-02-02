@@ -1,0 +1,22 @@
+# Adds namespace to all resources.
+namespace: gitops-operator-system
+
+# Value of this field is prepended to the
+# names of all resources, e.g. a deployment named
+# "wordpress" becomes "alices-wordpress".
+# Note that it should also match with the prefix (text before '-') of the namespace
+# field above.
+namePrefix: gitops-operator-
+
+# Bases for kustomization:
+bases:
+- ../crd
+- ../rbac
+- ../manager
+
+# This patches the environment variables of the
+# deployment "gitops-operator-controller-manager"
+# to remove all unnecessary components.
+patchesStrategicMerge:
+- default_env_patch.yaml
+
