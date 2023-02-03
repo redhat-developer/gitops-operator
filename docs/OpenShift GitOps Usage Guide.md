@@ -38,7 +38,7 @@ Click the "Install" button to finish the installation.
 * * *
 
 
-### Operator Install CLI
+### Operator Install CLI (using [OLM](https://olm.operatorframework.io/))
 
 To install the Operator via the CLI, you will need to create a Subscription.
 
@@ -74,6 +74,16 @@ openshift-gitops-redis-74bd8d7d96-49bjf                   	1/1 	Running   0     
 openshift-gitops-repo-server-c999f75d5-l4rsg              	1/1 	Running   0      	65m
 openshift-gitops-server-5785f7668b-wj57t                  	1/1 	Running   0      	53m
 ```
+
+### Core Operator Install from IIB
+
+To install the Operator without OLM, you just need to pick up a new Image Index Bundle (IIB) and provide it as an argument for the proper make target:
+
+```
+make deploy-core IMG="quay.io/<your_quay_org>/gitops-operator-nightly:20230512"
+```
+
+Keep in mind that the cluster will need access to the container registry where the images compounding the bundle are stored. Otherwise, you will need to provide with the proper authentication to make OpenShift able to pull those images.
 
 ### Installation of OpenShift GitOps without ready-to-use Argo CD instance, for ROSA/OSD
 
