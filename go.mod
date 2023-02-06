@@ -20,6 +20,8 @@ require (
 )
 
 replace (
+	// Address CVE-2021-4238
+	github.com/Masterminds/goutils => github.com/Masterminds/goutils v1.1.1
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	k8s.io/api => k8s.io/api v0.22.2
