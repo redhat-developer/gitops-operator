@@ -258,21 +258,21 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	// 	return reconcile.Result{}, err
 	// }
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, &routev1.Route{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
-			err = r.Client.Create(context.TODO(), routeRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	}
+	// err = r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, &routev1.Route{})
+	// if err != nil {
+	// 	if errors.IsNotFound(err) {
+	// 		reqLogger.Info("Creating a new Route", "Namespace", routeRef.Namespace, "Name", routeRef.Name)
+	// 		err = r.Client.Create(context.TODO(), routeRef)
+	// 		if err != nil {
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 	} else {
+	// 		return reconcile.Result{}, err
+	// 	}
+	// }
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, routeRef)
-	kamDownloadURLgo := fmt.Sprintf("https://%s/kam/", routeRef.Spec.Host)
+	// err = r.Client.Get(context.TODO(), types.NamespacedName{Name: routeRef.Name, Namespace: routeRef.Namespace}, routeRef)
+	// kamDownloadURLgo := fmt.Sprintf("https://%s/kam/", routeRef.Spec.Host)
 
 	consoleCLIDownload := newConsoleCLIDownload(cliName, kamDownloadURLgo, cliLongName)
 	if err := controllerutil.SetControllerReference(cr, consoleCLIDownload, r.Scheme); err != nil {
