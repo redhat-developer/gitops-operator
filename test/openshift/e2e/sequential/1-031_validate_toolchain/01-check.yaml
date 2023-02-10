@@ -6,9 +6,9 @@ commands:
     set -o pipefail
 
     # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-    expected_kustomizeVersion='v4.5.7'
+    expected_kustomizeVersion='kustomize/v4.5.7'
     expected_helmVersion='v3.10.0'
-    expected_argocdVersion='v2.5.8'
+    expected_argocdVersion='v2.6.1'
     expected_dexVersion='v2.35.1'
     expected_redisVersion='6'
 
