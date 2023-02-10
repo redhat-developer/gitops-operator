@@ -1,7 +1,7 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: openshift-gitops-operator.v1.7.1
+  name: gitops-operator.v0.0.3
   namespace: openshift-operators
 spec:
   install:
