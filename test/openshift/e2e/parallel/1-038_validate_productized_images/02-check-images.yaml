@@ -10,7 +10,7 @@ commands:
         if [ -z $CI ]; then 
           exit 1
         else 
-          exiit 0
+          exit 0
         fi
       fi
     done
