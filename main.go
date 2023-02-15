@@ -36,7 +36,6 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
-	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
@@ -111,7 +110,6 @@ func main() {
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argoapi.AddToScheme)
 	registerComponentOrExit(mgr, configv1.AddToScheme)
-	registerComponentOrExit(mgr, consolepluginv1.AddToScheme)
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
