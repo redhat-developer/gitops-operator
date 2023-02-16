@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/redhat-developer/gitops-backend-operator
-  newTag: v0.0.3
+  newTag: v1.8.0
