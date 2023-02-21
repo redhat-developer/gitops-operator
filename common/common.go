@@ -23,6 +23,8 @@ const (
 	DisableDefaultInstallEnvVar = "DISABLE_DEFAULT_ARGOCD_INSTANCE"
 	// DisableDefaultArgoCDConsoleLink is an env variable to disable the default Argo CD ConsoleLink
 	DisableDefaultArgoCDConsoleLink = "DISABLE_DEFAULT_ARGOCD_CONSOLELINK"
+	// DisableDefaultArgoCDConsoleLink is an env variable to disable the default Argo CD ConsoleLink
+	DisableKAM = "DISABLE_KAM"
 	// InfraNodeLabelSelector is a nodeSelector for infrastructure nodes in Openshift
 	InfraNodeLabelSelector = "node-role.kubernetes.io/infra"
 	// Default console plugin image

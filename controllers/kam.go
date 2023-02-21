@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 
@@ -46,6 +47,10 @@ const cliLongName = "GitOps Application Manager"
 const cliImage = "quay.io/redhat-developer/kam:v0.0.19"
 const cliImageEnvName = "KAM_IMAGE"
 const kubeAppLabelName = "app.kubernetes.io/name"
+
+func isKamDisabled() bool {
+	return strings.ToLower(os.Getenv(common.DisableKAM)) == "true"
+}
 
 func newDeploymentForCLI() *appsv1.Deployment {
 	image := os.Getenv(cliImageEnvName)
@@ -204,10 +209,12 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace}, existingDeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
-			err = r.Client.Create(context.TODO(), deploymentObj)
-			if err != nil {
-				return reconcile.Result{}, err
+			if !isKamDisabled() {
+				reqLogger.Info("Creating a new Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
+				err = r.Client.Create(context.TODO(), deploymentObj)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
 			}
 		} else {
 			return reconcile.Result{}, err
@@ -229,6 +236,13 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 		if changed {
 			err = r.Client.Update(context.TODO(), existingDeployment)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		// Check if DISABLE_KAM env variable is set to true
+		if isKamDisabled() {
+			err = r.Client.Delete(context.TODO(), existingDeployment)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
