@@ -1,3 +1,5 @@
+Refer to https://issues.redhat.com/browse/GITOPS-2664
+
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
