@@ -220,20 +220,19 @@ spec:
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
-  description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
-    based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
-    GitOps principles for managing cluster configurations and automating secure and
-    repeatable application delivery across hybrid multi-cluster Kubernetes environments.
-    Following GitOps and infrastructure as code principles, you can store the configuration
-    of clusters and applications in Git repositories and use Git workflows to roll
-    them out to the target clusters.\n\n## Features\n* Automated install and upgrades
-    of Argo CD\n* Manual and automated configuration sync from Git repositories to
-    target OpenShift and Kubernetes clusters\n* Support for the Helm and Kustomize
-    templating tools\n* Configuration drift detection and visualization on live clusters\n*
-    Audit trails of rollouts to the clusters\n* Monitoring and logging integration
-    with OpenShift\n* Automated GitOps bootstrapping using Tekton and Argo CD with
-    [GitOps Application Manager CLI](https://github.com/redhat-developer/kam)\n\n##
-    Components\n* Argo CD 2.0.0\n* GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))\n\n##
+  description: "continuous delivery platform based on [Argo CD](https://argoproj.github.io/argo-cd/).
+    It enables teams to adopt GitOps principles for managing cluster configurations
+    and automating secure and repeatable application delivery across hybrid multi-cluster
+    Kubernetes environments. Following GitOps and infrastructure as code principles,
+    you can store the configuration of clusters and applications in Git repositories
+    and use Git workflows to roll them out to the target clusters.\n\n## Features\n*
+    Automated install and upgrades of Argo CD\n* Manual and automated configuration
+    sync from Git repositories to target OpenShift and Kubernetes clusters\n* Support
+    for the Helm and Kustomize templating tools\n* Configuration drift detection and
+    visualization on live clusters\n* Audit trails of rollouts to the clusters\n*
+    Monitoring and logging integration with OpenShift\n* Automated GitOps bootstrapping
+    using Tekton and Argo CD with [GitOps Application Manager CLI](https://github.com/redhat-developer/kam)\n\n##
+    Components\n* Argo CD 2.6.2\n* GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))\n\n##
     How to Install \nAfter installing the OpenShift GitOps operator, an instance  of
     Argo CD is installed in the `openshift-gitops` namespace which has sufficent privileges
     for managing cluster configurations. You can create additional Argo CD instances
@@ -610,14 +609,12 @@ spec:
                 - --metrics-bind-address=127.0.0.1:8080
                 - --leader-elect
                 command:
-                - /manager
+                - /usr/local/bin/manager
                 env:
                 - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                - name: DISABLE_DEX
-                  value: "false"
                 image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 livenessProbe:
                   httpGet:
@@ -635,6 +632,11 @@ spec:
                 resources: {}
                 securityContext:
                   allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: gitops-operator-controller-manager
