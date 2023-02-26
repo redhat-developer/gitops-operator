@@ -1,6 +1,6 @@
 - op: add
   path: "/spec/description"
-  value: "continuous delivery platform
+  value: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
     GitOps principles for managing cluster configurations and automating secure and
     repeatable application delivery across hybrid multi-cluster Kubernetes environments.
