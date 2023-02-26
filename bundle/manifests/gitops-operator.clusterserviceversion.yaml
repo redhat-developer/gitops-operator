@@ -594,35 +594,35 @@ spec:
                 control-plane: argocd-operator
             spec:
               containers:
-                - command:
-                    - /usr/local/bin/manager
-                  env:
-                  - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
-                    value: openshift-gitops
-                  - name: OPERATOR_NAME
-                    value: gitops-operator
-                  image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
-                  livenessProbe:
-                    httpGet:
-                      path: /healthz
-                      port: 8081
-                    initialDelaySeconds: 15
-                    periodSeconds: 20
-                  name: manager
-                  readinessProbe:
-                    httpGet:
-                      path: /readyz
-                      port: 8081
-                    initialDelaySeconds: 5
-                    periodSeconds: 10
-                  resources: {}
-                  securityContext:
-                    allowPrivilegeEscalation: false
-                    capabilities:
-                      drop:
-                        - ALL
-                    readOnlyRootFilesystem: true
-                    runAsNonRoot: true
+              - command:
+                - /usr/local/bin/manager
+                env:
+                - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+                  value: openshift-gitops
+                - name: OPERATOR_NAME
+                  value: gitops-operator
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources: {}
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: gitops-operator-controller-manager
