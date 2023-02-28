@@ -403,6 +403,71 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
 }
 
+func TestReconcile_BackendSecurityContext(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+	want := &corev1.SecurityContext{
+		AllowPrivilegeEscalation: util.BoolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
+		RunAsNonRoot: util.BoolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	assert.DeepEqual(t, securityContext, want)
+}
+
+func TestReconcile_KamSecurityContext(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	util.SetConsoleAPIFound(true)
+	defer util.SetConsoleAPIFound(false)
+
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+	want := &corev1.SecurityContext{
+		AllowPrivilegeEscalation: util.BoolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
+		RunAsNonRoot: util.BoolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	assert.DeepEqual(t, securityContext, want)
+}
+
 func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme

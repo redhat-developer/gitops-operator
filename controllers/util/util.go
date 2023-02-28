@@ -116,3 +116,8 @@ func caseInsensitiveGetenv(s string) (string, string) {
 	}
 	return "", ""
 }
+
+// BoolPtr returns a pointer to val
+func BoolPtr(val bool) *bool {
+	return &val
+}
