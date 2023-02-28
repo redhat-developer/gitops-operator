@@ -145,10 +145,10 @@ github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210826220005-b48c857c3a0e/go.m
 github.com/apache/arrow/go/arrow v0.0.0-20191024131854-af6fa24be0db/go.mod h1:VTxUBvSJ3s3eHAg65PNgrsn5BtqCRPdmyXh6rAfdxN0=
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230213131945-d09994dd1256 h1:uhOtCtHO5MMMtpljdsiPi8b4jOc2dTBFuyM/pDWQCxs=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230213131945-d09994dd1256/go.mod h1:qI2lrVpwm04GIQ7JZqKk9pFHFAZ5ct6PD1OspRPJkCU=
-github.com/argoproj/argo-cd/v2 v2.6.1 h1:fp+ounx6DczbWvfhZ7LCvVOxMQbksoKRFdfqdHHcu+U=
-github.com/argoproj/argo-cd/v2 v2.6.1/go.mod h1:wkQAcIEXpgP8F45T/9UwwHhhLz2KgITba0NOby4NTPQ=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230227222526-cdcfcb7a6653 h1:pHg0tu0mSoXT/7mzzFdPe7TTYrZt1GU0X6LQGqZy+x8=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230227222526-cdcfcb7a6653/go.mod h1:R5QjiIWh7KS5kNQ3lkAAgqEz8iCKawgl0SdicaC+ILA=
+github.com/argoproj/argo-cd/v2 v2.6.3 h1:XEvGDnGRroAw5mKKUTcfIbTmjmhL0hEsVh1+vkytrLo=
+github.com/argoproj/argo-cd/v2 v2.6.3/go.mod h1:wkQAcIEXpgP8F45T/9UwwHhhLz2KgITba0NOby4NTPQ=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=
