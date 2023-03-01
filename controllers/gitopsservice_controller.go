@@ -563,6 +563,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 	{
 		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
 
+		// Add SeccompProfile based on cluster version
+		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
+
 		deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {

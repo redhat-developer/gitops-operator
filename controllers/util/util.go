@@ -18,12 +18,14 @@ package util
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,4 +122,20 @@ func caseInsensitiveGetenv(s string) (string, string) {
 // BoolPtr returns a pointer to val
 func BoolPtr(val bool) *bool {
 	return &val
+}
+
+func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec) {
+
+	version, _ := GetClusterVersion(client)
+	if version == "" || semver.Compare(fmt.Sprintf("v%s", version), "v4.10.999") > 0 {
+		if podspec.SecurityContext == nil {
+			podspec.SecurityContext = &corev1.PodSecurityContext{}
+		}
+		if podspec.SecurityContext.SeccompProfile == nil {
+			podspec.SecurityContext.SeccompProfile = &corev1.SeccompProfile{}
+		}
+		if len(podspec.SecurityContext.SeccompProfile.Type) == 0 {
+			podspec.SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeRuntimeDefault
+		}
+	}
 }

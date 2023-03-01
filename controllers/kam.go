@@ -196,6 +196,9 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	deploymentObj := newDeploymentForCLI()
 
+	// Add SeccompProfile based on cluster version
+	util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
+
 	deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {

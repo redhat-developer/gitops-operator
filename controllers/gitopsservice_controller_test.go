@@ -408,7 +408,7 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -442,7 +442,7 @@ func TestReconcile_KamSecurityContext(t *testing.T) {
 	util.SetConsoleAPIFound(true)
 	defer util.SetConsoleAPIFound(false)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
