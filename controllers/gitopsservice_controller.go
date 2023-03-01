@@ -563,6 +563,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 	{
 		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
 
+		// Add SeccompProfile based on cluster version
+		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
+
 		deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
@@ -718,6 +721,18 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 					Limits: corev1.ResourceList{
 						corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
 						corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+					},
+				},
+				SecurityContext: &corev1.SecurityContext{
+					AllowPrivilegeEscalation: util.BoolPtr(false),
+					Capabilities: &corev1.Capabilities{
+						Drop: []corev1.Capability{
+							"ALL",
+						},
+					},
+					RunAsNonRoot: util.BoolPtr(true),
+					SeccompProfile: &corev1.SeccompProfile{
+						Type: corev1.SeccompProfileTypeRuntimeDefault,
 					},
 				},
 			},
