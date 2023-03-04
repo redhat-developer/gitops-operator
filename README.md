@@ -16,7 +16,7 @@ metadata:
   namespace: openshift-marketplace
 spec:
   displayName: 'Gitops Service by Red Hat'
-  image: 'quay.io/<quay-username>/gitops-backend-operator-index:v0.0.1'
+  image: 'quay.io/<quay-username>/gitops-operator-index:v0.0.1'
   publisher: 'Red Hat Developer'
   sourceType: grpc
 ```
@@ -71,7 +71,7 @@ mode. You could update your image "payload" and re-install the operator.
 Set the base image and version for building operator, bundle and index images.
 
 ```
-export IMAGE=quay.io/<quay-username>/gitops-backend-operator VERSION=0.0.4
+export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=0.0.4
 ```
 
 1. Build and push the operator image.
