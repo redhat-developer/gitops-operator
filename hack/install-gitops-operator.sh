@@ -5,14 +5,18 @@ GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
 IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
 
 # Image overrides
-ARGOCD_DEX_IMAGE=registry.redhat.io/openshift-gitops-1/dex-rhel8:v1.7.2-5
-ARGOCD_IMAGE=registry.redhat.io/openshift-gitops-1/argocd-rhel8:v1.7.2-5
-ARGOCD_KEYCLOAK_IMAGE=registry.redhat.io/rh-sso-7/sso75-openshift-rhel8i:v1.7.2-5
-ARGOCD_REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-110
-ARGOCD_REDIS_HA_PROXY_IMAGE=registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream
-BACKEND_IMAGE=registry.redhat.io/openshift-gitops-1/gitops-rhel8:v1.7.2-5
-GITOPS_CONSOLE_PLUGIN_IMAGE=registry.redhat.io/openshift-gitops-1/console-plugin-rhel8:v1.7.2-5
-KAM_IMAGE=registry.redhat.io/openshift-gitops-1/kam-delivery-rhel8:v1.7.2-5
+# gitops-operator version tagged images
+GITOPS_OPERATOR_VER=v1.7.2-5
+ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-registry.redhat.io/openshift-gitops-1/dex-rhel8:${GITOPS_OPERATOR_VER}}
+ARGOCD_IMAGE=${ARGOCD_IMAGE:-registry.redhat.io/openshift-gitops-1/argocd-rhel8:${GITOPS_OPERATOR_VER}}
+BACKEND_IMAGE=${BACKEND_IMAGE:-registry.redhat.io/openshift-gitops-1/gitops-rhel8:${GITOPS_OPERATOR_VER}}
+GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-registry.redhat.io/openshift-gitops-1/console-plugin-rhel8:${GITOPS_OPERATOR_VER}}
+KAM_IMAGE=${KAM_IMAGE:-registry.redhat.io/openshift-gitops-1/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}}
+
+# other images
+ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8}
+ARGOCD_REDIS_IMAGE=${ARGOCD_REDIS_IMAGE:-registry.redhat.io/rhel8/redis-6:1-110}
+ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream}
 
 # deletes the temp directory
 function cleanup {      
