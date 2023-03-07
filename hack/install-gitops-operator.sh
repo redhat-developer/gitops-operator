@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-
-set -x 
-
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator}
 GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
 IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
@@ -23,6 +20,7 @@ function cleanup {
   echo "Deleted temp working directory $WORK_DIR"
 }
 
+# installs the stable version kustomize binary if not found in PATH
 function install_kustomize {
   if [[ -z "${KUSTOMIZE}" ]]; then
     wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.7/kustomize_v4.5.7_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
@@ -32,6 +30,7 @@ function install_kustomize {
   fi
 }
 
+# installs the stable version of kubectl binary if not found in PATH
 function install_kubectl {
   if [[ -z "${KUBECTL}" ]]; then
     wget https://dl.k8s.io/release/v1.26.0/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m)/kubectl -O ${TEMP_DIR}/kubectl
@@ -40,6 +39,8 @@ function install_kubectl {
   fi
 }
 
+
+# creates a kustomization.yaml file in the temp directory pointing to the manifests available in the upstream repo.
 function create_kustomization_init_file {
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -54,6 +55,8 @@ patches:
   - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
 
+# creates a patch file, containing the environment variable overrides for overriding the default images
+# for various gitops-operator components.
 function create_image_overrides_patch_file {
   echo "apiVersion: apps/v1
 kind: Deployment
@@ -90,17 +93,23 @@ spec:
 }
 
 # Code execution starts here
+# create a temporary directory and do all the operations inside the directory.
 TEMP_DIR=$(mktemp -d -t gitops-operator-install-XXXXXXX)
 echo "Using temp directory $TEMP_DIR"
+# cleanup the temporary directory irrespective of whether the script ran successfully or failed with an error.
 trap cleanup EXIT
 
+# install kustomize in the the temp directory if its not available in the PATH
 KUSTOMIZE=$(which kustomize)
 install_kustomize
+
+# install kubectl in the the temp directory if its not available in the PATH
 KUBECTL=$(which kubectl)
 install_kubectl
+
+# create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
 create_kustomization_init_file
 
+# use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
 ${KUBECTL} apply -k ${TEMP_DIR}
-
-
