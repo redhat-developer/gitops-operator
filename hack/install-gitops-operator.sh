@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator}
+NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator-}
 GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
 IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
 
@@ -48,7 +48,7 @@ function install_kubectl {
 function create_kustomization_init_file {
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: ${NAMESPACE_PREFIX}-system
+namespace: ${NAMESPACE_PREFIX}system
 namePrefix: ${NAMESPACE_PREFIX}
 resources:
   - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION
