@@ -18,6 +18,11 @@ ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-registry.redhat.io/rh-sso-7/sso7-
 ARGOCD_REDIS_IMAGE=${ARGOCD_REDIS_IMAGE:-registry.redhat.io/rhel8/redis-6:1-110}
 ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream}
 
+SCRIPT_DIR="$(
+  cd "$(dirname "$0")" >/dev/null
+  pwd
+)"
+
 # deletes the temp directory
 function cleanup {      
   rm -rf "${TEMP_DIR}"
@@ -56,7 +61,8 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
-  - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
+  - path: env-overrides.yaml
+  - path: rbac-patch.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
 
 # creates a patch file, containing the environment variable overrides for overriding the default images
@@ -110,6 +116,9 @@ install_kustomize
 # install kubectl in the the temp directory if its not available in the PATH
 KUBECTL=$(which kubectl)
 install_kubectl
+
+# copy the rbac patch file to the kustomize directory
+cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
