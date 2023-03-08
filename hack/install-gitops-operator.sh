@@ -61,8 +61,7 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
-  - path: env-overrides.yaml
-  - path: rbac-patch.yaml" > ${TEMP_DIR}/kustomization.yaml
+  - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
 
 # creates a patch file, containing the environment variable overrides for overriding the default images
@@ -126,3 +125,6 @@ create_kustomization_init_file
 
 # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
 ${KUBECTL} apply -k ${TEMP_DIR}
+
+# apply the RBAC patch
+${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
