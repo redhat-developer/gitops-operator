@@ -3,6 +3,7 @@
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator-}
 GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
 IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
+BUNDLE_IMG=${BUNDLE_IMG:brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-53}
 
 # Image overrides
 # gitops-operator version tagged images
@@ -24,13 +25,13 @@ SCRIPT_DIR="$(
 )"
 
 # deletes the temp directory
-function cleanup {      
+function cleanup() {
   rm -rf "${TEMP_DIR}"
   echo "Deleted temp working directory $WORK_DIR"
 }
 
 # installs the stable version kustomize binary if not found in PATH
-function install_kustomize {
+function install_kustomize() {
   if [[ -z "${KUSTOMIZE}" ]]; then
     wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.7/kustomize_v4.5.7_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
     tar zxvf ${TEMP_DIR}/kustomize.tar.gz -C ${TEMP_DIR}
@@ -40,7 +41,7 @@ function install_kustomize {
 }
 
 # installs the stable version of kubectl binary if not found in PATH
-function install_kubectl {
+function install_kubectl() {
   if [[ -z "${KUBECTL}" ]]; then
     wget https://dl.k8s.io/release/v1.26.0/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m)/kubectl -O ${TEMP_DIR}/kubectl
     KUBECTL=${TEMP_DIR}/kubectl
@@ -48,9 +49,17 @@ function install_kubectl {
   fi
 }
 
+# installs the stable version of yq binary if not found in PATH
+function install_yq() {
+  if [[ -z "${YQ}" ]]; then
+    wget https://github.com/mikefarah/yq/releases/download/v4.31.2/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m) -O ${TEMP_DIR}/yq
+    YQ=${TEMP_DIR}/yq
+    chmod +x ${TEMP_DIR}/yq
+  fi
+}
 
 # creates a kustomization.yaml file in the temp directory pointing to the manifests available in the upstream repo.
-function create_kustomization_init_file {
+function create_kustomization_init_file() {
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
@@ -66,7 +75,7 @@ patches:
 
 # creates a patch file, containing the environment variable overrides for overriding the default images
 # for various gitops-operator components.
-function create_image_overrides_patch_file {
+function create_image_overrides_patch_file() {
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -101,6 +110,20 @@ spec:
           value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
 }
 
+function create_deployment_patch_from_bundle_image() {
+  container_id=$(${DOCKER} create "${BUNDLE_IMG}")
+  ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
+  ${DOCKER} rm "$container_id"
+
+  echo "apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+" > "${TEMP_DIR}"/env-overrides.yaml
+  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | yq -e '.spec.install.spec.deployments[0]' | tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
+}
+
 # Code execution starts here
 # create a temporary directory and do all the operations inside the directory.
 TEMP_DIR=$(mktemp -d -t gitops-operator-install-XXXXXXX)
@@ -116,11 +139,29 @@ install_kustomize
 KUBECTL=$(which kubectl)
 install_kubectl
 
+# install yq in the the temp directory if its not available in the PATH
+YQ=$(which yq)
+install_yq
+
 # copy the rbac patch file to the kustomize directory
 cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
-create_image_overrides_patch_file
+DOCKER=$(which docker)
+if [[ -z "${DOCKER}" ]]; then
+  echo "Docker binary not found, searching for podman"
+  DOCKER=$(which podman)
+fi
+
+if [[ -z "${DOCKER}" ]]; then
+  echo "Docker/podman binary not found"
+  echo "Creating deployment patch file with env overrides from environment settings"
+  create_image_overrides_patch_file
+else
+  echo "Found docker/podman binary"
+  echo "Creating deployment patch file with env overrides from the IIB bundle image"
+  create_deployment_patch_from_bundle_image
+fi
 create_kustomization_init_file
 
 # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
