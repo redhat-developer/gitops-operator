@@ -33,7 +33,7 @@ function cleanup() {
 # installs the stable version kustomize binary if not found in PATH
 function install_kustomize() {
   if [[ -z "${KUSTOMIZE}" ]]; then
-    wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.7/kustomize_v4.5.7_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
+    wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv4.5.7/kustomize_v4.5.7_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m |sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
     tar zxvf ${TEMP_DIR}/kustomize.tar.gz -C ${TEMP_DIR}
     KUSTOMIZE=${TEMP_DIR}/kustomize
     chmod +x ${TEMP_DIR}/kustomize
@@ -43,7 +43,7 @@ function install_kustomize() {
 # installs the stable version of kubectl binary if not found in PATH
 function install_kubectl() {
   if [[ -z "${KUBECTL}" ]]; then
-    wget https://dl.k8s.io/release/v1.26.0/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m)/kubectl -O ${TEMP_DIR}/kubectl
+    wget https://dl.k8s.io/release/v1.26.0/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/kubectl -O ${TEMP_DIR}/kubectl
     KUBECTL=${TEMP_DIR}/kubectl
     chmod +x ${TEMP_DIR}/kubectl
   fi
@@ -52,7 +52,7 @@ function install_kubectl() {
 # installs the stable version of yq binary if not found in PATH
 function install_yq() {
   if [[ -z "${YQ}" ]]; then
-    wget https://github.com/mikefarah/yq/releases/download/v4.31.2/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m) -O ${TEMP_DIR}/yq
+    wget https://github.com/mikefarah/yq/releases/download/v4.31.2/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) -O ${TEMP_DIR}/yq
     YQ=${TEMP_DIR}/yq
     chmod +x ${TEMP_DIR}/yq
   fi
