@@ -3,7 +3,7 @@
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator-}
 GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
 IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
-BUNDLE_IMG=${BUNDLE_IMG:brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-53}
+BUNDLE_IMG=${BUNDLE_IMG:-brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-53}
 
 # Image overrides
 # gitops-operator version tagged images
@@ -111,7 +111,7 @@ spec:
 }
 
 function create_deployment_patch_from_bundle_image() {
-  container_id=$(${DOCKER} create "${BUNDLE_IMG}")
+  container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
   ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
   ${DOCKER} rm "$container_id"
 
@@ -119,9 +119,11 @@ function create_deployment_patch_from_bundle_image() {
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: system
-" > "${TEMP_DIR}"/env-overrides.yaml
+  namespace: system" > "${TEMP_DIR}"/env-overrides.yaml
   cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | yq -e '.spec.install.spec.deployments[0]' | tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
+  yq -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
+  yq -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
+  cat "${TEMP_DIR}"/env-overrides.yaml
 }
 
 # Code execution starts here
@@ -147,20 +149,22 @@ install_yq
 cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
-DOCKER=$(which docker)
+DOCKER=$(which podman)
 if [[ -z "${DOCKER}" ]]; then
-  echo "Docker binary not found, searching for podman"
-  DOCKER=$(which podman)
+  echo "podman binary not found, searching for docker"
+  DOCKER=$(which docker)
 fi
 
 if [[ -z "${DOCKER}" ]]; then
-  echo "Docker/podman binary not found"
+  echo "docker/podman binary not found"
   echo "Creating deployment patch file with env overrides from environment settings"
   create_image_overrides_patch_file
 else
   echo "Found docker/podman binary"
   echo "Creating deployment patch file with env overrides from the IIB bundle image"
-  create_deployment_patch_from_bundle_image
+  create_image_overrides_patch_file
+  # TODO: Fix the bundle image
+  #create_deployment_patch_from_bundle_image
 fi
 create_kustomization_init_file
 
