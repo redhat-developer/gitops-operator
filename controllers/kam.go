@@ -227,6 +227,11 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 			changed = true
 		}
 
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
+			existingDeployment.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
+			changed = true
+		}
+
 		if changed {
 			err = r.Client.Update(context.TODO(), existingDeployment)
 			if err != nil {
