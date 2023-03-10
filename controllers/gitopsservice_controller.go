@@ -621,6 +621,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
 				changed = true
 			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
+				found.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
+				changed = true
+			}
 
 			if changed {
 				reqLogger.Info("Reconciling existing backend Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
