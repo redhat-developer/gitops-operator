@@ -610,6 +610,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].SecurityContext, deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext) {
+				found.Spec.Template.Spec.Containers[0].SecurityContext = deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext
+				changed = true
+			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
 				found.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
 				changed = true
