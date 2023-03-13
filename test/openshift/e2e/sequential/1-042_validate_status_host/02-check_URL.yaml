@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    sleep 5s
+    sleep 10s
     route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
     status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
 
