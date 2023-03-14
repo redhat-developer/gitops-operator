@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 
-NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-gitops-operator-}
-GIT_REVISION=${GIT_REVISION:-b165a7e7829bdaa6585e0bea6159183f32d58bec}
-IMG=${IMG:-quay.io/anjoseph/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-51}
-BUNDLE_IMG=${BUNDLE_IMG:-brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-53}
+NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
+GIT_REVISION=${GIT_REVISION:-"b165a7e7829bdaa6585e0bea6159183f32d58bec"}
+IMG=${IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-57"}
+BUNDLE_IMG=${BUNDLE_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-57"}
 
 # Image overrides
 # gitops-operator version tagged images
-GITOPS_OPERATOR_VER=v1.7.2-5
-ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-registry.redhat.io/openshift-gitops-1/dex-rhel8:${GITOPS_OPERATOR_VER}}
-ARGOCD_IMAGE=${ARGOCD_IMAGE:-registry.redhat.io/openshift-gitops-1/argocd-rhel8:${GITOPS_OPERATOR_VER}}
-BACKEND_IMAGE=${BACKEND_IMAGE:-registry.redhat.io/openshift-gitops-1/gitops-rhel8:${GITOPS_OPERATOR_VER}}
-GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-registry.redhat.io/openshift-gitops-1/console-plugin-rhel8:${GITOPS_OPERATOR_VER}}
-KAM_IMAGE=${KAM_IMAGE:-registry.redhat.io/openshift-gitops-1/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}}
+GITOPS_OPERATOR_VER=v99.9.0-57
+ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/dex-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_IMAGE=${ARGOCD_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/argocd-rhel8:${GITOPS_OPERATOR_VER}"}
+BACKEND_IMAGE=${BACKEND_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/gitops-rhel8:${GITOPS_OPERATOR_VER}"}
+GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
+KAM_IMAGE=${KAM_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
 
 # other images
-ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8}
-ARGOCD_REDIS_IMAGE=${ARGOCD_REDIS_IMAGE:-registry.redhat.io/rhel8/redis-6:1-110}
-ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream}
+ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-"registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8"}
+ARGOCD_REDIS_IMAGE=${ARGOCD_REDIS_IMAGE:-"registry.redhat.io/rhel8/redis-6:1-110"}
+ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-"registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream"}
 
 SCRIPT_DIR="$(
   cd "$(dirname "$0")" >/dev/null
@@ -28,6 +28,33 @@ SCRIPT_DIR="$(
 function cleanup() {
   rm -rf "${TEMP_DIR}"
   echo "Deleted temp working directory $WORK_DIR"
+}
+
+add_brew_registry_credentials ()
+{
+  # Get current information
+  oc get secrets pull-secret \
+    -n openshift-config \
+    -o template='{{index .data ".dockerconfigjson"}}' \
+    | base64 -d > ${TEMP_DIR}/oldauth.json
+  
+  # Get Brew registry credentials
+  local brew_secret=$(jq '.auths."brew.registry.redhat.io".auth' \
+                      ${HOME}/.docker/config.json \
+                      | tr -d '"')
+
+  # Append the key:value to the JSON file
+  jq --arg secret ${brew_secret} \
+    '.auths |= . + {"brew.registry.redhat.io":{"auth":$secret}}' \
+    ${TEMP_DIR}/oldauth.json > ${TEMP_DIR}/newauth.json
+
+  # Update the pull-secret information in OCP
+  oc set data secret pull-secret \
+    -n openshift-config \
+    --from-file=.dockerconfigjson=${newauth}
+
+  # Cleanup
+  rm -f ${oldauth} ${newauth}
 }
 
 # installs the stable version kustomize binary if not found in PATH
@@ -69,6 +96,12 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
 patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value: [{ name: brew-image-pull-secret }]
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
