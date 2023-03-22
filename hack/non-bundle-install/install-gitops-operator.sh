@@ -96,12 +96,6 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/rbac
   - https://github.com/redhat-developer/gitops-operator/config/manager
 patches:
-  - target:
-      kind: Deployment
-    patch: |-
-      - op: add
-        path: /spec/template/spec/imagePullSecrets
-        value: [{ name: brew-image-pull-secret }]
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
@@ -143,6 +137,15 @@ spec:
           value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
 }
 
+function create_argocd_admin_clusterrole() {
+    echo "apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-application-controller-role" > ${TEMP_DIR}/rbac-patch.yaml
+
+  wget https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/bundle/manifests/gitops-operator.clusterserviceversion.yaml -O ${TEMP_DIR}/gitops-operator.clusterserviceversion.yaml
+  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml |  yq -e '.spec.install.spec.clusterPermissions[0].rules' >> "${TEMP_DIR}"/rbac-patch.yaml
+}
 function create_deployment_patch_from_bundle_image() {
   container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
   ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
@@ -182,23 +185,8 @@ install_yq
 cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
-DOCKER=$(which podman)
-if [[ -z "${DOCKER}" ]]; then
-  echo "podman binary not found, searching for docker"
-  DOCKER=$(which docker)
-fi
+create_image_overrides_patch_file
 
-if [[ -z "${DOCKER}" ]]; then
-  echo "docker/podman binary not found"
-  echo "Creating deployment patch file with env overrides from environment settings"
-  create_image_overrides_patch_file
-else
-  echo "Found docker/podman binary"
-  echo "Creating deployment patch file with env overrides from the IIB bundle image"
-  create_image_overrides_patch_file
-  # TODO: Fix the bundle image
-  #create_deployment_patch_from_bundle_image
-fi
 create_kustomization_init_file
 
 # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
