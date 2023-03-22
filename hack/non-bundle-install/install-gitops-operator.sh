@@ -8,11 +8,11 @@ BUNDLE_IMG=${BUNDLE_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-git
 # Image overrides
 # gitops-operator version tagged images
 GITOPS_OPERATOR_VER=v99.9.0-57
-ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/dex-rhel8:${GITOPS_OPERATOR_VER}"}
-ARGOCD_IMAGE=${ARGOCD_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/argocd-rhel8:${GITOPS_OPERATOR_VER}"}
-BACKEND_IMAGE=${BACKEND_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/gitops-rhel8:${GITOPS_OPERATOR_VER}"}
-GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
-KAM_IMAGE=${KAM_IMAGE:-"brew.registry.redhat.io/openshift-gitops-1/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-dex-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_IMAGE=${ARGOCD_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-argocd-rhel8:${GITOPS_OPERATOR_VER}"}
+BACKEND_IMAGE=${BACKEND_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8:${GITOPS_OPERATOR_VER}"}
+GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
+KAM_IMAGE=${KAM_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
 
 # other images
 ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-"registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8"}
@@ -92,9 +92,9 @@ kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
 namePrefix: ${NAMESPACE_PREFIX}
 resources:
-  - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION
-  - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION
-  - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
+  - https://github.com/redhat-developer/gitops-operator/config/crd
+  - https://github.com/redhat-developer/gitops-operator/config/rbac
+  - https://github.com/redhat-developer/gitops-operator/config/manager
 patches:
   - target:
       kind: Deployment
@@ -202,7 +202,27 @@ fi
 create_kustomization_init_file
 
 # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
-${KUBECTL} apply -k ${TEMP_DIR}
+#${KUBECTL} apply -k ${TEMP_DIR}
 
 # apply the RBAC patch
-${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+#${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+
+# Get the options
+while getopts ":iu" option; do
+   case $option in
+      i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
+         echo "installing ..."
+         ${KUBECTL} apply -k ${TEMP_DIR}
+         ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+         exit;;
+      u) # uninstall
+         echo "uninstalling ..."
+         ${KUBECTL} delete -k ${TEMP_DIR}
+         ${KUBECTL} delete -f ${TEMP_DIR}/rbac-patch.yaml
+         exit;;   
+     \?) # Invalid option
+         echo "Error: Invalid option"
+         exit;;
+   esac
+done
+
