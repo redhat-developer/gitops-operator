@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    sleep 5
+    sleep 30s
     status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
 
     echo "${status_URL}"
