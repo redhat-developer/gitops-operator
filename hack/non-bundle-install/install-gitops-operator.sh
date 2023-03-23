@@ -2,8 +2,8 @@
 
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"b165a7e7829bdaa6585e0bea6159183f32d58bec"}
-IMG=${IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-57"}
-BUNDLE_IMG=${BUNDLE_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-operator-bundle:v99.9.0-57"}
+OPERATOR_IMG=${OPERATOR_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-57"}
+
 
 # Image overrides
 # gitops-operator version tagged images
@@ -28,33 +28,6 @@ SCRIPT_DIR="$(
 function cleanup() {
   rm -rf "${TEMP_DIR}"
   echo "Deleted temp working directory $WORK_DIR"
-}
-
-add_brew_registry_credentials ()
-{
-  # Get current information
-  oc get secrets pull-secret \
-    -n openshift-config \
-    -o template='{{index .data ".dockerconfigjson"}}' \
-    | base64 -d > ${TEMP_DIR}/oldauth.json
-  
-  # Get Brew registry credentials
-  local brew_secret=$(jq '.auths."brew.registry.redhat.io".auth' \
-                      ${HOME}/.docker/config.json \
-                      | tr -d '"')
-
-  # Append the key:value to the JSON file
-  jq --arg secret ${brew_secret} \
-    '.auths |= . + {"brew.registry.redhat.io":{"auth":$secret}}' \
-    ${TEMP_DIR}/oldauth.json > ${TEMP_DIR}/newauth.json
-
-  # Update the pull-secret information in OCP
-  oc set data secret pull-secret \
-    -n openshift-config \
-    --from-file=.dockerconfigjson=${newauth}
-
-  # Cleanup
-  rm -f ${oldauth} ${newauth}
 }
 
 # installs the stable version kustomize binary if not found in PATH
@@ -92,9 +65,9 @@ kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
 namePrefix: ${NAMESPACE_PREFIX}
 resources:
-  - https://github.com/redhat-developer/gitops-operator/config/crd
-  - https://github.com/redhat-developer/gitops-operator/config/rbac
-  - https://github.com/redhat-developer/gitops-operator/config/manager
+  - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION
+  - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION
+  - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
@@ -113,7 +86,7 @@ spec:
     spec:
       containers:
       - name: manager
-        image: ${IMG}
+        image: ${OPERATOR_IMG}
         env:
         - name: ARGOCD_DEX_IMAGE
           value: ${ARGOCD_DEX_IMAGE}
@@ -135,31 +108,6 @@ spec:
           value: ${GITOPS_CONSOLE_PLUGIN_IMAGE}
         - name: KAM_IMAGE
           value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
-}
-
-function create_argocd_admin_clusterrole() {
-    echo "apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: argocd-application-controller-role" > ${TEMP_DIR}/rbac-patch.yaml
-
-  wget https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/bundle/manifests/gitops-operator.clusterserviceversion.yaml -O ${TEMP_DIR}/gitops-operator.clusterserviceversion.yaml
-  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml |  yq -e '.spec.install.spec.clusterPermissions[0].rules' >> "${TEMP_DIR}"/rbac-patch.yaml
-}
-function create_deployment_patch_from_bundle_image() {
-  container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
-  ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
-  ${DOCKER} rm "$container_id"
-
-  echo "apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: controller-manager
-  namespace: system" > "${TEMP_DIR}"/env-overrides.yaml
-  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | yq -e '.spec.install.spec.deployments[0]' | tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
-  yq -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
-  yq -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
-  cat "${TEMP_DIR}"/env-overrides.yaml
 }
 
 # Code execution starts here
@@ -186,31 +134,23 @@ cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
-
 create_kustomization_init_file
-
-# use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
-#${KUBECTL} apply -k ${TEMP_DIR}
-
-# apply the RBAC patch
-#${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
 
 # Get the options
 while getopts ":iu" option; do
-   case $option in
-      i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
-         echo "installing ..."
-         ${KUBECTL} apply -k ${TEMP_DIR}
-         ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
-         exit;;
-      u) # uninstall
-         echo "uninstalling ..."
-         ${KUBECTL} delete -k ${TEMP_DIR}
-         ${KUBECTL} delete -f ${TEMP_DIR}/rbac-patch.yaml
-         exit;;   
-     \?) # Invalid option
-         echo "Error: Invalid option"
-         exit;;
-   esac
+  case $option in
+    i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
+      echo "installing ..."
+      ${KUBECTL} apply -k ${TEMP_DIR}
+      ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+      exit;;
+    u) # uninstall
+      echo "uninstalling ..."
+      ${KUBECTL} delete -k ${TEMP_DIR}
+      ${KUBECTL} delete -f ${TEMP_DIR}/rbac-patch.yaml
+      exit;;
+    \?) # Invalid option
+      echo "Error: Invalid option"
+      exit;;
+  esac
 done
-
