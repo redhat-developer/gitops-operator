@@ -3,4 +3,13 @@ kind: ArgoCD
 metadata:
   name: example-argocd
 status:
+  phase: Available
   host: modified
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-argocd-server
+status:
+  readyReplicas: 1
+  replicas: 1

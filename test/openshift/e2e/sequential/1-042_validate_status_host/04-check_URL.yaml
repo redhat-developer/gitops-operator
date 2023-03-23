@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
+
+    if ! [[ "${status_URL}" == "modified" ]]; then
+      echo "status.host value should be "modified""
+      exit 1
+    fi
+    exit 0
