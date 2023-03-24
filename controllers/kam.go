@@ -74,18 +74,6 @@ func newDeploymentForCLI() *appsv1.Deployment {
 						corev1.ResourceCPU:    resourcev1.MustParse("500m"),
 					},
 				},
-				SecurityContext: &corev1.SecurityContext{
-					AllowPrivilegeEscalation: util.BoolPtr(false),
-					Capabilities: &corev1.Capabilities{
-						Drop: []corev1.Capability{
-							"ALL",
-						},
-					},
-					RunAsNonRoot: util.BoolPtr(true),
-					SeccompProfile: &corev1.SeccompProfile{
-						Type: corev1.SeccompProfileTypeRuntimeDefault,
-					},
-				},
 			},
 		},
 	}
