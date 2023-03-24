@@ -134,15 +134,15 @@ metadata:
       ]
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
-    containerImage: quay.io/redhat-developer/gitops-operator:v1.8.0
+    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
+    operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v1.8.0
+  name: gitops-operator.v0.0.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -581,9 +581,7 @@ spec:
           - create
         serviceAccountName: gitops-operator-controller-manager
       deployments:
-      - label:
-          control-plane: argocd-operator
-        name: gitops-operator-controller-manager
+      - name: gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -603,7 +601,7 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-operator:v1.8.0
+                image: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -688,5 +686,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc
-  replaces: gitops-operator.v1.7.3
-  version: 1.8.0
+  replaces: gitops-operator.v0.0.2
+  version: 0.0.3

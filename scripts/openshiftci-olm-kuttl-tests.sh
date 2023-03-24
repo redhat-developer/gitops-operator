@@ -30,8 +30,8 @@ E2E_SKIP_OPERATOR_INSTALLATION=${E2E_SKIP_OPERATOR_INSTALLATION:-false}
 IGNORE_PARALLEL_TESTS=${IGNORE_PARALLEL_TESTS:-false}
 
 E2E_SKIP_BUILD_TOOL_INSTALLATION=${E2E_SKIP_BUILD_TOOL_INSTALLATION:-false} # This flag helps to skip build tool installation on your local system
-IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-operator"}
-VERSION=${VERSION:-"1.8.0"}
+IMAGE=${IMAGE:-"quay.io/redhat-developer/gitops-backend-operator"}
+VERSION=${VERSION:-"0.0.3"}
 CATALOG_SOURCE=${CATALOG_SOURCE:-"openshift-gitops-operator"}
 CHANNEL=${CHANNEL:-"latest"}
 
