@@ -130,8 +130,7 @@ YQ=$(which yq)
 install_yq
 
 # copy the rbac patch file to the kustomize directory
-wget -nc https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/rbac-patch.yaml
-cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
+wget https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml -o "${TEMP_DIR}"
 
 # create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
@@ -144,6 +143,28 @@ while getopts ":iu" option; do
       echo "installing ..."
       ${KUBECTL} apply -k ${TEMP_DIR}
       ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+      
+      SECONDS=0
+      end=$((SECONDS+90))
+
+      job_result=1
+
+      while [ $SECONDS -lt $end ]; do
+        if kubectl wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s; then
+          job_result=0
+          break
+        fi
+       sleep 3
+      done
+
+      if [[ $job_result -eq 1 ]]; then
+          echo "Installation failed!"
+          exit 1
+      else 
+          echo "Installation succeeded"
+          exit 0
+      fi
+      
       exit;;
     u) # uninstall
       echo "uninstalling ..."
