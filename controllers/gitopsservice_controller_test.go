@@ -408,13 +408,25 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	// Testing on OCP versions < 4.11.0
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.10.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	// Testing on OCP versions < 4.11.0
+	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	reconciler = newReconcileGitOpsService(fakeClient, s)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment = appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
 	assertNoError(t, err)
 
@@ -442,6 +454,7 @@ func TestReconcile_KamSecurityContext(t *testing.T) {
 	util.SetConsoleAPIFound(true)
 	defer util.SetConsoleAPIFound(false)
 
+	// Testing on OCP versions < 4.11.0
 	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
@@ -449,6 +462,18 @@ func TestReconcile_KamSecurityContext(t *testing.T) {
 	assertNoError(t, err)
 
 	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	// Testing on OCP versions < 4.11.0
+
+	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	reconciler = newReconcileGitOpsService(fakeClient, s)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment = appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
 	assertNoError(t, err)
 
