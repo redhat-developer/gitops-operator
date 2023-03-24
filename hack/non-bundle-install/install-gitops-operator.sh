@@ -130,6 +130,7 @@ YQ=$(which yq)
 install_yq
 
 # copy the rbac patch file to the kustomize directory
+wget -nc https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/rbac-patch.yaml
 cp ${SCRIPT_DIR}/rbac-patch.yaml ${TEMP_DIR}
 
 # create the required yaml files for the kustomize based install.
