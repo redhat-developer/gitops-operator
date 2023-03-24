@@ -2,12 +2,15 @@
 
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"b165a7e7829bdaa6585e0bea6159183f32d58bec"}
-OPERATOR_IMG=${OPERATOR_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:v99.9.0-57"}
+
+# gitops-operator version tagged images
+GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v99.9.0-57"}
+OPERATOR_IMG=${OPERATOR_IMG:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
 
 
 # Image overrides
 # gitops-operator version tagged images
-GITOPS_OPERATOR_VER=v99.9.0-57
+GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v99.9.0-57"}
 ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-dex-rhel8:${GITOPS_OPERATOR_VER}"}
 ARGOCD_IMAGE=${ARGOCD_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-argocd-rhel8:${GITOPS_OPERATOR_VER}"}
 BACKEND_IMAGE=${BACKEND_IMAGE:-"brew.registry.redhat.io/rh-osbs/openshift-gitops-1-gitops-rhel8:${GITOPS_OPERATOR_VER}"}
@@ -144,25 +147,13 @@ while getopts ":iu" option; do
       ${KUBECTL} apply -k ${TEMP_DIR}
       ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
       
-      SECONDS=0
-      end=$((SECONDS+90))
-
-      job_result=1
-
-      while [ $SECONDS -lt $end ]; do
-        if kubectl wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s; then
-          job_result=0
-          break
-        fi
-       sleep 3
-      done
-
-      if [[ $job_result -eq 1 ]]; then
-          echo "Installation failed!"
-          exit 1
-      else 
-          echo "Installation succeeded"
-          exit 0
+      
+      if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s ; then
+        echo "Installation succeeded"
+        exit 0
+      else
+        echo "Installation failed as the operator pod did not come up"
+        exit 1
       fi
       
       exit;;
@@ -170,6 +161,15 @@ while getopts ":iu" option; do
       echo "uninstalling ..."
       ${KUBECTL} delete -k ${TEMP_DIR}
       ${KUBECTL} delete -f ${TEMP_DIR}/rbac-patch.yaml
+
+      if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s; then
+        echo "Uninstallation failed as the operator pod are not deleted"
+        exit 1
+      else
+        echo "Uninstall succeeded"
+        exit 0
+      fi
+      
       exit;;
     \?) # Invalid option
       echo "Error: Invalid option"
