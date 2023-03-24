@@ -4,13 +4,13 @@ metadata:
   annotations:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
-    containerImage: quay.io/redhat-developer/gitops-backend-operator:v0.0.3
+    containerImage: quay.io/redhat-developer/gitops-operator:v1.8.0
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v0.0.3
+  name: gitops-operator.v1.8.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -117,5 +117,5 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc
-  replaces: gitops-operator.v0.0.2
-  version: 0.0.3
+  replaces: gitops-operator.v1.7.3
+  version: 1.8.0
