@@ -132,9 +132,6 @@ install_kubectl
 YQ=$(which yq)
 install_yq
 
-# copy the rbac patch file to the kustomize directory
-wget https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml -o "${TEMP_DIR}/rbac-patch.yaml"
-
 # create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
 create_kustomization_init_file
@@ -145,7 +142,9 @@ while getopts ":iu" option; do
     i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
       echo "installing ..."
       ${KUBECTL} apply -k ${TEMP_DIR}
-      ${KUBECTL} apply -f ${TEMP_DIR}/rbac-patch.yaml
+      # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
+      # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
+      ${KUBECTL} apply -f https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml
       
       
       if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s ; then
@@ -160,7 +159,9 @@ while getopts ":iu" option; do
     u) # uninstall
       echo "uninstalling ..."
       ${KUBECTL} delete -k ${TEMP_DIR}
-      ${KUBECTL} delete -f ${TEMP_DIR}/rbac-patch.yaml
+      # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
+      # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
+      ${KUBECTL} delete -f https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml
 
       if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s; then
         echo "Uninstallation failed as the operator pod are not deleted"
