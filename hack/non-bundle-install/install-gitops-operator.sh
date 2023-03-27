@@ -133,7 +133,7 @@ YQ=$(which yq)
 install_yq
 
 # copy the rbac patch file to the kustomize directory
-wget https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml -o "${TEMP_DIR}"
+wget https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml -o "${TEMP_DIR}/rbac-patch.yaml"
 
 # create the required yaml files for the kustomize based install.
 create_image_overrides_patch_file
