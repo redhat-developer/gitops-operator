@@ -581,9 +581,7 @@ spec:
           - create
         serviceAccountName: gitops-operator-controller-manager
       deployments:
-      - label:
-          control-plane: argocd-operator
-        name: gitops-operator-controller-manager
+      - name: gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -603,7 +601,7 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
-                image: quay.io/redhat-developer/gitops-operator:v1.8.0
+                image: quay.io/redhat-developer/gitops-operator:latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
