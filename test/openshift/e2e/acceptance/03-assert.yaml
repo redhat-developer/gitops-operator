@@ -1,0 +1,23 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+status:
+  ingress:
+  - conditions:
+    - status: "True"
+      type: Admitted
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kam
+  namespace: openshift-gitops
+status:
+  ingress:
+  - conditions:
+    - status: "True"
+      type: Admitted
+
+
