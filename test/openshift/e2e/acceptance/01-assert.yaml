@@ -1,0 +1,9 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openshift-gitops-application-controller
+  namespace: openshift-gitops
+status:
+  availableReplicas: 1
+
+
