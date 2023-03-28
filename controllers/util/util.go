@@ -137,5 +137,19 @@ func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec
 		if len(podspec.SecurityContext.SeccompProfile.Type) == 0 {
 			podspec.SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeRuntimeDefault
 		}
+		if podspec.Containers[0].SecurityContext == nil {
+			podspec.Containers[0].SecurityContext = &corev1.SecurityContext{
+				AllowPrivilegeEscalation: BoolPtr(false),
+				Capabilities: &corev1.Capabilities{
+					Drop: []corev1.Capability{
+						"ALL",
+					},
+				},
+				RunAsNonRoot: BoolPtr(true),
+				SeccompProfile: &corev1.SeccompProfile{
+					Type: corev1.SeccompProfileTypeRuntimeDefault,
+				},
+			}
+		}
 	}
 }
