@@ -563,6 +563,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 	{
 		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
 
+		// Add SeccompProfile based on cluster version
+		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
+
 		deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
@@ -610,12 +613,20 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].SecurityContext, deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext) {
+				found.Spec.Template.Spec.Containers[0].SecurityContext = deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext
+				changed = true
+			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
 				found.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
 				changed = true
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
 				found.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
+				found.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
 				changed = true
 			}
 
