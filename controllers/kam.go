@@ -184,6 +184,9 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 
 	deploymentObj := newDeploymentForCLI()
 
+	// Add SeccompProfile based on cluster version
+	util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
+
 	deploymentObj.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 
 	if err := controllerutil.SetControllerReference(cr, deploymentObj, r.Scheme); err != nil {
@@ -224,6 +227,14 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 		}
 		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
 			existingDeployment.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
+			changed = true
+		}
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
+			existingDeployment.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
+			changed = true
+		}
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.Containers[0].SecurityContext, deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext) {
+			existingDeployment.Spec.Template.Spec.Containers[0].SecurityContext = deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext
 			changed = true
 		}
 
