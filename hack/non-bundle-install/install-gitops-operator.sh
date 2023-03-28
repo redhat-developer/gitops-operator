@@ -144,7 +144,7 @@ while getopts ":iu" option; do
       ${KUBECTL} apply -k ${TEMP_DIR}
       # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
       # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
-      ${KUBECTL} apply -f https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml
+      ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/hack/non-bundle-install/rbac-patch.yaml
       
       
       if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s ; then
