@@ -112,6 +112,8 @@ func argoExists(policies []rbacv1.PolicyRule) (result bool) {
 	return result
 }
 
+//utility function to check for string in a slice
+
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
