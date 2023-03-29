@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
+	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,13 +25,15 @@ func TestPlugin(t *testing.T) {
 	testDisplayName := displayName
 	assert.Equal(t, testConsolePlugin.Spec.DisplayName, testDisplayName)
 
-	testPluginService := consolepluginv1.ConsolePluginService{
+	testPluginService := &consolev1.ConsolePluginService{
 		Name:      gitopsPluginName,
 		Namespace: serviceNamespace,
 		Port:      servicePort,
 		BasePath:  "/",
 	}
-	assert.DeepEqual(t, testConsolePlugin.Spec.Service, testPluginService)
+	assert.DeepEqual(t, testConsolePlugin.Spec.I18n.LoadType, consolev1.Preload)
+	assert.DeepEqual(t, testConsolePlugin.Spec.Backend.Type, consolev1.Service)
+	assert.DeepEqual(t, testConsolePlugin.Spec.Backend.Service, testPluginService)
 }
 
 func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
@@ -1388,7 +1390,7 @@ func TestPlugin_reconcileConsolePlugin(t *testing.T) {
 	_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)
 
-	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	consolePlugin := &consolev1.ConsolePlugin{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 	assertNoError(t, err)
 }
@@ -1417,17 +1419,20 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cp := &consolepluginv1.ConsolePlugin{
+			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: gitopsPluginName,
 				},
-				Spec: consolepluginv1.ConsolePluginSpec{
+				Spec: consolev1.ConsolePluginSpec{
 					DisplayName: test.displayName,
-					Service: consolepluginv1.ConsolePluginService{
-						Name:      gitopsPluginName,
-						Namespace: serviceNamespace,
-						Port:      servicePort,
-						BasePath:  "/",
+					Backend: consolev1.ConsolePluginBackend{
+						Type: consolev1.Service,
+						Service: &consolev1.ConsolePluginService{
+							Name:      gitopsPluginName,
+							Namespace: serviceNamespace,
+							Port:      servicePort,
+							BasePath:  "/",
+						},
 					},
 				},
 			}
@@ -1436,7 +1441,7 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
 
-			consolePlugin := &consolepluginv1.ConsolePlugin{}
+			consolePlugin := &consolev1.ConsolePlugin{}
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 			assertNoError(t, err)
 
@@ -1447,11 +1452,11 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 	tests := []struct {
 		name    string
-		service consolepluginv1.ConsolePluginService
+		service consolev1.ConsolePluginService
 	}{
 		{
 			name: "default service",
-			service: consolepluginv1.ConsolePluginService{
+			service: consolev1.ConsolePluginService{
 				Name:      gitopsPluginName,
 				Namespace: serviceNamespace,
 				Port:      servicePort,
@@ -1460,7 +1465,7 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 		},
 		{
 			name: "changed service",
-			service: consolepluginv1.ConsolePluginService{
+			service: consolev1.ConsolePluginService{
 				Name:      "wrong name",
 				Namespace: "wrong namespace",
 				Port:      int32(9002),
@@ -1478,13 +1483,16 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cp := &consolepluginv1.ConsolePlugin{
+			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: gitopsPluginName,
 				},
-				Spec: consolepluginv1.ConsolePluginSpec{
+				Spec: consolev1.ConsolePluginSpec{
 					DisplayName: displayName,
-					Service:     test.service,
+					Backend: consolev1.ConsolePluginBackend{
+						Type:    consolev1.Service,
+						Service: &test.service,
+					},
 				},
 			}
 			reconciler.Client.Create(context.TODO(), cp)
@@ -1492,14 +1500,14 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
 
-			consolePlugin := &consolepluginv1.ConsolePlugin{}
+			consolePlugin := &consolev1.ConsolePlugin{}
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 			assertNoError(t, err)
 
-			assert.Equal(t, consolePlugin.Spec.Service.Name, "gitops-plugin")
-			assert.Equal(t, consolePlugin.Spec.Service.Namespace, "openshift-gitops")
-			assert.Equal(t, consolePlugin.Spec.Service.Port, int32(9001))
-			assert.Equal(t, consolePlugin.Spec.Service.BasePath, "/")
+			assert.Equal(t, consolePlugin.Spec.Backend.Service.Name, "gitops-plugin")
+			assert.Equal(t, consolePlugin.Spec.Backend.Service.Namespace, "openshift-gitops")
+			assert.Equal(t, consolePlugin.Spec.Backend.Service.Port, int32(9001))
+			assert.Equal(t, consolePlugin.Spec.Backend.Service.BasePath, "/")
 		})
 	}
 }

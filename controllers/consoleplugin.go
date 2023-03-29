@@ -6,7 +6,7 @@ import (
 	"os"
 	"reflect"
 
-	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
+	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 
@@ -159,18 +159,24 @@ func pluginDeployment() *appsv1.Deployment {
 	}
 }
 
-func consolePlugin() *consolepluginv1.ConsolePlugin {
-	return &consolepluginv1.ConsolePlugin{
+func consolePlugin() *consolev1.ConsolePlugin {
+	return &consolev1.ConsolePlugin{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gitopsPluginName,
 		},
-		Spec: consolepluginv1.ConsolePluginSpec{
+		Spec: consolev1.ConsolePluginSpec{
 			DisplayName: displayName,
-			Service: consolepluginv1.ConsolePluginService{
-				Name:      gitopsPluginName,
-				Namespace: serviceNamespace,
-				Port:      servicePort,
-				BasePath:  "/",
+			Backend: consolev1.ConsolePluginBackend{
+				Type: consolev1.Service,
+				Service: &consolev1.ConsolePluginService{
+					Name:      gitopsPluginName,
+					Namespace: serviceNamespace,
+					Port:      servicePort,
+					BasePath:  "/",
+				},
+			},
+			I18n: consolev1.ConsolePluginI18n{
+				LoadType: consolev1.Preload,
 			},
 		},
 	}
@@ -332,7 +338,7 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 		return reconcile.Result{}, err
 	}
 
-	existingPlugin := &consolepluginv1.ConsolePlugin{}
+	existingPlugin := &consolev1.ConsolePlugin{}
 
 	if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName},
 		existingPlugin); err != nil {
@@ -349,12 +355,12 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 		}
 	} else {
 		changed := !reflect.DeepEqual(existingPlugin.Spec.DisplayName, newConsolePlugin.Spec.DisplayName) ||
-			!reflect.DeepEqual(existingPlugin.Spec.Service, newConsolePlugin.Spec.Service)
+			!reflect.DeepEqual(existingPlugin.Spec.Backend.Service, newConsolePlugin.Spec.Backend.Service)
 
 		if changed {
 			reqLogger.Info("Reconciling Console Plugin", "Namespace", existingPlugin.Namespace, "Name", existingPlugin.Name)
 			existingPlugin.Spec.DisplayName = newConsolePlugin.Spec.DisplayName
-			existingPlugin.Spec.Service = newConsolePlugin.Spec.Service
+			existingPlugin.Spec.Backend.Service = newConsolePlugin.Spec.Backend.Service
 			return reconcile.Result{}, r.Client.Update(context.TODO(), newConsolePlugin)
 		}
 	}
