@@ -92,10 +92,33 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 			}
 			policyRules := getPolicyRuleForApplicationController()
 			policyRules = append(policyRules, clusterRole.Rules...)
+			if !argoExists(policyRules) {
+				policyRules = append(policyRules, getPolicyRuleForNonOlmArgoCDApplicationController()...)
+			}
 			o.Rules = policyRules
 		}
 	}
 	return nil
+}
+
+func argoExists(policies []rbacv1.PolicyRule) (result bool) {
+	result = false
+	for _, policy := range policies {
+		if contains(policy.APIGroups, "argoproj.io") {
+			result = true
+			break
+		}
+	}
+	return result
+}
+
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
@@ -119,6 +142,25 @@ func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+	}
+}
+
+func getPolicyRuleForNonOlmArgoCDApplicationController() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"argoproj.io",
+			},
+			Resources: []string{
+				"applications",
+				"applicationsets",
+				"appprojects",
+				"argocds",
 			},
 			Verbs: []string{
 				"*",
