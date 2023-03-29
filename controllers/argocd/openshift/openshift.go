@@ -101,6 +101,7 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 	return nil
 }
 
+// checks if argoproj.io rules exist in application controller role, if not return false
 func argoExists(policies []rbacv1.PolicyRule) (result bool) {
 	result = false
 	for _, policy := range policies {
@@ -112,8 +113,7 @@ func argoExists(policies []rbacv1.PolicyRule) (result bool) {
 	return result
 }
 
-//utility function to check for string in a slice
-
+// utility function to check for string in a slice
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
