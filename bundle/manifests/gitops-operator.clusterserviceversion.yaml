@@ -581,7 +581,9 @@ spec:
           - create
         serviceAccountName: gitops-operator-controller-manager
       deployments:
-      - name: gitops-operator-controller-manager
+      - label:
+          control-plane: argocd-operator
+        name: gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
