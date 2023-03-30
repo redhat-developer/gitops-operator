@@ -92,7 +92,7 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 			}
 			policyRules := getPolicyRuleForApplicationController()
 			policyRules = append(policyRules, clusterRole.Rules...)
-			if !argoExists(policyRules) {
+			if !argoprojRulesExists(policyRules) {
 				policyRules = append(policyRules, getPolicyRuleForNonOlmArgoCDApplicationController()...)
 			}
 			o.Rules = policyRules
@@ -102,10 +102,10 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 }
 
 // checks if argoproj.io rules exist in application controller role, if not return false
-func argoExists(policies []rbacv1.PolicyRule) (result bool) {
+func argoprojRulesExists(policies []rbacv1.PolicyRule) (result bool) {
 	result = false
 	for _, policy := range policies {
-		if contains(policy.APIGroups, "argoproj.io") {
+		if stringExistsInSlice(policy.APIGroups, "argoproj.io") {
 			result = true
 			break
 		}
@@ -114,9 +114,9 @@ func argoExists(policies []rbacv1.PolicyRule) (result bool) {
 }
 
 // utility function to check for string in a slice
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
+func stringExistsInSlice(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
 			return true
 		}
 	}
