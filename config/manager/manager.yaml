@@ -32,7 +32,7 @@ spec:
           value: openshift-gitops
         - name: OPERATOR_NAME
           value: gitops-operator
-        image: quay.io/redhat-developer/gitops-operator:v1.8.0
+        image: controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
