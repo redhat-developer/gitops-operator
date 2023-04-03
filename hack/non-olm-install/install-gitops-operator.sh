@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -u -e -o pipefail
+
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"master"}
 
