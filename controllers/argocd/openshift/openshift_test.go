@@ -214,3 +214,29 @@ func TestReconcileArgoCD_reconcileSecrets(t *testing.T) {
 	assert.NoError(t, ReconcilerHook(a, testSecret, ""))
 	assert.Equal(t, string(testSecret.Data["namespaces"]), "someRandomNamespace")
 }
+
+func TestArgoprojRulesExists(t *testing.T) {
+	rules1 := makeTestPolicyRules()
+
+	assert.Equal(t, argoprojRulesExists(rules1), false)
+
+	rules2 := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{
+				"argoproj.io",
+			},
+			Resources: []string{
+				"applications",
+				"applicationsets",
+				"appprojects",
+				"argocds",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+	}
+
+	assert.Equal(t, argoprojRulesExists(rules2), true)
+
+}
