@@ -17,6 +17,7 @@ DOCKER="docker"
 # gitops-operator version tagged images
 ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-dex-rhel8:${GITOPS_OPERATOR_VER}"}
 ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-argocd-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_APPLICATIONSET_IMAGE=${ARGOCD_APPLICATIONSET_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/applicationset-rhel8:${GITOPS_OPERATOR_VER}"}
 BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8:${GITOPS_OPERATOR_VER}"}
 GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
 KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
@@ -99,6 +100,8 @@ spec:
           value: ${ARGOCD_DEX_IMAGE}
         - name: ARGOCD_KEYCLOAK_IMAGE
           value: ${ARGOCD_KEYCLOAK_IMAGE}
+        - name: ARGOCD_APPLICATIONSET_IMAGE 
+          value: ${ARGOCD_APPLICATIONSET_IMAGE}
         - name: BACKEND_IMAGE
           value: ${BACKEND_IMAGE}
         - name: ARGOCD_IMAGE
