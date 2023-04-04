@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -u -e -o pipefail
-
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"master"}
 
@@ -36,7 +34,7 @@ YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 # deletes the temp directory
 function cleanup() {
   rm -rf "${TEMP_DIR}"
-  echo "Deleted temp working directory $WORK_DIR"
+  echo "Deleted temp working directory ${TEMP_DIR}"
 }
 
 # installs the stable version kustomize binary if not found in PATH
