@@ -32,6 +32,34 @@ KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 
+# Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
+function check_pod_status_ready() {
+  for binary in "$@"; do
+    echo "Binary $binary";
+    pod_name=$(${KUBECTL} get pods --no-headers -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
+    echo "Pod name : $pod_name";
+    ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
+    if [ $? -ne 0 ]; then
+      echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
+      kubectl logs $pod_name -n ${NAMESPACE_PREFIX}system;
+      echo "\nInstall/Upgrade failed. Performing rollback to $PREV_IMAGE";      
+      rollback
+    fi
+  done
+}
+
+function rollback() {
+  if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
+    export OPERATOR_IMG=${PREV_OPERATOR_IMG}    
+    prepare_kustomize_files
+    ${KUBECTL} build -k ${TEMP_DIR}
+    echo "Upgrade Unsuccessful!!";
+  else
+    echo "Installing image for the first time. Nothing to rollback. Quitting..";
+  fi
+  exit 1;
+}
+
 # deletes the temp directory
 function cleanup() {
   rm -rf "${TEMP_DIR}"
@@ -41,6 +69,7 @@ function cleanup() {
 # installs the stable version kustomize binary if not found in PATH
 function install_kustomize() {
   if [[ -z "${KUSTOMIZE}" ]]; then
+    echo "[INFO] kustomize binary not found in \$PATH, installing kustomize-${KUSTOMIZE_VERSION} in ${TEMP_DIR}"
     wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m |sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
     tar zxvf ${TEMP_DIR}/kustomize.tar.gz -C ${TEMP_DIR}
     KUSTOMIZE=${TEMP_DIR}/kustomize
@@ -51,6 +80,7 @@ function install_kustomize() {
 # installs the stable version of kubectl binary if not found in PATH
 function install_kubectl() {
   if [[ -z "${KUBECTL}" ]]; then
+    echo "[INFO] kubectl binary not found in \$PATH, installing kubectl-${KUBECTL_VERSION} in ${TEMP_DIR}"
     wget https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/kubectl -O ${TEMP_DIR}/kubectl
     KUBECTL=${TEMP_DIR}/kubectl
     chmod +x ${TEMP_DIR}/kubectl
@@ -60,6 +90,7 @@ function install_kubectl() {
 # installs the stable version of yq binary if not found in PATH
 function install_yq() {
   if [[ -z "${YQ}" ]]; then
+    echo "[INFO] yq binary not found in \$PATH, installing yq-${YQ_VERSION} in ${TEMP_DIR}"
     wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) -O ${TEMP_DIR}/yq
     YQ=${TEMP_DIR}/yq
     chmod +x ${TEMP_DIR}/yq
@@ -68,6 +99,7 @@ function install_yq() {
 
 # creates a kustomization.yaml file in the temp directory pointing to the manifests available in the upstream repo.
 function create_kustomization_init_file() {
+  echo "[INFO] Creating kustomization.yaml file using manifests from revision ${GIT_REVISION}"
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
@@ -84,6 +116,7 @@ patches:
 # creates a patch file, containing the environment variable overrides for overriding the default images
 # for various gitops-operator components.
 function create_image_overrides_patch_file() {
+  echo "[INFO] Creating env-overrides.yaml file using component images specified in environment variables"
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -121,6 +154,7 @@ spec:
 }
 
 function create_deployment_patch_from_bundle_image() {
+  echo "[INFO] Creating env-overrides.yaml file using component images specified in the gitops operator bundle image"
   container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
   ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
   ${DOCKER} rm "$container_id"
@@ -136,13 +170,19 @@ metadata:
   cat "${TEMP_DIR}"/env-overrides.yaml
 }
 
-function prepare_kustomize_files() {
+function init_work_directory() {
   # create a temporary directory and do all the operations inside the directory.
-  TEMP_DIR=$(mktemp -d -t gitops-operator-install-XXXXXXX)
+  TEMP_DIR=$(mktemp -d "${TMPDIR:-"/tmp"}/gitops-operator-install-XXXXXXX")
   echo "Using temp directory $TEMP_DIR"
   # cleanup the temporary directory irrespective of whether the script ran successfully or failed with an error.
   trap cleanup EXIT
+}
 
+# Checks if the pre-requisite binaries are already present in the PATH,
+# if not installs appropriate versions of them.
+# This function just checks if the binary is found in the PATH and 
+# does not validate if the version of the binary matches the minimum required version.
+function check_and_install_prerequisites {
   # install kustomize in the the temp directory if its not available in the PATH
   KUSTOMIZE=$(which kustomize)
   install_kustomize
@@ -154,7 +194,19 @@ function prepare_kustomize_files() {
   # install yq in the the temp directory if its not available in the PATH
   YQ=$(which yq)
   install_yq
+}
 
+# Checks if the openshift-gitops-operator is already installed in the system.
+# if so, stores the previous version which would be used for rollback in case of
+# a failure during installation.
+function get_prev_operator_image() {
+  PREV_OPERATOR_IMG=$(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}');
+  echo "PREV OPERATOR IMAGE : ${PREV_OPERATOR_IMG}"
+}
+
+# Prepares the kustomization.yaml file in the TEMP_DIR which would be used 
+# for the installation.
+function prepare_kustomize_files() {
   # create the required yaml files for the kustomize based install.
   create_kustomization_init_file
   DOCKER=$(which ${DOCKER})
@@ -174,38 +226,26 @@ while getopts ":iu" option; do
   case $option in
     i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
       echo "installing ..."
+      init_work_directory
+      check_and_install_prerequisites
+      get_prev_operator_image
       prepare_kustomize_files
       ${KUBECTL} apply -k ${TEMP_DIR}
       # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
       # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
       ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/hack/non-bundle-install/rbac-patch.yaml
-      
-      
-      if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s ; then
-        echo "Installation succeeded"
-        exit 0
-      else
-        echo "Installation failed as the operator pod did not come up"
-        exit 1
-      fi
-      
+      # Check pod status and rollback if necessary.
+      check_pod_status_ready gitops-operator-controller-manager 
       exit;;
     u) # uninstall
       echo "uninstalling ..."
+      init_work_directory
+      check_and_install_prerequisites
       prepare_kustomize_files
       ${KUBECTL} delete -k ${TEMP_DIR}
       # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
       # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
       ${KUBECTL} delete -f https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml
-
-      if ${KUBECTL} wait deployment -n gitops-operator-system gitops-operator-controller-manager --for condition=Available=True --timeout=90s; then
-        echo "Uninstallation failed as the operator pod are not deleted"
-        exit 1
-      else
-        echo "Uninstall succeeded"
-        exit 0
-      fi
-
       exit;;
     \?) # Invalid option
       echo "Error: Invalid option"
