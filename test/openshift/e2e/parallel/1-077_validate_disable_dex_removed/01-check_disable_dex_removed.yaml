@@ -11,7 +11,7 @@ commands:
           exit 1
         fi 
     else
-        operator_name_version=$(oc get subscription `subscription=oo- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators -o jsonpath='{.status.installedCSV}')
+        operator_name_version=$(oc get subscription gitops-operator-v0-0-3-sub -n openshift-operators -o jsonpath='{.status.installedCSV}')
         if [ "$(oc get csv/"${operator_name_version}" -n openshift-operators -o jsonpath='{.spec.install.spec.deployments[].spec.template.spec.containers[].env}' | grep DISABLE_DEX)" != '' ]; then
           echo "DISABLE_DEX env var is still present in the operator CSV."
           exit 1
