@@ -5,22 +5,23 @@ GIT_REVISION=${GIT_REVISION:-"master"}
 
 # gitops-operator version tagged images
 OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
-GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.8.1-1"}
-OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
+GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.8.2-5"}
+OPERATOR_REGISTRY_ORG=${OPERATOR_ORG:-"openshift-gitops-1"}  
+OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
 
 # If enabled, operator and component image URLs would be derived from within CSV present in the bundle image.
 USE_BUNDLE_IMG=${USE_BUNDLE_IMG:-"false"}
-BUNDLE_IMG=${BUNDLE_IMG:-"${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}"}
-DOCKER="docker"
+BUNDLE_IMG=${BUNDLE_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-operator-bundle:${GITOPS_OPERATOR_VER}"}
+DOCKER=${DOCKER:-"podman"}
 
 # Image overrides
 # gitops-operator version tagged images
-ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-dex-rhel8:${GITOPS_OPERATOR_VER}"}
-ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-argocd-rhel8:${GITOPS_OPERATOR_VER}"}
-ARGOCD_APPLICATIONSET_IMAGE=${ARGOCD_APPLICATIONSET_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/applicationset-rhel8:${GITOPS_OPERATOR_VER}"}
-BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8:${GITOPS_OPERATOR_VER}"}
-GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
-KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/dex-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/argocd-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_APPLICATIONSET_IMAGE=${ARGOCD_APPLICATIONSET_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/applicationset-rhel8:${GITOPS_OPERATOR_VER}"}
+BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8:${GITOPS_OPERATOR_VER}"}
+GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
+KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
 
 # other images
 ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-"registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8"}
@@ -37,13 +38,15 @@ function check_pod_status_ready() {
   for binary in "$@"; do
     echo "Binary $binary";
     pod_name=$(${KUBECTL} get pods --no-headers -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
-    echo "Pod name : $pod_name";
-    ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
-    if [ $? -ne 0 ]; then
-      echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
-      kubectl logs $pod_name -n ${NAMESPACE_PREFIX}system;
-      echo "\nInstall/Upgrade failed. Performing rollback to $PREV_IMAGE";      
-      rollback
+    if [ ! -z "$pod_name" ]; then
+      echo "Pod name : $pod_name";
+      ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
+      if [ $? -ne 0 ]; then
+        echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
+        kubectl logs $pod_name -n ${NAMESPACE_PREFIX}system;
+        echo "\nInstall/Upgrade failed. Performing rollback to $PREV_IMAGE";      
+        rollback
+      fi
     fi
   done
 }
@@ -52,7 +55,7 @@ function rollback() {
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
     export OPERATOR_IMG=${PREV_OPERATOR_IMG}    
     prepare_kustomize_files
-    ${KUBECTL} build -k ${TEMP_DIR}
+    ${KUSTOMIZE} build ${TEMP_DIR} | ${KUBECTL} apply -f -
     echo "Upgrade Unsuccessful!!";
   else
     echo "Installing image for the first time. Nothing to rollback. Quitting..";
@@ -110,7 +113,8 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
-  - path: env-overrides.yaml" > ${TEMP_DIR}/kustomization.yaml
+  - path: env-overrides.yaml
+  - path: security-context.yaml" > ${TEMP_DIR}/kustomization.yaml
 }
 
 # creates a patch file, containing the environment variable overrides for overriding the default images
@@ -128,6 +132,8 @@ spec:
       containers:
       - name: manager
         image: ${OPERATOR_IMG}
+        command:
+        - manager
         env:
         - name: ARGOCD_DEX_IMAGE
           value: ${ARGOCD_DEX_IMAGE}
@@ -151,6 +157,42 @@ spec:
           value: ${GITOPS_CONSOLE_PLUGIN_IMAGE}
         - name: KAM_IMAGE
           value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
+}
+
+function create_security_context_patch_file(){
+echo "[INFO] Creating security-context.yaml file using component images specified in environment variables"
+  echo "apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    metadata:
+      annotations:
+        openshift.io/scc: restricted-v2
+    spec:
+      containers:
+      - name: kube-rbac-proxy
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      - name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault" > ${TEMP_DIR}/security-context.yaml
 }
 
 function create_deployment_patch_from_bundle_image() {
@@ -218,6 +260,7 @@ function prepare_kustomize_files() {
     echo "Generating env-overrides.yaml file from the values provided in the environment variable"
     create_image_overrides_patch_file
   fi
+  create_security_context_patch_file
 }
 
 # Code execution starts here
@@ -230,10 +273,7 @@ while getopts ":iu" option; do
       check_and_install_prerequisites
       get_prev_operator_image
       prepare_kustomize_files
-      ${KUBECTL} apply -k ${TEMP_DIR}
-      # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
-      # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
-      ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/hack/non-bundle-install/rbac-patch.yaml
+      ${KUSTOMIZE} build ${TEMP_DIR} | ${KUBECTL} apply -f -
       # Check pod status and rollback if necessary.
       check_pod_status_ready gitops-operator-controller-manager 
       exit;;
