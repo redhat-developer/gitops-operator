@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230320125752-a359b7c62a88
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230327142827-aa1a18bbb071
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.9
@@ -36,7 +36,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
+	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
