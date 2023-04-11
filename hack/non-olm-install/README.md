@@ -1,12 +1,35 @@
 ### Non OLM based operator installation
 
-The purpose of this script is to install and uninstall the GitOps Operator without using OLM. It uses latest version of the kustomize manifests available in the repository.
+The purpose of this script is to install and uninstall the Openshift GitOps Operator without using OLM. It uses latest version of the kustomize manifests available in the repository for creating the required k8s resources.
 
+### Usage
+
+The `install-gitops-operator.sh` script supports two methods of installation.
+1. Using operator and component images from environment variables (default method)
+2. Derive the operator and component images from the ClusterServiceVersion manifest present in the operator bundle (Note: This method requires podman binary to be available in the PATH)
+
+
+### Known issues and work arounds
+
+1. Missing RBAC access to update CRs in `argoproj.io` domain 
+
+Issue: 
+
+https://github.com/redhat-developer/gitops-operator/issues/148
+
+Workaround:
+
+Run the following script to create the required `ClusterRole` and `ClusterRoleBinding`
+
+```
+${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/hack/non-bundle-install/rbac-patch.yaml
+```
 ### Prerequisites
 - kustomize (v4.57 or later)
 - kubectl (v1.26.0 or later)
 - yq (v4.31.2 or later)
 - bash (v5.0 or later)
+- podman (v4.4.4 or later) or docker (Note: Required only if operator and component images need to be derived from a bundle image)
 
 ### Environment Variables
 The following environment variables can be set to configure various options for the installation/uninstallation process.
@@ -21,7 +44,7 @@ The following environment variables can be set to configure various options for 
 |**OPERATOR_IMG**|Operator image to be used for the installation|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:${GITOPS_OPERATOR_VER}|
 |**USE_BUNDLE_IMG**|If the operator image and other component image needs to be derived from a bundle image, set this flag to true.|false|
 |**BUNDLE_IMG**|used only when USE_BUNDLE_IMG is set to true|${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}|
-|**DOCKER**|used only when USE_BUNDLE_IMG is set to true. CLI binary to be used for extracting ClusterServiceVersion manifest from the Bundle Image|docker|
+|**DOCKER**|used only when USE_BUNDLE_IMG is set to true. CLI binary to be used for extracting ClusterServiceVersion manifest from the Bundle Image|podman|
 
 #### Variables for 3rd party tools used in the script
 |Environment|Description|Default Value|
