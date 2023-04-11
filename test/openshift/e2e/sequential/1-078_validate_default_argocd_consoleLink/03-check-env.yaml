@@ -4,6 +4,7 @@ commands:
 - script: |
     if [ -z $CI ]; then
       label_value=$(oc get  subscriptions openshift-gitops-operator -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
+      
       if ! [[ "${label_value}" == '"true"' ]]; then
         echo "Label value: $label_value"
         echo "DISABLE_DEFAULT_ARGOCD_CONSOLELINK not set"

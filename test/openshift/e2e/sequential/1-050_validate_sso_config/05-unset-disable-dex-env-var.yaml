@@ -8,7 +8,7 @@ commands:
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": ""}]}}}'
     else
 
-      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub
+      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": ""}]}}}'
     fi
 - script: sleep 30

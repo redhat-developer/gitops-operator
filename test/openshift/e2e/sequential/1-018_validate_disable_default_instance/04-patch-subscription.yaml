@@ -9,6 +9,6 @@ commands:
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     else
     
-      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub
+      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     fi

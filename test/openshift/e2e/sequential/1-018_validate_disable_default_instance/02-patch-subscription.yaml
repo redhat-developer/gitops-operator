@@ -10,7 +10,7 @@ commands:
 
     else
     
-      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub
+      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_INSTANCE", "value": "true"}]}}}'
     fi
 - script: sleep 20
