@@ -244,7 +244,7 @@ function check_and_install_prerequisites {
 # if so, stores the previous version which would be used for rollback in case of
 # a failure during installation.
 function get_prev_operator_image() {
-  PREV_OPERATOR_IMG=$(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}');
+  PREV_OPERATOR_IMG=$(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{.spec.containers[0].image}');
   echo "PREV OPERATOR IMAGE : ${PREV_OPERATOR_IMG}"
 }
 
