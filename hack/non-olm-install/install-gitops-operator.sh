@@ -8,6 +8,7 @@ OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
 GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.8.2-5"}
 OPERATOR_REGISTRY_ORG=${OPERATOR_ORG:-"openshift-gitops-1"}  
 OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
+MANAGER_COMMAND=${MANAGER_COMMAND:-"manager"}
 
 # If enabled, operator and component image URLs would be derived from within CSV present in the bundle image.
 USE_BUNDLE_IMG=${USE_BUNDLE_IMG:-"false"}
@@ -32,6 +33,7 @@ ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-"registry.redhat.io/o
 KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
+
 
 # Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
 function check_pod_status_ready() {
@@ -133,7 +135,7 @@ spec:
       - name: manager
         image: ${OPERATOR_IMG}
         command:
-        - manager
+        - ${MANAGER_COMMAND}
         env:
         - name: ARGOCD_DEX_IMAGE
           value: ${ARGOCD_DEX_IMAGE}
