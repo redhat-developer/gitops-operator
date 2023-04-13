@@ -13,7 +13,7 @@ MANAGER_COMMAND=${MANAGER_COMMAND:-"manager"}
 # If enabled, operator and component image URLs would be derived from within CSV present in the bundle image.
 USE_BUNDLE_IMG=${USE_BUNDLE_IMG:-"false"}
 BUNDLE_IMG=${BUNDLE_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-operator-bundle:${GITOPS_OPERATOR_VER}"}
-DOCKER=${DOCKER:-"podman"}
+DOCKER=${DOCKER:-"docker"}
 
 # Image overrides
 # gitops-operator version tagged images
@@ -34,33 +34,47 @@ KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 
+# Print help message
+function print_help() {
+  echo "Usage: $0 MODE -i|-u|-h"
+  echo "  -i  Install the openshift-gitops-operator manifests"
+  echo "  -u  Uninstall the openshift-gitops-operator manifests"
+  echo "  -h  Print this help message"
+
+  echo
+  echo "Example usage: \`$0 -i"
+  echo "Example usage: \`$0 -u"
+}
+
 
 # Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
 function check_pod_status_ready() {
   for binary in "$@"; do
-    echo "Binary $binary";
+    echo "[DEBUG] Binary $binary";
     pod_name=$(${KUBECTL} get pods --no-headers -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
     if [ ! -z "$pod_name" ]; then
-      echo "Pod name : $pod_name";
+      echo "[DEBUG] Pod name : $pod_name";
       ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
       if [ $? -ne 0 ]; then
-        echo "Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
-        kubectl logs $pod_name -n ${NAMESPACE_PREFIX}system;
-        echo "\nInstall/Upgrade failed. Performing rollback to $PREV_IMAGE";      
+        echo "[INFO] Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
+        ${KUBECTL} logs $pod_name -n ${NAMESPACE_PREFIX}system;
+        echo "[ERROR] Install/Upgrade failed. Performing rollback to $PREV_IMAGE";      
         rollback
       fi
     fi
   done
 }
 
+# Rollback the deployment to use previous known good image
+# Applicable only for upgrade/downgrade operations.
 function rollback() {
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
     export OPERATOR_IMG=${PREV_OPERATOR_IMG}    
     prepare_kustomize_files
     ${KUSTOMIZE} build ${TEMP_DIR} | ${KUBECTL} apply -f -
-    echo "Upgrade Unsuccessful!!";
+    echo "[INFO] Upgrade Unsuccessful!!";
   else
-    echo "Installing image for the first time. Nothing to rollback. Quitting..";
+    echo "[INFO] Installing image for the first time. Nothing to rollback. Quitting..";
   fi
   exit 1;
 }
@@ -68,7 +82,7 @@ function rollback() {
 # deletes the temp directory
 function cleanup() {
   rm -rf "${TEMP_DIR}"
-  echo "Deleted temp working directory ${TEMP_DIR}"
+  echo "[INFO] Deleted temp working directory ${TEMP_DIR}"
 }
 
 # installs the stable version kustomize binary if not found in PATH
@@ -161,8 +175,9 @@ spec:
           value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
 }
 
+# Create a security context for the containers that are present in the deployment.
 function create_security_context_patch_file(){
-echo "[INFO] Creating security-context.yaml file using component images specified in environment variables"
+echo "[INFO] Creating security-context.yaml file for the containers in the controller pod"
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -211,9 +226,10 @@ metadata:
   cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | ${YQ} -e '.spec.install.spec.deployments[0]' | tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
   ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
   ${YQ} -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
-  cat "${TEMP_DIR}"/env-overrides.yaml
 }
 
+# Initialize a temporary work directory to store the artifacts and 
+# clean it up before the completion of the script run.
 function init_work_directory() {
   # create a temporary directory and do all the operations inside the directory.
   TEMP_DIR=$(mktemp -d "${TMPDIR:-"/tmp"}/gitops-operator-install-XXXXXXX")
@@ -254,7 +270,7 @@ function get_prev_operator_image() {
       echo "[INFO] Ignoring image \'${image}\'in previous deployment as it does not correspond to the operator"
     fi
   done
-  echo "PREV OPERATOR IMAGE : ${PREV_OPERATOR_IMG}"
+  echo "[INFO] PREV OPERATOR IMAGE : ${PREV_OPERATOR_IMG}"
 }
 
 # Prepares the kustomization.yaml file in the TEMP_DIR which would be used 
@@ -262,13 +278,19 @@ function get_prev_operator_image() {
 function prepare_kustomize_files() {
   # create the required yaml files for the kustomize based install.
   create_kustomization_init_file
-  DOCKER=$(which ${DOCKER})
-  if [[ ${USE_BUNDLE_IMG} == "true" && ! -z "${DOCKER}" ]]; then
-    echo "Generating env-overrides.yaml file from the CSV defined in the bundle image"
-    create_deployment_patch_from_bundle_image
+
+  if [ ${USE_BUNDLE_IMG} == "true" ]; then
+    DOCKER=$(which ${DOCKER})
+    if [ ! -z "${DOCKER}" ]; then
+      echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
+      create_deployment_patch_from_bundle_image
+    else
+      echo "[WARN] ${DOCKER} binary not found in \$PATH, falling back to image overrides from ENV variables."
+      create_image_overrides_patch_file
+    fi
   else
-    echo "Bundle image is disabled or Docker binary ${DOCKER} not found in PATH"
-    echo "Generating env-overrides.yaml file from the values provided in the environment variable"
+    echo "[INFO] Bundle image is disabled or Docker binary ${DOCKER} not found in PATH"
+    echo "[INFO] Generating env-overrides.yaml file from the values provided in the environment variable"
     create_image_overrides_patch_file
   fi
   create_security_context_patch_file
@@ -276,7 +298,7 @@ function prepare_kustomize_files() {
 
 # Code execution starts here
 # Get the options
-while getopts ":iu" option; do
+while getopts ":iuh" option; do
   case $option in
     i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
       echo "installing ..."
@@ -294,12 +316,12 @@ while getopts ":iu" option; do
       check_and_install_prerequisites
       prepare_kustomize_files
       ${KUBECTL} delete -k ${TEMP_DIR}
-      # TODO: Remove the workaround of adding RBAC policies once the below issue is resolved.
-      # Workaround for fixing the issue https://github.com/redhat-developer/gitops-operator/issues/148
-      ${KUBECTL} delete -f https://raw.githubusercontent.com/anandf/gitops-operator/add_install_script/hack/non-bundle-install/rbac-patch.yaml
+      exit;;
+    h) # help message
+      print_help
       exit;;
     \?) # Invalid option
-      echo "Error: Invalid option"
-      exit;;
+      echo "[ERROR] Error: Invalid option"
+      exit 1;;
   esac
 done
