@@ -1,6 +1,38 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestAssert
-timeout: 120
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-redis
+  namespace: test-1-27-custom
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server 
+  namespace: test-1-27-custom
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server 
+  namespace: test-1-27-custom
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: test-1-27-custom
+status:
+  replicas: 1
+  readyReplicas: 1
 ---
 apiVersion: v1
 kind: Namespace
