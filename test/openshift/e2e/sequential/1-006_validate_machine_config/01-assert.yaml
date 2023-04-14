@@ -1,5 +1,7 @@
-# Check for the openshift-gitops Argo CD Operand to be installed and in phase
-# available.
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 1200
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
@@ -15,3 +17,48 @@ metadata:
   namespace: openshift-gitops
 status:
   readyReplicas: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-repo-server
+  namespace: openshift-gitops
+status:
+  readyReplicas: 2
+  replicas: 2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-applicationset-controller
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1
+  replicas: 1
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openshift-gitops-application-controller
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1
+  replicas: 1
