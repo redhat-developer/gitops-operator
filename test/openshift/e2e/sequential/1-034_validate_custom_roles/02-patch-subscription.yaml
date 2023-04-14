@@ -5,7 +5,7 @@ commands:
 - script: |
     if ! [ -z $CI ]; then
 
-      oc patch -n openshift-operators subscription gitops-operator-v0-0-3-sub\
+      oc patch -n openshift-operators subscription gitops-operator-v1-8-0-sub\
         --type merge --patch '{"spec": {"config": {"env": [{"name": "CONTROLLER_CLUSTER_ROLE", "value": "custom-argocd-role"},{"name": "SERVER_CLUSTER_ROLE", "value": "custom-argocd-role"}]}}}'
 
     else

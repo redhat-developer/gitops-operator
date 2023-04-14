@@ -13,7 +13,7 @@ commands:
       fi
     
     else
-      label_value=$(oc get subscription gitops-operator-v0-0-3-sub -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION").value')
+      label_value=$(oc get subscription gitops-operator-v1-8-0-sub -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION").value')
       
       if [ -z $label_value ]; then
         echo "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION not set"

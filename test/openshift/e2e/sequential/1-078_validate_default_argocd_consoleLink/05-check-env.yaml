@@ -13,7 +13,7 @@ commands:
       fi
 
     else
-      label_value=$(oc get subscription gitops-operator-v0-0-3-sub -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
+      label_value=$(oc get subscription gitops-operator-v1-8-0-sub -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
       
       if ! [[ "${label_value}" == '"false"' ]]; then
         echo "DISABLE_DEFAULT_ARGOCD_CONSOLELINK set"

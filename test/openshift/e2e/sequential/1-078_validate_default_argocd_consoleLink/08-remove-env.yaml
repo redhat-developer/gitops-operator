@@ -5,5 +5,5 @@ commands:
     if [ -z $CI ]; then
         oc -n openshift-operators patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
     else
-        oc -n openshift-operators patch subscription gitops-operator-v0-0-3-sub --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+        oc -n openshift-operators patch subscription gitops-operator-v1-8-0-sub --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
     fi
