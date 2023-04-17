@@ -28,6 +28,32 @@ func TestReconcileArgoCD_reconcileApplicableClusterRole(t *testing.T) {
 	assert.Equal(t, want, testClusterRole.Rules)
 }
 
+// func TestReconcileArgoCD_reconcileApplicableRole(t *testing.T) {
+
+// 	setClusterConfigNamespaces()
+// 	defer unSetClusterConfigNamespaces()
+
+// 	a := makeTestArgoCDForClusterConfig()
+
+// 	testClient := testclient.NewSimpleClientset()
+
+// 	testRole := &rbacv1.Role{
+// 		ObjectMeta: metav1.ObjectMeta{
+// 			Name: a.Name + "-" + testApplicationController,
+// 		},
+// 		Rules: makeTestPolicyRules(),
+// 	}
+
+// 	_, err := testClient.RbacV1().Roles("argocd").Create(context.TODO(), testRole, metav1.CreateOptions{})
+// 	assert.NoError(t, err)
+
+// 	assert.NoError(t, ReconcilerHook(a, testRole, ""))
+// 	//fmt.Println("rules", testRole.Rules)
+// 	rules := getPolicyRuleForApplicationController()
+// 	//want := append(rules, getPolicyRuleForNonOlmArgoCDApplicationController()...)
+// 	assert.Equal(t, rules, testRole.Rules)
+// }
+
 func TestReconcileArgoCD_reconcileNotApplicableClusterRole(t *testing.T) {
 
 	setClusterConfigNamespaces()

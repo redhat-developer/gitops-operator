@@ -103,11 +103,27 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 
 // checks if argoproj.io rules exist in application controller role, if not return false
 func argoprojRulesExists(policies []rbacv1.PolicyRule) (result bool) {
-	result = false
+	arr := [4]int{}
+	result = true
 	for _, policy := range policies {
 		if stringExistsInSlice(policy.APIGroups, "argoproj.io") {
-			result = true
-			break
+			if stringExistsInSlice(policy.Resources, "applications") {
+				arr[0]++
+			}
+			if stringExistsInSlice(policy.Resources, "applicationsets") {
+				arr[1]++
+			}
+			if stringExistsInSlice(policy.Resources, "appprojects") {
+				arr[2]++
+			}
+			if stringExistsInSlice(policy.Resources, "argocds") {
+				arr[3]++
+			}
+		}
+	}
+	for _, i := range arr {
+		if i <= 0 {
+			result = false
 		}
 	}
 	return result
