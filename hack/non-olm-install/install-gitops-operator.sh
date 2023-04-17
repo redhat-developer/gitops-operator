@@ -8,7 +8,6 @@ OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
 GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.8.2-5"}
 OPERATOR_REGISTRY_ORG=${OPERATOR_ORG:-"openshift-gitops-1"}  
 OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
-MANAGER_COMMAND=${MANAGER_COMMAND:-"manager"}
 
 # If enabled, operator and component image URLs would be derived from within CSV present in the bundle image.
 USE_BUNDLE_IMG=${USE_BUNDLE_IMG:-"false"}
@@ -148,8 +147,6 @@ spec:
       containers:
       - name: manager
         image: ${OPERATOR_IMG}
-        command:
-        - ${MANAGER_COMMAND}
         env:
         - name: ARGOCD_DEX_IMAGE
           value: ${ARGOCD_DEX_IMAGE}
@@ -280,16 +277,17 @@ function prepare_kustomize_files() {
   create_kustomization_init_file
 
   if [ ${USE_BUNDLE_IMG} == "true" ]; then
+    echo "[INFO] USE_BUNDLE_IMG flag is enabled"
     DOCKER=$(which ${DOCKER})
     if [ ! -z "${DOCKER}" ]; then
       echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
       create_deployment_patch_from_bundle_image
     else
-      echo "[WARN] ${DOCKER} binary not found in \$PATH, falling back to image overrides from ENV variables."
+      echo "[WARN] \'${DOCKER}\' binary not found in \$PATH, falling back to image overrides from ENV variables."
       create_image_overrides_patch_file
     fi
   else
-    echo "[INFO] Bundle image is disabled or Docker binary ${DOCKER} not found in PATH"
+    echo "[INFO] USE_BUNDLE_IMG flag is disabled"
     echo "[INFO] Generating env-overrides.yaml file from the values provided in the environment variable"
     create_image_overrides_patch_file
   fi
