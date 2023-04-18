@@ -257,7 +257,7 @@ function check_and_install_prerequisites {
 # if so, stores the previous version which would be used for rollback in case of
 # a failure during installation.
 function get_prev_operator_image() {
-  for image in $(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}')
+  for image in $(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}' 2>/dev/null)
   do
     if [[ "${image}" == *"operator"* ]]; then
       echo "[INFO] Found an operator image in the previous deployment: ${image}"
@@ -283,12 +283,14 @@ function prepare_kustomize_files() {
       echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
       create_deployment_patch_from_bundle_image
     else
-      echo "[WARN] \'${DOCKER}\' binary not found in \$PATH, falling back to image overrides from ENV variables."
+      echo -n "[WARN] \'${DOCKER}\' binary not found in \$PATH,"
+      echo "falling back to default values or overrides provided using environment variables."
       create_image_overrides_patch_file
     fi
   else
     echo "[INFO] USE_BUNDLE_IMG flag is disabled"
-    echo "[INFO] Generating env-overrides.yaml file from the values provided in the environment variable"
+    echo -n "[INFO] Generating env-overrides.yaml file from default values"
+    echo "or the overrides provided using environment variables"
     create_image_overrides_patch_file
   fi
   create_security_context_patch_file
@@ -299,7 +301,7 @@ function prepare_kustomize_files() {
 while getopts ":iuh" option; do
   case $option in
     i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
-      echo "installing ..."
+      echo "[INFO] Installing openshift-gitops-operator..."
       init_work_directory
       check_and_install_prerequisites
       get_prev_operator_image
@@ -309,10 +311,13 @@ while getopts ":iuh" option; do
       check_pod_status_ready gitops-operator-controller-manager 
       exit;;
     u) # uninstall
-      echo "uninstalling ..."
+      echo "[INFO] Uninstalling openshift-gitops-operator..."
       init_work_directory
       check_and_install_prerequisites
       prepare_kustomize_files
+      # Remove the GitOpsService instance created for the default 
+      # ArgoCD instance created in openshift-gitops namespace.
+      ${KUBECTL} delete gitopsservice/cluster
       ${KUBECTL} delete -k ${TEMP_DIR}
       exit;;
     h) # help message
