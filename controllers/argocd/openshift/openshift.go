@@ -86,57 +86,17 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 			}
 
 			clusterRole, err := k8sClient.RbacV1().ClusterRoles().Get(context.TODO(), "admin", metav1.GetOptions{})
+
 			if err != nil {
 				logv.Error(err, "failed to retrieve Cluster Role admin")
 				return err
 			}
 			policyRules := getPolicyRuleForApplicationController()
 			policyRules = append(policyRules, clusterRole.Rules...)
-			if !argoprojRulesExists(policyRules) {
-				policyRules = append(policyRules, getPolicyRuleForNonOlmArgoCDApplicationController()...)
-			}
 			o.Rules = policyRules
 		}
 	}
 	return nil
-}
-
-// checks if argoproj.io rules exist in application controller role, if not return false
-func argoprojRulesExists(policies []rbacv1.PolicyRule) (result bool) {
-	arr := [4]int{}
-	result = true
-	for _, policy := range policies {
-		if stringExistsInSlice(policy.APIGroups, "argoproj.io") {
-			if stringExistsInSlice(policy.Resources, "applications") {
-				arr[0]++
-			}
-			if stringExistsInSlice(policy.Resources, "applicationsets") {
-				arr[1]++
-			}
-			if stringExistsInSlice(policy.Resources, "appprojects") {
-				arr[2]++
-			}
-			if stringExistsInSlice(policy.Resources, "argocds") {
-				arr[3]++
-			}
-		}
-	}
-	for _, i := range arr {
-		if i <= 0 {
-			result = false
-		}
-	}
-	return result
-}
-
-// utility function to check for string in a slice
-func stringExistsInSlice(slice []string, str string) bool {
-	for _, s := range slice {
-		if s == str {
-			return true
-		}
-	}
-	return false
 }
 
 func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
@@ -165,11 +125,6 @@ func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
 				"*",
 			},
 		},
-	}
-}
-
-func getPolicyRuleForNonOlmArgoCDApplicationController() []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{
 				"argoproj.io",

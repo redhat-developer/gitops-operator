@@ -28,32 +28,6 @@ func TestReconcileArgoCD_reconcileApplicableClusterRole(t *testing.T) {
 	assert.Equal(t, want, testClusterRole.Rules)
 }
 
-// func TestReconcileArgoCD_reconcileApplicableRole(t *testing.T) {
-
-// 	setClusterConfigNamespaces()
-// 	defer unSetClusterConfigNamespaces()
-
-// 	a := makeTestArgoCDForClusterConfig()
-
-// 	testClient := testclient.NewSimpleClientset()
-
-// 	testRole := &rbacv1.Role{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name: a.Name + "-" + testApplicationController,
-// 		},
-// 		Rules: makeTestPolicyRules(),
-// 	}
-
-// 	_, err := testClient.RbacV1().Roles("argocd").Create(context.TODO(), testRole, metav1.CreateOptions{})
-// 	assert.NoError(t, err)
-
-// 	assert.NoError(t, ReconcilerHook(a, testRole, ""))
-// 	//fmt.Println("rules", testRole.Rules)
-// 	rules := getPolicyRuleForApplicationController()
-// 	//want := append(rules, getPolicyRuleForNonOlmArgoCDApplicationController()...)
-// 	assert.Equal(t, rules, testRole.Rules)
-// }
-
 func TestReconcileArgoCD_reconcileNotApplicableClusterRole(t *testing.T) {
 
 	setClusterConfigNamespaces()
@@ -239,30 +213,4 @@ func TestReconcileArgoCD_reconcileSecrets(t *testing.T) {
 	}
 	assert.NoError(t, ReconcilerHook(a, testSecret, ""))
 	assert.Equal(t, string(testSecret.Data["namespaces"]), "someRandomNamespace")
-}
-
-func TestArgoprojRulesExists(t *testing.T) {
-	rules1 := makeTestPolicyRules()
-
-	assert.Equal(t, argoprojRulesExists(rules1), false)
-
-	rules2 := []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{
-				"argoproj.io",
-			},
-			Resources: []string{
-				"applications",
-				"applicationsets",
-				"appprojects",
-				"argocds",
-			},
-			Verbs: []string{
-				"*",
-			},
-		},
-	}
-
-	assert.Equal(t, argoprojRulesExists(rules2), true)
-
 }
