@@ -315,7 +315,7 @@ while getopts ":iuh" option; do
       init_work_directory
       check_and_install_prerequisites
       prepare_kustomize_files
-      # Remove the GitOpsService instance created for the default 
+      # Remove the GitOpsService instance created for the default
       # ArgoCD instance created in openshift-gitops namespace.
       ${KUBECTL} delete gitopsservice/cluster
       ${KUBECTL} delete -k ${TEMP_DIR}
