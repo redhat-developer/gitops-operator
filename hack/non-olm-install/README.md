@@ -29,6 +29,7 @@ ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-op
 - kubectl (v1.26.0 or later)
 - yq (v4.31.2 or later)
 - bash (v5.0 or later)
+- git (v2.39.1 or later)
 - podman (v4.4.4 or later) or docker (Note: Required only if operator and component images need to be derived from a bundle image)
 
 ### Environment Variables
