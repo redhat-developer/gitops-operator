@@ -48,6 +48,9 @@ function print_help() {
 
 # Check if a pod is ready, if it fails to get ready, rollback to PREV_IMAGE
 function check_pod_status_ready() {
+  # Wait for the deployment rollout to complete before trying to list the pods
+  # to ensure that only pods corresponding to the new version is considered.
+  ${KUBECTL} rollout status deploy -n ${NAMESPACE_PREFIX}system --timeout=5m
   for binary in "$@"; do
     echo "[DEBUG] Binary $binary";
     pod_name=$(${KUBECTL} get pods --no-headers -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
