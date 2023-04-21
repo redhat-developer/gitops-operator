@@ -31,11 +31,11 @@ patchesJson6902:
     group: operators.coreos.com
     version: v1alpha1
     kind: ClusterServiceVersion
-    name: gitops-operator.v0.0.3
+    name: gitops-operator.v1.8.0
   path: patches/icon.yaml
 - target:
     group: operators.coreos.com
     version: v1alpha1
     kind: ClusterServiceVersion
-    name: gitops-operator.v0.0.3
+    name: gitops-operator.v1.8.0
   path: patches/description.yaml
