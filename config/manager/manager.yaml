@@ -26,31 +26,33 @@ spec:
         runAsNonRoot: true
       containers:
       - command:
-        - /manager
-        args:
-        - --leader-elect
+          - /usr/local/bin/manager
+        env:
+        - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+          value: openshift-gitops
+        - name: OPERATOR_NAME
+          value: gitops-operator
         image: controller:latest
-        name: manager
-        securityContext:
-          allowPrivilegeEscalation: false
         livenessProbe:
           httpGet:
             path: /healthz
             port: 8081
           initialDelaySeconds: 15
           periodSeconds: 20
+        name: manager
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8081
           initialDelaySeconds: 5
           periodSeconds: 10
-        env:
-        - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
-          value: "openshift-gitops"
-        - name: OPERATOR_NAME
-          value: gitops-operator
-        - name: DISABLE_DEX
-          value: "false" 
+        resources: {}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
