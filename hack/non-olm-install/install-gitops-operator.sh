@@ -33,6 +33,12 @@ KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 
+# Operator configurations
+DISABLE_DEFAULT_ARGOCD_INSTANCE=${DISABLE_DEFAULT_ARGOCD_INSTANCE:-"false"}
+DISABLE_DEX=${DISABLE_DEX:-"false"}
+ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
+WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
+
 # Print help message
 function print_help() {
   echo "Usage: $0 MODE -i|-u|-h"
@@ -53,7 +59,7 @@ function check_pod_status_ready() {
   ${KUBECTL} rollout status deploy -n ${NAMESPACE_PREFIX}system --timeout=5m
   for binary in "$@"; do
     echo "[DEBUG] Binary $binary";
-    pod_name=$(${KUBECTL} get pods --no-headers -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
+    pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
     if [ ! -z "$pod_name" ]; then
       echo "[DEBUG] Pod name : $pod_name";
       ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
@@ -172,7 +178,15 @@ spec:
         - name: GITOPS_CONSOLE_PLUGIN_IMAGE
           value: ${GITOPS_CONSOLE_PLUGIN_IMAGE}
         - name: KAM_IMAGE
-          value: ${KAM_IMAGE}" > ${TEMP_DIR}/env-overrides.yaml
+          value: ${KAM_IMAGE}
+        - name: DISABLE_DEX
+          value: \"${DISABLE_DEX}\"
+        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
+          value: \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"
+        - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+          value: \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"
+        - name: WATCH_NAMESPACE
+          value: \"${WATCH_NAMESPACE}\"" > ${TEMP_DIR}/env-overrides.yaml
 }
 
 # Create a security context for the containers that are present in the deployment.
@@ -223,7 +237,17 @@ kind: Deployment
 metadata:
   name: controller-manager
   namespace: system" > "${TEMP_DIR}"/env-overrides.yaml
-  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | ${YQ} -e '.spec.install.spec.deployments[0]' | tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
+  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | \
+  ${YQ} -e '.spec.install.spec.deployments[0]'| \
+  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "DISABLE_DEX"))' |
+  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "ARGOCD_CLUSTER_CONFIG_NAMESPACES"))' | \
+  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "WATCH_NAMESPACE"))' | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEX\", \"value\": \"${DISABLE_DEX}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEFAULT_ARGOCD_INSTANCE\", \"value\": \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"ARGOCD_CLUSTER_CONFIG_NAMESPACES\", \"value\": \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
+  tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
+
   ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
   ${YQ} -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
 }
