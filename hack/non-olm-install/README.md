@@ -66,7 +66,16 @@ The following environment variables can be set to configure various options for 
 |**ARGOCD_REDIS_IMAGE**|Image override for Redis component|registry.redhat.io/rhel8/redis-6:1-110|
 |**ARGOCD_REDIS_HA_PROXY_IMAGE**|Image override for Redis HA proxy component|registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream|
 
-
+#### Variables for Operator parameters
+|Environment|Description|Default Value|
+|:----------|:---------:|:-----------:|
+|**DISABLE_DEFAULT_ARGOCD_INSTANCE**|When set to `true`, this will disable the default 'ready-to-use' installation of Argo CD in the `openshift-gitops` namespace.|false|
+|**DISABLE_DEX**|Flag to control if Dex needs to be disabled|false|
+|**ARGOCD_CLUSTER_CONFIG_NAMESPACES**|OpenShift GitOps instances in the identified namespaces are granted limited additional permissions to manage specific cluster-scoped resources, which include platform operators, optional OLM operators, user management, etc.
+Multiple namespaces can be specified via a comma delimited list.|openshift-gitops|
+|**WATCH_NAMESPACE**|namespaces in which Argo applications can be created|None|
+|**CONTROLLER_CLUSTER_ROLE**|This environment variable enables administrators to configure a common cluster role to use across all managed namespaces in the role bindings the operator creates for the Argo CD application controller.|None|
+|**SERVER_CLUSTER_ROLE**|This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server.|None|
 ### Running the script
 
 #### Usage

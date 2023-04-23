@@ -38,6 +38,9 @@ DISABLE_DEFAULT_ARGOCD_INSTANCE=${DISABLE_DEFAULT_ARGOCD_INSTANCE:-"false"}
 DISABLE_DEX=${DISABLE_DEX:-"false"}
 ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
 WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
+CONTROLLER_CLUSTER_ROLE=${CONTROLLER_CLUSTER_ROLE:-""}
+SERVER_CLUSTER_ROLE=${SERVER_CLUSTER_ROLE:-""}
+
 
 # Print help message
 function print_help() {
@@ -186,7 +189,11 @@ spec:
         - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
           value: \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"
         - name: WATCH_NAMESPACE
-          value: \"${WATCH_NAMESPACE}\"" > ${TEMP_DIR}/env-overrides.yaml
+          value: \"${WATCH_NAMESPACE}\"
+        - name: CONTROLLER_CLUSTER_ROLE
+          value: \"${CONTROLLER_CLUSTER_ROLE}\"
+        - name: SERVER_CLUSTER_ROLE
+          value: \"${SERVER_CLUSTER_ROLE}\"" > ${TEMP_DIR}/env-overrides.yaml
 }
 
 # Create a security context for the containers that are present in the deployment.
@@ -246,6 +253,8 @@ metadata:
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEFAULT_ARGOCD_INSTANCE\", \"value\": \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"ARGOCD_CLUSTER_CONFIG_NAMESPACES\", \"value\": \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"CONTROLLER_CLUSTER_ROLE\", \"value\": \"${CONTROLLER_CLUSTER_ROLE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"SERVER_CLUSTER_ROLE\", \"value\": \"${SERVER_CLUSTER_ROLE}\"}" | \
   tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
 
   ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
