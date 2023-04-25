@@ -1,12 +1,12 @@
 ### Non OLM based operator installation
 
-The purpose of this script is to install and uninstall the Openshift GitOps Operator without using OLM. It uses latest version of the kustomize manifests available in the repository for creating the required k8s resources.
+The purpose of this script is to install, update or uninstall the Openshift GitOps Operator without using the Operator Lifecycle Manager (OLM). It uses latest version of the `kustomize` manifests available in the github repository for creating the required kubernetes resources.
 
 ### Usage
 
 The `install-gitops-operator.sh` script supports two methods of installation.
-1. Using operator and component images from environment variables (default method)
-2. Derive the operator and component images from the ClusterServiceVersion manifest present in the operator bundle (Note: This method requires podman binary to be available in the PATH)
+1. Using operator and component images set as environment variables (default method)
+2. Derive the operator and component images from the ClusterServiceVersion manifest present in the operator bundle (Note: This method requires podman or docker binary to be available in the PATH environment variable)
 
 
 ### Known issues and work arounds
