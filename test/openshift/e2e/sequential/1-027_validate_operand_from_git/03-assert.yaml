@@ -59,3 +59,14 @@ metadata:
   namespace: test-1-27-custom
 status:
   phase: Available
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: test-1-27-custom
+status:
+  health:
+    status: Healthy
+  sync:
+    status: Synced
