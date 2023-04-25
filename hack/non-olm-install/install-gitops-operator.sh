@@ -92,7 +92,16 @@ function rollback() {
 
 # deletes the temp directory
 function cleanup() {
-  rm -rf "${TEMP_DIR}"
+  # Check if timeout binary is available in the PATH environment variable
+  timeout=$(which timeout)
+  if [ -z ${timeout} ]; then
+    echo "[INFO] Deleting directory ${TEMP_DIR} without timeout"
+    rm -rf "${TEMP_DIR}"
+  else
+    # If the command hangs for more than 20 minutes kill it
+    echo "[INFO] Deleting directory ${TEMP_DIR} with 10m timeout"
+    timeout 600 rm -rf "${TEMP_DIR}"||echo "[ERROR] Directory deletion timed out, please remove it manually"
+  fi
   echo "[INFO] Deleted temp working directory ${TEMP_DIR}"
 }
 
