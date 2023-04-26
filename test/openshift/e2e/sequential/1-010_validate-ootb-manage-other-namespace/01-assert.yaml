@@ -1,4 +1,8 @@
 # Wait for the Operator to become available
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 1200
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:

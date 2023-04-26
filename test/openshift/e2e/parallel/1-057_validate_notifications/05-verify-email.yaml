@@ -5,7 +5,7 @@ commands:
     set -e
     sleep 5
     smtp4dev_pod=$(kubectl get pod -l=app=smtp4dev -o NAME -n $NAMESPACE)
-    exit_code=$(kubectl -n $NAMESPACE exec --stdin --tty "${smtp4dev_pod}" -- /bin/bash \
+    exit_code=$(kubectl -n $NAMESPACE exec --stdin "${smtp4dev_pod}" -- /bin/bash \
     -c 'if [[ $(grep -rnw /tmp -e "Subject: Application my-app-3 has been created.") ]]; then
     exit 0; else
     exit 1;
