@@ -1,3 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: keycloak-1-deploy
+status:
+  containerStatuses:
+  - name: deployment
+    state:
+      terminated:
+        reason: Completed
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
