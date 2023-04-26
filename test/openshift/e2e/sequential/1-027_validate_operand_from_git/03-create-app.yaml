@@ -15,4 +15,4 @@ spec:
   syncPolicy:
     automated: {}
     retry:
-      limit: 2
+      limit: 5

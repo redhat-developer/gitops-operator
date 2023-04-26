@@ -4,4 +4,3 @@ commands:
 # patches the subscription to change sso provider to keycloak
 - script: |
     oc patch -n $NAMESPACE argocd/argocd --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"}}]'
-- script: sleep 10
