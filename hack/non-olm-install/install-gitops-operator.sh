@@ -2,6 +2,7 @@
 
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"master"}
+MAX_RETRIES=5
 
 # gitops-operator version tagged images
 OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
@@ -34,13 +35,12 @@ KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
 YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 
 # Operator configurations
+ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
+CONTROLLER_CLUSTER_ROLE=${CONTROLLER_CLUSTER_ROLE:-""}
 DISABLE_DEFAULT_ARGOCD_INSTANCE=${DISABLE_DEFAULT_ARGOCD_INSTANCE:-"false"}
 DISABLE_DEX=${DISABLE_DEX:-"false"}
-ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
-WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
-CONTROLLER_CLUSTER_ROLE=${CONTROLLER_CLUSTER_ROLE:-""}
 SERVER_CLUSTER_ROLE=${SERVER_CLUSTER_ROLE:-""}
-
+WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
 
 # Print help message
 function print_help() {
@@ -191,18 +191,18 @@ spec:
           value: ${GITOPS_CONSOLE_PLUGIN_IMAGE}
         - name: KAM_IMAGE
           value: ${KAM_IMAGE}
-        - name: DISABLE_DEX
-          value: \"${DISABLE_DEX}\"
-        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
-          value: \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"
         - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
           value: \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"
-        - name: WATCH_NAMESPACE
-          value: \"${WATCH_NAMESPACE}\"
         - name: CONTROLLER_CLUSTER_ROLE
           value: \"${CONTROLLER_CLUSTER_ROLE}\"
+        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
+          value: \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"
+        - name: DISABLE_DEX
+          value: \"${DISABLE_DEX}\"
         - name: SERVER_CLUSTER_ROLE
-          value: \"${SERVER_CLUSTER_ROLE}\"" > ${TEMP_DIR}/env-overrides.yaml
+          value: \"${SERVER_CLUSTER_ROLE}\"
+        - name: WATCH_NAMESPACE
+          value: \"${WATCH_NAMESPACE}\"" > ${TEMP_DIR}/env-overrides.yaml
 }
 
 # Create a security context for the containers that are present in the deployment.
@@ -255,15 +255,15 @@ metadata:
   namespace: system" > "${TEMP_DIR}"/env-overrides.yaml
   cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | \
   ${YQ} -e '.spec.install.spec.deployments[0]'| \
-  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "DISABLE_DEX"))' |
   ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "ARGOCD_CLUSTER_CONFIG_NAMESPACES"))' | \
+  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "DISABLE_DEX"))' |
   ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "WATCH_NAMESPACE"))' | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEX\", \"value\": \"${DISABLE_DEX}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEFAULT_ARGOCD_INSTANCE\", \"value\": \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"ARGOCD_CLUSTER_CONFIG_NAMESPACES\", \"value\": \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"CONTROLLER_CLUSTER_ROLE\", \"value\": \"${CONTROLLER_CLUSTER_ROLE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEFAULT_ARGOCD_INSTANCE\", \"value\": \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEX\", \"value\": \"${DISABLE_DEX}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"SERVER_CLUSTER_ROLE\", \"value\": \"${SERVER_CLUSTER_ROLE}\"}" | \
+  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
   tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
 
   ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
@@ -341,6 +341,32 @@ function prepare_kustomize_files() {
   create_security_context_patch_file
 }
 
+# Build and apply the kustomize manifests with retries
+function apply_kustomize_manifests() {
+  retry_count=1
+  until [ "${retry_count}" -ge ${MAX_RETRIES} ]
+  do
+    echo "[INFO] Executing kustomize build command"
+    ${KUSTOMIZE} build ${TEMP_DIR} > ${TEMP_DIR}/kustomize-build-output.yaml || continue
+    echo "[INFO] Creating k8s resources from kustomize manifests"
+    ${KUBECTL} apply -f ${TEMP_DIR}/kustomize-build-output.yaml && break
+    retry_count=$((retry_count+1))
+  done
+}
+
+# Build and delete the kustomize manifests with retries
+function delete_kustomize_manifests() {
+  retry_count=1
+  until [ "${retry_count}" -ge ${MAX_RETRIES} ]
+  do
+    echo "[INFO] Executing kustomize build command"
+    ${KUSTOMIZE} build ${TEMP_DIR} > ${TEMP_DIR}/kustomize-build-output.yaml || continue
+    echo "[INFO] Deleting k8s resources from kustomize manifests"
+    ${KUBECTL} delete -f ${TEMP_DIR}/kustomize-build-output.yaml && break
+    retry_count=$((retry_count+1))
+  done
+}
+
 # Code execution starts here
 # Get the options
 while getopts ":iuh" option; do
@@ -351,7 +377,7 @@ while getopts ":iuh" option; do
       check_and_install_prerequisites
       get_prev_operator_image
       prepare_kustomize_files
-      ${KUSTOMIZE} build ${TEMP_DIR} | ${KUBECTL} apply -f -
+      apply_kustomize_manifests
       # Check pod status and rollback if necessary.
       check_pod_status_ready gitops-operator-controller-manager 
       exit;;
@@ -363,7 +389,7 @@ while getopts ":iuh" option; do
       # Remove the GitOpsService instance created for the default
       # ArgoCD instance created in openshift-gitops namespace.
       ${KUBECTL} delete gitopsservice/cluster
-      ${KUBECTL} delete -k ${TEMP_DIR}
+      delete_kustomize_manifests
       exit;;
     h) # help message
       print_help
