@@ -5,3 +5,6 @@ commands:
 - script: oc rollout restart deployment.apps/openshift-gitops-server -n openshift-gitops
 - script: oc rollout restart statefulset.apps/openshift-gitops-application-controller -n openshift-gitops
 - script: sleep 5
+timeout: 1200
+error:
+- errors.yaml

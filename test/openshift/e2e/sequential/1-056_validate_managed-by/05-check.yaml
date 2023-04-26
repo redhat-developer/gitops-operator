@@ -11,7 +11,7 @@ commands:
         exit 0
       fi
     else
-      label_value=$(oc get subscription `subscription=oo- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION").value')
+      label_value=$(oc get subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION").value')
       if [ -z $label_value ]; then
         echo "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION not set"
         exit 1
