@@ -242,32 +242,26 @@ spec:
             type: RuntimeDefault" > ${WORK_DIR}/security-context.yaml
 }
 
-function create_deployment_patch_from_bundle_image() {
+function extract_component_images_from_bundle_image() {
   echo "[INFO] Creating env-overrides.yaml file using component images specified in the gitops operator bundle image"
   container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
   ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${WORK_DIR}"
   ${DOCKER} rm "$container_id"
 
-  echo "apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: controller-manager
-  namespace: system" > "${WORK_DIR}"/env-overrides.yaml
-  cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | \
-  ${YQ} -e '.spec.install.spec.deployments[0]'| \
-  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "ARGOCD_CLUSTER_CONFIG_NAMESPACES"))' | \
-  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "DISABLE_DEX"))' |
-  ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "WATCH_NAMESPACE"))' | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"ARGOCD_CLUSTER_CONFIG_NAMESPACES\", \"value\": \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"CONTROLLER_CLUSTER_ROLE\", \"value\": \"${CONTROLLER_CLUSTER_ROLE}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEFAULT_ARGOCD_INSTANCE\", \"value\": \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEX\", \"value\": \"${DISABLE_DEX}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"SERVER_CLUSTER_ROLE\", \"value\": \"${SERVER_CLUSTER_ROLE}\"}" | \
-  ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
-  tail -n +2 >> "${WORK_DIR}"/env-overrides.yaml
+  CONTAINER_YAML=$(cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | yq  -r '.spec.install.spec | .deployments[0].spec.template.spec.containers[0]' > "${WORK_DIR}"/container.yaml)
 
-  ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${WORK_DIR}"/env-overrides.yaml
-  ${YQ} -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${WORK_DIR}"/env-overrides.yaml
+  # Get the operator image from the CSV of the operator bundle
+  OPERATOR_IMG=$(cat "${WORK_DIR}"/container.yaml | ${YQ}  -r '.image')
+  # Get the component images from the CSV of the operator bundle
+  ARGOCD_APPLICATIONSET_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_APPLICATIONSET_IMAGE").value')
+  ARGOCD_DEX_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_DEX_IMAGE").value')
+  ARGOCD_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_IMAGE").value')
+  ARGOCD_KEYCLOAK_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_KEYCLOAK_IMAGE").value')
+  ARGOCD_REDIS_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_REDIS_IMAGE").value')
+  ARGOCD_REDIS_HA_PROXY_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_REDIS_HA_PROXY_IMAGE").value')
+  BACKEND_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="BACKEND_IMAGE").value')
+  GITOPS_CONSOLE_PLUGIN_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="GITOPS_CONSOLE_PLUGIN_IMAGE").value')
+  KAM_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="KAM_IMAGE").value')
 }
 
 # Initialize a temporary work directory to store the artifacts and 
@@ -322,44 +316,42 @@ function get_prev_operator_image() {
 function prepare_kustomize_files() {
   # create the required yaml files for the kustomize based install.
   create_kustomization_init_file
-
   if [ ${USE_BUNDLE_IMG} == "true" ]; then
     DOCKER=$(which ${DOCKER})
     if [ ! -z "${DOCKER}" ]; then
       echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
-      create_deployment_patch_from_bundle_image
+      extract_component_images_from_bundle_image
     else
       echo -n "[WARN] \'${DOCKER}\' binary not found in \$PATH,"
       echo "falling back to default values or overrides provided using environment variables."
-      create_image_overrides_patch_file
     fi
-  else
-    create_image_overrides_patch_file
   fi
+  create_image_overrides_patch_file
   create_security_context_patch_file
 }
 
 # Build and apply the kustomize manifests with retries
 function apply_kustomize_manifests() {
   retry_count=1
-  until [ "${retry_count}" -ge ${MAX_RETRIES} ]
+  until [ "${retry_count}" -gt ${MAX_RETRIES} ]
   do
-    echo "[INFO] (Attempt ${retry_count}) Executing kustomize build command"
-    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml || continue
-    echo "[INFO] (Attempt ${retry_count}) Creating k8s resources from kustomize manifests"
-    ${KUBECTL} apply -f ${WORK_DIR}/kustomize-build-output.yaml && break
+    attempt=${retry_count}
     retry_count=$((retry_count+1))
+    echo "[INFO] (Attempt ${attempt}) Executing kustomize build command"
+    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml || continue
+    echo "[INFO] (Attempt ${attempt}) Creating k8s resources from kustomize manifests"
+    ${KUBECTL} apply -f ${WORK_DIR}/kustomize-build-output.yaml && break
   done
 }
 
 # Build and delete the kustomize manifests with retries
 function delete_kustomize_manifests() {
   retry_count=1
-  until [ "${retry_count}" -ge ${MAX_RETRIES} ]
+  until [ "${retry_count}" -gt ${MAX_RETRIES} ]
   do
     echo "[INFO] (Attempt ${retry_count}) Executing kustomize build command"
-    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml && break
     retry_count=$((retry_count+1))
+    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml && break
   done
   echo "[INFO] Deleting k8s resources from kustomize manifests"
   ${KUBECTL} delete -f ${WORK_DIR}/kustomize-build-output.yaml
@@ -374,27 +366,26 @@ function print_info() {
   if [ "${USE_BUNDLE_IMG}" == "true" ]; then
     echo "BUNDLE_IMG: ${BUNDLE_IMG}"
     echo "DOCKER_TOOL: ${DOCKER}"
-    echo "OPERATION_MODE: $MODE"
-    echo ""
-  else
-    echo "OPERATOR_IMG: ${OPERATOR_IMG}"
-    echo "OPERATION_MODE: $MODE"
-    echo ""
-    echo "Component images:"
-    echo "-----------------"
-    echo "ARGOCD_DEX_IMAGE: ${ARGOCD_DEX_IMAGE}"
-    echo "ARGOCD_IMAGE: ${ARGOCD_IMAGE}"
-    echo "ARGOCD_APPLICATIONSET_IMAGE: ${ARGOCD_APPLICATIONSET_IMAGE}"
-    echo "BACKEND_IMAGE: ${BACKEND_IMAGE}"
-    echo "GITOPS_CONSOLE_PLUGIN_IMAGE: ${GITOPS_CONSOLE_PLUGIN_IMAGE}"
-    echo "KAM_IMAGE: ${KAM_IMAGE}"
     echo ""
   fi
-
-  if [ ! -z ${PREV_OPERATOR_IMG}]; then
+  echo "OPERATOR_IMG: ${OPERATOR_IMG}"
+  echo "OPERATION_MODE: $MODE"
+  if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
     echo "PREVIOUS_OPERATOR_IMG: ${PREV_OPERATOR_IMG}"
     echo ""
   fi
+  echo "Component images:"
+  echo "-----------------"
+  echo "ARGOCD_APPLICATIONSET_IMAGE: ${ARGOCD_APPLICATIONSET_IMAGE}"
+  echo "ARGOCD_DEX_IMAGE: ${ARGOCD_DEX_IMAGE}"
+  echo "ARGOCD_IMAGE: ${ARGOCD_IMAGE}"
+  echo "ARGOCD_KEYCLOAK_IMAGE: ${ARGOCD_KEYCLOAK_IMAGE}"
+  echo "ARGOCD_REDIS_IMAGE: ${ARGOCD_REDIS_IMAGE}"
+  echo "ARGOCD_REDIS_HA_PROXY_IMAGE: ${ARGOCD_REDIS_HA_PROXY_IMAGE}"
+  echo "BACKEND_IMAGE: ${BACKEND_IMAGE}"
+  echo "GITOPS_CONSOLE_PLUGIN_IMAGE: ${GITOPS_CONSOLE_PLUGIN_IMAGE}"
+  echo "KAM_IMAGE: ${KAM_IMAGE}"
+  echo ""
 
   echo "Operator configurations:"
   echo "------------------------"
@@ -402,7 +393,7 @@ function print_info() {
   if [ ! -z "${CONTROLLER_CLUSTER_ROLE}" ]; then
     echo "CONTROLLER_CLUSTER_ROLE: ${CONTROLLER_CLUSTER_ROLE}"
   fi
-  echo "DISABLE_DEFAULT_ARGOCD_INSTANC: ${DISABLE_DEFAULT_ARGOCD_INSTANCE}"
+  echo "DISABLE_DEFAULT_ARGOCD_INSTANCE: ${DISABLE_DEFAULT_ARGOCD_INSTANCE}"
   echo "DISABLE_DEX: ${DISABLE_DEX}"
   if [ ! -z "${SERVER_CLUSTER_ROLE}" ]; then
     echo "SERVER_CLUSTER_ROLE: ${SERVER_CLUSTER_ROLE}"
