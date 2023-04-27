@@ -19,7 +19,6 @@ DOCKER=${DOCKER:-"docker"}
 # gitops-operator version tagged images
 ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/dex-rhel8:${GITOPS_OPERATOR_VER}"}
 ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/argocd-rhel8:${GITOPS_OPERATOR_VER}"}
-ARGOCD_APPLICATIONSET_IMAGE=${ARGOCD_APPLICATIONSET_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/applicationset-rhel8:${GITOPS_OPERATOR_VER}"}
 BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8:${GITOPS_OPERATOR_VER}"}
 GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
 KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
@@ -61,7 +60,6 @@ function check_pod_status_ready() {
   # to ensure that only pods corresponding to the new version is considered.
   ${KUBECTL} rollout status deploy -n ${NAMESPACE_PREFIX}system --timeout=5m
   for binary in "$@"; do
-    echo "[DEBUG] Binary $binary";
     pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
     if [ ! -z "$pod_name" ]; then
       echo "[DEBUG] Pod name : $pod_name";
@@ -138,7 +136,7 @@ function install_yq() {
 
 # creates a kustomization.yaml file in the work directory pointing to the manifests available in the upstream repo.
 function create_kustomization_init_file() {
-  echo "[INFO] Creating kustomization.yaml file using manifests from revision ${GIT_REVISION}"
+  echo "[INFO] Creating kustomization.yaml file using manifests from revision '${GIT_REVISION}'"
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
@@ -156,7 +154,6 @@ patches:
 # creates a patch file, containing the environment variable overrides for overriding the default images
 # for various gitops-operator components.
 function create_image_overrides_patch_file() {
-  echo "[INFO] Creating env-overrides.yaml file using component images specified in environment variables"
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -173,8 +170,6 @@ spec:
           value: ${ARGOCD_DEX_IMAGE}
         - name: ARGOCD_KEYCLOAK_IMAGE
           value: ${ARGOCD_KEYCLOAK_IMAGE}
-        - name: ARGOCD_APPLICATIONSET_IMAGE 
-          value: ${ARGOCD_APPLICATIONSET_IMAGE}
         - name: BACKEND_IMAGE
           value: ${BACKEND_IMAGE}
         - name: ARGOCD_IMAGE
@@ -207,7 +202,6 @@ spec:
 
 # Create a security context for the containers that are present in the deployment.
 function create_security_context_patch_file(){
-echo "[INFO] Creating security-context.yaml file for the containers in the controller pod"
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -243,17 +237,16 @@ spec:
 }
 
 function extract_component_images_from_bundle_image() {
-  echo "[INFO] Creating env-overrides.yaml file using component images specified in the gitops operator bundle image"
-  container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
+  container_id=$(${DOCKER} create --quiet --entrypoint sh "${BUNDLE_IMG}")
   ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${WORK_DIR}"
-  ${DOCKER} rm "$container_id"
+  ${DOCKER} container rm "$container_id" >/dev/null 2>&1
 
-  CONTAINER_YAML=$(cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | yq  -r '.spec.install.spec | .deployments[0].spec.template.spec.containers[0]' > "${WORK_DIR}"/container.yaml)
+  CONTAINER_YAML=$(cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | ${YQ} '.spec.install.spec | .deployments[0].spec.template.spec.containers[0]' > "${WORK_DIR}"/container.yaml)
 
   # Get the operator image from the CSV of the operator bundle
-  OPERATOR_IMG=$(cat "${WORK_DIR}"/container.yaml | ${YQ}  -r '.image')
+  OPERATOR_IMG=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.image')
+
   # Get the component images from the CSV of the operator bundle
-  ARGOCD_APPLICATIONSET_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_APPLICATIONSET_IMAGE").value')
   ARGOCD_DEX_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_DEX_IMAGE").value')
   ARGOCD_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_IMAGE").value')
   ARGOCD_KEYCLOAK_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_KEYCLOAK_IMAGE").value')
@@ -299,11 +292,8 @@ function get_prev_operator_image() {
   for image in $(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}' 2>/dev/null)
   do
     if [[ "${image}" == *"operator"* ]]; then
-      echo "[INFO] Found an operator image in the previous deployment: ${image}"
       PREV_OPERATOR_IMG="${image}"
       break
-    else
-      echo "[INFO] Ignoring image \'${image}\'in previous deployment as it does not correspond to the operator"
     fi
   done
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
@@ -319,7 +309,6 @@ function prepare_kustomize_files() {
   if [ ${USE_BUNDLE_IMG} == "true" ]; then
     DOCKER=$(which ${DOCKER})
     if [ ! -z "${DOCKER}" ]; then
-      echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
       extract_component_images_from_bundle_image
     else
       echo -n "[WARN] \'${DOCKER}\' binary not found in \$PATH,"
@@ -364,10 +353,14 @@ function print_info() {
   echo "MANIFEST_VERSION: ${GIT_REVISION}"
   echo ""
   if [ "${USE_BUNDLE_IMG}" == "true" ]; then
+    echo "Bundle image:"
+    echo "-------------"
     echo "BUNDLE_IMG: ${BUNDLE_IMG}"
     echo "DOCKER_TOOL: ${DOCKER}"
     echo ""
   fi
+  echo "Operator image:"
+  echo "---------------"
   echo "OPERATOR_IMG: ${OPERATOR_IMG}"
   echo "OPERATION_MODE: $MODE"
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
@@ -376,7 +369,6 @@ function print_info() {
   fi
   echo "Component images:"
   echo "-----------------"
-  echo "ARGOCD_APPLICATIONSET_IMAGE: ${ARGOCD_APPLICATIONSET_IMAGE}"
   echo "ARGOCD_DEX_IMAGE: ${ARGOCD_DEX_IMAGE}"
   echo "ARGOCD_IMAGE: ${ARGOCD_IMAGE}"
   echo "ARGOCD_KEYCLOAK_IMAGE: ${ARGOCD_KEYCLOAK_IMAGE}"
@@ -406,7 +398,6 @@ function print_info() {
 
 # Code execution starts here
 function main() {
-
   if [ $# -eq 0 ]; then
     echo "[ERROR] No option provided"
     print_help
