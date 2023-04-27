@@ -31,6 +31,8 @@ metadata:
   namespace: test-argocd
 EOF
 
+sleep 30s
+
 oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
 
 echo ">> Running Interop tests"
