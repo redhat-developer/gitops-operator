@@ -2,7 +2,7 @@
 
 NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"master"}
-MAX_RETRIES=5
+MAX_RETRIES=3
 
 # gitops-operator version tagged images
 OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
@@ -44,14 +44,14 @@ WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
 
 # Print help message
 function print_help() {
-  echo "Usage: $0 MODE -i|-u|-h"
-  echo "  -i  Install the openshift-gitops-operator manifests"
-  echo "  -u  Uninstall the openshift-gitops-operator manifests"
-  echo "  -h  Print this help message"
+  echo "Usage: $0 MODE [--install|-i] [-uninstall|-u] [--help|-h]"
+  echo "  --install, -i		Install the openshift-gitops-operator manifests"
+  echo "  --uninstall, -u	Uninstall the openshift-gitops-operator manifests"
+  echo "  --help, -h		Print this help message"
 
   echo
-  echo "Example usage: \`$0 -i"
-  echo "Example usage: \`$0 -u"
+  echo "Example usage: $0 --install"
+  echo "Example usage: $0 --uninstall"
 }
 
 
@@ -82,61 +82,61 @@ function rollback() {
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
     export OPERATOR_IMG=${PREV_OPERATOR_IMG}    
     prepare_kustomize_files
-    ${KUSTOMIZE} build ${TEMP_DIR} | ${KUBECTL} apply -f -
-    echo "[INFO] Upgrade Unsuccessful!!";
+    ${KUSTOMIZE} build ${WORK_DIR} | ${KUBECTL} apply -f -
+    echo "[INFO] Operator update operation was unsuccessful!!";
   else
     echo "[INFO] Installing image for the first time. Nothing to rollback. Quitting..";
   fi
   exit 1;
 }
 
-# deletes the temp directory
+# deletes the work directory
 function cleanup() {
   # Check if timeout binary is available in the PATH environment variable
   timeout=$(which timeout)
   if [ -z ${timeout} ]; then
-    echo "[INFO] Deleting directory ${TEMP_DIR} without timeout"
-    rm -rf "${TEMP_DIR}"
+    echo "[INFO] Deleting directory ${WORK_DIR} without timeout"
+    rm -rf "${WORK_DIR}"
   else
     # If the command hangs for more than 20 minutes kill it
-    echo "[INFO] Deleting directory ${TEMP_DIR} with 10m timeout"
-    timeout 600 rm -rf "${TEMP_DIR}"||echo "[ERROR] Directory deletion timed out, please remove it manually"
+    echo "[INFO] Deleting directory ${WORK_DIR} with timeout"
+    timeout 600 rm -rf "${WORK_DIR}"||echo "[ERROR] Directory deletion timed out, please remove it manually"
   fi
-  echo "[INFO] Deleted temp working directory ${TEMP_DIR}"
+  echo "[INFO] Deleted work working directory ${WORK_DIR}"
 }
 
 # installs the stable version kustomize binary if not found in PATH
 function install_kustomize() {
   if [[ -z "${KUSTOMIZE}" ]]; then
-    echo "[INFO] kustomize binary not found in \$PATH, installing kustomize-${KUSTOMIZE_VERSION} in ${TEMP_DIR}"
-    wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m |sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz -O ${TEMP_DIR}/kustomize.tar.gz
-    tar zxvf ${TEMP_DIR}/kustomize.tar.gz -C ${TEMP_DIR}
-    KUSTOMIZE=${TEMP_DIR}/kustomize
-    chmod +x ${TEMP_DIR}/kustomize
+    echo "[INFO] kustomize binary not found in \$PATH, installing kustomize-${KUSTOMIZE_VERSION} in ${WORK_DIR}"
+    wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m |sed s/aarch64/arm64/ | sed s/x86_64/amd64/).tar.gz -O ${WORK_DIR}/kustomize.tar.gz
+    tar zxvf ${WORK_DIR}/kustomize.tar.gz -C ${WORK_DIR}
+    KUSTOMIZE=${WORK_DIR}/kustomize
+    chmod +x ${WORK_DIR}/kustomize
   fi
 }
 
 # installs the stable version of kubectl binary if not found in PATH
 function install_kubectl() {
   if [[ -z "${KUBECTL}" ]]; then
-    echo "[INFO] kubectl binary not found in \$PATH, installing kubectl-${KUBECTL_VERSION} in ${TEMP_DIR}"
-    wget https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/kubectl -O ${TEMP_DIR}/kubectl
-    KUBECTL=${TEMP_DIR}/kubectl
-    chmod +x ${TEMP_DIR}/kubectl
+    echo "[INFO] kubectl binary not found in \$PATH, installing kubectl-${KUBECTL_VERSION} in ${WORK_DIR}"
+    wget https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/$(uname | tr '[:upper:]' '[:lower:]')/$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/kubectl -O ${WORK_DIR}/kubectl
+    KUBECTL=${WORK_DIR}/kubectl
+    chmod +x ${WORK_DIR}/kubectl
   fi
 }
 
 # installs the stable version of yq binary if not found in PATH
 function install_yq() {
   if [[ -z "${YQ}" ]]; then
-    echo "[INFO] yq binary not found in \$PATH, installing yq-${YQ_VERSION} in ${TEMP_DIR}"
-    wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) -O ${TEMP_DIR}/yq
-    YQ=${TEMP_DIR}/yq
-    chmod +x ${TEMP_DIR}/yq
+    echo "[INFO] yq binary not found in \$PATH, installing yq-${YQ_VERSION} in ${WORK_DIR}"
+    wget https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) -O ${WORK_DIR}/yq
+    YQ=${WORK_DIR}/yq
+    chmod +x ${WORK_DIR}/yq
   fi
 }
 
-# creates a kustomization.yaml file in the temp directory pointing to the manifests available in the upstream repo.
+# creates a kustomization.yaml file in the work directory pointing to the manifests available in the upstream repo.
 function create_kustomization_init_file() {
   echo "[INFO] Creating kustomization.yaml file using manifests from revision ${GIT_REVISION}"
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
@@ -144,13 +144,13 @@ kind: Kustomization
 namespace: ${NAMESPACE_PREFIX}system
 namePrefix: ${NAMESPACE_PREFIX}
 resources:
-  - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION
-  - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION
-  - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION
+  - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION&timeout=90s
+  - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION&timeout=90s
+  - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION&timeout=90s
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: env-overrides.yaml
-  - path: security-context.yaml" > ${TEMP_DIR}/kustomization.yaml
+  - path: security-context.yaml" > ${WORK_DIR}/kustomization.yaml
 }
 
 # creates a patch file, containing the environment variable overrides for overriding the default images
@@ -202,7 +202,7 @@ spec:
         - name: SERVER_CLUSTER_ROLE
           value: \"${SERVER_CLUSTER_ROLE}\"
         - name: WATCH_NAMESPACE
-          value: \"${WATCH_NAMESPACE}\"" > ${TEMP_DIR}/env-overrides.yaml
+          value: \"${WATCH_NAMESPACE}\"" > ${WORK_DIR}/env-overrides.yaml
 }
 
 # Create a security context for the containers that are present in the deployment.
@@ -239,21 +239,21 @@ spec:
           readOnlyRootFilesystem: true
           runAsNonRoot: true
           seccompProfile:
-            type: RuntimeDefault" > ${TEMP_DIR}/security-context.yaml
+            type: RuntimeDefault" > ${WORK_DIR}/security-context.yaml
 }
 
 function create_deployment_patch_from_bundle_image() {
   echo "[INFO] Creating env-overrides.yaml file using component images specified in the gitops operator bundle image"
   container_id=$(${DOCKER} create --entrypoint sh "${BUNDLE_IMG}")
-  ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${TEMP_DIR}"
+  ${DOCKER} cp "$container_id:manifests/gitops-operator.clusterserviceversion.yaml" "${WORK_DIR}"
   ${DOCKER} rm "$container_id"
 
   echo "apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller-manager
-  namespace: system" > "${TEMP_DIR}"/env-overrides.yaml
-  cat "${TEMP_DIR}"/gitops-operator.clusterserviceversion.yaml | \
+  namespace: system" > "${WORK_DIR}"/env-overrides.yaml
+  cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | \
   ${YQ} -e '.spec.install.spec.deployments[0]'| \
   ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "ARGOCD_CLUSTER_CONFIG_NAMESPACES"))' | \
   ${YQ} 'del(.spec.template.spec.containers[0].env[] | select(.name == "DISABLE_DEX"))' |
@@ -264,19 +264,19 @@ metadata:
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"DISABLE_DEX\", \"value\": \"${DISABLE_DEX}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"SERVER_CLUSTER_ROLE\", \"value\": \"${SERVER_CLUSTER_ROLE}\"}" | \
   ${YQ} ".spec.template.spec.containers[0].env += {\"name\": \"WATCH_NAMESPACE\", \"value\": \"${WATCH_NAMESPACE}\"}" | \
-  tail -n +2 >> "${TEMP_DIR}"/env-overrides.yaml
+  tail -n +2 >> "${WORK_DIR}"/env-overrides.yaml
 
-  ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
-  ${YQ} -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${TEMP_DIR}"/env-overrides.yaml
+  ${YQ} -e -i '.spec.selector.matchLabels.control-plane = "argocd-operator"' "${WORK_DIR}"/env-overrides.yaml
+  ${YQ} -e -i '.spec.template.metadata.labels.control-plane = "argocd-operator"' "${WORK_DIR}"/env-overrides.yaml
 }
 
 # Initialize a temporary work directory to store the artifacts and 
 # clean it up before the completion of the script run.
 function init_work_directory() {
   # create a temporary directory and do all the operations inside the directory.
-  TEMP_DIR=$(mktemp -d "${TMPDIR:-"/tmp"}/gitops-operator-install-XXXXXXX")
-  echo "Using temp directory $TEMP_DIR"
-  # cleanup the temporary directory irrespective of whether the script ran successfully or failed with an error.
+  WORK_DIR=$(mktemp -d "${TMPDIR:-"/tmp"}/gitops-operator-install-XXXXXXX")
+  echo "[INFO] Using work directory $WORK_DIR"
+  # cleanup the work directory irrespective of whether the script ran successfully or failed with an error.
   trap cleanup EXIT
 }
 
@@ -285,15 +285,15 @@ function init_work_directory() {
 # This function just checks if the binary is found in the PATH and 
 # does not validate if the version of the binary matches the minimum required version.
 function check_and_install_prerequisites {
-  # install kustomize in the the temp directory if its not available in the PATH
+  # install kustomize in the the work directory if its not available in the PATH
   KUSTOMIZE=$(which kustomize)
   install_kustomize
 
-  # install kubectl in the the temp directory if its not available in the PATH
+  # install kubectl in the the work directory if its not available in the PATH
   KUBECTL=$(which kubectl)
   install_kubectl
 
-  # install yq in the the temp directory if its not available in the PATH
+  # install yq in the the work directory if its not available in the PATH
   YQ=$(which yq)
   install_yq
 }
@@ -312,17 +312,18 @@ function get_prev_operator_image() {
       echo "[INFO] Ignoring image \'${image}\'in previous deployment as it does not correspond to the operator"
     fi
   done
-  echo "[INFO] PREV OPERATOR IMAGE : ${PREV_OPERATOR_IMG}"
+  if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
+    MODE="Update"
+  fi
 }
 
-# Prepares the kustomization.yaml file in the TEMP_DIR which would be used 
+# Prepares the kustomization.yaml file in the WORK_DIR which would be used 
 # for the installation.
 function prepare_kustomize_files() {
   # create the required yaml files for the kustomize based install.
   create_kustomization_init_file
 
   if [ ${USE_BUNDLE_IMG} == "true" ]; then
-    echo "[INFO] USE_BUNDLE_IMG flag is enabled"
     DOCKER=$(which ${DOCKER})
     if [ ! -z "${DOCKER}" ]; then
       echo "[INFO] Generating env-overrides.yaml file from the CSV defined in the bundle image"
@@ -333,9 +334,6 @@ function prepare_kustomize_files() {
       create_image_overrides_patch_file
     fi
   else
-    echo "[INFO] USE_BUNDLE_IMG flag is disabled"
-    echo -n "[INFO] Generating env-overrides.yaml file from default values"
-    echo "or the overrides provided using environment variables"
     create_image_overrides_patch_file
   fi
   create_security_context_patch_file
@@ -346,10 +344,10 @@ function apply_kustomize_manifests() {
   retry_count=1
   until [ "${retry_count}" -ge ${MAX_RETRIES} ]
   do
-    echo "[INFO] Executing kustomize build command"
-    ${KUSTOMIZE} build ${TEMP_DIR} > ${TEMP_DIR}/kustomize-build-output.yaml || continue
-    echo "[INFO] Creating k8s resources from kustomize manifests"
-    ${KUBECTL} apply -f ${TEMP_DIR}/kustomize-build-output.yaml && break
+    echo "[INFO] (Attempt ${retry_count}) Executing kustomize build command"
+    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml || continue
+    echo "[INFO] (Attempt ${retry_count}) Creating k8s resources from kustomize manifests"
+    ${KUBECTL} apply -f ${WORK_DIR}/kustomize-build-output.yaml && break
     retry_count=$((retry_count+1))
   done
 }
@@ -359,43 +357,115 @@ function delete_kustomize_manifests() {
   retry_count=1
   until [ "${retry_count}" -ge ${MAX_RETRIES} ]
   do
-    echo "[INFO] Executing kustomize build command"
-    ${KUSTOMIZE} build ${TEMP_DIR} > ${TEMP_DIR}/kustomize-build-output.yaml || continue
-    echo "[INFO] Deleting k8s resources from kustomize manifests"
-    ${KUBECTL} delete -f ${TEMP_DIR}/kustomize-build-output.yaml && break
+    echo "[INFO] (Attempt ${retry_count}) Executing kustomize build command"
+    ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml && break
     retry_count=$((retry_count+1))
   done
+  echo "[INFO] Deleting k8s resources from kustomize manifests"
+  ${KUBECTL} delete -f ${WORK_DIR}/kustomize-build-output.yaml
+}
+
+
+function print_info() {
+  echo "Run information:"
+  echo "==========================================="
+  echo "MANIFEST_VERSION: ${GIT_REVISION}"
+  echo ""
+  if [ "${USE_BUNDLE_IMG}" == "true" ]; then
+    echo "BUNDLE_IMG: ${BUNDLE_IMG}"
+    echo "DOCKER_TOOL: ${DOCKER}"
+    echo "OPERATION_MODE: $MODE"
+    echo ""
+  else
+    echo "OPERATOR_IMG: ${OPERATOR_IMG}"
+    echo "OPERATION_MODE: $MODE"
+    echo ""
+    echo "Component images:"
+    echo "-----------------"
+    echo "ARGOCD_DEX_IMAGE: ${ARGOCD_DEX_IMAGE}"
+    echo "ARGOCD_IMAGE: ${ARGOCD_IMAGE}"
+    echo "ARGOCD_APPLICATIONSET_IMAGE: ${ARGOCD_APPLICATIONSET_IMAGE}"
+    echo "BACKEND_IMAGE: ${BACKEND_IMAGE}"
+    echo "GITOPS_CONSOLE_PLUGIN_IMAGE: ${GITOPS_CONSOLE_PLUGIN_IMAGE}"
+    echo "KAM_IMAGE: ${KAM_IMAGE}"
+    echo ""
+  fi
+
+  if [ ! -z ${PREV_OPERATOR_IMG}]; then
+    echo "PREVIOUS_OPERATOR_IMG: ${PREV_OPERATOR_IMG}"
+    echo ""
+  fi
+
+  echo "Operator configurations:"
+  echo "------------------------"
+  echo "ARGOCD_CLUSTER_CONFIG_NAMESPACES: ${ARGOCD_CLUSTER_CONFIG_NAMESPACES}"
+  if [ ! -z "${CONTROLLER_CLUSTER_ROLE}" ]; then
+    echo "CONTROLLER_CLUSTER_ROLE: ${CONTROLLER_CLUSTER_ROLE}"
+  fi
+  echo "DISABLE_DEFAULT_ARGOCD_INSTANC: ${DISABLE_DEFAULT_ARGOCD_INSTANCE}"
+  echo "DISABLE_DEX: ${DISABLE_DEX}"
+  if [ ! -z "${SERVER_CLUSTER_ROLE}" ]; then
+    echo "SERVER_CLUSTER_ROLE: ${SERVER_CLUSTER_ROLE}"
+  fi
+  if [ ! -z "${WATCH_NAMESPACE}" ]; then
+    echo "WATCH_NAMESPACE: ${WATCH_NAMESPACE}"
+  fi
+  echo "==========================================="
 }
 
 # Code execution starts here
-# Get the options
-while getopts ":iuh" option; do
-  case $option in
-    i) # use kubectl binary to apply the manifests from the directory containing the kustomization.yaml file.
-      echo "[INFO] Installing openshift-gitops-operator..."
-      init_work_directory
-      check_and_install_prerequisites
-      get_prev_operator_image
-      prepare_kustomize_files
-      apply_kustomize_manifests
-      # Check pod status and rollback if necessary.
-      check_pod_status_ready gitops-operator-controller-manager 
-      exit;;
-    u) # uninstall
-      echo "[INFO] Uninstalling openshift-gitops-operator..."
-      init_work_directory
-      check_and_install_prerequisites
-      prepare_kustomize_files
-      # Remove the GitOpsService instance created for the default
-      # ArgoCD instance created in openshift-gitops namespace.
-      ${KUBECTL} delete gitopsservice/cluster
-      delete_kustomize_manifests
-      exit;;
-    h) # help message
-      print_help
-      exit;;
-    \?) # Invalid option
-      echo "[ERROR] Error: Invalid option"
-      exit 1;;
+function main() {
+
+  if [ $# -eq 0 ]; then
+    echo "[ERROR] No option provided"
+    print_help
+    exit 1
+  fi 
+
+  if [ $# -gt 1 ]; then
+    echo "[ERROR] Exactly one argument is expected, but found more than one."
+    print_help
+    exit 1
+  fi
+
+  key=$1
+  case $key in
+    --install | -i)
+	MODE="Install"
+        init_work_directory
+        check_and_install_prerequisites
+        get_prev_operator_image
+        prepare_kustomize_files
+	print_info
+        echo "[INFO] Performing $MODE operation for openshift-gitops-operator..."
+        apply_kustomize_manifests
+        # Check pod status and rollback if necessary.
+        check_pod_status_ready gitops-operator-controller-manager 
+        exit 0
+        ;;
+    --uninstall | -u)
+	MODE="Uninstall"
+        echo "[INFO] Performing $MODE operation openshift-gitops-operator..."
+        init_work_directory
+        check_and_install_prerequisites
+        prepare_kustomize_files
+	print_info
+        # Remove the GitOpsService instance created for the default
+        # ArgoCD instance created in openshift-gitops namespace.
+        ${KUBECTL} delete gitopsservice/cluster
+        delete_kustomize_manifests
+        exit 0
+        ;;
+    -h | --help)
+        print_help
+        exit 0
+        ;;
+    *)
+        echo "[ERROR] Invalid argument $key"
+        print_help
+        exit 0
+        ;;
   esac
-done
+}
+
+main "$@"
