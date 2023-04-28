@@ -13,7 +13,7 @@ commands:
       fi
 
     else
-      label_value=$(oc get subscription `subscription=oo- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
+      label_value=$(oc get subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
       
       if ! [[ "${label_value}" == '"false"' ]]; then
         echo "DISABLE_DEFAULT_ARGOCD_CONSOLELINK set"

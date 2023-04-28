@@ -2,7 +2,6 @@
 
 set -ex
 
-export CI="prow"
 go mod vendor
 
 source $(dirname $0)/e2e-common.sh
@@ -19,7 +18,7 @@ cp $KUBECONFIG /go/src/github.com/redhat-developer/gitops-operator/kubeconfig
 
 # Ensuring proper installation
 pod=gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators -o yaml
-subscription=gitops-operator- && oc get subscription `oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators
+oc get subscription -n openshift-operators
 oc wait --for=condition=Ready -n openshift-gitops pod --timeout=15m  -l 'app.kubernetes.io/name in (cluster,kam,openshift-gitops-application-controller,openshift-gitops-applicationset-controller,openshift-gitops-dex-server,openshift-gitops-redis,openshift-gitops-repo-server,openshift-gitops-server)' 
 
 # Check argocd instance creation
@@ -32,10 +31,8 @@ metadata:
   namespace: test-argocd
 EOF
 
-sleep 60s
-
-oc get pods -n test-argocd
+sleep 30s
 
 oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
 
-echo ">> Running tests on ${CI}"
+echo ">> Running Interop tests"
