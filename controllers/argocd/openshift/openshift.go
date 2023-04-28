@@ -86,6 +86,7 @@ func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) err
 			}
 
 			clusterRole, err := k8sClient.RbacV1().ClusterRoles().Get(context.TODO(), "admin", metav1.GetOptions{})
+
 			if err != nil {
 				logv.Error(err, "failed to retrieve Cluster Role admin")
 				return err
@@ -119,6 +120,20 @@ func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"*",
+			},
+			Verbs: []string{
+				"*",
+			},
+		},
+		{
+			APIGroups: []string{
+				"argoproj.io",
+			},
+			Resources: []string{
+				"applications",
+				"applicationsets",
+				"appprojects",
+				"argocds",
 			},
 			Verbs: []string{
 				"*",
