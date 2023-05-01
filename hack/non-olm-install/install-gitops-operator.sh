@@ -7,20 +7,21 @@ MAX_RETRIES=3
 # gitops-operator version tagged images
 OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
 GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.8.2-5"}
-OPERATOR_REGISTRY_ORG=${OPERATOR_ORG:-"openshift-gitops-1"}  
-OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
+OPERATOR_REGISTRY_ORG=${OPERATOR_ORG:-"openshift-gitops-1"}
+IMAGE_PREFIX=${IMAGE_PREFIX:-""}  
+OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
 
 # If enabled, operator and component image URLs would be derived from within CSV present in the bundle image.
 USE_BUNDLE_IMG=${USE_BUNDLE_IMG:-"false"}
-BUNDLE_IMG=${BUNDLE_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-operator-bundle:${GITOPS_OPERATOR_VER}"}
+BUNDLE_IMG=${BUNDLE_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-operator-bundle:${GITOPS_OPERATOR_VER}"}
 DOCKER=${DOCKER:-"docker"}
 
 # Image overrides
 # gitops-operator version tagged images
-ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/dex-rhel8:${GITOPS_OPERATOR_VER}"}
-ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/argocd-rhel8:${GITOPS_OPERATOR_VER}"}
-BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/gitops-rhel8:${GITOPS_OPERATOR_VER}"}
-GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}"}
+ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}"}
+BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}"}
+GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
 KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
 
 # other images
@@ -66,7 +67,7 @@ function check_pod_status_ready() {
       ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
       if [ $? -ne 0 ]; then
         echo "[INFO] Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
-        ${KUBECTL} logs $pod_name -n ${NAMESPACE_PREFIX}system;
+        ${KUBECTL} logs $pod_name -n ${NAMESPACE_PREFIX}system --all-containers;
         echo "[ERROR] Install/Upgrade failed. Performing rollback to $PREV_IMAGE";      
         rollback
       fi
