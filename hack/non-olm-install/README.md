@@ -1,6 +1,6 @@
 ### Non OLM based operator installation
 
-`install-gitops-operator.sh` is a bash script utility, that can be used to install, update(upgrade/downgrade) or uninstall the Openshift GitOps Operator without using the `Operator Lifecycle Manager (OLM)`. It uses latest version of the `kustomize` manifests available in the github repository for creating the required kubernetes resources for the openshift-gitops-operator.
+`install-gitops-operator.sh` is a bash script utility, that can be used to install, update(upgrade/downgrade) or uninstall the Openshift GitOps Operator without using the `Operator Lifecycle Manager (OLM)`. It uses latest version of the `kustomize` manifests available in the github repository for creating/updating/deleting the kubernetes resources required for the openshift-gitops-operator.
 
 ### Usage
 
@@ -43,8 +43,9 @@ The following environment variables can be set to configure various options for 
 |**NAMESPACE_PREFIX**|Namespace prefix to be used in the kustomization.yaml file when running kustomize|gitops-operator-|
 |**GIT_REVISION**|The revision of the kustomize manifest to be used.|master|
 |**OPERATOR_REGISTRY**|Registry server for downloading the container images|registry.redhat.io|
+|**OPERATOR_REGISTRY_ORG**|Organization in the registry server for downloading the container images|openshift-gitops-1|
 |**GITOPS_OPERATOR_VER**|Version of the gitops operator version to use|1.8.1-1|
-|**OPERATOR_IMG**|Operator image to be used for the installation|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8-operator:${GITOPS_OPERATOR_VER}|
+|**OPERATOR_IMG**|Operator image to be used for the installation|"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"|
 |**IMAGE_PREFIX**|Prefix used for internal images from rh-osbs org in the registry which generally is prefixed with the target organization name|""|
 |**USE_BUNDLE_IMG**|If the operator image and other component image needs to be derived from a bundle image, set this flag to true.|false|
 |**BUNDLE_IMG**|used only when USE_BUNDLE_IMG is set to true|${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}|
@@ -60,14 +61,14 @@ The following environment variables can be set to configure various options for 
 #### Variables for Component Image Overrides
 |Environment|Description|Default Value|
 |:----------|:---------:|:-----------:|
-|**ARGOCD_DEX_IMAGE**|Image override for Argo CD DEX component|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-dex-rhel8:${GITOPS_OPERATOR_VER}|
-|**ARGOCD_IMAGE**|Image override for Argo CD component|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-argocd-rhel8:${GITOPS_OPERATOR_VER}|
+|**ARGOCD_DEX_IMAGE**|Image override for Argo CD DEX component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}|
+|**ARGOCD_IMAGE**|Image override for Argo CD component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}|
 |**ARGOCD_KEYCLOAK_IMAGE**|Image override for Keycloak component|registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8|
 |**ARGOCD_REDIS_IMAGE**|Image override for Redis component|registry.redhat.io/rhel8/redis-6:1-110|
 |**ARGOCD_REDIS_HA_PROXY_IMAGE**|Image override for Redis HA proxy component|registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream|
-|**BACKEND_IMAGE**|Image override for Backend component|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-gitops-rhel8:${GITOPS_OPERATOR_VER}|
-|**GITOPS_CONSOLE_PLUGIN_IMAGE**|Image override for console plugin component|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-kam-delivery-rhel8:${GITOPS_OPERATOR_VER}|
-|**KAM_IMAGE**|Image override for KAM component|${OPERATOR_REGISTRY}/rh-osbs/openshift-gitops-1-kam-delivery-rhel8:${GITOPS_OPERATOR_VER}|
+|**BACKEND_IMAGE**|Image override for Backend component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}|
+|**GITOPS_CONSOLE_PLUGIN_IMAGE**|Image override for console plugin component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}|
+|**KAM_IMAGE**|Image override for KAM component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}|
 
 
 #### Variables for Operator parameters
