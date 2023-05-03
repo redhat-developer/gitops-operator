@@ -4,12 +4,12 @@ commands:
 # patches the subscription to set an environment variable
 - script: |
     if [ -z $CI ]; then 
-
+      echo "Running against released version of operator"
       oc patch -n openshift-operators subscription openshift-gitops-operator \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_INSTANCE", "value": "true"}]}}}'
 
     else
-    
+      echo "Running against Openshift CI"
       oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_INSTANCE", "value": "true"}]}}}'
     fi
