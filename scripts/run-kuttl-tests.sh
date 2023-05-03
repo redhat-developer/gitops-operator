@@ -106,6 +106,12 @@ trap cleanup EXIT
 # Handle ctrl+c
 trap unexpectedError INT
 
+echo $CI
+
+unset CI
+
+echo $CI
+
 mkdir -p $WORK_DIR/results || exit 1
 mkdir -p $DIR/results || exit 1
 
