@@ -2,6 +2,8 @@
 
 set -ex
 
+unset CI
+
 go mod vendor
 
 source $(dirname $0)/e2e-common.sh
