@@ -42,6 +42,9 @@ run_parallel() {
 }
 
 run_sequential() {
+	echo $CI
+	unset CI
+	echo $CI
 	if test -f $WORK_DIR/results/kuttl-test.$report; then
 		rm -f $WORK_DIR/results/kuttl-test.$report
 	fi
