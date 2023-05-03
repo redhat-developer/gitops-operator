@@ -2,7 +2,11 @@
 
 set -ex
 
+echo $CI
+
 unset CI
+
+echo $CI
 
 go mod vendor
 
