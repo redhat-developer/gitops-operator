@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 
 # fail if some commands fails
-set -e
+set -ex
 
-# Do not show token in CI log
-set +x
-
-# show commands
-set -x
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $DIR/e2e-common.sh
 
 testsuite="$1"
 report=${report:-"json"}
 current_time=${current_time:-$(date "+%Y.%m.%d-%H.%M.%S")}
+
+if ! [ -z $IS_INTEROP ]; then 
+	unset CI
+fi
 
 # deletes the temp directory
 cleanup() {      
@@ -42,9 +41,6 @@ run_parallel() {
 }
 
 run_sequential() {
-	echo $CI
-	unset CI
-	echo $CI
 	if test -f $WORK_DIR/results/kuttl-test.$report; then
 		rm -f $WORK_DIR/results/kuttl-test.$report
 	fi
@@ -108,12 +104,6 @@ trap cleanup EXIT
 
 # Handle ctrl+c
 trap unexpectedError INT
-
-echo $CI
-
-unset CI
-
-echo $CI
 
 mkdir -p $WORK_DIR/results || exit 1
 mkdir -p $DIR/results || exit 1
