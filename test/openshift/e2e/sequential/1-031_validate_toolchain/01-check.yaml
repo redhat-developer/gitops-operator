@@ -15,7 +15,7 @@ commands:
         
     
     expected_helmVersion='v3.10.0'
-    expected_argocdVersion='v2.6.1'
+    expected_argocdVersion='v2.6.7'
     expected_dexVersion='v2.35.1'
     expected_redisVersion='6'
 
