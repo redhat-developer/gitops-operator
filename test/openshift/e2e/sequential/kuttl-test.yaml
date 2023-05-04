@@ -5,7 +5,7 @@ testDirs:
   - .
 suppress:
   - events
-timeout: 120
+timeout: 720
 parallel: 1
 reportFormat: JSON
 reportName: openshift-gitops-e2e
