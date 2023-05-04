@@ -12,3 +12,6 @@ commands:
         --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": "true"}]}}}'      
     fi
 - script: sleep 30
+timeout: 1500
+error:
+- errors.yaml
