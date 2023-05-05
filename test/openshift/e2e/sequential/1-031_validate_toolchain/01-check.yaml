@@ -12,9 +12,13 @@ commands:
     else
         expected_kustomizeVersion='v4.5.7'        
     fi
-        
     
-    expected_helmVersion='v3.10.0'
+    if [ -z $IS_INTEROP ]; then
+        expected_helmVersion='v3.10.3'
+    else
+        expected_helmVersion='v3.10.0'     
+    fi
+        
     expected_argocdVersion='v2.6.7'
     expected_dexVersion='v2.35.1'
     expected_redisVersion='6'
