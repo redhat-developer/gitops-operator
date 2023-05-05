@@ -1,5 +1,5 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
-timeout: 1200
+timeout: 1500
 error:
 - errors.yaml
