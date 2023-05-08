@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.18
 
 require (
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230327142827-aa1a18bbb071
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230504123816-ba8562574d23
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.3
 	github.com/google/go-cmp v0.5.9
@@ -31,7 +31,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/argoproj/argo-cd/v2 v2.6.3 // indirect
+	github.com/argoproj/argo-cd/v2 v2.6.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -75,11 +75,11 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb // indirect
-	golang.org/x/sys v0.3.0 // indirect
-	golang.org/x/term v0.3.0 // indirect
-	golang.org/x/text v0.5.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
