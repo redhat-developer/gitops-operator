@@ -38,49 +38,48 @@ ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-op
 The following environment variables can be set to configure various options for the installation/uninstallation process.
 
 #### Variables for Operator image and related manifests
-|Environment|Description|Default Value|
-|:----------|:---------:|:-----------:|
-|**NAMESPACE_PREFIX**|Namespace prefix to be used in the kustomization.yaml file when running kustomize|gitops-operator-|
-|**GIT_REVISION**|The revision of the kustomize manifest to be used.|master|
-|**OPERATOR_REGISTRY**|Registry server for downloading the container images|registry.redhat.io|
-|**OPERATOR_REGISTRY_ORG**|Organization in the registry server for downloading the container images|openshift-gitops-1|
-|**GITOPS_OPERATOR_VER**|Version of the gitops operator version to use|1.8.1-1|
-|**OPERATOR_IMG**|Operator image to be used for the installation|"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"|
-|**IMAGE_PREFIX**|Prefix used for internal images from rh-osbs org in the registry which generally is prefixed with the target organization name|""|
-|**USE_BUNDLE_IMG**|If the operator image and other component image needs to be derived from a bundle image, set this flag to true.|false|
-|**BUNDLE_IMG**|used only when USE_BUNDLE_IMG is set to true|${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}|
-|**DOCKER**|used only when USE_BUNDLE_IMG is set to true. CLI binary to be used for extracting ClusterServiceVersion manifest from the Bundle Image|podman|
+| Environment | Description |Default Value |
+| ----------- | ----------- |------------- |
+| **NAMESPACE_PREFIX** | Namespace prefix to be used in the kustomization.yaml file when running kustomize | `gitops-operator-` |
+| **GIT_REVISION** | The revision of the kustomize manifest to be used. | master |
+| **OPERATOR_REGISTRY** |Registry server for downloading the container images |registry.redhat.io |
+| **OPERATOR_REGISTRY_ORG** | Organization in the registry server for downloading the container images | openshift-gitops-1 |
+| **GITOPS_OPERATOR_VER**|Version of the gitops operator version to use|1.8.1-1|
+| **OPERATOR_IMG**|Operator image to be used for the installation|`${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8-operator:${GITOPS_OPERATOR_VER}` |
+| **IMAGE_PREFIX** | Prefix used for internal images from rh-osbs org in the registry which generally is prefixed with the target organization name | "" |
+| **USE_BUNDLE_IMG** | If the operator image and other component image needs to be derived from a bundle image, set this flag to true. | false |
+| **BUNDLE_IMG** | used only when USE_BUNDLE_IMG is set to true | `${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}` |
+| **DOCKER** | used only when USE_BUNDLE_IMG is set to true. CLI binary to be used for extracting ClusterServiceVersion manifest from the Bundle Image | podman |
 
 #### Variables for 3rd party tools used in the script
-|Environment|Description|Default Value|
-|:----------|:---------:|:-----------:|
-|**KUSTOMIZE_VERSION**|Version of kustomize binary to be installed if not found in PATH|v4.5.7|
-|**KUBECTL_VERSION**|Version of the kubectl client binary to be installed if not found in PATH|v1.26.0|
-|**YQ_VERSION**|Version of the yq binary to be installed if not found in PATH|v4.31.2|
+| Environment | Description |Default Value |
+| ----------- | ----------- |------------- |
+| **KUSTOMIZE_VERSION** | Version of kustomize binary to be installed if not found in PATH | v4.5.7 |
+| **KUBECTL_VERSION** | Version of the kubectl client binary to be installed if not found in PATH | v1.26.0 |
+| **YQ_VERSION** | Version of the yq binary to be installed if not found in PATH | v4.31.2 |
 
 #### Variables for Component Image Overrides
-|Environment|Description|Default Value|
-|:----------|:---------:|:-----------:|
-|**ARGOCD_DEX_IMAGE**|Image override for Argo CD DEX component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}|
-|**ARGOCD_IMAGE**|Image override for Argo CD component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}|
-|**ARGOCD_KEYCLOAK_IMAGE**|Image override for Keycloak component|registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8|
-|**ARGOCD_REDIS_IMAGE**|Image override for Redis component|registry.redhat.io/rhel8/redis-6:1-110|
-|**ARGOCD_REDIS_HA_PROXY_IMAGE**|Image override for Redis HA proxy component|registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream|
-|**BACKEND_IMAGE**|Image override for Backend component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}|
-|**GITOPS_CONSOLE_PLUGIN_IMAGE**|Image override for console plugin component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}|
-|**KAM_IMAGE**|Image override for KAM component|${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}|
+| Environment | Description |Default Value |
+| ----------- | ----------- |------------- |
+| **ARGOCD_DEX_IMAGE** | Image override for Argo CD DEX component| `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}` |
+| **ARGOCD_IMAGE** | Image override for Argo CD component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}` |
+| **ARGOCD_KEYCLOAK_IMAGE** | Image override for Keycloak component | `registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8` |
+| **ARGOCD_REDIS_IMAGE** | Image override for Redis component | `registry.redhat.io/rhel8/redis-6:1-110` |
+| **ARGOCD_REDIS_HA_PROXY_IMAGE** | Image override for Redis HA proxy component | `registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream` |
+| **BACKEND_IMAGE** | Image override for Backend component |`${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}`|
+| **GITOPS_CONSOLE_PLUGIN_IMAGE** | Image override for console plugin component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}` |
+| **KAM_IMAGE** | Image override for KAM component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/kam-delivery-rhel8:${GITOPS_OPERATOR_VER}` |
 
 
 #### Variables for Operator parameters
-|Environment|Description|Default Value|
-|:----------|:---------:|:-----------:|
-|**ARGOCD_CLUSTER_CONFIG_NAMESPACES**|OpenShift GitOps instances in the identified namespaces are granted limited additional permissions to manage specific cluster-scoped resources, which include platform operators, optional OLM operators, user management, etc.
-Multiple namespaces can be specified via a comma delimited list.|openshift-gitops|
-|**CONTROLLER_CLUSTER_ROLE**|This environment variable enables administrators to configure a common cluster role to use across all managed namespaces in the role bindings the operator creates for the Argo CD application controller.|None|
-|**DISABLE_DEFAULT_ARGOCD_INSTANCE**|When set to `true`, this will disable the default 'ready-to-use' installation of Argo CD in the `openshift-gitops` namespace.|false|
-|**DISABLE_DEX**|Flag to control if Dex needs to be disabled|false|
-|**SERVER_CLUSTER_ROLE**|This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server.|None|
-|**WATCH_NAMESPACE**|namespaces in which Argo applications can be created|None|
+| Environment | Description |Default Value |
+| ----------- | ----------- |------------- |
+| **ARGOCD_CLUSTER_CONFIG_NAMESPACES** |OpenShift GitOps instances in the identified namespaces are granted limited additional permissions to manage specific cluster-scoped resources, which include platform operators, optional OLM operators, user management, etc.Multiple namespaces can be specified via a comma delimited list. | openshift-gitops |
+| **CONTROLLER_CLUSTER_ROLE** | This environment variable enables administrators to configure a common cluster role to use across all managed namespaces in the role bindings the operator creates for the Argo CD application controller. | None |
+| **DISABLE_DEFAULT_ARGOCD_INSTANCE** | When set to `true`, this will disable the default 'ready-to-use' installation of Argo CD in the `openshift-gitops` namespace. |false |
+| **DISABLE_DEX** | Flag to control if Dex needs to be disabled | false |
+| **SERVER_CLUSTER_ROLE** |This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server. | None |
+| **WATCH_NAMESPACE** | namespaces in which Argo applications can be created | None |
 ### Running the script
 
 #### Usage
@@ -89,11 +88,11 @@ Multiple namespaces can be specified via a comma delimited list.|openshift-gitop
 install-gitops-operator.sh [--install|-i] [--uninstall|-u] [--help|-h]
 ```
 
-|Option|Description|
-|:----------|:---------:|
-|--install, -i |installs the openshift-gitops-operator if no previous version is found, else updates (upgrade/dowgrade) the existing operator|
-|--uninstall, -u |uninstalls the openshift-gitops-operator |
-|--help, -h|prints the help message|
+| Option | Description |
+| -------| ----------- |
+| --install, -i | installs the openshift-gitops-operator if no previous version is found, else updates (upgrade/dowgrade) the existing operator |
+| --uninstall, -u | uninstalls the openshift-gitops-operator |
+| --help, -h | prints the help message |
 
 #### Local Run
 ##### Installation
