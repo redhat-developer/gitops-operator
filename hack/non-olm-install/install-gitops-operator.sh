@@ -38,7 +38,6 @@ YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
 ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
 CONTROLLER_CLUSTER_ROLE=${CONTROLLER_CLUSTER_ROLE:-""}
 DISABLE_DEFAULT_ARGOCD_INSTANCE=${DISABLE_DEFAULT_ARGOCD_INSTANCE:-"false"}
-DISABLE_DEX=${DISABLE_DEX:-"false"}
 SERVER_CLUSTER_ROLE=${SERVER_CLUSTER_ROLE:-""}
 WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
 
@@ -97,7 +96,7 @@ function cleanup() {
     echo "[INFO] Deleting directory ${WORK_DIR} without timeout"
     rm -rf "${WORK_DIR}"
   else
-    # If the command hangs for more than 20 minutes kill it
+    # If the command hangs for more than 10 minutes kill it
     echo "[INFO] Deleting directory ${WORK_DIR} with timeout"
     timeout 600 rm -rf "${WORK_DIR}"||echo "[ERROR] Directory deletion timed out, please remove it manually"
   fi
@@ -193,8 +192,6 @@ spec:
           value: \"${CONTROLLER_CLUSTER_ROLE}\"
         - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
           value: \"${DISABLE_DEFAULT_ARGOCD_INSTANCE}\"
-        - name: DISABLE_DEX
-          value: \"${DISABLE_DEX}\"
         - name: SERVER_CLUSTER_ROLE
           value: \"${SERVER_CLUSTER_ROLE}\"
         - name: WATCH_NAMESPACE
@@ -387,7 +384,6 @@ function print_info() {
     echo "CONTROLLER_CLUSTER_ROLE: ${CONTROLLER_CLUSTER_ROLE}"
   fi
   echo "DISABLE_DEFAULT_ARGOCD_INSTANCE: ${DISABLE_DEFAULT_ARGOCD_INSTANCE}"
-  echo "DISABLE_DEX: ${DISABLE_DEX}"
   if [ ! -z "${SERVER_CLUSTER_ROLE}" ]; then
     echo "SERVER_CLUSTER_ROLE: ${SERVER_CLUSTER_ROLE}"
   fi
