@@ -46,11 +46,12 @@ function print_help() {
   echo "Usage: $0 [--install|-i] [--uninstall|-u] [--help|-h]"
   echo "  --install, -i		Install the openshift-gitops-operator manifests"
   echo "  --uninstall, -u	Uninstall the openshift-gitops-operator manifests"
-  echo "  --help, -h      Print this help message"
+  echo "  --help, -h      	Print this help message"
 
   echo
-  echo "Example usage: $0 --install"
-  echo "Example usage: $0 --uninstall"
+  echo "Example usage:"
+  echo "	$0 --install"
+  echo "	$0 --uninstall"
 }
 
 
@@ -442,7 +443,7 @@ function main() {
     *)
         echo "[ERROR] Invalid argument $key"
         print_help
-        exit 0
+        exit 1
         ;;
   esac
 }
