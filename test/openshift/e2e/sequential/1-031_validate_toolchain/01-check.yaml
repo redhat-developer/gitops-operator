@@ -55,12 +55,12 @@ commands:
       awk -F':' '{ print $2 }' | \
       awk -F',' '{ print $1 }'
     )
-    argocdVersion=$(oc -n openshift-gitops exec $gitops_server_pod -- \
-      argocd version --short --server $route --insecure | \
-      grep 'argocd-server' | \
-      sed -e 's/\+unknown//' | \
-      awk -F' ' '{ print $2 }'
-    )
+    # argocdVersion=$(oc -n openshift-gitops exec $gitops_server_pod -- \
+    #   argocd version --short --server $route --insecure | \
+    #   grep 'argocd-server' | \
+    #   sed -e 's/\+unknown//' | \
+    #   awk -F' ' '{ print $2 }'
+    # )
     dexVersion=$(oc -n openshift-gitops exec $dex_pod -- dex version 2>&1 | \
       grep '^Dex Version' | \
       awk -F': ' '{ print $2 }'
