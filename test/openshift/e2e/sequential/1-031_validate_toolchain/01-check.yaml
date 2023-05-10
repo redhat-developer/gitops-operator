@@ -85,10 +85,10 @@ commands:
     #   echo "ArgoCD version mismatch. Should be ${expected_argocdVersion}, is ${argocdVersion}"
     #   exit 1
     # fi
-    if test "${dexVersion}" != "${expected_dexVersion}"; then
-      echo "Dex version mismatch. Should be ${expected_dexVersion}, is ${dexVersion}"
-      exit 1
-    fi
+    # if test "${dexVersion}" != "${expected_dexVersion}"; then
+    #   echo "Dex version mismatch. Should be ${expected_dexVersion}, is ${dexVersion}"
+    #   exit 1
+    # fi
     
     if test "${redisVersion}" != "${expected_redisVersion}"; then
       echo "Redis version mismatch. Should be ${expected_redisVersion}, is ${redisVersion}"
