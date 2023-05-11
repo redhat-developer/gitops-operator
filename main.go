@@ -33,6 +33,8 @@ import (
 	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	rolloutManagerApi "github.com/iam-veeramalla/argo-rollouts-manager/api/v1alpha1"
+	rolloutManagerProvisioner "github.com/iam-veeramalla/argo-rollouts-manager/controllers"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -113,6 +115,7 @@ func main() {
 	registerComponentOrExit(mgr, configv1.AddToScheme)
 	registerComponentOrExit(mgr, consolepluginv1.AddToScheme)
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
+	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
@@ -147,6 +150,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
+		os.Exit(1)
+	}
+
+	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
 	}
 

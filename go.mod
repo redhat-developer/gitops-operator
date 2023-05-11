@@ -8,6 +8,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
+	github.com/iam-veeramalla/argo-rollouts-manager v0.0.1
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
