@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: test-1-034-custom
+status:
+  phase: Available
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: custom-role-namespace
+  labels:
+    argocd.argoproj.io/managed-by: test-1-034-custom
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: custom-argocd-role
+rules:
+  - verbs:
+    - list
+    - watch
+    - get
+    apiGroups:
+    - '*'
+    resources:
+    - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-server
+  namespace: custom-role-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-application-controller
+  namespace: custom-role-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-argocd-server
+  namespace: custom-role-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-argocd-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-argocd-server
+  namespace: test-1-034-custom
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-argocd-application-controller
+  namespace: custom-role-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-argocd-application-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-argocd-application-controller
+  namespace: test-1-034-custom

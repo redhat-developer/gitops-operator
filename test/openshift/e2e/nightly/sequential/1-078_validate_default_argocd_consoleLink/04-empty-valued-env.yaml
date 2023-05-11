@@ -1,0 +1,6 @@
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     oc patch -n openshift-operators subscription openshift-gitops-operator \
+#       --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "value": ""}]}}}'

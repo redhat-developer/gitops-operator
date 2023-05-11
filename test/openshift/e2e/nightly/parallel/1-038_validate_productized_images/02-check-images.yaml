@@ -1,0 +1,11 @@
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     for wl in deployment/argocd-server deployment/argocd-repo-server statefulset/argocd-application-controller; do
+#       image=$(oc -n $NAMESPACE get ${wl} -o jsonpath='{.spec.template.spec.containers[0].image}' | awk -F'@' '{print $1}')
+#       if test "$image" != "registry.redhat.io/openshift-gitops-1/argocd-rhel8"; then
+#         echo "Non-productized image in workload $wl detected."
+#         exit 1
+#       fi
+#     done

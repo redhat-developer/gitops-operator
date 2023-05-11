@@ -1,0 +1,7 @@
+# Add env variables specifying custom roles
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch deployment gitops-operator-controller-manager -n gitops-operator-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"CONTROLLER_CLUSTER_ROLE","value":"custom-argocd-role"},{"name":"SERVER_CLUSTER_ROLE", "value":"custom-argocd-role"}]}]}}}}'
+- script: sleep 10

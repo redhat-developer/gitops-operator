@@ -1,0 +1,16 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: argoproj.io/v1alpha1
+  kind: ArgoCD
+  name: argocd
+  namespace: test-1-034-custom
+- apiVersion: v1
+  kind: Namespace
+  name: test-1-034-custom
+- apiVersion: v1
+  kind: Namespace
+  name: custom-role-namespace
+- apiVersion: rbac.authorization.k8s.io/v1
+  kind: ClusterRole
+  name: custom-argocd-role
