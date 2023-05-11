@@ -148,7 +148,7 @@ The scope of this section is to describe the steps to Install, Configure(**Setup
 
 **Prerequisite:**
 
-:warning: DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be enabled/disabled using `.spec.sso.provider`. 
+:warning: DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be enabled/disabled using `.spec.sso.provider`. 
 
 * Make sure you disable dex 
 
@@ -369,7 +369,7 @@ Below `oc` command can be used to patch the default Argo CD Instance in the open
 
 Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
 
-:warning: **`.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Keycloak can be configured using `.spec.sso.keycloak`**. 
+:warning: **`.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Keycloak can be configured using `.spec.sso.keycloak`**. 
 
 ### **Skip the Keycloak Login page and display the OpenShift Login page.**
 
@@ -450,7 +450,7 @@ Updating the following environment variables in the existing Subscription Object
   <tr>
     <td>DISABLE_DEX</td>
     <td>false</td>
-    <td> When set to `true`, will remove the Dex deployment from the openshift-gitops namespace. Note: Disabling Dex will not be supported in v.1.9.0+. 
+    <td> When set to `true`, will remove the Dex deployment from the openshift-gitops namespace. Note: Disabling Dex will not be supported in v.1.10.0+. 
     </td>
   </tr>
   <tr>
@@ -612,9 +612,9 @@ data:
 
 **NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
-:warning: **DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows:**
+:warning: **DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows:**
 
-:warning: **`.spec.dex` is deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.9.0. Dex can be configured through `.spec.sso.dex` as follows** : 
+:warning: **`.spec.dex` is deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be configured through `.spec.sso.dex` as follows** : 
 
 ```
 spec:
@@ -667,14 +667,14 @@ spec:
       value: "true"
 ```
 :warning:
-    **`DISABLE_DEX` is deprecated and support will be removed in Argo CD operator v0.6.0. Please use `.spec.sso.provider` to enable/disable Dex.**
+    **`DISABLE_DEX` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.provider` to enable/disable Dex.**
 
 #### Using `.spec.dex`
 
 Dex can be uninstalled by either removing `.spec.dex` from the Argo CD CR, or ensuring `.spec.dex.config` is empty and `.spec.dex.openShiftOAuth` is set to `false`.
 
 :warning: 
-    **`.spec.dex` is deprecated and support will be removed in Argo CD operator v0.6.0. Please use `.spec.sso.dex` to configure Dex.**
+    **`.spec.dex` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.dex` to configure Dex.**
 
 
 You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
