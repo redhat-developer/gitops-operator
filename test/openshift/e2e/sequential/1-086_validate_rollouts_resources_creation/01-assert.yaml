@@ -44,4 +44,4 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
-  name: argo-rollouts
+  name: argo-rollouts-metrics
