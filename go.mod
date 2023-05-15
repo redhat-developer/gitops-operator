@@ -8,7 +8,6 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-version v1.6.0
-	github.com/iam-veeramalla/argo-rollouts-manager v0.0.1
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.27.6
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
@@ -26,12 +25,15 @@ require (
 
 require (
 	cloud.google.com/go v0.110.1 // indirect
+	cloud.google.com/go/compute v1.19.2 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5 // indirect
 	github.com/argoproj/argo-cd/v2 v2.7.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -40,7 +42,7 @@ require (
 	github.com/emicklei/go-restful v2.16.0+incompatible // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/go-logr/zapr v1.2.3 // indirect
+	github.com/go-logr/zapr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/spec v0.20.9 // indirect
@@ -98,7 +100,7 @@ require (
 )
 
 replace (
-	cloud.google.com/go => cloud.google.com/go v0.99.0
+	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
