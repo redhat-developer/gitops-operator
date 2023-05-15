@@ -3,6 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.19
 
 require (
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
 	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230510080202-bed1657e1213
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
@@ -24,7 +25,6 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.110.1 // indirect
 	cloud.google.com/go/compute v1.19.2 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -33,7 +33,6 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5 // indirect
 	github.com/argoproj/argo-cd/v2 v2.7.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
