@@ -14,7 +14,7 @@ The `install-gitops-operator.sh` script supports two methods of installation.
 
 1. Missing RBAC access to update CRs in `argoproj.io` domain 
 
-Issue: 
+Issue: (Now fixed)
 
 https://github.com/redhat-developer/gitops-operator/issues/148
 
@@ -117,14 +117,14 @@ The below command installs the latest available openshift-gitops-operator versio
 #### Running it from a remote URL
 
 ```
-curl -L https://raw.githubusercontent.com/saumeya/gitops-operator/wget-rbac/hack/non-bundle-install/install-gitops-operator.sh | bash -s -- -i
+curl -L https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/hack/non-olm-install/install-gitops-operator.sh | bash -s -- -i
 
 ```
 
 #### Running install with custom Operator image
 
 ```
-OPERATOR_REGISTRY=brew.registry.redhat.io OPERATOR_REGISTRY_ORG=rh-osbs GITOPS_OPERATOR_VER=v99.9.0-88 ./install-gitops-operator.sh -i
+OPERATOR_REGISTRY=brew.registry.redhat.io OPERATOR_REGISTRY_ORG=rh-osbs IMAGE_PREFIX=openshift-gitops-1- GITOPS_OPERATOR_VER=v99.9.0-88 ./install-gitops-operator.sh -i
 ```
 
 #### Installing nightly gitops-operator build using bundle image
