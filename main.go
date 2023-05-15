@@ -30,11 +30,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
+	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
 	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
-	rolloutManagerApi "github.com/iam-veeramalla/argo-rollouts-manager/api/v1alpha1"
-	rolloutManagerProvisioner "github.com/iam-veeramalla/argo-rollouts-manager/controllers"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
