@@ -150,6 +150,8 @@ The scope of this section is to describe the steps to Install, Configure(**Setup
 
 :warning: DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be enabled/disabled using `.spec.sso.provider`. 
 
+**Note: `DISABLE_DEX` environment variable was earlier scheduled for removal in OpenShift GitOps v1.9.0, but has been extended to v1.10.0.**
+
 * Make sure you disable dex 
 
 ```
@@ -370,6 +372,8 @@ Below `oc` command can be used to patch the default Argo CD Instance in the open
 Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
 
 :warning: **`.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Keycloak can be configured using `.spec.sso.keycloak`**. 
+
+**Note: `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields were earlier scheduled for removal in OpenShift GitOps v1.9.0, but have been extended to v1.10.0.**
 
 ### **Skip the Keycloak Login page and display the OpenShift Login page.**
 
@@ -616,6 +620,8 @@ data:
 
 :warning: **`.spec.dex` is deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be configured through `.spec.sso.dex` as follows** : 
 
+**Note: `DISABLE_DEX` environment variable and `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields were earlier scheduled for removal in OpenShift GitOps v1.9.0, but have been extended to v1.10.0.**
+
 ```
 spec:
   sso:
@@ -669,6 +675,8 @@ spec:
 :warning:
     **`DISABLE_DEX` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.provider` to enable/disable Dex.**
 
+**Note: `DISABLE_DEX` environment variable was earlier scheduled for removal in Argo CD operator v0.7.0, but has been extended to v0.8.0.**
+
 #### Using `.spec.dex`
 
 Dex can be uninstalled by either removing `.spec.dex` from the Argo CD CR, or ensuring `.spec.dex.config` is empty and `.spec.dex.openShiftOAuth` is set to `false`.
@@ -676,6 +684,7 @@ Dex can be uninstalled by either removing `.spec.dex` from the Argo CD CR, or en
 :warning: 
     **`.spec.dex` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.dex` to configure Dex.**
 
+**Note: `.spec.dex` field was earlier scheduled for removal in Argo CD operator v0.7.0, but has been extended to Argo CD operator v0.8.0.**
 
 You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
 
