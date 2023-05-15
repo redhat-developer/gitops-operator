@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openshift-gitops-application-controller
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      containers:
+        - env:
+          - name: HOME
+            value: /home/argocd

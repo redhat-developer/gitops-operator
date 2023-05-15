@@ -95,3 +95,39 @@ spec:
             allowPrivilegeEscalation: false
             # readOnlyRootFilesystem: true
             runAsNonRoot: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kam
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      containers:
+        - securityContext:
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      containers:
+        - securityContext:
+            capabilities:
+              drop:
+              - ALL
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
