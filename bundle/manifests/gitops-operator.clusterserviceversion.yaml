@@ -135,10 +135,11 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
+    createdAt: "2023-05-11T07:43:23Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
+    operators.operatorframework.io/builder: operator-sdk-v1.28.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
@@ -148,6 +149,12 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - kind: AnalysisRun
+      name: analysisruns.argoproj.io
+      version: v1alpha1
+    - kind: AnalysisTemplate
+      name: analysistemplates.argoproj.io
+      version: v1alpha1
     - description: An Application is a group of Kubernetes resources as defined by
         a manifest.
       displayName: Application
@@ -215,10 +222,22 @@ spec:
         name: ""
         version: v1
       version: v1alpha1
+    - kind: ClusterAnalysisTemplate
+      name: clusteranalysistemplates.argoproj.io
+      version: v1alpha1
+    - kind: Experiment
+      name: experiments.argoproj.io
+      version: v1alpha1
     - description: GitopsService is the Schema for the gitopsservices API
       displayName: Gitops Service
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
+      version: v1alpha1
+    - kind: RolloutManager
+      name: rolloutmanagers.argoproj.io
+      version: v1alpha1
+    - kind: Rollout
+      name: rollouts.argoproj.io
       version: v1alpha1
   description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
@@ -259,6 +278,26 @@ spec:
           - configmaps
           - endpoints
           - events
+          - namespaces
+          - pods
+          - secrets
+          - serviceaccounts
+          - services
+          - services/finalizers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          - endpoints
+          - events
           - persistentvolumeclaims
           - pods
           - secrets
@@ -276,6 +315,14 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - deployments
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - namespaces
           - resourcequotas
           verbs:
@@ -288,9 +335,42 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - pods/eviction
+          verbs:
+          - create
+        - apiGroups:
+          - ""
+          resources:
           - pods/log
           verbs:
           - get
+        - apiGroups:
+          - ""
+          resources:
+          - podtemplates
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - appmesh.k8s.aws
+          resources:
+          - virtualnodes
+          - virtualrouters
+          verbs:
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - appmesh.k8s.aws
+          resources:
+          - virtualservices
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - apps
           resources:
@@ -306,6 +386,26 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - podtemplates
+          - replicasets
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
         - apiGroups:
           - apps
           resourceNames:
@@ -329,6 +429,35 @@ spec:
         - apiGroups:
           - argoproj.io
           resources:
+          - analysisruns
+          - analysisruns/finalizers
+          - experiments
+          - experiments/finalizers
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - analysistemplates
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
           - applications
           - appprojects
           - argocds
@@ -337,6 +466,61 @@ spec:
           verbs:
           - create
           - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - clusteranalysistemplates
+          verbs:
+          - create
+          - delete
+          - deletecollection
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rolloutmanagers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rolloutmanagers/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rolloutmanagers/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rollouts
+          - rollouts/finalizers
+          - rollouts/scale
+          - rollouts/status
+          verbs:
+          - create
+          - delete
+          - deletecollection
           - get
           - list
           - patch
@@ -358,6 +542,18 @@ spec:
           - batch
           resources:
           - cronjobs
+          - jobs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - batch
+          resources:
           - jobs
           verbs:
           - create
@@ -411,6 +607,43 @@ spec:
           - update
           - watch
         - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - get
+          - update
+        - apiGroups:
+          - elbv2.k8s.aws
+          resources:
+          - targetgroupbindings
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - extensions
+          resources:
+          - ingresses
+          verbs:
+          - create
+          - get
+          - list
+          - patch
+          - watch
+        - apiGroups:
+          - getambassador.io
+          resources:
+          - ambassadormappings
+          - mappings
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
           - monitoring.coreos.com
           resources:
           - prometheuses
@@ -419,6 +652,17 @@ spec:
           verbs:
           - create
           - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.istio.io
+          resources:
+          - destinationrules
+          - virtualservices
+          verbs:
           - get
           - list
           - patch
@@ -529,6 +773,19 @@ spec:
           - update
           - watch
         - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - rolebindings
+          - roles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - route.openshift.io
           resources:
           - '*'
@@ -554,6 +811,16 @@ spec:
           - update
           - watch
         - apiGroups:
+          - split.smi-spec.io
+          resources:
+          - trafficsplits
+          verbs:
+          - create
+          - get
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - template.openshift.io
           resources:
           - templateconfigs
@@ -565,6 +832,26 @@ spec:
           - get
           - list
           - patch
+          - update
+          - watch
+        - apiGroups:
+          - traefik.containo.us
+          resources:
+          - traefikservices
+          verbs:
+          - get
+          - update
+          - watch
+        - apiGroups:
+          - x.getambassador.io
+          resources:
+          - ambassadormappings
+          - mappings
+          verbs:
+          - create
+          - delete
+          - get
+          - list
           - update
           - watch
         - apiGroups:
