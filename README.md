@@ -123,3 +123,5 @@ The Index image powers the listing of the Operator on OperatorHub.
 ## Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
 
 Please follow the steps mentioned in the doc to migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator.
+
+## Testing CI for v1.8 branch
