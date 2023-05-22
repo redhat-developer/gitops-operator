@@ -122,6 +122,16 @@ e2e-tests-parallel:
 	@echo "Running GitOps Operator parallel E2E tests..."
 	. ./scripts/run-kuttl-tests.sh  parallel
 
+.PHONY: nightly-e2e-tests-sequential
+e2e-tests-nightly-sequential: ## Runs nightly kuttl e2e sequentail tests
+	@echo "Running GitOps Operator sequential E2E tests..."
+	. ./scripts/run-kuttl-tests.sh  nightly-sequential	
+
+.PHONY: nightly-e2e-tests-parallel ## Runs nightly kuttl e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-tests-nightly-parallel:
+	@echo "Running GitOps Operator parallel E2E tests..."
+	. ./scripts/run-kuttl-tests.sh  nightly-parallel
+
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.

@@ -53,6 +53,31 @@ run_sequential() {
 	fi
 }
 
+run_nightly-parallel() {
+	if test -f $WORK_DIR/results/kuttl-test.$report; then
+		rm -f $WORK_DIR/results/kuttl-test.$report
+	fi
+
+	echo "Running parallel test suite"
+	kubectl kuttl test $DIR/../test/openshift/e2e/nightly/parallel --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/nightly/parallel/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log 
+	if [ ${PIPESTATUS[0]} != 0 ]; then
+	   failed=1
+	fi	
+}
+
+run_nightly-sequential() {
+	if test -f $WORK_DIR/results/kuttl-test.$report; then
+		rm -f $WORK_DIR/results/kuttl-test.$report
+	fi
+
+	echo "Running sequential test suite"
+    kubectl kuttl test $DIR/../test/openshift/e2e/nightly/sequential --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/nightly/sequential/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log
+	if [ ${PIPESTATUS[0]} != 0 ]; then
+	   failed=1
+	fi
+}
+
+
 run_cmd_silent() {
 	$* >/dev/null 2>&1
 	return $?
@@ -118,6 +143,14 @@ case "$testsuite" in
     header "Running $testsuite tests"
 	run_sequential $2
 	;;
+"nightly-sequential")
+    header "Running $testsuite tests"
+	run_nightly-sequential $2
+	;;
+"nighlty-parallel")
+    header "Running $testsuite tests"
+	run_nightly-parallel $2
+	;;		
 "all")
     header "Running $testsuite tests"
 	run_parallel
