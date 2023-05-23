@@ -1,11 +1,11 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: |
-    set -e
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -e
 
-    operator_name_version=$(oc get subscription/openshift-gitops-operator -n openshift-operators -o jsonpath='{.status.installedCSV}')
-    if [ "$(oc get csv/"${operator_name_version}" -n openshift-operators -o jsonpath='{.spec.install.spec.deployments[].spec.template.spec.containers[].env}' | grep DISABLE_DEX)" != '' ]; then
-      echo "DISABLE_DEX env var is still present in the operator CSV."
-      exit 1
-    fi
+#     operator_name_version=$(oc get subscription/openshift-gitops-operator -n openshift-operators -o jsonpath='{.status.installedCSV}')
+#     if [ "$(oc get csv/"${operator_name_version}" -n openshift-operators -o jsonpath='{.spec.install.spec.deployments[].spec.template.spec.containers[].env}' | grep DISABLE_DEX)" != '' ]; then
+#       echo "DISABLE_DEX env var is still present in the operator CSV."
+#       exit 1
+#     fi

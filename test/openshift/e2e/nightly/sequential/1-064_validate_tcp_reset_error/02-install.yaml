@@ -1,19 +1,19 @@
-# apiVersion: argoproj.io/v1alpha1
-# kind: Application
-# metadata:
-#   name: 1-27-argocd
-#   namespace: openshift-gitops
-# spec:
-#   project: default
-#   source:
-#     # TODO: Move this repository to a better location
-#     repoURL: https://github.com/jannfis/operator-e2e-git
-#     path: ./operator-acceptance/1-027_operand-from-git
-#     targetRevision: HEAD
-#   destination:
-#     server: https://kubernetes.default.svc
-#     namespace: openshift-gitops
-#   syncPolicy:
-#     automated: {}
-#     retry:
-#       limit: 2
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: 1-27-argocd
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    # TODO: Move this repository to a better location
+    repoURL: https://github.com/jannfis/operator-e2e-git
+    path: ./operator-acceptance/1-027_operand-from-git
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated: {}
+    retry:
+      limit: 2
