@@ -53,7 +53,7 @@ run_sequential() {
 	fi
 }
 
-run_nightly-parallel() {
+run_nightly_parallel() {
 	if test -f $WORK_DIR/results/kuttl-test.$report; then
 		rm -f $WORK_DIR/results/kuttl-test.$report
 	fi
@@ -65,7 +65,7 @@ run_nightly-parallel() {
 	fi	
 }
 
-run_nightly-sequential() {
+run_nightly_sequential() {
 	if test -f $WORK_DIR/results/kuttl-test.$report; then
 		rm -f $WORK_DIR/results/kuttl-test.$report
 	fi
@@ -145,11 +145,11 @@ case "$testsuite" in
 	;;
 "nightly-sequential")
     header "Running $testsuite tests"
-	run_nightly-sequential $2
+	run_nightly_sequential $2
 	;;
 "nighlty-parallel")
     header "Running $testsuite tests"
-	run_nightly-parallel $2
+	run_nightly_parallel $2
 	;;		
 "all")
     header "Running $testsuite tests"

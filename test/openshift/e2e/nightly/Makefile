@@ -6,9 +6,9 @@ e2e-tests:
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
 	@echo "Running GitOps Operator sequential E2E tests..."
-	. ./../scripts/run-kuttl-tests.sh nightly-sequential
+	. ./../../../../scripts/run-kuttl-tests.sh nightly-sequential
 
 .PHONY: e2e-tests-parallel
 e2e-tests-parallel:
 	@echo "Running GitOps Operator parallel E2E tests..."
-	. ./../scripts/run-kuttl-tests.sh nightly-parallel
+	. ./../../../../scripts/run-kuttl-tests.sh nightly-parallel
