@@ -30,6 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
+	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
+	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
 	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -111,6 +113,7 @@ func main() {
 	registerComponentOrExit(mgr, argoapi.AddToScheme)
 	registerComponentOrExit(mgr, configv1.AddToScheme)
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
+	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
@@ -145,6 +148,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
+		os.Exit(1)
+	}
+
+	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
 	}
 
