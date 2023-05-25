@@ -7,6 +7,12 @@ resources:
 - bases/argoproj.io_appprojects.yaml
 - bases/argoproj.io_applicationsets.yaml
 - bases/argoproj.io_argocds.yaml
+- bases/analysis-run-crd.yaml
+- bases/analysis-template-crd.yaml
+- bases/argoproj.io_rolloutmanagers.yaml
+- bases/cluster-analysis-template-crd.yaml
+- bases/experiment-crd.yaml
+- bases/rollout-crd.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
