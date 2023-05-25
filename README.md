@@ -71,7 +71,7 @@ mode. You could update your image "payload" and re-install the operator.
 Set the base image and version for building operator, bundle and index images.
 
 ```
-export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=1.8.0
+export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=1.9.0
 ```
 
 1. Build and push the operator image.
