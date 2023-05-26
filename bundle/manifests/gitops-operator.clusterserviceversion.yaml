@@ -124,6 +124,14 @@ metadata:
           }
         },
         {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "RolloutManager",
+          "metadata": {
+            "name": "argo-rollout"
+          },
+          "spec": null
+        },
+        {
           "apiVersion": "pipelines.openshift.io/v1alpha1",
           "kind": "GitopsService",
           "metadata": {
