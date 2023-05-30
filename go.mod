@@ -3,11 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.19
 
 require (
-<<<<<<< HEAD
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230504123816-ba8562574d23
-=======
 	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230510080202-bed1657e1213
->>>>>>> e81961e4365b60a6dc22d4ba722b1a5a1d33369a
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
@@ -35,11 +31,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-<<<<<<< HEAD
-	github.com/argoproj/argo-cd/v2 v2.6.7 // indirect
-=======
 	github.com/argoproj/argo-cd/v2 v2.7.1 // indirect
->>>>>>> e81961e4365b60a6dc22d4ba722b1a5a1d33369a
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -79,18 +71,6 @@ require (
 	github.com/sethvargo/go-password v0.2.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-<<<<<<< HEAD
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
-	golang.org/x/net v0.7.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20220608161450-d0670ef3b1eb // indirect
-	golang.org/x/sys v0.5.0 // indirect
-	golang.org/x/term v0.5.0 // indirect
-	golang.org/x/text v0.7.0 // indirect
-	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
-=======
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.24.0 // indirect
@@ -101,7 +81,6 @@ require (
 	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
->>>>>>> e81961e4365b60a6dc22d4ba722b1a5a1d33369a
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
@@ -119,6 +98,7 @@ require (
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.99.0
+	github.com/argoproj-labs/argocd-operator => /home/jrao/go/src/github.com/argoproj-labs/argocd-operator
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a

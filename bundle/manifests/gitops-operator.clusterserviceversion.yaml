@@ -135,10 +135,11 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
+    createdAt: "2023-05-30T12:59:47Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
+    operators.operatorframework.io/builder: operator-sdk-v1.28.1
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
@@ -582,18 +583,18 @@ spec:
         serviceAccountName: gitops-operator-controller-manager
       deployments:
       - label:
-          control-plane: argocd-operator
+          control-plane: gitops-operator
         name: gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
             matchLabels:
-              control-plane: argocd-operator
+              control-plane: gitops-operator
           strategy: {}
           template:
             metadata:
               labels:
-                control-plane: argocd-operator
+                control-plane: gitops-operator
             spec:
               containers:
               - command:
