@@ -5,6 +5,15 @@ commands:
     route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
     status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
 
+    echo -e "route_URL:${route_URL}\nstatus_URL:${status_URL}"
+
+    sleep 10
+    
+    route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
+    status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
+
+    echo -e "route_URL:${route_URL}\nstatus_URL:${status_URL}"
+
     if ! [[ "${status_URL}" == "${route_URL}" ]]; then
       echo "Error: Route does not match"
       exit 1
