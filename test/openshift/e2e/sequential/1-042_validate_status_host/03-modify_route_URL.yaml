@@ -2,11 +2,16 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
     oc patch route example-argocd-server -n $NAMESPACE --type='json' -p='[{"op": "replace", "path": "/spec/host", "value":"modified"}]'
+
+    route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
+    status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
+
+    echo -e "route_URL:${route_URL}\nstatus_URL:${status_URL}"
+
+    sleep 10
     
-    sleep 5
-    
+    route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
     status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
 
     if ! [[ "${status_URL}" == "modified" ]]; then
