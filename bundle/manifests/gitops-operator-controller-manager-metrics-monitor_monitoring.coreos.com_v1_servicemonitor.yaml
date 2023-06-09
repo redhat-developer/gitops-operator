@@ -1,17 +1,14 @@
-
-# Prometheus Monitor Service (Metrics)
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
     control-plane: gitops-operator
-  name: controller-manager-metrics-monitor
-  namespace: system
+  name: gitops-operator-controller-manager-metrics-monitor
 spec:
   endpoints:
-    - interval: 10s
-      port: default-metrics
-      scheme: http
+  - interval: 10s
+    port: default-metrics
+    scheme: http
   selector:
     matchLabels:
       control-plane: gitops-operator
