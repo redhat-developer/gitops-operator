@@ -314,19 +314,7 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err == nil {
-		// The Argo CD instance exists, so update, then delete it
-
-		reqLogger.Info("Patching ArgoCD finalizer for " + existingArgoCD.Name)
-
-		// Remove the finalizer, so it can be deleted
-		existingArgoCD.Finalizers = []string{}
-		if err := r.Client.Update(context.TODO(), existingArgoCD); err != nil {
-			return err
-		}
-
-		reqLogger.Info("Deleting ArgoCD finalizer for " + existingArgoCD.Name)
-
-		// Delete the existing ArgoCD instance
+		// The default Argo CD instance exists, delete it.
 		if err := r.Client.Delete(context.TODO(), existingArgoCD); err != nil {
 			return err
 		}
