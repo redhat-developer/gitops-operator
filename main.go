@@ -187,3 +187,5 @@ func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) err
 	}
 	setupLog.Info(fmt.Sprintf("Component registered: %v", reflect.ValueOf(f)))
 }
+
+//DO NOT MERGE, This change is made for testing CI behaviour
