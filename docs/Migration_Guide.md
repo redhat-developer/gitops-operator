@@ -105,3 +105,5 @@ This is not recommended for the following reasons.
 
 1. They are not supported by Red Hat.
 2. GitOps operator fails to install in a Disconnected or Air-gapped clusters.
+
+# DO NOT MERGE, This change is made for testing CI behaviour
