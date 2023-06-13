@@ -3,3 +3,5 @@
 This image is meant to be used as build root for tests on [OpenShift CI](https://github.com/openshift/release/blob/master/ci-operator/config/openshift/odo/redhat-developer-odo-master.yaml)
 You can find out more in the [
 ](https://github.com/openshift/ci-operator/blob/master/CONFIGURATION.md)
+
+# DO NOT MERGE, This change is made for testing CI behaviour
