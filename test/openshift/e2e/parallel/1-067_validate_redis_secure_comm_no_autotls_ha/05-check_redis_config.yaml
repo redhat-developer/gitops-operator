@@ -26,10 +26,10 @@ commands:
 
     for config in "${expected_redis_config[@]}"
     do
-      oc exec -it pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/redis.conf
+      oc exec -i pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/redis.conf
     done
 
     for config in "${expected_sentinel_config[@]}"
     do
-      oc exec -it pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/sentinel.conf
+      oc exec -i pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/sentinel.conf
     done

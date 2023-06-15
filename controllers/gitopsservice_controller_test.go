@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
-	consolepluginv1 "github.com/openshift/api/console/v1alpha1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -245,10 +244,10 @@ func TestReconcile(t *testing.T) {
 	assert.DeepEqual(t, deploy.Spec.Template.Spec.Containers[0].Image, backendImage)
 
 	// Check if plugin instance is created in openshift-gitops namespace
-	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	consolePlugin := &consolev1.ConsolePlugin{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 	assertNoError(t, err)
-	assert.DeepEqual(t, consolePlugin.Spec.Service.Name, gitopsPluginName)
+	assert.DeepEqual(t, consolePlugin.Spec.Backend.Service.Name, gitopsPluginName)
 
 	pluginDeploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
@@ -310,7 +309,7 @@ func TestReconcile_consoleAPINotFound(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check consolePlugin and other resources are not created
-	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	consolePlugin := &consolev1.ConsolePlugin{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 	assert.Error(t, err, "consoleplugins.console.openshift.io \"gitops-plugin\" not found")
 
@@ -342,7 +341,7 @@ func TestReconcile_ocpVersionLowerThan4_15(t *testing.T) {
 	assertNoError(t, err)
 
 	// Check consolePlugin and other resources are not created
-	consolePlugin := &consolepluginv1.ConsolePlugin{}
+	consolePlugin := &consolev1.ConsolePlugin{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, consolePlugin)
 	assert.Error(t, err, "consoleplugins.console.openshift.io \"gitops-plugin\" not found")
 
@@ -401,6 +400,96 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	assert.Equal(t, resources.Requests[corev1.ResourceMemory], resourcev1.MustParse("128Mi"))
 	assert.Equal(t, resources.Limits[corev1.ResourceCPU], resourcev1.MustParse("500m"))
 	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
+}
+
+func TestReconcile_BackendSecurityContext(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	// Testing on OCP versions < 4.11.0
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.10.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	// Testing on OCP versions < 4.11.0
+	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	reconciler = newReconcileGitOpsService(fakeClient, s)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment = appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+	want := &corev1.SecurityContext{
+		AllowPrivilegeEscalation: util.BoolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
+		RunAsNonRoot: util.BoolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	assert.DeepEqual(t, securityContext, want)
+}
+
+func TestReconcile_KamSecurityContext(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	util.SetConsoleAPIFound(true)
+	defer util.SetConsoleAPIFound(false)
+
+	// Testing on OCP versions < 4.11.0
+	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	// Testing on OCP versions < 4.11.0
+
+	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	reconciler = newReconcileGitOpsService(fakeClient, s)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment = appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+
+	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+	want := &corev1.SecurityContext{
+		AllowPrivilegeEscalation: util.BoolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
+		RunAsNonRoot: util.BoolPtr(true),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+	assert.DeepEqual(t, securityContext, want)
 }
 
 func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
@@ -561,7 +650,7 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
 	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsoleCLIDownload{})
 	scheme.AddKnownTypes(routev1.GroupVersion, &routev1.Route{})
-	scheme.AddKnownTypes(consolepluginv1.GroupVersion, &consolepluginv1.ConsolePlugin{})
+	scheme.AddKnownTypes(consolev1.GroupVersion, &consolev1.ConsolePlugin{})
 }
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {

@@ -71,7 +71,7 @@ mode. You could update your image "payload" and re-install the operator.
 Set the base image and version for building operator, bundle and index images.
 
 ```
-export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=0.0.4
+export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=1.8.0
 ```
 
 1. Build and push the operator image.
@@ -123,3 +123,11 @@ The Index image powers the listing of the Operator on OperatorHub.
 ## Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
 
 Please follow the steps mentioned in the doc to migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator.
+
+## Progressive Delivery
+
+OpenShift GitOps from release v1.9.0 supports progressive delivery using [Argo Rollouts](https://argo-rollouts.readthedocs.io/en/stable/).
+
+Users can enable progressive delivery by using a new type of CRD called `RolloutManager`. A detailed usage guide for this new CRD is available [here](https://argo-rollouts-manager.readthedocs.io/en/latest/crd_reference/).
+
+

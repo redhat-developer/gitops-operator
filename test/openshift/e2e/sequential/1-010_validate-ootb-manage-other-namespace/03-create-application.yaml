@@ -15,3 +15,5 @@ spec:
     namespace: test-1-10-custom
   syncPolicy:
     automated: {}
+    retry:
+      limit: 5
