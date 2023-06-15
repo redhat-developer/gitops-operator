@@ -1,3 +1,5 @@
+# Testing CI on v1.9 branch
+
 # OpenShift GitOps  Operator
 
 An operator that gets you an Argo CD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
