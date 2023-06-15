@@ -1,3 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitops-operator-controller-manager
+  namespace: openshift-operators
+status:
+  readyReplicas: 1
+  replicas: 1
+  availableReplicas: 1
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:

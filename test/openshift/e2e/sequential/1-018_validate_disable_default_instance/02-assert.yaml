@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitops-operator-controller-manager
+  namespace: openshift-operators
+status:
+  readyReplicas: 1
+  replicas: 1
+  availableReplicas: 1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster
+  namespace: openshift-gitops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kam
+  namespace: openshift-gitops
