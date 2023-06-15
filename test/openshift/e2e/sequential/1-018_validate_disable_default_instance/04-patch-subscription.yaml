@@ -12,3 +12,4 @@ commands:
       oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     fi
+- script: sleep 120
