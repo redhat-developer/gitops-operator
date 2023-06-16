@@ -22,8 +22,8 @@ roleRef:
   kind: Role
   name: openshift-gitops_test-1-24-custom
 subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-server
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-application-controller
-  namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-server
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-application-controller
+    namespace: openshift-gitops

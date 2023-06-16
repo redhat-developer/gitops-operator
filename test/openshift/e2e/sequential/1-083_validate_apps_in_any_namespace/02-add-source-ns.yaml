@@ -1,4 +1,3 @@
-
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
@@ -6,4 +5,4 @@ metadata:
   namespace: openshift-gitops
 spec:
   sourceNamespaces:
-  - test-1-24-custom
+    - test-1-24-custom

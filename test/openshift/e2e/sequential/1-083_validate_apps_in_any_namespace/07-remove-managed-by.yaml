@@ -1,10 +1,6 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: oc label ns test-1-24-custom argocd.argoproj.io/managed-by-
-- script: oc rollout restart deployment.apps/openshift-gitops-server -n openshift-gitops
-- script: oc rollout restart statefulset.apps/openshift-gitops-application-controller -n openshift-gitops
-- script: sleep 5
-timeout: 1200
-error:
-- errors.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-1-24-custom
+  labels:
+    argocd.argoproj.io/managed-by: null

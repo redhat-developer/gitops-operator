@@ -57,9 +57,9 @@ roleRef:
   kind: Role
   name: openshift-gitops-argocd-application-controller
 subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-application-controller
-  namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-application-controller
+    namespace: openshift-gitops
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -71,9 +71,9 @@ roleRef:
   kind: Role
   name: openshift-gitops-argocd-grafana
 subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-grafana
-  namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-grafana
+    namespace: openshift-gitops
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -85,9 +85,9 @@ roleRef:
   kind: Role
   name: openshift-gitops-argocd-redis
 subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-redis
-  namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-redis
+    namespace: openshift-gitops
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -99,6 +99,6 @@ roleRef:
   kind: Role
   name: openshift-gitops-argocd-server
 subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-server
-  namespace: openshift-gitops
+  - kind: ServiceAccount
+    name: openshift-gitops-argocd-server
+    namespace: openshift-gitops
