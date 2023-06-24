@@ -1,3 +1,4 @@
+---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
@@ -5,7 +6,9 @@ metadata:
 status:
   phase: Available
 ---
-apiVersion: v1
-kind: ServiceAccount
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: example-argocd-argocd-dex-server
+  name: example-argocd-applicationset-controller
+status:
+  readyReplicas: 1

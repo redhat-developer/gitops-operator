@@ -1,8 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: argocd-component-status-alert
-  namespace: openshift-gitops
 spec:
   groups:
     - name: ArgoCDComponentStatus
