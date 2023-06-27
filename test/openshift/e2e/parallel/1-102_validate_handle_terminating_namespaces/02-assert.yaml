@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: gitops-service-argocd
+  namespace: gitops-service-argocd
+status:
+  phase: Available
+---
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: jane
+  labels:
+    argocd.argoproj.io/managed-by: gitops-service-argocd
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config-map-2
+  namespace: jane
+  finalizers:
+  - some.random/finalizer

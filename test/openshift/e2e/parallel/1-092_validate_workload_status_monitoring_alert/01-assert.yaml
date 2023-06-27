@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-component-status-alert
+spec:
+  groups:
+    - name: ArgoCDComponentStatus
+      rules:
+        - alert: ApplicationControllerNotReady
+          for: 1m
+          labels:
+            severity: critical
+        - alert: ServerNotReady
+          for: 1m
+          labels:
+            severity: critical
+        - alert: RepoServerNotReady
+          for: 1m
+          labels:
+            severity: critical
+        - alert: ApplicationSetControllerNotReady
+          for: 5m
+          labels:
+            severity: warning
+        - alert: DexNotReady
+          for: 5m
+          labels:
+            severity: warning
+        - alert: NotificationsControllerNotReady 
+          for: 5m
+          labels:
+            severity: warning
+        - alert: RedisNotReady 
+          for: 5m
+          labels:
+            severity: warning
