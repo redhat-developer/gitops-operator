@@ -1436,7 +1436,6 @@ If you find any issues with respect to pods moving into pending state or error s
 
 ## Upgrade GitOps Operator to v1.10 (GA)
 
-GitOps Operator v1.10 introduces breaking changes in SSO configurations. `.spec.dex` field in argocd cr is no longer supported to configure dex. If you are using `.spec.dex`, please update your argocd cr to use new fields `.spec.sso.dex` & `.spec.sso.provider` for dex configurations before upgrading to v1.10.  
-
+GitOps Operator v1.10 introduces breaking changes in SSO configurations. `.spec.dex`, `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields in ArgoCD CR are no longer supported to configure dex/keycloak SSO. If you are using these fields, please update your ArgoCD CR to use equivalent fields under `.spec.sso` for dex/keycloak SSO configurations before upgrading to v1.10.  
 
 Refer [Working with Dex](#working-with-dex) section for more details. 
