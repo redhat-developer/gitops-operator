@@ -2,6 +2,12 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    oc patch -n openshift-operators subscription gitops-operator \
-      --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": "true"}]}}}'
+    if [ -z $CI ]; then 
+      oc patch -n openshift-operators subscription openshift-gitops-operator \
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": "true"}]}}}'
+    else
+      oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEX", "value": "true"}]}}}'
+    fi
+      
 - script: sleep 30
