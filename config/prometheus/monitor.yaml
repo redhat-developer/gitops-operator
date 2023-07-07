@@ -4,17 +4,19 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    control-plane: argocd-operator
-  name: controller-manager-metrics-monitor
+    control-plane: gitops-operator
+  name: metrics-monitor
   namespace: system
 spec:
   endpoints:
-    - path: /metrics
-      port: https
+    - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      path: /metrics
+      interval: 30s
+      port: metrics
       scheme: https
-      bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
-        insecureSkipVerify: true
+        caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+        serverName: openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc
   selector:
     matchLabels:
-      control-plane: argocd-operator
+      control-plane: gitops-operator
