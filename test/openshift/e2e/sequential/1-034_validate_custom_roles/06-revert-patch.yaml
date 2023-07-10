@@ -3,8 +3,8 @@ kind: TestStep
 commands:
 - script: |
     if ! [ -z $CI ]; then 
-        oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
+        oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
     else
-        oc patch subscription/openshift-gitops-operator -n openshift-operators --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
+        oc patch subscription/openshift-gitops-operator -n openshift-gitops-operator --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
     fi
 - script: sleep 10

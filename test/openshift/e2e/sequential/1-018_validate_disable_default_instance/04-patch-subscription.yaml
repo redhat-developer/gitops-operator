@@ -5,11 +5,11 @@ commands:
 - script: |
     if [ -z $CI ]; then 
 
-      oc patch -n openshift-operators subscription openshift-gitops-operator \
+      oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     else
     
-      oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+      oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     fi
 - script: sleep 120

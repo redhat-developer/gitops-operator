@@ -5,11 +5,11 @@ commands:
     set -eo pipefail
 
     # Get CSV name and also OCP version.
-    csv_name=$(oc get csv -n openshift-operators | awk '/gitops-operator/ {print $1}')
+    csv_name=$(oc get csv -n openshift-gitops-operator | awk '/gitops-operator/ {print $1}')
     ocp_version=$(oc version | awk '/Server Version/ {split($3,a,"-"); print a[1]}')
 
     # Patch the CSV to add the necessary env key:value for Dynamic Plugin
-    oc patch csv "${csv_name}" -n openshift-operators \
+    oc patch csv "${csv_name}" -n openshift-gitops-operator \
     --type='json' \
     -p='[{
           "op": "add",
