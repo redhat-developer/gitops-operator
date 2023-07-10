@@ -3,7 +3,7 @@ kind: TestStep
 commands:
 - script: |
     if [ -z $CI ]; then
-        oc -n openshift-operators patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+        oc -n openshift-gitops-operator patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
     else
-        oc -n openshift-operators patch subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+        oc -n openshift-gitops-operator patch subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
     fi
