@@ -3,8 +3,8 @@ kind: TestStep
 delete:
 - apiVersion: v1
   kind: Namespace
-  name: test-1-27-custom
+  name: test-1-64-custom
 - apiVersion: argoproj.io/v1alpha1
   kind: Application
-  name: 1-27-argocd
+  name: 1-64-argocd
   namespace: openshift-gitops

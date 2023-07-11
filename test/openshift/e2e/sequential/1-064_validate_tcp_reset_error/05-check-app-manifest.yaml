@@ -22,7 +22,7 @@ commands:
     fi
 
     # Execute 'argocd app manifest' and check the 'read tcp' error
-    app_manifests=$(argocd app manifests 1-27-argocd --source git --revision HEAD)
+    app_manifests=$(argocd app manifests 1-64-argocd --source git --revision HEAD)
     if [[ "${app_manifests}" =~ 'Original error: read tcp' ]]; then
       echo "ERROR: TCP reset error is present in this code"
       exit 2

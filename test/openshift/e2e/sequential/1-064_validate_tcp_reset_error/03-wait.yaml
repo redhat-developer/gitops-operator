@@ -32,4 +32,4 @@ commands:
       return 1
     }
     
-    wait_until_pods_running "test-1-27-custom"
+    wait_until_pods_running "test-1-64-custom"

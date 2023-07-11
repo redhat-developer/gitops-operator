@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: guestbook
-  namespace: test-1-27-custom
+  namespace: test-1-64-custom
 spec:
   project: default
   source:
@@ -11,7 +11,7 @@ spec:
     targetRevision: HEAD
   destination:
     server: https://kubernetes.default.svc
-    namespace: test-1-27-custom
+    namespace: test-1-64-custom
   syncPolicy:
     automated: {}
     retry:

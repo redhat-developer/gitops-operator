@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: 1-27-argocd
+  name: 1-64-argocd
   namespace: openshift-gitops
 spec:
   project: default
