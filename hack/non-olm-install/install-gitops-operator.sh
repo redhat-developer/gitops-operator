@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-NAMESPACE_PREFIX=${NAMESPACE_PREFIX:-"gitops-operator-"}
+NAMESPACE=${NAMESPACE:-"openshift-gitops-operator"}
+NAME_PREFIX=${NAME_PREFIX:-"openshift-gitops-operator-"}
 GIT_REVISION=${GIT_REVISION:-"master"}
 MAX_RETRIES=3
 
@@ -59,15 +60,15 @@ function print_help() {
 function check_pod_status_ready() {
   # Wait for the deployment rollout to complete before trying to list the pods
   # to ensure that only pods corresponding to the new version is considered.
-  ${KUBECTL} rollout status deploy -n ${NAMESPACE_PREFIX}system --timeout=5m
+  ${KUBECTL} rollout status deploy -n ${NAMESPACE} --timeout=5m
   for binary in "$@"; do
-    pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "$binary");
+    pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n ${NAMESPACE} | grep "$binary");
     if [ ! -z "$pod_name" ]; then
       echo "[DEBUG] Pod name : $pod_name";
-      ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
+      ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE} --timeout=150s;
       if [ $? -ne 0 ]; then
         echo "[INFO] Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
-        ${KUBECTL} logs $pod_name -n ${NAMESPACE_PREFIX}system --all-containers;
+        ${KUBECTL} logs $pod_name -n ${NAMESPACE} --all-containers;
         echo "[ERROR] Install/Upgrade failed. Performing rollback to $PREV_IMAGE";      
         rollback
       fi
@@ -140,8 +141,8 @@ function create_kustomization_init_file() {
   echo "[INFO] Creating kustomization.yaml file using manifests from revision '${GIT_REVISION}'"
   echo "apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: ${NAMESPACE_PREFIX}system
-namePrefix: ${NAMESPACE_PREFIX}
+namespace: ${NAMESPACE}
+namePrefix: ${NAME_PREFIX}
 resources:
   - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION&timeout=90s
@@ -288,7 +289,7 @@ function check_and_install_prerequisites {
 # if so, stores the previous version which would be used for rollback in case of
 # a failure during installation.
 function get_prev_operator_image() {
-  for image in $(${KUBECTL} get deploy/gitops-operator-controller-manager -n ${NAMESPACE_PREFIX}system -o jsonpath='{..image}' 2>/dev/null)
+  for image in $(${KUBECTL} get deploy/openshift-gitops-operator-controller-manager -n ${NAMESPACE} -o jsonpath='{..image}' 2>/dev/null)
   do
     if [[ "${image}" == *"operator"* ]]; then
       PREV_OPERATOR_IMG="${image}"
@@ -418,9 +419,13 @@ function main() {
         prepare_kustomize_files
 	print_info
         echo "[INFO] Performing $MODE operation for openshift-gitops-operator..."
+        if [[ $MODE == "Install" ]]; then 
+          ${KUBECTL} create ns ${NAMESPACE}
+          ${KUBECTL} label ns ${NAMESPACE} openshift.io/cluster-monitoring=true
+        fi
         apply_kustomize_manifests
         # Check pod status and rollback if necessary.
-        check_pod_status_ready gitops-operator-controller-manager 
+        check_pod_status_ready openshift-gitops-operator-controller-manager 
         exit 0
         ;;
     --uninstall | -u)
@@ -433,6 +438,7 @@ function main() {
         # Remove the GitOpsService instance created for the default
         # ArgoCD instance created in openshift-gitops namespace.
         ${KUBECTL} delete gitopsservice/cluster
+        ${KUBECTL} delete ns ${NAMESPACE}
         delete_kustomize_manifests
         exit 0
         ;;
