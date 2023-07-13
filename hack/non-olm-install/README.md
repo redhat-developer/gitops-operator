@@ -7,19 +7,25 @@
 The `install-gitops-operator.sh` script supports two methods of installation.
 1. Using operator and component images set as environment variables (default method)
 2. Derive the operator and component images from the `ClusterServiceVersion` manifest present in the operator bundle
-**Note**: This method requires podman or docker binary to be available in the PATH environment variable. Use environment variables `USE_BUNDLE_IMG`, `BUNDLE_IMG` and `DOCKER` for this method of installation
+**Note**: Use environment variables `USE_BUNDLE_IMG`, `BUNDLE_IMG` for this method of installation
 
 
 ### Known issues and work arounds
 
-1. Missing RBAC access to update CRs in `argoproj.io` domain 
+1. Missing RBAC access to update CRs in `argoproj.io` domain
 
-Issue: (Now fixed)
+Affected versions:
+- 1.7.4 and older versions
+- 1.8.3 and older versions
 
+Fixed versions:
+- 1.8.4 and later versions
+- 1.9.0 and later versions
+
+Issue:
 https://github.com/redhat-developer/gitops-operator/issues/148
 
 Workaround:
-
 Run the following script to create the required `ClusterRole` and `ClusterRoleBinding`
 
 ```
@@ -32,7 +38,7 @@ ${KUBECTL} apply -f https://raw.githubusercontent.com/redhat-developer/gitops-op
 **Note**: If the above binaries are not present, the script installs them to temporary work directory and are removed once the script execution is complete.
 - bash (v5.0 or later)
 - git (v2.39.1 or later)
-- podman (v4.4.4 or later) or docker (Note: Required only if operator and component images need to be derived from a bundle image)
+- wget (v1.21.3 or later)
 
 ### Environment Variables
 The following environment variables can be set to configure various options for the installation/uninstallation process.
@@ -49,7 +55,6 @@ The following environment variables can be set to configure various options for 
 | **IMAGE_PREFIX** | Prefix used for internal images from rh-osbs org in the registry which generally is prefixed with the target organization name | "" |
 | **USE_BUNDLE_IMG** | If the operator image and other component image needs to be derived from a bundle image, set this flag to true. | false |
 | **BUNDLE_IMG** | used only when USE_BUNDLE_IMG is set to true | `${OPERATOR_REGISTRY}/openshift-gitops-1/gitops-operator-bundle:${GITOPS_OPERATOR_VER}` |
-| **DOCKER** | used only when USE_BUNDLE_IMG is set to true. CLI binary to be used for extracting ClusterServiceVersion manifest from the Bundle Image | podman |
 
 #### Variables for 3rd party tools used in the script
 | Environment | Description |Default Value |
@@ -57,6 +62,7 @@ The following environment variables can be set to configure various options for 
 | **KUSTOMIZE_VERSION** | Version of kustomize binary to be installed if not found in PATH | v4.5.7 |
 | **KUBECTL_VERSION** | Version of the kubectl client binary to be installed if not found in PATH | v1.26.0 |
 | **YQ_VERSION** | Version of the yq binary to be installed if not found in PATH | v4.31.2 |
+| **REGCTL_VERSION** | Version of the regctl binary to be installed if not found in PATH  | v0.4.8 |
 
 #### Variables for Component Image Overrides
 | Environment | Description |Default Value |
@@ -85,13 +91,14 @@ The following environment variables can be set to configure various options for 
 #### Usage
 
 ```
-install-gitops-operator.sh [--install|-i] [--uninstall|-u] [--help|-h]
+install-gitops-operator.sh [--install|-i] [--uninstall|-u] [--migrate|-m] [--help|-h]
 ```
 
 | Option | Description |
 | -------| ----------- |
 | --install, -i | installs the openshift-gitops-operator if no previous version is found, else updates (upgrade/dowgrade) the existing operator |
 | --uninstall, -u | uninstalls the openshift-gitops-operator |
+| --migrate, -m | migrates from an OLM based installation to non OLM manifests based installation|
 | --help, -h | prints the help message |
 
 #### Local Run
@@ -112,6 +119,17 @@ The below command installs the latest available openshift-gitops-operator versio
 [or]
 ```
 ./install-gitops-operator.sh --uninstall
+```
+
+##### Migration
+To migrate from an OLM based installation to the latest version using non OLM manifests based installation, run the following command.
+```
+./install-gitops-operator.sh -m
+
+```
+[or]
+```
+./install-gitops-operator.sh --migrate
 ```
 
 #### Running it from a remote URL
@@ -180,5 +198,16 @@ rm -f ${oldauth} ${newauth}
 
 ###### Install the nightly operator bundle
 ```
-OPERATOR_REGISTRY=brew.registry.redhat.io OPERATOR_REGISTRY_ORG=rh-osbs GITOPS_OPERATOR_VER=v99.9.0-88 IMAGE_PREFIX="openshift-gitops-1-" ./install-gitops-operator.sh -i
+OPERATOR_REGISTRY=brew.registry.redhat.io OPERATOR_REGISTRY_ORG=rh-osbs GITOPS_OPERATOR_VER=v99.9.0-<build_number> IMAGE_PREFIX="openshift-gitops-1-" ./install-gitops-operator.sh -i
+```
+
+###### Uninstall the nightly operator bundle
+```
+./install-gitops-operator.sh -u
+```
+
+##### Migrate from an OLM based install to non-OLM based installation (nightly-build)
+
+```
+OPERATOR_REGISTRY=brew.registry.redhat.io OPERATOR_REGISTRY_ORG=rh-osbs IMAGE_PREFIX=openshift-gitops-1- GITOPS_OPERATOR_VER=v99.9.0-<build_number> ./install-gitops-operator.sh -m
 ```
