@@ -2,7 +2,16 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    if [ -z $CI ]; then
+    if ! [ -z $NON_OLM ]; then
+      label_value=$(oc get  deployment gitops-operator-controller-manager -n gitops-operator-system -o json | jq '.spec.template.spec.containers[]|select(.name=="manager")|.env[] | select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK")|.value')
+      if ! [[ "${label_value}" == '"true"' ]]; then
+        echo "Label value: $label_value"
+        echo "DISABLE_DEFAULT_ARGOCD_CONSOLELINK not set"
+        exit 1
+      else
+        exit 0
+      fi
+    elif [ -z $CI ]; then
       label_value=$(oc get  subscriptions openshift-gitops-operator -n openshift-operators -o json | jq '.spec.config.env[]|select(.name=="DISABLE_DEFAULT_ARGOCD_CONSOLELINK").value')
       if ! [[ "${label_value}" == '"true"' ]]; then
         echo "Label value: $label_value"
