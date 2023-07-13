@@ -4,7 +4,12 @@ commands:
 # patches the subscription to set the environment variable
 - script: |
     set -e
-    if [ -z $CI ]; then 
+
+    if ! [ -z $NON_OLM ]; then       
+        oc patch deployment gitops-operator-controller-manager -n gitops-operator-system \
+          -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION","value":"true"}]}]}}}}'     
+    
+    elif [ -z $CI ]; then 
 
       oc patch -n openshift-operators subscription openshift-gitops-operator \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "value": "true"}]}}}'
