@@ -6,6 +6,8 @@ commands:
     oc patch route example-argocd-server -n $NAMESPACE --type='json' -p='[{"op": "replace", "path": "/spec/host", "value":"modified"}]'
     status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
 
+    sleep 5
+
     if ! [[ "${status_URL}" == "modified" ]]; then
       echo "status.host value should be "modified""
       exit 1
