@@ -122,6 +122,21 @@ e2e-tests-parallel:
 	@echo "Running GitOps Operator parallel E2E tests..."
 	. ./scripts/run-kuttl-tests.sh  parallel
 
+.PHONY: e2e-non-olm-tests-sequential
+e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
+	@echo "Running Non-OLM GitOps Operator sequential E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t sequential
+
+.PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-non-olm-tests-parallel:
+	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel	
+
+.PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-non-olm-tests-all:
+	@echo "Running Non-OLM GitOps Operator E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all		
+
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
