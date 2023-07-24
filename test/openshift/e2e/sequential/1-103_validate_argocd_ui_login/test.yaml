@@ -1,0 +1,35 @@
+# test.yaml
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+metadata:
+  name: argocd-ui-login-test
+spec:
+  tests:
+    - name: argocd-ui-login-test
+      steps:
+        - name: setup
+          config:
+            action: create
+            manifests:
+              - install.yaml
+
+        - name: port-forward-argocd
+          config:
+            action: run
+            command: ["kubectl", "port-forward", "-n", "argocd", "deployment/argocd-server", "8080"]
+
+        - name: login-argocd-ui
+          config:
+            action: run
+            command: ["docker", "run", "--rm", "--network", "host", "your-cypress-image"]
+
+        - name: validate-argocd-ui-login
+          config:
+            action: run
+            command: ["argocd", "account", "get"]
+
+        - name: cleanup
+          config:
+            action: delete
+            manifests:
+              - install.yaml
