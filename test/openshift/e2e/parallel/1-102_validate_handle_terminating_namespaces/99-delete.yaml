@@ -1,0 +1,12 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch cm/my-config-map-2 -n jane --type json --patch='[ { "op": "remove", "path": "/metadata/finalizers" }]']
+delete:
+- apiVersion: v1
+  kind: Namespace
+  name: gitops-service-argocd
+- apiVersion: v1
+  kind: Namespace
+  name: john
