@@ -6,7 +6,7 @@ commands:
     set -o pipefail
 
     # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-    expected_kustomizeVersion='kustomize/v4.5.7'
+    expected_kustomizeVersion='v5.0.1'
     expected_helmVersion='v3.10.0'
     expected_argocdVersion='v2.6.1'
     expected_dexVersion='v2.35.1'
@@ -34,9 +34,7 @@ commands:
     )
 
     kustomizeVersion=$(oc -n openshift-gitops exec $gitops_server_pod \
-      -- kustomize version | \
-      awk -F':' '{ print $2 }' | \
-      awk '{ print $1 }'
+      -- kustomize version
     )
     helmVersion=$(oc -n openshift-gitops exec $gitops_server_pod \
       -- helm version | \
