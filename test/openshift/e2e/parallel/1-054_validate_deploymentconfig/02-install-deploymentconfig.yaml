@@ -18,7 +18,7 @@ commands:
       source:
         repoURL: https://github.com/redhat-developer/gitops-operator
         path: test/examples/deploymentconfig-example
-        targetRevision: deploymentconfig_2-replicas
+        targetRevision: "HEAD"
       destination:
         server: https://kubernetes.default.svc
         namespace: ${NAMESPACE}
