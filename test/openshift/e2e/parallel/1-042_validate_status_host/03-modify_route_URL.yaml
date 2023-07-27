@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch route example-argocd-server -n $NAMESPACE --type='json' -p='[{"op": "replace", "path": "/spec/host", "value":"modified-route"}]'

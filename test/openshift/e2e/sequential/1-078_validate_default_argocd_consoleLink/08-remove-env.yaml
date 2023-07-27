@@ -2,8 +2,17 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
+<<<<<<< HEAD
     if [ -z $CI ]; then
         oc -n openshift-gitops-operator patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+=======
+    if ! [ -z $NON_OLM ]; then
+      oc patch deployment gitops-operator-controller-manager -n gitops-operator-system \
+        -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"DISABLE_DEFAULT_ARGOCD_CONSOLELINK","value":null}]}]}}}}'
+    
+    elif [ -z $CI ]; then
+        oc -n openshift-operators patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+>>>>>>> e3dbee6a84368cfdc6898cb514d45f1ba0035325
     else
         oc -n openshift-gitops-operator patch subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
     fi
