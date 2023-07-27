@@ -1,0 +1,7 @@
+nameReference:
+  - kind: ConfigMap 
+    fieldSpecs:
+      - path: metadata/annotations/foo
+        kind: ConfigMap
+        version: v1
+
