@@ -3,4 +3,5 @@ kind: ArgoCD
 metadata:
   name: example-argocd
 status:
-  host: modified
+  phase: Available
+  host: modified-route
