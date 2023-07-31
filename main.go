@@ -90,10 +90,11 @@ func main() {
 
 	var enableHTTP2 = false
 
-	var labelSelector string
+	var labelSelectorFlag string
+	var labelSelector map[string]string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&labelSelector, "label-selector", "", "The label selector is used to map to a subset of ArgoCD instances to reconcile")
+	flag.StringVar(&labelSelectorFlag, "label-selector", "", "The label selector is used to map to a subset of ArgoCD instances to reconcile")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -188,9 +189,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	key, value, isFound := strings.Cut(labelSelectorFlag, "=")
+	if !isFound {
+		// In case the labelSelector is not in the expected format, return an empty string or handle the error accordingly
+		setupLog.Error(nil, "Label Selector not found or Invalid Label Slector format")
+		os.Exit(1)
+	}
+	labelSelector[key] = value
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		LabelSelector: labelSelector,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
