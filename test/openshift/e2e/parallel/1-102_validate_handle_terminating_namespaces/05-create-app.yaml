@@ -9,8 +9,8 @@ spec:
     server: https://kubernetes.default.svc
   project: default
   source:
-    path: kustomize-guestbook
-    repoURL: https://github.com/argoproj/argocd-example-apps
+    repoURL: https://github.com/redhat-developer/gitops-operator
+    path: test/examples/kustomize-guestbook
     targetRevision: master
   syncPolicy:
     automated:
