@@ -46,6 +46,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"
         - "--leader-elect"
+        - "--label-selector"
       volumes:
         # Secret created by the service CA operator.
         # We assume that the Kubernetes service exposing the application's pods has the

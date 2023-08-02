@@ -29,7 +29,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 
@@ -38,6 +37,7 @@ import (
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -71,11 +71,6 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-type Options struct {
-	// Existing fields...
-	LabelSelector labels.Selector
-}
-
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -91,10 +86,9 @@ func main() {
 	var enableHTTP2 = false
 
 	var labelSelectorFlag string
-	var labelSelector map[string]string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&labelSelectorFlag, "label-selector", "", "The label selector is used to map to a subset of ArgoCD instances to reconcile")
+	flag.StringVar(&labelSelectorFlag, "label-selector", env.StringFromEnv(common.LabelSelector, common.DefaultLabelSelector), "The label selector is used to map to a subset of ArgoCD instances to reconcile")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -189,18 +183,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	key, value, isFound := strings.Cut(labelSelectorFlag, "=")
-	if !isFound {
-		// In case the labelSelector is not in the expected format, return an empty string or handle the error accordingly
-		setupLog.Error(nil, "Label Selector not found or Invalid Label Slector format")
-		os.Exit(1)
-	}
-	labelSelector[key] = value
-
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
-		LabelSelector: labelSelector,
+		LabelSelector: labelSelectorFlag,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)

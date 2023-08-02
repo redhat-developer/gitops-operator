@@ -32,6 +32,8 @@ spec:
           value: openshift-gitops
         - name: OPERATOR_NAME
           value: gitops-operator
+        - name : LABEL_SELECTOR
+          value: ""
         image: controller:latest
         livenessProbe:
           httpGet:
