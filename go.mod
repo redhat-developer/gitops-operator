@@ -2,11 +2,9 @@ module github.com/redhat-developer/gitops-operator
 
 go 1.19
 
-replace github.com/argoproj-labs/argocd-operator => github.com/svghadi/argocd-operator v0.0.0-20230612051127-233f0987da71
-
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230821055237-11299b7d576b
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9

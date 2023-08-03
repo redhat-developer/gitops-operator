@@ -111,8 +111,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5 h1:SlFbeNb42H7DUGzE9B/uYYjlQjNSR4y+eaWiTqN3PGs=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5/go.mod h1:AiEjAr6e/DCDiicjoC7W7LaZdO28sfgoBhjbGryzEZ8=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce h1:GuZLI2a4qTQVT4ZPKX4fPQgtAWiiOUaQ0Hqpnri6RLM=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce/go.mod h1:5gJtEVwehEm9qt4Wi76Dyyi6Y36XHLkNNJ1EKrthZTg=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230821055237-11299b7d576b h1:E0BF57WSwouOvOGddWc8W0N7Y1qJoHKPpDOeUXo0mGw=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230821055237-11299b7d576b/go.mod h1:uW/di9dFQ5//lSHFYtBrK6k2cJfgQ9qS3sIvND9ONNo=
 github.com/argoproj/argo-cd/v2 v2.7.6 h1:AKRQm0fLGgBmKQILrpc/2PZM2WYlfCP5tquU6DqDudU=
 github.com/argoproj/argo-cd/v2 v2.7.6/go.mod h1:uRU//iTjnzlCs+hKOKo5Na2OZGNTlklnu/g9Wi4enh4=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -1107,8 +1107,6 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ8=
 github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/svghadi/argocd-operator v0.0.0-20230612051127-233f0987da71 h1:XhcvE0R1iw87FvmxNbnHY22tH6+6DQPM5JbE5w3pkdM=
-github.com/svghadi/argocd-operator v0.0.0-20230612051127-233f0987da71/go.mod h1:AfoHTRFS43YO25blmzicubPOIgApAVtW+RFBwcb8cyM=
 github.com/syndtr/gocapability v0.0.0-20170704070218-db04d3cc01c8/go.mod h1:hkRG7XYTFWNJGYcbNJQlaLq0fg1yr4J4t/NcTQtrfww=
 github.com/thanos-io/thanos v0.11.0/go.mod h1:N/Yes7J68KqvmY+xM6J5CJqEvWIvKSR5sqGtmuD6wDc=
 github.com/tidwall/pretty v0.0.0-20180105212114-65a9db5fad51/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
