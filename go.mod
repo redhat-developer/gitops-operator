@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230602130515-9b15d5285e20
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
@@ -14,6 +14,7 @@ require (
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.8.2
+	go.uber.org/zap v1.24.0
 	golang.org/x/mod v0.10.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.27.1
@@ -33,7 +34,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/argoproj/argo-cd/v2 v2.7.1 // indirect
+	github.com/argoproj/argo-cd/v2 v2.7.6 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -75,7 +76,6 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
