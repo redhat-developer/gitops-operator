@@ -3,12 +3,12 @@ kind: ArgoCD
 metadata:
   name: example-argocd
   labels:
-    example: route
+    examples: route
 spec:
   sso:
-   provider: dex
-   dex:
-    openShiftOAuth: true
+    provider: dex
+    dex:
+      openShiftOAuth: true
   server:
     route:
       enabled: true
