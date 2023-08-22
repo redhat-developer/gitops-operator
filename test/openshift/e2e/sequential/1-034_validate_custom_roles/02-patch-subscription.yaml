@@ -14,7 +14,7 @@ commands:
 
     else
 
-      oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
+      oc patch -n openshift-operators subscription openshift-gitops-operator \
         --type merge --patch '{"spec": {"config": {"env": [{"name": "CONTROLLER_CLUSTER_ROLE", "value": "custom-argocd-role"},{"name": "SERVER_CLUSTER_ROLE", "value": "custom-argocd-role"}]}}}'
     
     fi
