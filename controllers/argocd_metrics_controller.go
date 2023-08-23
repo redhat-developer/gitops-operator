@@ -45,6 +45,7 @@ const (
 	readRoleBindingNameFormat = "%s-prometheus-k8s-read-binding"
 	alertRuleName             = "gitops-operator-argocd-alerts"
 	dashboardNamespace        = "openshift-config-managed"
+	dashboardFolder           = "dashboards"
 )
 
 type ArgoCDMetricsReconciler struct {
@@ -315,13 +316,12 @@ func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger
 		return nil
 	}
 
-	entries, err := dashboards.ReadDir("dashboards")
+	entries, err := dashboards.ReadDir(dashboardFolder)
 	if err != nil {
 		reqLogger.Error(err, "Could not read list of embedded dashboards")
 		return err
 	}
 
-	reqLogger.Info("Processing dashboards")
 	for _, entry := range entries {
 		reqLogger.Info("Processing dashboard", "Namespace", dashboardNamespace, "Name", entry.Name())
 
@@ -368,7 +368,7 @@ func newDashboard(filename string, namespace string) (*corev1.ConfigMap, error) 
 		},
 	}
 
-	content, err := dashboards.ReadFile("dashboards/" + filename)
+	content, err := dashboards.ReadFile(dashboardFolder + "/" + filename)
 	if err != nil {
 		return nil, err
 	}
