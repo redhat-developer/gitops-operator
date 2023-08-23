@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
@@ -285,5 +287,48 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].For, "5m")
 		expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", tc.namespace)
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Expr.StrVal, expr)
+	}
+}
+
+func TestReconciler_add_dashboard(t *testing.T) {
+
+	ns := corev1.Namespace{
+		ObjectMeta: v1.ObjectMeta{
+			Name: dashboardNamespace,
+		},
+	}
+
+	testCases := []struct {
+		instanceName string
+		namespace    string
+	}{
+		{
+			instanceName: argoCDInstanceName,
+			namespace:    "openshift-gitops",
+		},
+	}
+	for _, tc := range testCases {
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		// Need namespace for dashboards to be available before reconciling
+		err := r.Client.Create(context.TODO(), &ns)
+		assert.NilError(t, err)
+		_, err = r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
+		assert.NilError(t, err)
+
+		entries, err := dashboards.ReadDir(dashboardFolder)
+		assert.NilError(t, err)
+
+		for _, entry := range entries {
+			name := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			content, err := dashboards.ReadFile(dashboardFolder + "/" + entry.Name())
+			assert.NilError(t, err)
+
+			dashboard := &corev1.ConfigMap{}
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: dashboardNamespace}, dashboard)
+			assert.NilError(t, err)
+
+			assert.Assert(t, dashboard.ObjectMeta.Labels["console.openshift.io/dashboard"] == "true")
+			assert.Assert(t, dashboard.Data[entry.Name()] == string(content))
+		}
 	}
 }
