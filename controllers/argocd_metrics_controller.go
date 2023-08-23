@@ -311,7 +311,7 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger) error {
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: dashboardNamespace}, &corev1.Namespace{})
 	if err != nil {
-		reqLogger.Info("OpenShift monitoring is not installed, skipping dashboard installation",
+		reqLogger.Info("OpenShift dashboards are not installed, skipping dashboard installation",
 			"Namespace", dashboardNamespace)
 		return nil
 	}
