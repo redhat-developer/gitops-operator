@@ -165,7 +165,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, err
 	}
 
-	err = r.createDashboardsIfAbsent(reqLogger)
+	err = r.reconcileDashboards(reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -308,7 +308,7 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 	return err
 }
 
-func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger) error {
+func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) error {
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: dashboardNamespace}, &corev1.Namespace{})
 	if err != nil {
 		reqLogger.Info("Monitoring dashboards are not supported on this cluster, skipping dashboard installation",
