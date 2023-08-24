@@ -311,7 +311,7 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger) error {
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: dashboardNamespace}, &corev1.Namespace{})
 	if err != nil {
-		reqLogger.Info("OpenShift dashboards are not installed, skipping dashboard installation",
+		reqLogger.Info("Monitoring dashboards are not supported on this cluster, skipping dashboard installation",
 			"Namespace", dashboardNamespace)
 		return nil
 	}
@@ -326,7 +326,7 @@ func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger
 		reqLogger.Info("Processing dashboard", "Namespace", dashboardNamespace, "Name", entry.Name())
 
 		if !entry.IsDir() {
-			dashboard, err := newDashboard(entry.Name(), dashboardNamespace)
+			dashboard, err := newDashboardConfigMap(entry.Name(), dashboardNamespace)
 			if err != nil {
 				reqLogger.Info("There was an error creating dashboard ", "Namespace", dashboardNamespace, "Name", entry.Name())
 				return err
@@ -356,7 +356,7 @@ func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger
 	return nil
 }
 
-func newDashboard(filename string, namespace string) (*corev1.ConfigMap, error) {
+func newDashboardConfigMap(filename string, namespace string) (*corev1.ConfigMap, error) {
 
 	name := strings.TrimSuffix(filename, filepath.Ext(filename))
 
