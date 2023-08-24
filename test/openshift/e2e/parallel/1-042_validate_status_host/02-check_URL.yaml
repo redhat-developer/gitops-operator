@@ -1,0 +1,21 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    until [[ $i -eq 20 ]]
+    do
+      route_URL=$(oc get routes -o jsonpath="{.items[*]['spec.host']}" --field-selector metadata.name=example-argocd-server -n $NAMESPACE)
+      status_URL=$(oc get argocd -o jsonpath="{.items[*]['status.host']}" -n $NAMESPACE)
+
+      echo -e "route_URL:${route_URL}\nstatus_URL:${status_URL}"
+
+      if ! [[ "${status_URL}" == "${route_URL}" ]]; then
+        i=$((i+1))
+        sleep 6
+      else
+        exit 0 
+      fi
+    done
+
+    echo "Error: Route does not match"
+    exit 1

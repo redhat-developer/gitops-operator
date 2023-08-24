@@ -6,8 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/bluengo/argocd-apps-examples.git'
-    path: kustomize-example
+
+    repoURL: https://github.com/redhat-developer/gitops-operator.git
+    path: test/examples/kustomize-example
     targetRevision: HEAD
   destination:
     server: 'https://kubernetes.default.svc'
