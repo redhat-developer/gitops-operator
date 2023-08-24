@@ -349,7 +349,6 @@ func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) err
 					if err != nil {
 						reqLogger.Error(err, "Error updating dashboard",
 							"Namespace", dashboard.Namespace, "Name", dashboard.Name)
-						return err
 					}
 				}
 				continue
@@ -362,8 +361,6 @@ func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) err
 				if err != nil {
 					reqLogger.Error(err, "Error creating a new dashboard",
 						"Namespace", dashboard.Namespace, "Name", dashboard.Name)
-					// Should we return an error or continue with other dashboards?
-					return err
 				}
 			}
 		}
