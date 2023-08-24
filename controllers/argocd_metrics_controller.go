@@ -338,8 +338,23 @@ func (r *ArgoCDMetricsReconciler) createDashboardsIfAbsent(reqLogger logr.Logger
 			if err == nil {
 				reqLogger.Info("A dashboard instance already exists",
 					"Namespace", existingDashboard.Namespace, "Name", existingDashboard.Name)
+
+				// See if we need to reconcile based on dashboard data only to allow users
+				// to disable dashboard via label if so desired. Note that disabling it
+				// will be reset if dashboard changes in newer version of operator.
+				if existingDashboard.Data[entry.Name()] != dashboard.Data[entry.Name()] {
+					reqLogger.Info("Dashboard data does not match expectation, reconciling",
+						"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+					err := r.Client.Update(context.TODO(), dashboard)
+					if err != nil {
+						reqLogger.Error(err, "Error updating dashboard",
+							"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+						return err
+					}
+				}
 				continue
 			}
+
 			if errors.IsNotFound(err) {
 				reqLogger.Info("Creating new dashboard",
 					"Namespace", dashboard.Namespace, "Name", dashboard.Name)

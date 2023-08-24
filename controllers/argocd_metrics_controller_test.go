@@ -29,6 +29,7 @@ import (
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -292,9 +293,18 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 
 func TestReconciler_add_dashboard(t *testing.T) {
 
+	// Need to create openshift-config-managed namespace for dashboards
 	ns := corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: dashboardNamespace,
+		},
+	}
+
+	// Need to create one configmap to test update existing versus create
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "gitops-overview",
+			Namespace: dashboardNamespace,
 		},
 	}
 
@@ -309,9 +319,13 @@ func TestReconciler_add_dashboard(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
-		// Need namespace for dashboards to be available before reconciling
+		// Create dashboard namespace
 		err := r.Client.Create(context.TODO(), &ns)
 		assert.NilError(t, err)
+		// Create update test dashboard
+		err = r.Client.Create(context.TODO(), &cm)
+		assert.NilError(t, err)
+
 		_, err = r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
