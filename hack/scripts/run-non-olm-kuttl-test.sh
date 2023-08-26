@@ -54,8 +54,13 @@ done
 
 #replace the namespace for assert in test file
 
-sed -i 's/openshift-operators/gitops-operator-system/g' $temp_dir/sequential/1-018_validate_disable_default_instance/02-assert.yaml \
-  $temp_dir/sequential/1-035_validate_argocd_secret_repopulate/04-check_controller_pod_status.yaml
+if [ -d "$temp_dir/sequential/1-018_validate_disable_default_instance" ]; then
+  sed -i 's/openshift-operators/gitops-operator-system/g' $temp_dir/sequential/1-018_validate_disable_default_instance/02-assert.yaml
+fi
+
+if [ -d "$temp_dir/sequential/1-035_validate_argocd_secret_repopulate" ]; then
+  sed -i 's/openshift-operators/gitops-operator-system/g' $temp_dir/sequential/1-035_validate_argocd_secret_repopulate/04-check_controller_pod_status.yaml
+fi
 
 cleanup() {
   rm -rf "$temp_dir"
