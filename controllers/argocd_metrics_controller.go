@@ -329,7 +329,7 @@ func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) err
 			dashboard, err := newDashboardConfigMap(entry.Name(), dashboardNamespace)
 			if err != nil {
 				reqLogger.Info("There was an error creating dashboard ", "Namespace", dashboardNamespace, "Name", entry.Name())
-				return err
+				continue
 			}
 
 			existingDashboard := &corev1.ConfigMap{}
