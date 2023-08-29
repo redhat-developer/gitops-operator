@@ -1,0 +1,48 @@
+name: static checks
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "master"
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "^1.18"
+
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+  unit:
+    name: Unit Tests with Code coverage
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "^1.18"
+
+      - name: Checkout Git Repository
+        uses: actions/checkout@v3
+
+      - name: Unit Tests with Code Coverage
+        run: |
+          make test
+
+      - name: Upload Code Coverage Report
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: cover.out
+          verbose: true
+          fail_ci_if_error: true

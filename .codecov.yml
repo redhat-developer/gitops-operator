@@ -1,0 +1,8 @@
+coverage:
+  status:
+    patch: off
+    project:
+      default:
+        target: auto
+        threshold: 0.2%
+        removed_code_behavior: adjust_base
