@@ -1,23 +1,23 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: test-1-076-custom
+  name: test-1-086-custom
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: test-1-076-custom2
+  name: test-1-086-custom2
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: test-1-076-custom3
+  name: test-1-086-custom3
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy
-  namespace: test-1-076-custom
+  namespace: test-1-086-custom
 spec:
   sso:
     verifyTLS: true
@@ -29,7 +29,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy-empty
-  namespace: test-1-076-custom2
+  namespace: test-1-086-custom2
 spec:
   rbac:
     defaultPolicy: ''
@@ -43,7 +43,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy-admin
-  namespace: test-1-076-custom3
+  namespace: test-1-086-custom3
 spec:
   rbac:
     defaultPolicy: 'role:admin'

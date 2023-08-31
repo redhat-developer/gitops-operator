@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy
-  namespace: test-1-076-custom
+  namespace: test-1-086-custom
 spec:
   server:
     route:
@@ -14,7 +14,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy-empty
-  namespace: test-1-076-custom2
+  namespace: test-1-086-custom2
 spec:
   server:
     route:
@@ -26,7 +26,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: argocd-default-policy-admin
-  namespace: test-1-076-custom3
+  namespace: test-1-086-custom3
 spec:
   server:
     route:
@@ -42,7 +42,7 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
-  namespace: test-1-076-custom
+  namespace: test-1-086-custom
 data:
   policy.csv: ""
   policy.default: role:readonly
@@ -56,7 +56,7 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
-  namespace: test-1-076-custom2
+  namespace: test-1-086-custom2
 data:
   policy.csv: ""
   policy.default: ''
@@ -70,7 +70,7 @@ metadata:
     app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
   name: argocd-rbac-cm
-  namespace: test-1-076-custom3
+  namespace: test-1-086-custom3
 data:
   policy.csv: ""
   policy.default: 'role:admin'
