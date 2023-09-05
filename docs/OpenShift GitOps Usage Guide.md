@@ -275,9 +275,20 @@ As an option, You can configure an htpasswd Identity Provider using this [link](
 
 ### **Configure Argo CD RBAC**
 
-By default, any user logged into Argo CD using RHSSO will be a read-only user.
+
+For versions upto and not including v1.10, any user logged into Argo CD using RHSSO will be a read-only user by default.
 
 `policy.default: role:readonly`
+
+For versions starting v1.10 and above,
+
+- any user logged into the default Argo CD instance `openshift-gitops` in namespace `openshift-gitops` will have no access by default.
+
+`policy.default: ''`
+
+- any user logged into user managed custom Argo CD instance will have `read-only` access by default.
+
+`policy.default: 'role:readonly'`
 
 
 This behavior can be modified by updating the *argocd-rbac-cm*  configmap data section.
