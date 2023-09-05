@@ -13,8 +13,8 @@ commands:
     spec:
       project: default
       source:
-        repoURL: https://github.com/jaideepr97/gitops-examples
-        path: bgd-k8s
+        repoURL: https://github.com/redhat-developer/gitops-operator
+        path: test/examples/bgd-k8s
         targetRevision: "HEAD"
       destination:
         server: "https://kubernetes.default.svc"
