@@ -19,4 +19,8 @@ spec:
         serverName: openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc
   selector:
     matchLabels:
+<<<<<<< HEAD
       control-plane: gitops-operator
+=======
+      control-plane: gitops-operator
+>>>>>>> 5a223ae1212252b78662554f9836f4b72417f5a4
