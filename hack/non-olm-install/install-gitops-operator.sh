@@ -103,7 +103,7 @@ function rollback_to_previous_image() {
   if [ ! -z "${PREV_OPERATOR_IMG}" ]; then
     export OPERATOR_IMG=${PREV_OPERATOR_IMG}    
     prepare_kustomize_files
-    ${KUSTOMIZE} build ${WORK_DIR} | ${KUBECTL} apply -f -
+    ${KUSTOMIZE} build ${WORK_DIR} | ${KUBECTL} apply --server-side=true -f -
     echo "[INFO] Operator update operation was unsuccessful!!";
   else
     echo "[INFO] Installing image for the first time. Nothing to rollback. Quitting..";
@@ -179,6 +179,7 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/prometheus?ref=$GIT_REVISION&timeout=90s
+  - https://github.com/redhat-developer/gitops-operator/config/webhook?ref=$GIT_REVISION&timeout=90s
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_webhook_patch.yaml
