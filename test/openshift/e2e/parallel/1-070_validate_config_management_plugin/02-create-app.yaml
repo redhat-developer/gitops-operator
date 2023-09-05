@@ -6,8 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/argoproj/argocd-example-apps.git'
-    path: guestbook
+    repoURL: https://github.com/redhat-developer/gitops-operator.git
+    path: test/examples/guestbook
     targetRevision: HEAD
     plugin:
       env:
