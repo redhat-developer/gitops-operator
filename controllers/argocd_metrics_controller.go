@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

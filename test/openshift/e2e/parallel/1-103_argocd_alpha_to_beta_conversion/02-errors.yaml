@@ -1,0 +1,12 @@
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+  server:
+    route: 
+      enabled: true
