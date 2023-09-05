@@ -5,5 +5,5 @@ metadata:
 spec:
   sso:
     provider: keycloak
-  dex:
-    config: test
+    dex:
+      config: test
