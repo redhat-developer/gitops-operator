@@ -28,6 +28,9 @@ import (
 var (
 	defaultAdminPolicy = "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
 	defaultScope       = "[groups]"
+
+	//The policy.default property in the argocd-rbac-cm ConfigMap.
+	defaultArgoCDRole = ""
 )
 
 // resource exclusions for the ArgoCD CR.
@@ -169,8 +172,9 @@ func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 
 func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 	return argoapp.ArgoCDRBACSpec{
-		Policy: &defaultAdminPolicy,
-		Scopes: &defaultScope,
+		Policy:        &defaultAdminPolicy,
+		Scopes:        &defaultScope,
+		DefaultPolicy: &defaultArgoCDRole,
 	}
 }
 

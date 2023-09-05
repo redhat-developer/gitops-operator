@@ -1,0 +1,78 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd-default-policy
+  namespace: test-1-086-custom
+spec:
+  server:
+    route:
+      enabled: true
+status:
+  phase: Available
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd-default-policy-empty
+  namespace: test-1-086-custom2
+spec:
+  server:
+    route:
+      enabled: true
+status:
+  phase: Available
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd-default-policy-admin
+  namespace: test-1-086-custom3
+spec:
+  server:
+    route:
+      enabled: true
+status:
+  phase: Available
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: argocd-default-policy
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-rbac-cm
+  namespace: test-1-086-custom
+data:
+  policy.csv: ""
+  policy.default: role:readonly
+  scopes: '[groups]'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: argocd-default-policy-empty
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-rbac-cm
+  namespace: test-1-086-custom2
+data:
+  policy.csv: ""
+  policy.default: ''
+  scopes: '[groups]'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: argocd-default-policy-admin
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-rbac-cm
+  namespace: test-1-086-custom3
+data:
+  policy.csv: ""
+  policy.default: 'role:admin'
+  scopes: '[groups]'
+---
