@@ -111,10 +111,10 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5 h1:SlFbeNb42H7DUGzE9B/uYYjlQjNSR4y+eaWiTqN3PGs=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5/go.mod h1:AiEjAr6e/DCDiicjoC7W7LaZdO28sfgoBhjbGryzEZ8=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230602130515-9b15d5285e20 h1:GuS8t9/FXbe0/FqOAn5PourGCAhIWoP+CGD5gASYH0M=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20230602130515-9b15d5285e20/go.mod h1:AfoHTRFS43YO25blmzicubPOIgApAVtW+RFBwcb8cyM=
-github.com/argoproj/argo-cd/v2 v2.7.1 h1:bioMqQ2HI95AWOI157ztppvyD0uPXGrB6h/7lHV2Fvo=
-github.com/argoproj/argo-cd/v2 v2.7.1/go.mod h1:bB2H6vHO29xf32Nzxg1CJKrJBE48r7frkzbzKxx1BKM=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce h1:GuZLI2a4qTQVT4ZPKX4fPQgtAWiiOUaQ0Hqpnri6RLM=
+github.com/argoproj-labs/argocd-operator v0.0.16-0.20230707151228-cbc97a02a8ce/go.mod h1:5gJtEVwehEm9qt4Wi76Dyyi6Y36XHLkNNJ1EKrthZTg=
+github.com/argoproj/argo-cd/v2 v2.7.6 h1:AKRQm0fLGgBmKQILrpc/2PZM2WYlfCP5tquU6DqDudU=
+github.com/argoproj/argo-cd/v2 v2.7.6/go.mod h1:uRU//iTjnzlCs+hKOKo5Na2OZGNTlklnu/g9Wi4enh4=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=

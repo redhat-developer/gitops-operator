@@ -14,4 +14,7 @@ spec:
     targetPort: metrics
   selector:
     control-plane: gitops-operator
+<<<<<<< HEAD
   type: ClusterIP
+=======
+>>>>>>> 5a223ae1212252b78662554f9836f4b72417f5a4

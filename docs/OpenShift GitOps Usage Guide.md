@@ -47,7 +47,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-operators
+  namespace: openshift-gitops-operator
 spec:
   channel: stable
   installPlanApproval: Automatic
@@ -165,7 +165,7 @@ spec:
 
 ```
 oc patch subscriptions.operators.coreos.com/openshift-gitops-operator \
--n openshift-operators \
+-n openshift-gitops-operator \
 --type='merge' \
 --patch '{ "spec": { "config": { "env": [ { "name": "DISABLE_DEX", "value": "true" } ] } } }'
 ```
