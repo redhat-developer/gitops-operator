@@ -62,7 +62,7 @@ function print_help() {
 function check_pod_status_ready() {
   # Wait for the deployment rollout to complete before trying to list the pods
   # to ensure that only pods corresponding to the new version is considered.
-  ${KUBECTL} rollout status deploy -n ${NAMESPACE_PREFIX}system --timeout=5m
+  ${KUBECTL} rollout status deploy -n openshift-gitops-operator --timeout=5m
   if [ $? -ne 0 ]; then
     echo "[INFO] Deployments did not reach healthy state within 5m. Rolling back"
   else
@@ -70,16 +70,16 @@ function check_pod_status_ready() {
     return 0
   fi
 
-  pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n ${NAMESPACE_PREFIX}system | grep "${1}");
+  pod_name=$(${KUBECTL} get pods --no-headers --field-selector="status.phase!=Succeeded" -o custom-columns=":metadata.name" -n openshift-gitops-operator | grep "${1}");
   if [ -z "$pod_name" ]; then
     echo "[WARN] Ignoring empty pod name"
     return 0
   fi
   echo "[DEBUG] Pod name : $pod_name";
-  ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE_PREFIX}system --timeout=150s;
+  ${KUBECTL} wait pod --for=condition=Ready $pod_name -n ${NAMESPACE} --timeout=150s;
   if [ $? -ne 0 ]; then
     echo "[INFO] Pod '$pod_name' failed to become Ready in desired time. Logs from the pod:"
-    ${KUBECTL} logs $pod_name -n ${NAMESPACE_PREFIX}system --all-containers;
+    ${KUBECTL} logs $pod_name -n ${NAMESPACE} --all-containers;
     echo "[ERROR] Install/Upgrade failed. Performing rollback";
     rollback
     return 1
@@ -455,7 +455,7 @@ function migrate_olm_installation() {
   fi
   apply_kustomize_manifests
   # Check pod status if it becomes ready
-  check_pod_status_ready gitops-operator-controller-manager
+  check_pod_status_ready openshift-gitops-operator-controller-manager
 
   if [ $? -eq 0 ]; then
     # Non OLM installation is successful and its safe to remove the OLM specific
@@ -469,20 +469,20 @@ function migrate_olm_installation() {
 # When migrating from OLM to non OLM installation, deployment created by the OLM operator
 # must be scaled down to avoid 2 conflicting operators operating on the same CR.
 function scale_down_olm_deploy() {
-  ${KUBECTL} scale deploy/gitops-operator-controller-manager -n openshift-operators --replicas=0
+  ${KUBECTL} scale deploy/openshift-gitops-operator-controller-manager -n ${NAMESPACE} --replicas=0
 }
 
 # If migration to non OLM installation fails, revert to OLM based installation
 # by scaling back the OLM created deployments from 0 to 1.
 # Note: Rollback is possible only if the corresponding Subscription and ClusterServiceVersion objects are available.
 function rollback_to_olm() {
-  ${KUBECTL} scale deploy/gitops-operator-controller-manager -n openshift-operators --replicas=1
+  ${KUBECTL} scale deploy/openshift-gitops-operator-controller-manager -n ${NAMESPACE} --replicas=1
 }
 
 # Deletes the subscription for openshift-gitops-operator
 function remove_subscription() {
   #Delete the gitops subscription
-  ${KUBECTL} delete subscription openshift-gitops-operator -n openshift-operators
+  ${KUBECTL} delete subscription openshift-gitops-operator -n ${NAMESPACE}
 }
 
 # Deletes the ClusterServiceVersion Object from the system
@@ -493,13 +493,13 @@ function remove_installed_csv() {
     echo "[INFO] No installed CSV in Subscription"
     return
   fi
-  ${KUBECTL} delete clusterserviceversion ${installedCSV} -n openshift-operators
+  ${KUBECTL} delete clusterserviceversion ${installedCSV} -n ${NAMESPACE}
 }
 
 # Waits till the OLM removal is successful.
 function wait_for_olm_removal() {
   # Wait till the operator deployment is completely removed.
-  ${KUBECTL} wait --for=delete deploy/gitops-operator-controller-manager -n openshift-operators --timeout=60s
+  ${KUBECTL} wait --for=delete deploy/openshift-gitops-operator-controller-manager -n ${NAMESPACE} --timeout=60s
 }
 
 # Extract the custom configuration set in the Subscription and
@@ -507,7 +507,7 @@ function wait_for_olm_removal() {
 # the non-OLM installation.
 function extract_custom_env_in_subscription() {
   # Get the GitOps subscription object as yaml
-  ${KUBECTL} get subscription openshift-gitops-operator -n openshift-operators -o yaml > ${WORK_DIR}/subscription.yaml
+  ${KUBECTL} get subscription openshift-gitops-operator -n ${NAMESPACE} -o yaml > ${WORK_DIR}/subscription.yaml
   # check if config.env element is present
   element=$(${YQ} '.spec.config.env' ${WORK_DIR}/subscription.yaml)
   if [ "${element}" == "null" ]; then
