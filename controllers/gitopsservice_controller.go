@@ -441,12 +441,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 						existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
 					}
 				}
-			} else {
-				if existingArgoCD.Spec.Dex != nil {
-					if existingArgoCD.Spec.Dex.Resources == nil {
-						existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
-					}
-				}
 			}
 			changed = true
 		}

@@ -11,9 +11,8 @@ metadata:
   namespace: argocd
 status:
   applicationController: Running
-  dex: Unknown
   phase: Available
   redis: Running
   repo: Running
   server: Running
-  ssoConfig: Unknown
+  sso: Unknown
