@@ -500,7 +500,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	// Create a basic ArgoCD CR. ArgoCD created by Operator version less than v1.2
+	// Create a basic ArgoCD CR. ArgoCD created by Operator version >= v1.6.0
 	existingArgoCD := &argoapp.ArgoCD{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      serviceNamespace,
@@ -513,8 +513,11 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 				},
 			},
 			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
-			Dex: &argoapp.ArgoCDDexSpec{
-				Config: "test-config",
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Provider: "dex",
+				Dex: &argoapp.ArgoCDDexSpec{
+					Config: "test-config",
+				},
 			},
 		},
 	}
@@ -535,7 +538,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 
 	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Dex.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.SSO.Dex.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)

@@ -44,8 +44,7 @@ In the RedHat OpenShift platform, go to the `Operators` section (located on the 
 - Select Argo CD, click on the `Subscription` Tab, go to Actions (located on the top right corner), click on `Edit Subscription`.
 - List of environment variables can be found under `.spec.config`.
 
-An example subscription resource that is configured with environment variables to disable the installation of Dex
-and enable custom cluster roles is shown below.
+An example subscription resource that is configured with environment variables to enable custom cluster roles is shown below.
 
 ```yaml
 apiVersion: operators.coreos.com/v1alpha1
@@ -60,8 +59,6 @@ spec:
       value: custom-controller-role
     - name: SERVER_CLUSTER_ROLE
       value: custom-server-role
-    - name: DISABLE_DEX
-      value: "true"
 ```
 
 Post migration the above environment variables has to be copied to GitOps operator subscription resource.
