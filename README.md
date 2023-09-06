@@ -27,7 +27,7 @@ spec:
 
 ![a relative link](docs/assets/operatorhub-listing.png)
 
-3. Install the operator using the defaults in the wizard, and wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-operators` namespace.
+3. Install the operator in the `openshift-gitops-operator` namesapce using the defaults in the wizard, and optionally, select the checkbox to enable cluster monitoring on the namesapce. Wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-gitops-operator` namespace.
 
 ![a relative link](docs/assets/installed-operator.png)
 
