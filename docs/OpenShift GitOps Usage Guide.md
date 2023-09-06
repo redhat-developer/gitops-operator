@@ -47,7 +47,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-operators
+  namespace: openshift-gitops-operator
 spec:
   channel: stable
   installPlanApproval: Automatic
