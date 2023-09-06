@@ -7,4 +7,4 @@ metadata:
 spec:
   project: default
   source:
-    targetRevision: deploymentconfig_0-replicas
+    path: test/examples/deploymentconfig-example_replica_0
