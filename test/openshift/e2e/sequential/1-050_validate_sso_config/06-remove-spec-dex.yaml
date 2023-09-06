@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-# patches the CR to remove .spec.sso
-- script: |
-    oc patch -n $NAMESPACE argocd/argocd --type='json' -p='[{"op": "remove", "path": "/spec/dex"}]'
-- script: sleep 10

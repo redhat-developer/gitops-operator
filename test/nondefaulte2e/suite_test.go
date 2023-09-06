@@ -70,7 +70,6 @@ const (
 	argoCDNamespace    = "openshift-gitops"
 	argoCDInstanceName = "openshift-gitops"
 	gitopsInstanceName = "cluster"
-	disableDexEnv      = "DISABLE_DEX"
 	timeout            = time.Minute * 5
 	interval           = time.Millisecond * 250
 )
@@ -97,8 +96,6 @@ var _ = BeforeSuite(func() {
 	}
 	// disable default argocd instance
 	Expect(os.Setenv(common.DisableDefaultInstallEnvVar, "true")).To(Succeed())
-	// enable dex by default
-	Expect(os.Setenv(disableDexEnv, "false")).To(Succeed())
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
