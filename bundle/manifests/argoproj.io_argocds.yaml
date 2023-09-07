@@ -3,7 +3,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.1
-    service.beta.openshift.io/inject-cabundle: "true"
   creationTimestamp: null
   name: argocds.argoproj.io
 spec:
