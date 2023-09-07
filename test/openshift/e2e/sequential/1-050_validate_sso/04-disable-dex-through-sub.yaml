@@ -3,9 +3,8 @@ kind: TestStep
 commands:
 - script: |
     if ! [ -z $NON_OLM ]; then 
-      oc patch deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator \
-        -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"DISABLE_DEX","value":"true"}]}]}}}}'
-    
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator DISABLE_DEX=true
+   
     elif [ -z $CI ]; then 
 
       oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
