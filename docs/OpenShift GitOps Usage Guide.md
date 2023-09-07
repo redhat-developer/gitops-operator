@@ -17,7 +17,8 @@
 14. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
 15. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
 16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
+17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
+18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
 
 ## Installing OpenShift GitOps
 
@@ -1439,3 +1440,11 @@ If you find any issues with respect to pods moving into pending state or error s
 GitOps Operator v1.10 introduces breaking changes in SSO configurations. `.spec.dex`, `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields in ArgoCD CR are no longer supported to configure dex/keycloak SSO. If you are using these fields, please update your ArgoCD CR to use equivalent fields under `.spec.sso` for dex/keycloak SSO configurations before upgrading to v1.10.  
 
 Refer [Working with Dex](#working-with-dex) section for more details. 
+
+## GitOps Monitoring Dashboards 
+
+As of GitOps Operator v1.10.0, the operator will deploy monitoring dashboards in the console Admin perspective. When navigating to *Observe* → *Monitoring* in the console, users should see three GitOps dashboards in the dropdown dashboard list: GitOps Overview, GitOps Components, and GitOps gRPC. These dashboards are based on the upstream Argo CD dashboards but have been modified to work with OpenShift console. 
+
+![Dashboard Select Dropdown](assets/39.gitops_monitoring_dashboards_dropdown.png)
+
+**Note: At this time disabling or changing the content of the dashboards is not supported.**
