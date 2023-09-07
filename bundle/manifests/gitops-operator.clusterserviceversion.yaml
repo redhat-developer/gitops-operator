@@ -892,8 +892,9 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
+                - name: ENABLE_CONVERSION_WEBHOOK
+                  value: "true"
                 image: quay.io/redhat-developer/gitops-operator:latest
-                imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -919,19 +920,10 @@ spec:
                     - ALL
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
-                volumeMounts:
-                - mountPath: /tmp/k8s-webhook-server/serving-certs
-                  name: cert
-                  readOnly: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
-              volumes:
-              - name: cert
-                secret:
-                  defaultMode: 420
-                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:
