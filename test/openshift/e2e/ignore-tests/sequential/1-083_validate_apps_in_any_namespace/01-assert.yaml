@@ -67,18 +67,6 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: openshift-gitops-argocd-grafana
-  namespace: test-1-24-custom
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: openshift-gitops-argocd-redis
-  namespace: test-1-24-custom
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
   name: openshift-gitops-argocd-server
   namespace: test-1-24-custom
 ---
@@ -94,34 +82,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: openshift-gitops-argocd-application-controller
-  namespace: openshift-gitops
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: openshift-gitops-argocd-grafana
-  namespace: test-1-24-custom
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: openshift-gitops-argocd-grafana
-subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-grafana
-  namespace: openshift-gitops
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: openshift-gitops-argocd-redis
-  namespace: test-1-24-custom
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: openshift-gitops-argocd-redis
-subjects:
-- kind: ServiceAccount
-  name: openshift-gitops-argocd-redis
   namespace: openshift-gitops
 ---
 apiVersion: rbac.authorization.k8s.io/v1
