@@ -18,8 +18,8 @@ export KUBECONFIG=$TMP_DIR/kubeconfig
 cp $KUBECONFIG /go/src/github.com/redhat-developer/gitops-operator/kubeconfig
 
 # Ensuring proper installation
-pod=gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-operators -o yaml
-subscription=gitops-operator- && oc get subscription `oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-operators
+pod=openshift-gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-gitops-operator -o yaml
+subscription=gitops-operator- && oc get subscription `oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` -n openshift-gitops-operator
 oc wait --for=condition=Ready -n openshift-gitops pod --timeout=15m  -l 'app.kubernetes.io/name in (cluster,kam,openshift-gitops-application-controller,openshift-gitops-applicationset-controller,openshift-gitops-dex-server,openshift-gitops-redis,openshift-gitops-repo-server,openshift-gitops-server)' 
 
 # Check argocd instance creation

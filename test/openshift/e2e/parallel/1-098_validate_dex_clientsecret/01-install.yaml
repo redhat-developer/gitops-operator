@@ -3,5 +3,7 @@ kind: ArgoCD
 metadata:
   name: example-argocd
 spec:
-  dex:
-    openShiftOAuth: true
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
