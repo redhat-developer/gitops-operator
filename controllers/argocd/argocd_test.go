@@ -135,10 +135,11 @@ func TestDexConfiguration(t *testing.T) {
 	// Verify the default RBAC
 	testAdminPolicy := "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
 	testDefaultScope := "[groups]"
-
+	testDefaultArgoCDRole := ""
 	testRBAC := argoapp.ArgoCDRBACSpec{
-		Policy: &testAdminPolicy,
-		Scopes: &testDefaultScope,
+		Policy:        &testAdminPolicy,
+		Scopes:        &testDefaultScope,
+		DefaultPolicy: &testDefaultArgoCDRole,
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.RBAC, testRBAC)
 }

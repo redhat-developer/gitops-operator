@@ -3,4 +3,4 @@ kind: TestStep
 commands:
 # patches the CR to remove .spec.sso
 - script: |
-    oc patch -n $NAMESPACE argocd/argocd --type='json' -p='[{"op": "remove", "path": "/spec/dex"}]'
+    oc patch -n $NAMESPACE argocd/argocd --type='json' -p='[{"op": "remove", "path": "/spec/sso/dex"}]'

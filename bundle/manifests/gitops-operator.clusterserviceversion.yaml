@@ -137,6 +137,8 @@ metadata:
     containerImage: quay.io/redhat-developer/gitops-operator
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
+    operatorframework.io/cluster-monitoring: "true"
+    operatorframework.io/suggested-namespace: openshift-gitops-operator
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -865,19 +867,19 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: gitops-operator-controller-manager
+        serviceAccountName: openshift-gitops-operator-controller-manager
       deployments:
-      - name: gitops-operator-controller-manager
+      - name: openshift-gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
             matchLabels:
-              control-plane: argocd-operator
+              control-plane: gitops-operator
           strategy: {}
           template:
             metadata:
               labels:
-                control-plane: argocd-operator
+                control-plane: gitops-operator
             spec:
               containers:
               - command:
@@ -911,7 +913,7 @@ spec:
                   runAsNonRoot: true
               securityContext:
                 runAsNonRoot: true
-              serviceAccountName: gitops-operator-controller-manager
+              serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -946,7 +948,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: gitops-operator-controller-manager
+        serviceAccountName: openshift-gitops-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: false
