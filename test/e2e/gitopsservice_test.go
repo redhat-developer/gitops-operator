@@ -31,7 +31,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -831,8 +831,10 @@ var _ = Describe("GitOpsServiceController", func() {
 		It("Add SSO field back and verify reconcilation", func() {
 			insecure := false
 			argocd.Spec.SSO = &argoapp.ArgoCDSSOSpec{
-				Provider:  defaultKeycloakIdentifier,
-				VerifyTLS: &insecure,
+				Provider: defaultKeycloakIdentifier,
+				Keycloak: &argoapp.ArgoCDKeycloakSpec{
+					VerifyTLS: &insecure,
+				},
 			}
 			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				updatedInstance := &argoapp.ArgoCD{}

@@ -1,0 +1,26 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 720
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+status:
+  phase: Available
+  redis: Running
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1

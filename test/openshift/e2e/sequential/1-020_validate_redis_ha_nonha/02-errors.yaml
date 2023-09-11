@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops

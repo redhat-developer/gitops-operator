@@ -16,9 +16,9 @@ commands:
     spec:
       project: default
       source:
-        repoURL: https://github.com/bluengo/argocd-apps-examples
-        path: ./deploymentconfig-example
-        targetRevision: deploymentconfig_2-replicas
+        repoURL: https://github.com/redhat-developer/gitops-operator
+        path: test/examples/deploymentconfig-example
+        targetRevision: "HEAD"
       destination:
         server: https://kubernetes.default.svc
         namespace: ${NAMESPACE}
