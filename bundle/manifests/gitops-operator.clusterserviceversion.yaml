@@ -869,7 +869,9 @@ spec:
           - create
         serviceAccountName: openshift-gitops-operator-controller-manager
       deployments:
-      - name: openshift-gitops-operator-controller-manager
+      - label:
+          control-plane: gitops-operator
+        name: openshift-gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -882,7 +884,39 @@ spec:
                 control-plane: gitops-operator
             spec:
               containers:
-              - command:
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080
+                - --tls-cert-file=/etc/tls/private/tls.crt
+                - --tls-private-key-file=/etc/tls/private/tls.key
+                - --logtostderr=true
+                - --allow-paths=/metrics
+                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:da5d5061dbc2ec5082cf14b6c600fb5400b83cf91d7ccebfa80680a238d275db
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: metrics
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 1m
+                    memory: 15Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                volumeMounts:
+                - mountPath: /etc/tls/private
+                  name: kube-rbac-proxy-tls
+                  readOnly: true
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
                 - /usr/local/bin/manager
                 env:
                 - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
@@ -915,6 +949,10 @@ spec:
                 runAsNonRoot: true
               serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
+              volumes:
+              - name: kube-rbac-proxy-tls
+                secret:
+                  secretName: kube-rbac-proxy-tls
       permissions:
       - rules:
         - apiGroups:
