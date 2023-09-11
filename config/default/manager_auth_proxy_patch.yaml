@@ -6,21 +6,50 @@ metadata:
   name: controller-manager
   namespace: system
 spec:
+  selector:
+    matchLabels:
+      control-plane: gitops-operator
   template:
     spec:
       containers:
       - name: kube-rbac-proxy
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:da5d5061dbc2ec5082cf14b6c600fb5400b83cf91d7ccebfa80680a238d275db
         args:
-        - "--secure-listen-address=0.0.0.0:8443"
-        - "--upstream=http://127.0.0.1:8080/"
-        - "--logtostderr=true"
-        - "--v=10"
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080
+        - --tls-cert-file=/etc/tls/private/tls.crt
+        - --tls-private-key-file=/etc/tls/private/tls.key
+        - --logtostderr=true
+        - --allow-paths=/metrics
         ports:
         - containerPort: 8443
-          name: https
+          name: metrics
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 1m
+            memory: 15Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - mountPath: /etc/tls/private
+          name: kube-rbac-proxy-tls
+          readOnly: true
       - name: manager
         args:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=127.0.0.1:8080"
         - "--leader-elect"
+      volumes:
+        # Secret created by the service CA operator.
+        # We assume that the Kubernetes service exposing the application's pods has the
+        # "service.beta.openshift.io/serving-cert-secret-name: kube-rbac-proxy-tls"
+        # annotation.
+        - name: kube-rbac-proxy-tls
+          secret:
+            secretName: kube-rbac-proxy-tls
