@@ -223,6 +223,9 @@ spec:
         name: ""
         version: v1
       version: v1alpha1
+    - kind: ArgoCD
+      name: argocds.argoproj.io
+      version: v1beta1
     - kind: ClusterAnalysisTemplate
       name: clusteranalysistemplates.argoproj.io
       version: v1alpha1
@@ -869,9 +872,7 @@ spec:
           - create
         serviceAccountName: openshift-gitops-operator-controller-manager
       deployments:
-      - label:
-          control-plane: gitops-operator
-        name: openshift-gitops-operator-controller-manager
+      - name: openshift-gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
@@ -884,6 +885,45 @@ spec:
                 control-plane: gitops-operator
             spec:
               containers:
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
+                - /usr/local/bin/manager
+                env:
+                - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+                  value: openshift-gitops
+                - name: OPERATOR_NAME
+                  value: gitops-operator
+                - name: ENABLE_CONVERSION_WEBHOOK
+                  value: "true"
+                image: quay.io/redhat-developer/gitops-operator:latest
+                livenessProbe:
+                  httpGet:
+                    path: /healthz
+                    port: 8081
+                  initialDelaySeconds: 15
+                  periodSeconds: 20
+                name: manager
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
+                readinessProbe:
+                  httpGet:
+                    path: /readyz
+                    port: 8081
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+                resources: {}
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                  readOnlyRootFilesystem: true
+                  runAsNonRoot: true
               - args:
                 - --secure-listen-address=0.0.0.0:8443
                 - --upstream=http://127.0.0.1:8080
@@ -912,39 +952,6 @@ spec:
                 - mountPath: /etc/tls/private
                   name: kube-rbac-proxy-tls
                   readOnly: true
-              - args:
-                - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
-                - --leader-elect
-                command:
-                - /usr/local/bin/manager
-                env:
-                - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
-                  value: openshift-gitops
-                - name: OPERATOR_NAME
-                  value: gitops-operator
-                image: quay.io/redhat-developer/gitops-operator:latest
-                livenessProbe:
-                  httpGet:
-                    path: /healthz
-                    port: 8081
-                  initialDelaySeconds: 15
-                  periodSeconds: 20
-                name: manager
-                readinessProbe:
-                  httpGet:
-                    path: /readyz
-                    port: 8081
-                  initialDelaySeconds: 5
-                  periodSeconds: 10
-                resources: {}
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-                  readOnlyRootFilesystem: true
-                  runAsNonRoot: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: openshift-gitops-operator-controller-manager
@@ -1014,3 +1021,16 @@ spec:
     name: Red Hat Inc
   replaces: gitops-operator.v1.7.3
   version: 1.8.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1alpha1
+    - v1beta1
+    containerPort: 443
+    conversionCRDs:
+    - argocds.argoproj.io
+    deploymentName: openshift-gitops-operator-controller-manager
+    generateName: cargocds.kb.io
+    sideEffects: None
+    targetPort: 9443
+    type: ConversionWebhook
+    webhookPath: /convert

@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/mod/semver"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,7 +26,7 @@ var log = logf.Log.WithName("openshift_controller_argocd")
 // 	argocd.Register(reconcilerHook)
 // }
 
-func ReconcilerHook(cr *argoprojv1alpha1.ArgoCD, v interface{}, hint string) error {
+func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 
 	logv := log.WithValues("ArgoCD Namespace", cr.Namespace, "ArgoCD Name", cr.Name)
 	switch o := v.(type) {
