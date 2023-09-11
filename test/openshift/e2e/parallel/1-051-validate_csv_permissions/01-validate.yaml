@@ -3,7 +3,7 @@ kind: TestStep
 commands:
 - script: |
     set -e
-    res=$(oc auth can-i delete resourcequotas -n openshift-gitops --as system:serviceaccount:openshift-operators:gitops-operator-controller-manager)
+    res=$(oc auth can-i delete resourcequotas -n openshift-gitops --as system:serviceaccount:openshift-gitops-operator:openshift-gitops-operator-controller-manager)
     if test "$res" != "yes"; then
       echo "Can't delete resourcequotas"
       exit 1
