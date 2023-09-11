@@ -33,7 +33,8 @@ import (
 
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
-	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -112,13 +113,22 @@ func main() {
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
 	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
-	registerComponentOrExit(mgr, argoapi.AddToScheme)
+	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)
+	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
 	registerComponentOrExit(mgr, configv1.AddToScheme)
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
+
+	// Start webhook only if ENABLE_CONVERSION_WEBHOOK is set
+	if strings.EqualFold(os.Getenv("ENABLE_CONVERSION_WEBHOOK"), "true") {
+		if err = (&argov1beta1api.ArgoCD{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "ArgoCD")
+			os.Exit(1)
+		}
+	}
 
 	if err = (&controllers.ReconcileGitopsService{
 		Client:                mgr.GetClient(),
