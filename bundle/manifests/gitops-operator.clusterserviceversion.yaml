@@ -992,7 +992,7 @@ spec:
     containerPort: 443
     conversionCRDs:
     - argocds.argoproj.io
-    deploymentName: gitops-operator-controller-manager
+    deploymentName: openshift-gitops-operator-controller-manager
     generateName: cargocds.kb.io
     sideEffects: None
     targetPort: 9443

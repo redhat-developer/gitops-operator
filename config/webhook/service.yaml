@@ -12,4 +12,4 @@ spec:
       protocol: TCP
       targetPort: 9443
   selector:
-    control-plane: argocd-operator
+    control-plane: gitops-operator

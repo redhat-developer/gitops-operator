@@ -11,8 +11,8 @@ spec:
     webhook:
       clientConfig:
         service:
-          name: gitops-operator-webhook-service
-          namespace: gitops-operator-system
+          name: openshift-gitops-operator-webhook-service
+          namespace: openshift-gitops-operator
           path: /convert
       conversionReviewVersions:
       - v1alpha1
