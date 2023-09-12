@@ -380,7 +380,7 @@ function apply_kustomize_manifests() {
     ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml || continue
     ${YQ} -i 'del( .metadata.creationTimestamp | select(. == "null") )' ${WORK_DIR}/kustomize-build-output.yaml
     echo "[INFO] (Attempt ${attempt}) Creating k8s resources from kustomize manifests"
-    ${KUBECTL} apply -f ${WORK_DIR}/kustomize-build-output.yaml && break
+    ${KUBECTL} apply --server-side=true -f ${WORK_DIR}/kustomize-build-output.yaml && break
   done
 }
 
