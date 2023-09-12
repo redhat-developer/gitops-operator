@@ -18,9 +18,12 @@ package controllers
 
 import (
 	"context"
+	"embed"
 	"fmt"
+	"path/filepath"
+	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -41,6 +44,8 @@ const (
 	readRoleNameFormat        = "%s-read"
 	readRoleBindingNameFormat = "%s-prometheus-k8s-read-binding"
 	alertRuleName             = "gitops-operator-argocd-alerts"
+	dashboardNamespace        = "openshift-config-managed"
+	dashboardFolder           = "dashboards"
 )
 
 type ArgoCDMetricsReconciler struct {
@@ -49,6 +54,12 @@ type ArgoCDMetricsReconciler struct {
 	Client client.Client
 	Scheme *runtime.Scheme
 }
+
+// embed json dashboards
+var (
+	//go:embed dashboards
+	dashboards embed.FS
+)
 
 // blank assignment to verify that ReconcileArgoCDRoute implements reconcile.Reconciler
 var _ reconcile.Reconciler = &ArgoCDMetricsReconciler{}
@@ -150,6 +161,11 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 
 	// Create alert rule
 	err = r.createPrometheusRuleIfAbsent(request.Namespace, argocd, reqLogger)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	err = r.reconcileDashboards(reqLogger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -290,6 +306,91 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 	reqLogger.Error(err, "Error querying for existing alert rule",
 		"Namespace", namespace, "Name", alertRuleName)
 	return err
+}
+
+func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) error {
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: dashboardNamespace}, &corev1.Namespace{})
+	if err != nil {
+		reqLogger.Info("Monitoring dashboards are not supported on this cluster, skipping dashboard installation",
+			"Namespace", dashboardNamespace)
+		return nil
+	}
+
+	entries, err := dashboards.ReadDir(dashboardFolder)
+	if err != nil {
+		reqLogger.Error(err, "Could not read list of embedded dashboards")
+		return err
+	}
+
+	for _, entry := range entries {
+		reqLogger.Info("Processing dashboard", "Namespace", dashboardNamespace, "Name", entry.Name())
+
+		if !entry.IsDir() {
+			dashboard, err := newDashboardConfigMap(entry.Name(), dashboardNamespace)
+			if err != nil {
+				reqLogger.Info("There was an error creating dashboard ", "Namespace", dashboardNamespace, "Name", entry.Name())
+				continue
+			}
+
+			existingDashboard := &corev1.ConfigMap{}
+
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: dashboard.Name, Namespace: dashboardNamespace}, existingDashboard)
+			if err == nil {
+				reqLogger.Info("A dashboard instance already exists",
+					"Namespace", existingDashboard.Namespace, "Name", existingDashboard.Name)
+
+				// See if we need to reconcile based on dashboard data only to allow users
+				// to disable dashboard via label if so desired. Note that disabling it
+				// will be reset if dashboard changes in newer version of operator.
+				if existingDashboard.Data[entry.Name()] != dashboard.Data[entry.Name()] {
+					reqLogger.Info("Dashboard data does not match expectation, reconciling",
+						"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+					err := r.Client.Update(context.TODO(), dashboard)
+					if err != nil {
+						reqLogger.Error(err, "Error updating dashboard",
+							"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+					}
+				}
+				continue
+			}
+
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating new dashboard",
+					"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+				err := r.Client.Create(context.TODO(), dashboard)
+				if err != nil {
+					reqLogger.Error(err, "Error creating a new dashboard",
+						"Namespace", dashboard.Namespace, "Name", dashboard.Name)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func newDashboardConfigMap(filename string, namespace string) (*corev1.ConfigMap, error) {
+
+	name := strings.TrimSuffix(filename, filepath.Ext(filename))
+
+	objectMeta := metav1.ObjectMeta{
+		Name:      name,
+		Namespace: namespace,
+		Labels: map[string]string{
+			"console.openshift.io/dashboard": "true",
+		},
+	}
+
+	content, err := dashboards.ReadFile(dashboardFolder + "/" + filename)
+	if err != nil {
+		return nil, err
+	}
+
+	return &corev1.ConfigMap{
+		ObjectMeta: objectMeta,
+		Data: map[string]string{
+			filename: string(content),
+		},
+	}, nil
 }
 
 func newReadRole(namespace string) *rbacv1.Role {

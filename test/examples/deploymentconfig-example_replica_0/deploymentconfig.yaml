@@ -1,0 +1,20 @@
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  name: test-deploymentconfig
+spec:
+  replicas: 0
+  selector:
+    name: test-deploymentconfig
+  strategy:
+    type: Rolling
+  template:
+    metadata:
+      labels:
+        name: test-deploymentconfig
+    spec:
+      containers:
+      - image: fedora:latest
+        command: [ "sleep", "600" ]
+        name: test-container
+        imagePullPolicy: Always

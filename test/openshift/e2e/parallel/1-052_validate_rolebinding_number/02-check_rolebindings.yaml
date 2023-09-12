@@ -8,8 +8,6 @@ commands:
     expected_rb=(
       "openshift-gitops-argocd-application-controller"
       "openshift-gitops-argocd-server"
-      "openshift-gitops-argocd-grafana"
-      "openshift-gitops-argocd-redis"
     )
     current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}') )
 
@@ -21,4 +19,4 @@ commands:
 
     # Check that there are only two RoleBindings
     echo "Current RoleBindings: ${current_rb[*]}"
-    [[ "${#current_rb[@]}" == "4" ]]
+    [[ "${#current_rb[@]}" == "2" ]]

@@ -1,0 +1,51 @@
+# HA testing will require atleast 3 node cluster
+
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 720
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-gitops-redis-ha
+  namespace: openshift-gitops
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openshift-gitops-redis-ha-haproxy
+  namespace: openshift-gitops
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+status:
+  phase: Available
+  redis: Running
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openshift-gitops-redis-ha-server
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: openshift-gitops-redis-ha
+status:
+  readyReplicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-redis-ha-haproxy
+  namespace: openshift-gitops
+status:
+  readyReplicas: 1

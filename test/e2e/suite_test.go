@@ -26,7 +26,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapi "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -85,7 +85,6 @@ const (
 	realmURL                            = "/auth/admin/realms/argocd"
 	rhssosecret                         = "keycloak-secret"
 	clusterConfigEnv                    = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
-	disableDexEnv                       = "DISABLE_DEX"
 	argocdManagedByLabel                = "argocd.argoproj.io/managed-by"
 	timeout                             = time.Minute * 5
 	interval                            = time.Millisecond * 250
@@ -113,8 +112,6 @@ var _ = BeforeSuite(func() {
 	}
 	// set cluster config argocd instance
 	Expect(os.Setenv(clusterConfigEnv, argoCDNamespace)).To(Succeed())
-	// enable dex by default
-	Expect(os.Setenv(disableDexEnv, "false")).To(Succeed())
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
@@ -196,7 +193,6 @@ var _ = AfterSuite(func() {
 	Expect(helper.DeleteNamespace(k8sClient, argoCDNamespace)).NotTo(HaveOccurred())
 
 	Expect(os.Unsetenv(clusterConfigEnv)).To(Succeed())
-	Expect(os.Unsetenv(disableDexEnv)).To(Succeed())
 
 	By("tearing down the test environment")
 	err = testEnv.Stop()

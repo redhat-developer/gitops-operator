@@ -1,12 +1,12 @@
-# Check if the gitops-operator-controller-manager pod is running
+# Check if the openshift-gitops-operator-controller-manager pod is running
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
-    oc rollout status deployment gitops-operator-controller-manager -n openshift-operators --timeout=1m
+    oc rollout status deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator --timeout=1m
     rollout_status=$?
     if [ "${rollout_status}" -ne 0 ]; then
-      echo "gitops-operator-controller-manager deployment was not successfully rolled out"
+      echo "openshift-gitops-operator-controller-manager deployment was not successfully rolled out"
       exit 1
     fi
     exit 0

@@ -29,13 +29,16 @@ cleanup() {
 
 # Simple wrapper to run the acceptance tests for GitOps Operator
 
+
+TEST_BASE_DIR=${TEST_BASE_DIR:-"$DIR/../test/openshift/e2e"}
+
 run_parallel() {
 	if test -f $WORK_DIR/results/kuttl-test.$report; then
 		rm -f $WORK_DIR/results/kuttl-test.$report
 	fi
 
 	echo "Running parallel test suite"
-	kubectl kuttl test $DIR/../test/openshift/e2e/parallel --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/parallel/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log 
+	kubectl kuttl test $TEST_BASE_DIR/parallel --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/parallel/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log 
 	if [ ${PIPESTATUS[0]} != 0 ]; then
 	   failed=1
 	fi	
@@ -47,7 +50,7 @@ run_sequential() {
 	fi
 
 	echo "Running sequential test suite"
-    kubectl kuttl test $DIR/../test/openshift/e2e/sequential --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/sequential/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log
+    kubectl kuttl test $TEST_BASE_DIR/sequential --artifacts-dir $WORK_DIR/results --config $DIR/../test/openshift/e2e/sequential/kuttl-test.yaml --report $report 2>&1 | tee $WORK_DIR/results/$testsuite.log
 	if [ ${PIPESTATUS[0]} != 0 ]; then
 	   failed=1
 	fi

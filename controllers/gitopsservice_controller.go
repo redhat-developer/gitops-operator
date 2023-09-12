@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -439,12 +439,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 				if existingArgoCD.Spec.SSO.Dex != nil {
 					if existingArgoCD.Spec.SSO.Dex.Resources == nil {
 						existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
-					}
-				}
-			} else {
-				if existingArgoCD.Spec.Dex != nil {
-					if existingArgoCD.Spec.Dex.Resources == nil {
-						existingArgoCD.Spec.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
 					}
 				}
 			}

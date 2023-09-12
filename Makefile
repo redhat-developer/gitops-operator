@@ -122,6 +122,21 @@ e2e-tests-parallel:
 	@echo "Running GitOps Operator parallel E2E tests..."
 	. ./scripts/run-kuttl-tests.sh  parallel
 
+.PHONY: e2e-non-olm-tests-sequential
+e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
+	@echo "Running Non-OLM GitOps Operator sequential E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t sequential
+
+.PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-non-olm-tests-parallel:
+	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel	
+
+.PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-non-olm-tests-all:
+	@echo "Running Non-OLM GitOps Operator E2E tests..."
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all		
+
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
@@ -139,14 +154,17 @@ docker-push: ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	## TODO: Remove sed usage after all v1alpha1 references are updated to v1beta1 in codebase.
+	## For local testing, conversion webhook defined in crd makes call to webhook for each v1alpha1 reference
+	## causing failures as we don't set up the webhook for local testing.
+	$(KUSTOMIZE) build config/crd | sed '/conversion:/,/- v1beta1/d' |kubectl apply --server-side=true -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=true -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
