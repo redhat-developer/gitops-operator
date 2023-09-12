@@ -7,7 +7,7 @@ MAX_RETRIES=3
 
 # gitops-operator version tagged images
 OPERATOR_REGISTRY=${OPERATOR_REGISTRY:-"registry.redhat.io"}
-GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.9.0-29"}
+GITOPS_OPERATOR_VER=${GITOPS_OPERATOR_VER:-"v1.9.2-2"}
 OPERATOR_REGISTRY_ORG=${OPERATOR_REGISTRY_ORG:-"openshift-gitops-1"}
 IMAGE_PREFIX=${IMAGE_PREFIX:-""}  
 OPERATOR_IMG=${OPERATOR_IMG:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8-operator:${GITOPS_OPERATOR_VER}"}
@@ -30,10 +30,10 @@ ARGOCD_REDIS_IMAGE=${ARGOCD_REDIS_IMAGE:-"registry.redhat.io/rhel8/redis-6:1-110
 ARGOCD_REDIS_HA_PROXY_IMAGE=${ARGOCD_REDIS_HA_PROXY_IMAGE:-"registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream"}
 
 # Tool Versions
-KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v4.5.7"}
+KUSTOMIZE_VERSION=${KUSTOMIZE_VERSION:-"v5.1.1"}
 KUBECTL_VERSION=${KUBECTL_VERSION:-"v1.26.0"}
-YQ_VERSION=${YQ_VERSION:-"v4.31.2"}
-REGCTL_VERSION=${REGCTL_VERSION:-"v0.4.8"}
+YQ_VERSION=${YQ_VERSION:-"v4.35.1"}
+REGCTL_VERSION=${REGCTL_VERSION:-"v0.5.1"}
 
 # Operator configurations
 ARGOCD_CLUSTER_CONFIG_NAMESPACES=${ARGOCD_CLUSTER_CONFIG_NAMESPACES:-"openshift-gitops"}
@@ -378,6 +378,7 @@ function apply_kustomize_manifests() {
     retry_count=$((retry_count+1))
     echo "[INFO] (Attempt ${attempt}) Executing kustomize build command"
     ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml || continue
+    ${YQ} -i 'del( .metadata.creationTimestamp | select(. == "null") )' ${WORK_DIR}/kustomize-build-output.yaml
     echo "[INFO] (Attempt ${attempt}) Creating k8s resources from kustomize manifests"
     ${KUBECTL} apply -f ${WORK_DIR}/kustomize-build-output.yaml && break
   done
