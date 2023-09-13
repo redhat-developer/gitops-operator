@@ -24,7 +24,7 @@ import (
 	"reflect"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
