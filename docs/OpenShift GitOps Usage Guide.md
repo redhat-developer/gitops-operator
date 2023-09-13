@@ -500,7 +500,7 @@ Now we can edit the Argo CD cr and add the oidc configuration to enable our keyc
 Your Argo CD cr should look like this:
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   creationTimestamp: null
@@ -742,7 +742,7 @@ A user can enable a number of replicas for the Argo CD-server and Argo CD-repo-s
 **Example**
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example-argocd
@@ -767,7 +767,7 @@ spec:
 Argo CD Notifications controller can be enabled/disabled using a new toggle within the Argo CD CR with default specs as follows:
 
 ``` yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example-argocd
@@ -835,7 +835,7 @@ With this update, administrators can configure a common cluster role for all the
 **Example**: Custom role environment variables in operator Subscription:
 
 ```
-apiVersion: operators.coreos.com/v1alpha1
+apiVersion: operators.coreos.com/v1beta1
 kind: Subscription
 metadata:
   name: argocd-operator
@@ -1113,7 +1113,7 @@ For example, the below Argo CD instance deploys the Argo CD workloads such as Ap
 **Note:** The resource requirements for the workloads in the below example are not the recommended values. Please do not consider them as defaults for your instance.
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example

@@ -27,7 +27,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapi "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"

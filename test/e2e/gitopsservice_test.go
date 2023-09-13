@@ -31,7 +31,7 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"

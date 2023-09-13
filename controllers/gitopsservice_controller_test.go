@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
