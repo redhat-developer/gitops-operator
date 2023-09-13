@@ -14,7 +14,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 )
 
 const (
@@ -40,14 +40,14 @@ func makeTestPolicyRules() []rbacv1.PolicyRule {
 	}
 }
 
-func makeTestArgoCDForClusterConfig() *argoprojv1alpha1.ArgoCD {
+func makeTestArgoCDForClusterConfig() *argoapp.ArgoCD {
 	a := makeTestArgoCD()
 	a.Namespace = testNamespace
 	return a
 }
 
-func makeTestArgoCD() *argoprojv1alpha1.ArgoCD {
-	a := &argoprojv1alpha1.ArgoCD{
+func makeTestArgoCD() *argoapp.ArgoCD {
+	a := &argoapp.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testArgoCDName,
 			Namespace: testDummyNameSpace,
@@ -112,11 +112,11 @@ func makeTestRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
-func newStatefulSetWithSuffix(suffix string, component string, cr *argoprojv1alpha1.ArgoCD) *appsv1.StatefulSet {
+func newStatefulSetWithSuffix(suffix string, component string, cr *argoapp.ArgoCD) *appsv1.StatefulSet {
 	return newStatefulSetWithName(fmt.Sprintf("%s-%s", cr.Name, suffix), component, cr)
 }
 
-func newStatefulSetWithName(name string, component string, cr *argoprojv1alpha1.ArgoCD) *appsv1.StatefulSet {
+func newStatefulSetWithName(name string, component string, cr *argoapp.ArgoCD) *appsv1.StatefulSet {
 	ss := newStatefulSet(cr)
 	ss.ObjectMeta.Name = name
 
@@ -128,7 +128,7 @@ func newStatefulSetWithName(name string, component string, cr *argoprojv1alpha1.
 	return ss
 }
 
-func newStatefulSet(cr *argoprojv1alpha1.ArgoCD) *appsv1.StatefulSet {
+func newStatefulSet(cr *argoapp.ArgoCD) *appsv1.StatefulSet {
 	ss := appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Name,

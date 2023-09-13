@@ -3,10 +3,10 @@ kind: Service
 metadata:
   annotations:
     service.beta.openshift.io/serving-cert-secret-name: kube-rbac-proxy-tls
+  creationTimestamp: null
   labels:
     control-plane: gitops-operator
-  name: metrics-service
-  namespace: system
+  name: openshift-gitops-operator-metrics-service
 spec:
   ports:
   - name: metrics
@@ -15,3 +15,5 @@ spec:
   selector:
     control-plane: gitops-operator
   type: ClusterIP
+status:
+  loadBalancer: {}

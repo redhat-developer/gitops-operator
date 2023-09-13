@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
