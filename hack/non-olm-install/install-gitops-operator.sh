@@ -177,7 +177,7 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION&timeout=90s
-  - https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/rbac/auth_proxy_service.yaml
+  - https://github.com/redhat-developer/gitops-operator/config/prometheus?ref=$GIT_REVISION&timeout=90s
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
   - path: env-overrides.yaml
