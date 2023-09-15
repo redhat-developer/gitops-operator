@@ -134,7 +134,7 @@ function dump_cluster_state() {
 
 function dump_extra_cluster_state() {
   echo ">>> Gitops controller log:"
-  kubectl -n openshift-operators logs $(get_app_pod argocd-operator openshift-operators) --all-containers=true
+  kubectl -n openshift-gitops-operator logs $(get_app_pod argocd-operator openshift-gitops-operator) --all-containers=true
 }
 
 
@@ -251,11 +251,11 @@ function uninstall_operator_resources() {
     oc wait --for=delete $deployment -n openshift-gitops --timeout=5m || fail_test "Failed to delete deployment: $deployment in openshift-gitops namespace"
   done
 
-  oc delete $(oc get csv  -n openshift-operators -o name|grep gitops) -n openshift-operators || fail_test "Unable to delete CSV"
+  oc delete $(oc get csv  -n openshift-gitops-operator -o name|grep gitops) -n openshift-gitops-operator || fail_test "Unable to delete CSV"
 
-  oc delete -n openshift-operators installplan $(oc get subscription gitops-operator -n openshift-operators -o jsonpath='{.status.installplan.name}') || fail_test "Unable to delete installplan"
+  oc delete -n openshift-gitops-operator installplan $(oc get subscription gitops-operator -n openshift-gitops-operator -o jsonpath='{.status.installplan.name}') || fail_test "Unable to delete installplan"
 
-  oc delete subscription gitops-operator -n openshift-operators --cascade=background || fail_test "Unable to delete subscription"
+  oc delete subscription gitops-operator -n openshift-gitops-operator --cascade=background || fail_test "Unable to delete subscription"
 
   echo -e ">> Delete arogo resources accross all namespaces"
   for res in applications applicationsets appprojects argocds; do
@@ -273,13 +273,13 @@ function uninstall_operator_resources() {
 
 function install_operator_resources() {
     echo -e ">>Ensure Gitops subscription exists"
-    oc get subscription gitops-operator -n openshift-operators 2>/dev/null || \
+    oc get subscription gitops-operator -n openshift-gitops-operator 2>/dev/null || \
     cat <<EOF | oc apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: gitops-operator
-  namespace: openshift-operators
+  namespace: openshift-gitops-operator
 spec:
   channel: $CHANNEL
   installPlanApproval: Automatic
@@ -288,7 +288,7 @@ spec:
   sourceNamespace: openshift-marketplace
 EOF
     
-    wait_until_pods_running "openshift-operators" || fail_test "openshift gitops Operator controller did not come up"
+    wait_until_pods_running "openshift-gitops-operator" || fail_test "openshift gitops Operator controller did not come up"
 
     echo ">> Wait for GitopsService creation"
     wait_until_object_exist "gitopsservices.pipelines.openshift.io" "cluster" "openshift-gitops" || fail_test "gitops service haven't created yet"

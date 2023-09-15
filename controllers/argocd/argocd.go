@@ -17,7 +17,7 @@ limitations under the License.
 package argocd
 
 import (
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +28,9 @@ import (
 var (
 	defaultAdminPolicy = "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
 	defaultScope       = "[groups]"
+
+	//The policy.default property in the argocd-rbac-cm ConfigMap.
+	defaultArgoCDRole = ""
 )
 
 // resource exclusions for the ArgoCD CR.
@@ -169,8 +172,9 @@ func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 
 func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 	return argoapp.ArgoCDRBACSpec{
-		Policy: &defaultAdminPolicy,
-		Scopes: &defaultScope,
+		Policy:        &defaultAdminPolicy,
+		Scopes:        &defaultScope,
+		DefaultPolicy: &defaultArgoCDRole,
 	}
 }
 

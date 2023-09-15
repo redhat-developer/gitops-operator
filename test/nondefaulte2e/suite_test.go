@@ -27,7 +27,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argoapi "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapi "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -70,7 +70,6 @@ const (
 	argoCDNamespace    = "openshift-gitops"
 	argoCDInstanceName = "openshift-gitops"
 	gitopsInstanceName = "cluster"
-	disableDexEnv      = "DISABLE_DEX"
 	timeout            = time.Minute * 5
 	interval           = time.Millisecond * 250
 )
@@ -97,8 +96,6 @@ var _ = BeforeSuite(func() {
 	}
 	// disable default argocd instance
 	Expect(os.Setenv(common.DisableDefaultInstallEnvVar, "true")).To(Succeed())
-	// enable dex by default
-	Expect(os.Setenv(disableDexEnv, "false")).To(Succeed())
 
 	cfg, err := testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
