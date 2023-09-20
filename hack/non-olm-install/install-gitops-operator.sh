@@ -41,6 +41,7 @@ CONTROLLER_CLUSTER_ROLE=${CONTROLLER_CLUSTER_ROLE:-""}
 DISABLE_DEFAULT_ARGOCD_INSTANCE=${DISABLE_DEFAULT_ARGOCD_INSTANCE:-"false"}
 SERVER_CLUSTER_ROLE=${SERVER_CLUSTER_ROLE:-""}
 WATCH_NAMESPACE=${WATCH_NAMESPACE:-""}
+ENABLE_CONVERSION_WEBHOOK=${ENABLE_CONVERSION_WEBHOOK:-"true"}
 
 # Print help message
 function print_help() {
@@ -180,6 +181,7 @@ resources:
   - https://github.com/redhat-developer/gitops-operator/config/prometheus?ref=$GIT_REVISION&timeout=90s
 patches:
   - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_auth_proxy_patch.yaml 
+  - path: https://raw.githubusercontent.com/redhat-developer/gitops-operator/master/config/default/manager_webhook_patch.yaml
   - path: env-overrides.yaml
   - path: security-context.yaml" > ${WORK_DIR}/kustomization.yaml
 }
@@ -228,7 +230,9 @@ spec:
         - name: SERVER_CLUSTER_ROLE
           value: \"${SERVER_CLUSTER_ROLE}\"
         - name: WATCH_NAMESPACE
-          value: \"${WATCH_NAMESPACE}\"" > ${WORK_DIR}/env-overrides.yaml
+          value: \"${WATCH_NAMESPACE}\"
+        - name: ENABLE_CONVERSION_WEBHOOK
+          value: \"${ENABLE_CONVERSION_WEBHOOK}\"" > ${WORK_DIR}/env-overrides.yaml
 }
 
 # Create a security context for the containers that are present in the deployment.
@@ -442,6 +446,9 @@ function print_info() {
   fi
   if [ ! -z "${WATCH_NAMESPACE}" ]; then
     echo "WATCH_NAMESPACE: ${WATCH_NAMESPACE}"
+  fi
+  if [ ! -z "${ENABLE_CONVERSION_WEBHOOK}" ]; then
+    echo "ENABLE_CONVERSION_WEBHOOK: ${ENABLE_CONVERSION_WEBHOOK}"
   fi
   echo "==========================================="
 }
