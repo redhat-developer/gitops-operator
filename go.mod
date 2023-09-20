@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
 	github.com/argoproj-labs/argocd-operator v0.0.16-0.20231026135137-c8e49095b254
+	github.com/argoproj/argo-cd/v2 v2.8.3
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
@@ -26,7 +27,15 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.8.3 // indirect
+	cloud.google.com/go/compute v1.19.2 // indirect
+	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
+	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.9.23 // indirect
+	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
+	github.com/Azure/go-autorest/logger v0.2.1 // indirect
+	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -91,7 +100,7 @@ require (
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
-	github.com/argoproj-labs/argocd-operator => github.com/raghavi101/argocd-operator v0.0.0-20230802120459-0e29de2aaaff
+	github.com/argoproj-labs/argocd-operator => github.com/raghavi101/argocd-operator v0.0.0-20230918084530-babbca52187a
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
