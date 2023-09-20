@@ -1,0 +1,125 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      set -e
+      set -o pipefail
+
+      # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
+      expected_kustomizeVersion='v5.1.0'
+      expected_helmVersion='v3.12.1'
+      expected_argocdVersion='v2.8.3'
+      
+      if CI="prow"; then
+      # when running against openshift-ci
+        expected_dexVersion='v2.30.3-dirty'
+        expected_redisVersion='6.2.4'
+      else
+      # when running against RC/ released version of gitops
+        expected_dexVersion='v2.35.1'
+        expected_redisVersion='6.2.7'
+      fi
+
+      MAX_RETRIES=10
+      get_pod_name() {
+        local retry_count=0
+        until [ "${retry_count}" -gt ${MAX_RETRIES} ]; do
+          retry_count=$((retry_count + 1))
+          pod=$(
+                oc get -n openshift-gitops pods \
+                  -o custom-columns=NAME:.metadata.name --no-headers |
+                  grep $1 |
+                  head -1
+                    )
+          if [[ -z "${pod}" ]]; then
+            #// no set
+            if [[ $retry_count*$retry_count > 30 ]]
+            then 
+              timeout=30
+            else
+              timeout=$retry_count*$retry_count
+            fi
+            sleep $timeout
+            continue
+                else
+            #//set
+            echo $pod
+            break
+          fi
+        done
+      }
+
+      gitops_server_pod=$(get_pod_name openshift-gitops-server)
+
+      dex_pod=$(get_pod_name openshift-gitops-dex-server)
+      
+      redis_pod=$(get_pod_name openshift-gitops-redis)
+
+      route=$(
+        oc get route -n openshift-gitops \
+          -o custom-columns=NAME:.spec.host --no-headers |
+          grep openshift-gitops-server |
+          head -1
+      )
+
+      kustomizeVersion=$(
+        oc -n openshift-gitops exec $gitops_server_pod \
+          -- kustomize version
+      )
+      helmVersion=$(
+        oc -n openshift-gitops exec $gitops_server_pod \
+          -- helm version |
+          sed -e 's/version.BuildInfo//' -e 's/\"//g' |
+          awk -F':' '{ print $2 }' |
+          awk -F',' '{ print $1 }'
+      )
+      argocdVersion=$(
+        oc -n openshift-gitops exec $gitops_server_pod -- \
+          argocd version --short --server $route --insecure |
+          grep 'argocd-server' |
+          sed -e 's/\+unknown//' |
+          awk -F' ' '{ print $2 }'
+      )
+      dexVersion=$(
+        oc -n openshift-gitops exec $dex_pod -- dex version 2>&1 |
+          grep '^Dex Version' |
+          awk -F': ' '{ print $2 }'
+      )
+
+      redisVersion=$(
+        oc -n openshift-gitops exec $redis_pod -- \
+          redis-server -v | awk -F '=' '{ print $2 }' | cut -d' ' -f 1
+      )
+
+      if test "${kustomizeVersion}" != "${expected_kustomizeVersion}"; then
+        echo "Kustomize version mismatch. Should be ${expected_kustomizeVersion}, is ${kustomizeVersion}" 
+        error=1 
+      fi
+
+      if test "${helmVersion}" != "${expected_helmVersion}"; then
+        echo "Helm version mismatch. Should be ${expected_helmVersion}, is ${helmVersion}" 
+        error=1
+      fi
+
+      if test "${dexVersion}" != "${expected_dexVersion}"; then
+        echo "Dex version mismatch. Should be ${expected_dexVersion}, is ${dexVersion}" 
+        error=1
+      fi
+
+      # we are as argocdVersion contains v2.7.6+00c914a suffix addition to the version no. 
+      # So, we are checking if expected_argocdVersion is substring of the actual version
+      if [[ "${argocdVersion}" == *"${expected_argocdVersion}"* ]]; then   
+        echo "" 
+      else
+        echo "ArgoCD version mismatch. Should be ${expected_argocdVersion}, is ${argocdVersion}" 
+        error=1
+      fi
+
+      if test "${expected_redisVersion}" != "${redisVersion}" ;then
+        echo "Redis version mismatch. Should be ${expected_redisVersion}, is ${redisVersion}"
+        error=1
+      fi
+
+      if [[ $error == 1 ]]; then 
+        exit 1
+      fi
