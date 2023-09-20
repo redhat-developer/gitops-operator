@@ -176,7 +176,7 @@ namespace: ${NAMESPACE}
 namePrefix: ${NAME_PREFIX}
 resources:
   - https://github.com/redhat-developer/gitops-operator/config/crd?ref=$GIT_REVISION&timeout=90s
-  - https://github.com/anandf/gitops-operator/config/rbac?ref=fix_non_olm_installation&timeout=90s
+  - https://github.com/redhat-developer/gitops-operator/config/rbac?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/manager?ref=$GIT_REVISION&timeout=90s
   - https://github.com/redhat-developer/gitops-operator/config/prometheus?ref=$GIT_REVISION&timeout=90s
 patches:
