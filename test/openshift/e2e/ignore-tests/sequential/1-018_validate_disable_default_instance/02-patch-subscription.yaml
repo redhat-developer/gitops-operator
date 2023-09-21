@@ -4,9 +4,8 @@ commands:
 # patches the subscription to set an environment variable
 - script: |
     if ! [ -z $NON_OLM ]; then
-      oc patch deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator \
-        -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"DISABLE_DEFAULT_ARGOCD_INSTANCE","value":"true"}]}]}}}}'
-    
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator DISABLE_DEFAULT_ARGOCD_INSTANCE="true"
+      
     elif [ -z $CI ]; then 
 
       oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
