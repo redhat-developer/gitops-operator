@@ -398,8 +398,8 @@ function delete_kustomize_manifests() {
     echo "[INFO] (Attempt ${retry_count}) Executing kustomize build command"
     retry_count=$((retry_count+1))
     ${KUSTOMIZE} build ${WORK_DIR} > ${WORK_DIR}/kustomize-build-output.yaml && break
-    ${YQ} -i 'del( .metadata.creationTimestamp | select(. == "null") )' ${WORK_DIR}/kustomize-build-output.yaml
   done
+  ${YQ} -i 'del( .metadata.creationTimestamp | select(. == "null") )' ${WORK_DIR}/kustomize-build-output.yaml
   echo "[INFO] Deleting k8s resources from kustomize manifests"
   ${KUBECTL} delete -f ${WORK_DIR}/kustomize-build-output.yaml
 }
