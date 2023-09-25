@@ -85,6 +85,7 @@ The following environment variables can be set to configure various options for 
 | **DISABLE_DEFAULT_ARGOCD_INSTANCE** | When set to `true`, this will disable the default 'ready-to-use' installation of Argo CD in the `openshift-gitops` namespace. |false |
 | **SERVER_CLUSTER_ROLE** |This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server. | None |
 | **WATCH_NAMESPACE** | namespaces in which Argo applications can be created | None |
+| **ENABLE_CONVERSION_WEBHOOK** | This environment variable enables conversion webhook to convert v1alpha1 ArgoCD resources to v1beta1 | true |
 ### Running the script
 
 #### Usage
