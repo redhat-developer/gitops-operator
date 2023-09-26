@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patches the subscription to add label selector in argocd-operator
+- script: |
+    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator ARGOCD_LABEL_SELECTOR=foo=bar
+    oc create ns test-argocd
+- script: sleep 10
+
