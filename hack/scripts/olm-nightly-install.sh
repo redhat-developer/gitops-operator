@@ -80,10 +80,10 @@ done
 
 function apply_subscription() { 
 
-create namespace
+# create namespace
 oc create ns openshift-gitops-operator
 
-create OperatorGroup
+# create OperatorGroup
 cat << EOF | oc apply -f -
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
