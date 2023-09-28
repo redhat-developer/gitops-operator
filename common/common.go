@@ -34,7 +34,7 @@ const (
 	// Label Selector is an env variable for ArgoCD instance reconcilliation.
 	ArgoCDLabelSelector = "ARGOCD_LABEL_SELECTOR"
 	// Default Label Selector is used when the Label Selector is not mentioned/empty.
-	DefaultLabelSelector = ""
+	DefaultArgoCDLabelSelector = ""
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes
