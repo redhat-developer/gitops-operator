@@ -32,7 +32,7 @@ const (
 	// Default console plugin installation OCP version
 	DefaultDynamicPluginStartOCPVersion = "4.15.0"
 	// Label Selector is an env variable for ArgoCD instance reconcilliation.
-	LabelSelector = "LABEL_SELECTOR"
+	ArgoCDLabelSelector = "ARGOCD_LABEL_SELECTOR"
 	// Default Label Selector is used when the Label Selector is not mentioned/empty.
 	DefaultLabelSelector = ""
 )
