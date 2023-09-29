@@ -5,6 +5,7 @@ commands:
 - script: |
       oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator ARGOCD_LABEL_SELECTOR- -c manager
 - script: sleep 30
+
 # - script: |
 #     if ! [ -z $NON_OLM ]; then
 
