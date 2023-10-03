@@ -12,8 +12,7 @@ import (
 
 func TestReconcileArgoCD_reconcileApplicableClusterRole(t *testing.T) {
 
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCDForClusterConfig()
 	testClusterRole := &rbacv1.ClusterRole{
@@ -30,8 +29,7 @@ func TestReconcileArgoCD_reconcileApplicableClusterRole(t *testing.T) {
 
 func TestReconcileArgoCD_reconcileNotApplicableClusterRole(t *testing.T) {
 
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCDForClusterConfig()
 	testClusterRole := makeTestClusterRole()
@@ -42,8 +40,7 @@ func TestReconcileArgoCD_reconcileNotApplicableClusterRole(t *testing.T) {
 
 func TestReconcileArgoCD_reconcileMultipleClusterRoles(t *testing.T) {
 
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCDForClusterConfig()
 	testApplicableClusterRole := &rbacv1.ClusterRole{
@@ -66,8 +63,7 @@ func TestReconcileArgoCD_reconcileMultipleClusterRoles(t *testing.T) {
 
 func TestReconcileArgoCD_testDeployment(t *testing.T) {
 
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCDForClusterConfig()
 	testDeployment := makeTestDeployment()
@@ -77,8 +73,7 @@ func TestReconcileArgoCD_testDeployment(t *testing.T) {
 
 func TestReconcileArgoCD_notInClusterConfigNamespaces(t *testing.T) {
 
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCD()
 	testClusterRole := &rbacv1.ClusterRole{
@@ -193,8 +188,7 @@ func TestReconcileArgoCD_reconcileRedisHaServerStatefulSet(t *testing.T) {
 }
 
 func TestReconcileArgoCD_reconcileSecrets(t *testing.T) {
-	setClusterConfigNamespaces()
-	defer unSetClusterConfigNamespaces()
+	setClusterConfigNamespaces(t)
 
 	a := makeTestArgoCDForClusterConfig()
 	testSecret := &corev1.Secret{
