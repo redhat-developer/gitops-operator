@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"net/url"
-	"os"
 	"testing"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
@@ -77,15 +76,12 @@ func TestReconcile_create_consolelink(t *testing.T) {
 func TestReconcile_delete_consolelink(t *testing.T) {
 	logf.SetLogger(argocd.ZapLogger(true))
 
-	restoreEnvFunc := func() {
-		os.Unsetenv(disableArgoCDConsoleLink)
-	}
 	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
 	util.SetConsoleAPIFound(true)
 
 	tests := []struct {
 		name                   string
-		setEnvVarFunc          func(string)
+		setEnvVarFunc          func(*testing.T, string)
 		envVar                 string
 		consoleLinkShouldExist bool
 		wantErr                bool
@@ -93,8 +89,8 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 	}{
 		{
 			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to true and consoleLink gets deleted",
-			setEnvVarFunc: func(envVar string) {
-				os.Setenv(disableArgoCDConsoleLink, envVar)
+			setEnvVarFunc: func(t *testing.T, envVar string) {
+				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
 			consoleLinkShouldExist: false,
 			envVar:                 "true",
@@ -102,8 +98,8 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		},
 		{
 			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to false and consoleLink doesn't get deleted",
-			setEnvVarFunc: func(envVar string) {
-				os.Setenv(disableArgoCDConsoleLink, envVar)
+			setEnvVarFunc: func(t *testing.T, envVar string) {
+				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
 			envVar:                 "false",
 			consoleLinkShouldExist: true,
@@ -120,14 +116,12 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defer restoreEnvFunc()
-
 			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
 			fakeClient.Create(context.TODO(), consoleLink)
 
 			if test.setEnvVarFunc != nil {
-				test.setEnvVarFunc(test.envVar)
+				test.setEnvVarFunc(t, test.envVar)
 			}
 
 			result, err := reconcileArgoCD.Reconcile(context.TODO(), newRequest(argocdNS, argocdInstanceName))

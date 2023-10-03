@@ -2,7 +2,7 @@ package openshift
 
 import (
 	"fmt"
-	"os"
+	"testing"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -56,12 +56,8 @@ func makeTestArgoCD() *argoapp.ArgoCD {
 	return a
 }
 
-func setClusterConfigNamespaces() {
-	os.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "argocd,foo,bar")
-}
-
-func unSetClusterConfigNamespaces() {
-	os.Unsetenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+func setClusterConfigNamespaces(t *testing.T) {
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "argocd,foo,bar")
 }
 
 func makeTestClusterRole() *rbacv1.ClusterRole {
