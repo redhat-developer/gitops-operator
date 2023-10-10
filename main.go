@@ -185,7 +185,7 @@ func main() {
 	}
 	// Check the label selector format eg. "foo=bar"
 	if _, err := labels.Parse(labelSelectorFlag); err != nil {
-		setupLog.Info("error parsing the labelSelector '%s'.", labelSelectorFlag)
+		setupLog.Error(err, "error parsing the labelSelector '%s'.", labelSelectorFlag)
 		os.Exit(1)
 	}
 	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
