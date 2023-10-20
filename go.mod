@@ -100,7 +100,6 @@ require (
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
-	github.com/argoproj-labs/argocd-operator => github.com/raghavi101/argocd-operator v0.0.0-20230918084530-babbca52187a
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
