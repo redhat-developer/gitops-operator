@@ -82,7 +82,6 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 
-	var secureMetrics = false
 	var enableHTTP2 = false
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -91,7 +90,6 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
-	flag.BoolVar(&secureMetrics, "metrics-secure", secureMetrics, "If the metrics endpoint should be served securely.")
 
 	opts := zap.Options{
 		Development: true,
@@ -119,9 +117,8 @@ func main() {
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	metricsServerOptions := metricsserver.Options{
-		SecureServing: secureMetrics,
-		BindAddress:   metricsAddr,
-		TLSOpts:       []func(*tls.Config){disableHTTP2},
+		BindAddress: metricsAddr,
+		TLSOpts:     []func(*tls.Config){disableHTTP2},
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
