@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -54,8 +53,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	ns := types.NamespacedName{Name: "test", Namespace: "test"}
 	t.Run("Image present as env variable", func(t *testing.T) {
 		image := "quay.io/org/test"
-		os.Setenv(backendImageEnvName, image)
-		defer os.Unsetenv(backendImageEnvName)
+		t.Setenv(backendImageEnvName, image)
 
 		deployment := newBackendDeployment(ns)
 
@@ -75,8 +73,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 
 	t.Run("Kam Image present as env variable", func(t *testing.T) {
 		image := "quay.io/org/test"
-		os.Setenv(cliImageEnvName, image)
-		defer os.Unsetenv(cliImageEnvName)
+		t.Setenv(cliImageEnvName, image)
 
 		deployment := newDeploymentForCLI()
 
