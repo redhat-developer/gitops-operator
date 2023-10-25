@@ -110,11 +110,6 @@ func main() {
 		}
 		c.NextProtos = []string{"http/1.1"}
 	}
-	webhookServerOptions := webhook.Options{
-		TLSOpts: []func(config *tls.Config){disableHTTP2},
-		Port:    9443,
-	}
-	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	metricsServerOptions := metricsserver.Options{
 		BindAddress: metricsAddr,
@@ -124,7 +119,6 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2b63967d.openshift.io",
@@ -152,6 +146,12 @@ func main() {
 		if err = (&argov1beta1api.ArgoCD{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "ArgoCD")
 			os.Exit(1)
+		}
+
+		// disable http/2 to mitigate CVE-2023-44487 & CVE-2023-39325
+		server, ok := mgr.GetWebhookServer().(*webhook.DefaultServer)
+		if ok {
+			server.Options.TLSOpts = append(server.Options.TLSOpts, disableHTTP2)
 		}
 	}
 
