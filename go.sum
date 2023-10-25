@@ -1265,8 +1265,8 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/jackc/fake v0.0.0-20150926172116-812a484cc733/go.mod h1:WrMFNQdiFJ80sQsxDoMokWK1W5TQtxBFNpzWTD84ibQ=
 github.com/jackc/pgx v3.2.0+incompatible/go.mod h1:0ZGrqGqkRlliWnWB4zKnWtjbSWbGkVEFm4TeybAXq+I=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20231024180704-36e24227533b h1:FoVWbw95lgtzHK1E1dlOd1X/GSlkCjFGI+6lbMeYZb8=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20231024180704-36e24227533b/go.mod h1:vypqFDqVCcJXK4xFV4XQrCGRlHHWl8YsjKuuRMgATRY=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20231025190942-ad67923dbabd h1:zszcIUcF2Rx8+hLTVR1ABefS6sYUlYie5+VofrAKuYA=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20231025190942-ad67923dbabd/go.mod h1:vypqFDqVCcJXK4xFV4XQrCGRlHHWl8YsjKuuRMgATRY=
 github.com/jessevdk/go-flags v0.0.0-20180331124232-1c38ed7ad0cc/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
