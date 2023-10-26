@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: kube-rbac-proxy
-        image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:da5d5061dbc2ec5082cf14b6c600fb5400b83cf91d7ccebfa80680a238d275db
+        image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.13
         args:
         - --secure-listen-address=0.0.0.0:8443
         - --upstream=http://127.0.0.1:8080
@@ -21,6 +21,7 @@ spec:
         - --tls-private-key-file=/etc/tls/private/tls.key
         - --logtostderr=true
         - --allow-paths=/metrics
+        - --http2-disable
         ports:
         - containerPort: 8443
           name: metrics
