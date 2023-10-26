@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
-	github.com/argoproj-labs/argocd-operator v0.0.16-0.20230911190332-91bf13127dd7
+	github.com/argoproj-labs/argocd-operator v0.0.16-0.20231026135137-c8e49095b254
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
@@ -91,7 +91,6 @@ require (
 
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
-	github.com/argoproj-labs/argocd-operator => github.com/jaideepr97/argocd-operator v0.0.16-0.20231025190942-ad67923dbabd
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
