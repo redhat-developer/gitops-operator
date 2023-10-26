@@ -144,7 +144,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v1.8.0
+  name: gitops-operator.v1.10.1-cve-keycloak-fix
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -898,7 +898,7 @@ spec:
                   value: gitops-operator
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
-                image: quay.io/redhat-developer/gitops-operator:latest
+                image: quay.io/jrao/gitops-operator:1.10.1-cve-keycloak-fix
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -931,7 +931,7 @@ spec:
                 - --tls-private-key-file=/etc/tls/private/tls.key
                 - --logtostderr=true
                 - --allow-paths=/metrics
-                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:da5d5061dbc2ec5082cf14b6c600fb5400b83cf91d7ccebfa80680a238d275db
+                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:9952a765377b26cff594dcedf97c28414e54ace8af3d52d5470238217b9ce213
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443
@@ -1020,7 +1020,7 @@ spec:
   provider:
     name: Red Hat Inc
   replaces: gitops-operator.v1.7.3
-  version: 1.8.0
+  version: 1.10.1-cve-keycloak-fix
   webhookdefinitions:
   - admissionReviewVersions:
     - v1alpha1
