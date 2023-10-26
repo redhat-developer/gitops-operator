@@ -83,9 +83,9 @@ The following environment variables can be set to configure various options for 
 | **ARGOCD_CLUSTER_CONFIG_NAMESPACES** |OpenShift GitOps instances in the identified namespaces are granted limited additional permissions to manage specific cluster-scoped resources, which include platform operators, optional OLM operators, user management, etc.Multiple namespaces can be specified via a comma delimited list. | openshift-gitops |
 | **CONTROLLER_CLUSTER_ROLE** | This environment variable enables administrators to configure a common cluster role to use across all managed namespaces in the role bindings the operator creates for the Argo CD application controller. | None |
 | **DISABLE_DEFAULT_ARGOCD_INSTANCE** | When set to `true`, this will disable the default 'ready-to-use' installation of Argo CD in the `openshift-gitops` namespace. |false |
-| **DISABLE_DEX** | Flag to control if Dex needs to be disabled | false |
 | **SERVER_CLUSTER_ROLE** |This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server. | None |
 | **WATCH_NAMESPACE** | namespaces in which Argo applications can be created | None |
+| **ENABLE_CONVERSION_WEBHOOK** | This environment variable enables conversion webhook to convert v1alpha1 ArgoCD resources to v1beta1 | true |
 ### Running the script
 
 #### Usage

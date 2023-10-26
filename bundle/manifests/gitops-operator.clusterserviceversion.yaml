@@ -137,6 +137,8 @@ metadata:
     containerImage: quay.io/redhat-developer/gitops-operator
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
+    operatorframework.io/cluster-monitoring: "true"
+    operatorframework.io/suggested-namespace: openshift-gitops-operator
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
@@ -221,6 +223,9 @@ spec:
         name: ""
         version: v1
       version: v1alpha1
+    - kind: ArgoCD
+      name: argocds.argoproj.io
+      version: v1beta1
     - kind: ClusterAnalysisTemplate
       name: clusteranalysistemplates.argoproj.io
       version: v1alpha1
@@ -865,28 +870,34 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        serviceAccountName: gitops-operator-controller-manager
+        serviceAccountName: openshift-gitops-operator-controller-manager
       deployments:
-      - name: gitops-operator-controller-manager
+      - name: openshift-gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:
             matchLabels:
-              control-plane: argocd-operator
+              control-plane: gitops-operator
           strategy: {}
           template:
             metadata:
               labels:
-                control-plane: argocd-operator
+                control-plane: gitops-operator
             spec:
               containers:
-              - command:
+              - args:
+                - --health-probe-bind-address=:8081
+                - --metrics-bind-address=127.0.0.1:8080
+                - --leader-elect
+                command:
                 - /usr/local/bin/manager
                 env:
                 - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
+                - name: ENABLE_CONVERSION_WEBHOOK
+                  value: "true"
                 image: quay.io/redhat-developer/gitops-operator:latest
                 livenessProbe:
                   httpGet:
@@ -895,6 +906,10 @@ spec:
                   initialDelaySeconds: 15
                   periodSeconds: 20
                 name: manager
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -909,10 +924,42 @@ spec:
                     - ALL
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
+              - args:
+                - --secure-listen-address=0.0.0.0:8443
+                - --upstream=http://127.0.0.1:8080
+                - --tls-cert-file=/etc/tls/private/tls.crt
+                - --tls-private-key-file=/etc/tls/private/tls.key
+                - --logtostderr=true
+                - --allow-paths=/metrics
+                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy@sha256:da5d5061dbc2ec5082cf14b6c600fb5400b83cf91d7ccebfa80680a238d275db
+                name: kube-rbac-proxy
+                ports:
+                - containerPort: 8443
+                  name: metrics
+                resources:
+                  limits:
+                    cpu: 500m
+                    memory: 128Mi
+                  requests:
+                    cpu: 1m
+                    memory: 15Mi
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  capabilities:
+                    drop:
+                    - ALL
+                volumeMounts:
+                - mountPath: /etc/tls/private
+                  name: kube-rbac-proxy-tls
+                  readOnly: true
               securityContext:
                 runAsNonRoot: true
-              serviceAccountName: gitops-operator-controller-manager
+              serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
+              volumes:
+              - name: kube-rbac-proxy-tls
+                secret:
+                  secretName: kube-rbac-proxy-tls
       permissions:
       - rules:
         - apiGroups:
@@ -946,7 +993,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: gitops-operator-controller-manager
+        serviceAccountName: openshift-gitops-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: false
@@ -974,3 +1021,16 @@ spec:
     name: Red Hat Inc
   replaces: gitops-operator.v1.7.3
   version: 1.8.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1alpha1
+    - v1beta1
+    containerPort: 443
+    conversionCRDs:
+    - argocds.argoproj.io
+    deploymentName: openshift-gitops-operator-controller-manager
+    generateName: cargocds.kb.io
+    sideEffects: None
+    targetPort: 9443
+    type: ConversionWebhook
+    webhookPath: /convert

@@ -3,13 +3,12 @@ kind: TestStep
 commands:
 # patches the subscription to set an environment variable
 - script: |
-    if ! [ -z $NON_OLM ]; then       
-        oc patch deployment gitops-operator-controller-manager -n gitops-operator-system \
-          -p '{"spec":{"template":{"spec":{"containers":[{"name":"manager","env":[{"name":"REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION","value":null}]}]}}}}'    
+    if ! [ -z $NON_OLM ]; then 
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION=null
     elif [ -z $CI ]; then
-      oc patch -n openshift-operators subscription openshift-gitops-operator \
+      oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     else
-      oc patch -n openshift-operators subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+      oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
         --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
     fi

@@ -17,7 +17,8 @@
 14. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
 15. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
 16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)  
+17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
+18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
 
 ## Installing OpenShift GitOps
 
@@ -47,7 +48,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-operators
+  namespace: openshift-gitops-operator
 spec:
   channel: stable
   installPlanApproval: Automatic
@@ -148,38 +149,19 @@ The scope of this section is to describe the steps to Install, Configure(**Setup
 
 **Prerequisite:**
 
-:warning: DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be enabled/disabled using `.spec.sso.provider`. 
+**NOTE:** `DISABLE_DEX` environment variable is no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled using `.spec.sso.provider`. 
 
-**Note: `DISABLE_DEX` environment variable was earlier scheduled for removal in OpenShift GitOps v1.9.0, but has been extended to v1.10.0.**
+Make sure you disable dex 
 
-* Make sure you disable dex 
-
-```
-spec:
-  config:
-    env:
-      - name: DISABLE_DEX
-        value: "true"
-
-```
-
-```
-oc patch subscriptions.operators.coreos.com/openshift-gitops-operator \
--n openshift-operators \
---type='merge' \
---patch '{ "spec": { "config": { "env": [ { "name": "DISABLE_DEX", "value": "true" } ] } } }'
-```
-
+`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "remove", "path": "/spec/sso"}]'`
 
 User/Admin needs to patch the Argo CD instance/s with the below command.
 
 `oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
 
-
 Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
 
 `oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
-
 
 **Note: Make sure the keycloak pods are up and running and the available replica count is 1. It usually takes 2-3 minutes.**
 
@@ -275,9 +257,20 @@ As an option, You can configure an htpasswd Identity Provider using this [link](
 
 ### **Configure Argo CD RBAC**
 
-By default, any user logged into Argo CD using RHSSO will be a read-only user.
+
+For versions upto and not including v1.10, any user logged into Argo CD using RHSSO will be a read-only user by default.
 
 `policy.default: role:readonly`
+
+For versions starting v1.10 and above,
+
+- any user logged into the default Argo CD instance `openshift-gitops` in namespace `openshift-gitops` will have no access by default.
+
+`policy.default: ''`
+
+- any user logged into user managed custom Argo CD instance will have `read-only` access by default.
+
+`policy.default: 'role:readonly'`
 
 
 This behavior can be modified by updating the *argocd-rbac-cm*  configmap data section.
@@ -349,14 +342,14 @@ RHSSO container by default gets created with default resource requests and limit
 
 Users can modify the default resource requirements by patching the Argo CD CR as shown below. 
 
-`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}} }}]'`
+`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "keycloak": {"resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}}} }}]'`
 
 
 ### **Persistence**
 
 The main purpose of RHSSO created by the operator is to allow users to login into Argo CD with their OpenShift users. It is not expected and not supported to update and use this RHSSO instance for any other use-cases.
 
-**Note**:** RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
+**Note**: RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
 
 ### **Uninstall** 
 
@@ -371,9 +364,7 @@ Below `oc` command can be used to patch the default Argo CD Instance in the open
 
 Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
 
-:warning: **`.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Keycloak can be configured using `.spec.sso.keycloak`**. 
-
-**Note: `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields were earlier scheduled for removal in OpenShift GitOps v1.9.0, but have been extended to v1.10.0.**
+**NOTE:** `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are no longer supported in OpenShift GitOps v1.10 onwards. Keycloak can be configured using `.spec.sso.keycloak`. 
 
 ### **Skip the Keycloak Login page and display the OpenShift Login page.**
 
@@ -452,12 +443,6 @@ Updating the following environment variables in the existing Subscription Object
     <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace.</td>
   </tr>
   <tr>
-    <td>DISABLE_DEX</td>
-    <td>false</td>
-    <td> When set to `true`, will remove the Dex deployment from the openshift-gitops namespace. Note: Disabling Dex will not be supported in v.1.10.0+. 
-    </td>
-  </tr>
-  <tr>
     <td>SERVER_CLUSTER_ROLE</td>
     <td>none</td>
     <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD server with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
@@ -515,7 +500,7 @@ Now we can edit the Argo CD cr and add the oidc configuration to enable our keyc
 Your Argo CD cr should look like this:
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   creationTimestamp: null
@@ -616,11 +601,7 @@ data:
 
 **NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
-:warning: **DISABLE_DEX is Deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows:**
-
-:warning: **`.spec.dex` is deprecated in OpenShift GitOps v1.6.0 and support will be removed in v1.10.0. Dex can be configured through `.spec.sso.dex` as follows** : 
-
-**Note: `DISABLE_DEX` environment variable and `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields were earlier scheduled for removal in OpenShift GitOps v1.9.0, but have been extended to v1.10.0.**
+**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows
 
 ```
 spec:
@@ -632,66 +613,45 @@ spec:
 
 `oc patch argocd argocd --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
 
-**NOTE** As of v1.6.0, leaving `DISABLE_DEX` environment variable unset, or setting it to `false` will no longer trigger creation of Dex resources, unless there is valid Dex configuration expressed through `.spec.dex`. This could either be using the default openShift configuration:
+**NOTE:** Dex resource creation will not be triggered, unless there is valid Dex configuration expressed through `.spec.sso.dex`. This could either be using the default openShift configuration
 
 ```
 spec:
-  dex:
-    openShiftOAuth: true
+  provider: dex
+  sso:
+    dex:
+      openShiftOAuth: true
 ```
 
-`oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "dex": { "openShiftOAuth": true } } }'`
-
+`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
 
 or it could be custom Dex configuration provided by the user:
 
 ```
 spec:
-  dex:
-    config: <custom-dex-config>
+  sso:
+    dex:
+      config: <custom-dex-config>
 ```
 
-`oc patch Argo CD/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "dex": { "config": <custom-dex-config> } } }'`
+`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"config": <custom-dex-config>}}}}`
 
-
-**NOTE:Absence of either will result in an error due to failing health checks on Dex**
+**NOTE: Absence of either will result in an error due to failing health checks on Dex**
 
 #### Uninstalling Dex
 
-#### Using `.spec.sso`
+**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Please use `.spec.sso.provider` to enable/disable Dex.  
 
-Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider 
-#### Using the DISABLE_DEX environment variable
-
-Dex can be uninstalled by setting `DISABLE_DEX` to `true` in the Subscription resource of the operator.
-
-```yaml
-spec:
-  config:
-    env:
-    - name: DISABLE_DEX
-      value: "true"
-```
-:warning:
-    **`DISABLE_DEX` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.provider` to enable/disable Dex.**
-
-**Note: `DISABLE_DEX` environment variable was earlier scheduled for removal in Argo CD operator v0.7.0, but has been extended to v0.8.0.**
-
-#### Using `.spec.dex`
-
-Dex can be uninstalled by either removing `.spec.dex` from the Argo CD CR, or ensuring `.spec.dex.config` is empty and `.spec.dex.openShiftOAuth` is set to `false`.
-
-:warning: 
-    **`.spec.dex` is deprecated and support will be removed in Argo CD operator v0.8.0. Please use `.spec.sso.dex` to configure Dex.**
-
-**Note: `.spec.dex` field was earlier scheduled for removal in Argo CD operator v0.7.0, but has been extended to Argo CD operator v0.8.0.**
+Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider.  
 
 You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
 
 ```
 spec:
-  dex:
-    openShiftOAuth: true
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
   rbac:
     defaultPolicy: 'role:readonly'
     policy: |
@@ -720,10 +680,9 @@ This will disable any automatic (and further) full management of the dex / OpenS
 
 ```
 oidc_config=$(oc get cm -n openshift-gitops argocd-cm -o json | jq '.data["dex.config"]' | sed 's@/callback@/callback\\n	groups:\\n  	- cluster-admins@' | sed 's/"//g')
-oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/dex/openShiftOAuth" }]'
-oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"dex\": { \"config\": \"${oidc_config}\" } } }"
+oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/sso/dex/openShiftOAuth" }]'
+oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"sso\": { \"dex\": { \"config\": \"${oidc_config}\" } } } }"
 ```
-
 
 ## Getting started with GitOps Application Manager (kam)
 
@@ -783,7 +742,7 @@ A user can enable a number of replicas for the Argo CD-server and Argo CD-repo-s
 **Example**
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example-argocd
@@ -808,7 +767,7 @@ spec:
 Argo CD Notifications controller can be enabled/disabled using a new toggle within the Argo CD CR with default specs as follows:
 
 ``` yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example-argocd
@@ -876,7 +835,7 @@ With this update, administrators can configure a common cluster role for all the
 **Example**: Custom role environment variables in operator Subscription:
 
 ```
-apiVersion: operators.coreos.com/v1alpha1
+apiVersion: operators.coreos.com/v1beta1
 kind: Subscription
 metadata:
   name: argocd-operator
@@ -1154,7 +1113,7 @@ For example, the below Argo CD instance deploys the Argo CD workloads such as Ap
 **Note:** The resource requirements for the workloads in the below example are not the recommended values. Please do not consider them as defaults for your instance.
 
 ```
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: example
@@ -1185,14 +1144,15 @@ spec:
       requests:
         cpu: 250m
         memory: 256Mi
-  dex:
-    resources:
-      limits:
-        cpu: 500m
-        memory: 256Mi
-      requests:
-        cpu: 250m
-        memory: 128Mi
+  sso:
+    dex:
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
+        requests:
+          cpu: 250m
+          memory: 128Mi
   redis:
     resources:
       limits:
@@ -1475,4 +1435,16 @@ If you find any issues with respect to pods moving into pending state or error s
 
 `oc delete resourcequota openshift-gitops-compute-resources -n openshift-gitops`
 
+## Upgrade GitOps Operator to v1.10 (GA)
 
+GitOps Operator v1.10 introduces breaking changes in SSO configurations. `.spec.dex`, `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` fields in ArgoCD CR are no longer supported to configure dex/keycloak SSO. If you are using these fields, please update your ArgoCD CR to use equivalent fields under `.spec.sso` for dex/keycloak SSO configurations before upgrading to v1.10.  
+
+Refer [Working with Dex](#working-with-dex) section for more details. 
+
+## GitOps Monitoring Dashboards 
+
+As of GitOps Operator v1.10.0, the operator will deploy monitoring dashboards in the console Admin perspective. When navigating to *Observe* → *Monitoring* in the console, users should see three GitOps dashboards in the dropdown dashboard list: GitOps Overview, GitOps Components, and GitOps gRPC. These dashboards are based on the upstream Argo CD dashboards but have been modified to work with OpenShift console. 
+
+![Dashboard Select Dropdown](assets/39.gitops_monitoring_dashboards_dropdown.png)
+
+**Note: At this time disabling or changing the content of the dashboards is not supported.**

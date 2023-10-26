@@ -43,6 +43,8 @@ spec:
         - mountPath: /var/run/configmaps/service-ca
           name: service-ca
           readOnly: true
+        - mountPath: /mnt/rh-sso
+          name: sso-probe-netrc-volume
       restartPolicy: Always
       volumes:
       - name: sso-x509-https-volume
@@ -53,6 +55,9 @@ spec:
           defaultMode: 420
           name: keycloak-service-ca
         name: service-ca
+      - name: sso-probe-netrc-volume
+        emptyDir:
+          medium: Memory
   triggers:
   - type: ConfigChange
 status:

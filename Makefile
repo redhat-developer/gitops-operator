@@ -154,14 +154,17 @@ docker-push: ## Push docker image with the manager.
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	## TODO: Remove sed usage after all v1alpha1 references are updated to v1beta1 in codebase.
+	## For local testing, conversion webhook defined in crd makes call to webhook for each v1alpha1 reference
+	## causing failures as we don't set up the webhook for local testing.
+	$(KUSTOMIZE) build config/crd | sed '/conversion:/,/- v1beta1/d' |kubectl apply --server-side=true -f -
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=true -f -
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default | kubectl apply --server-side=true -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -

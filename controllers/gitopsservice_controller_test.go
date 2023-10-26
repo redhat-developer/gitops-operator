@@ -19,10 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -54,8 +53,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	ns := types.NamespacedName{Name: "test", Namespace: "test"}
 	t.Run("Image present as env variable", func(t *testing.T) {
 		image := "quay.io/org/test"
-		os.Setenv(backendImageEnvName, image)
-		defer os.Unsetenv(backendImageEnvName)
+		t.Setenv(backendImageEnvName, image)
 
 		deployment := newBackendDeployment(ns)
 
@@ -75,8 +73,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 
 	t.Run("Kam Image present as env variable", func(t *testing.T) {
 		image := "quay.io/org/test"
-		os.Setenv(cliImageEnvName, image)
-		defer os.Unsetenv(cliImageEnvName)
+		t.Setenv(cliImageEnvName, image)
 
 		deployment := newDeploymentForCLI()
 
@@ -500,7 +497,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	// Create a basic ArgoCD CR. ArgoCD created by Operator version less than v1.2
+	// Create a basic ArgoCD CR. ArgoCD created by Operator version >= v1.6.0
 	existingArgoCD := &argoapp.ArgoCD{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      serviceNamespace,
@@ -513,8 +510,11 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 				},
 			},
 			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
-			Dex: &argoapp.ArgoCDDexSpec{
-				Config: "test-config",
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Provider: "dex",
+				Dex: &argoapp.ArgoCDDexSpec{
+					Config: "test-config",
+				},
 			},
 		},
 	}
@@ -535,7 +535,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 
 	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Dex.Resources != nil)
+	assert.Check(t, updateArgoCD.Spec.SSO.Dex.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
