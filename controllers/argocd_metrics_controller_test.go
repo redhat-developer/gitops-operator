@@ -64,7 +64,7 @@ func newClient(s *runtime.Scheme, namespace, name string) client.Client {
 			Namespace: namespace,
 		},
 	}
-	return fake.NewFakeClientWithScheme(s, &ns, &argocd)
+	return fake.NewClientBuilder().WithScheme(s).WithObjects(&ns, &argocd).Build()
 }
 
 func newMetricsReconciler(t *testing.T, namespace, name string) ArgoCDMetricsReconciler {
