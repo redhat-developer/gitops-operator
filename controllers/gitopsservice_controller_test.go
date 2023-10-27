@@ -382,7 +382,7 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.7.1"), newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -405,7 +405,7 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 	addKnownTypesToScheme(s)
 
 	// Testing on OCP versions < 4.11.0
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.10.1"), newGitopsService())
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.10.1"), newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -416,7 +416,7 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 	assertNoError(t, err)
 
 	// Testing on OCP versions < 4.11.0
-	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	fakeClient = fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
 	reconciler = newReconcileGitOpsService(fakeClient, s)
 
 	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -451,7 +451,7 @@ func TestReconcile_KamSecurityContext(t *testing.T) {
 	defer util.SetConsoleAPIFound(false)
 
 	// Testing on OCP versions < 4.11.0
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -463,7 +463,7 @@ func TestReconcile_KamSecurityContext(t *testing.T) {
 
 	// Testing on OCP versions < 4.11.0
 
-	fakeClient = fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.12.1"), newGitopsService())
+	fakeClient = fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
 	reconciler = newReconcileGitOpsService(fakeClient, s)
 
 	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -494,7 +494,7 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.7.1"), newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	// Create a basic ArgoCD CR. ArgoCD created by Operator version >= v1.6.0
@@ -548,7 +548,7 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClientWithScheme(s, util.NewClusterVersion("4.7.1"), newGitopsService())
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.7.1"), newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	// Create namespace object for default ArgoCD instance and set resource quota to it.
