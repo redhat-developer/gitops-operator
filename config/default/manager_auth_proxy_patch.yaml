@@ -21,7 +21,6 @@ spec:
         - --tls-private-key-file=/etc/tls/private/tls.key
         - --logtostderr=true
         - --allow-paths=/metrics
-        - --http2-disable
         ports:
         - containerPort: 8443
           name: metrics
