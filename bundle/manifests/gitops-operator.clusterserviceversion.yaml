@@ -931,7 +931,6 @@ spec:
                 - --tls-private-key-file=/etc/tls/private/tls.key
                 - --logtostderr=true
                 - --allow-paths=/metrics
-                - --http2-disable
                 image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.13
                 name: kube-rbac-proxy
                 ports:
