@@ -639,8 +639,6 @@ github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5 h1:SlFbeNb42H7DUGzE9B/uYYjlQjNSR4y+eaWiTqN3PGs=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5/go.mod h1:AiEjAr6e/DCDiicjoC7W7LaZdO28sfgoBhjbGryzEZ8=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20231026172242-e9c2c2c30bcb h1:fJscZ7wXN7o/S+jb4X0lY7IhbOw1gt7He7zBorNxvpo=
-github.com/argoproj-labs/argocd-operator v0.0.16-0.20231026172242-e9c2c2c30bcb/go.mod h1:HCtQemVWsGTHVw7YJ45mFEyavxQLFpqMktrsGajZiZI=
 github.com/argoproj/argo-cd/v2 v2.8.4 h1:V3jBZdWsgIB/bhpsGcRo4ryGSYELnXZMYZ2taAwH0+o=
 github.com/argoproj/argo-cd/v2 v2.8.4/go.mod h1:8UQOF1UmocJR7lNkwe3IhSVLTaxvLcNgCBI/RPbszuE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -1268,6 +1266,8 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/jackc/fake v0.0.0-20150926172116-812a484cc733/go.mod h1:WrMFNQdiFJ80sQsxDoMokWK1W5TQtxBFNpzWTD84ibQ=
 github.com/jackc/pgx v3.2.0+incompatible/go.mod h1:0ZGrqGqkRlliWnWB4zKnWtjbSWbGkVEFm4TeybAXq+I=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20231031122708-d4485e361145 h1:fJcOw34X81VigliEMVbH3q3iC44R8HipmPF5nDElMJ0=
+github.com/jaideepr97/argocd-operator v0.0.16-0.20231031122708-d4485e361145/go.mod h1:Og9pkqg8KdrQWOOlzsjJf0iNleVP6AIArXJ4HQeKvYg=
 github.com/jessevdk/go-flags v0.0.0-20180331124232-1c38ed7ad0cc/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
