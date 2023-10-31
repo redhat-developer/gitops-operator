@@ -690,6 +690,8 @@ github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4x
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
+github.com/argoproj-labs/argocd-operator v0.6.1-0.20231031181515-b7a1a829d0bc h1:prOJgi2+2Pr59L57xbmBVwaYsDzM4t/fXlyyXjFX8sQ=
+github.com/argoproj-labs/argocd-operator v0.6.1-0.20231031181515-b7a1a829d0bc/go.mod h1:N4wktYJjYkSAwb36r9u27G2soWaUPzyZ9YRXJwpQiwI=
 github.com/argoproj/argo-cd/v2 v2.8.4 h1:V3jBZdWsgIB/bhpsGcRo4ryGSYELnXZMYZ2taAwH0+o=
 github.com/argoproj/argo-cd/v2 v2.8.4/go.mod h1:8UQOF1UmocJR7lNkwe3IhSVLTaxvLcNgCBI/RPbszuE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -1345,8 +1347,6 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/jackc/fake v0.0.0-20150926172116-812a484cc733/go.mod h1:WrMFNQdiFJ80sQsxDoMokWK1W5TQtxBFNpzWTD84ibQ=
 github.com/jackc/pgx v3.2.0+incompatible/go.mod h1:0ZGrqGqkRlliWnWB4zKnWtjbSWbGkVEFm4TeybAXq+I=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20231031125146-2fa37ce94a57 h1:+nUQUepu8jW2WsnYDEZsc0MQf+tU8NsSN1zBDZGzhLw=
-github.com/jaideepr97/argocd-operator v0.0.16-0.20231031125146-2fa37ce94a57/go.mod h1:N4wktYJjYkSAwb36r9u27G2soWaUPzyZ9YRXJwpQiwI=
 github.com/jessevdk/go-flags v0.0.0-20180331124232-1c38ed7ad0cc/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jmespath/go-jmespath v0.0.0-20160202185014-0b12d6b521d8/go.mod h1:Nht3zPeWKUH0NzdCt2Blrr5ys8VGpn0CEB0cQHVjt7k=
