@@ -5,22 +5,26 @@ commands:
 - script: |
     function wait_until_pods_running() {
       echo -n "Waiting until all pods in namespace $1 are up"
-      for i in {1..150}; do  # timeout after 5 minutes
+      for i in {1..150}; do # timeout after 5 minutes
         local pods="$(oc get pods --no-headers -n $1 2>/dev/null)"
+        # write it to tempfile
+        TempFile=$(mktemp)
+        oc get pods --no-headers -n $1 2>/dev/null >$TempFile
+
         # All pods must be running
         local not_running=$(echo "${pods}" | grep -v Running | grep -v Completed | wc -l)
         if [[ -n "${pods}" && ${not_running} -eq 0 ]]; then
           local all_ready=1
-          while read pod ; do
-            local status=(`echo -n ${pod} | cut -f2 -d' ' | tr '/' ' '`)
+          while read pod; do
+            local status=($(echo ${pod} | cut -f2 -d' ' | tr '/' ' '))
             # All containers must be ready
             [[ -z ${status[0]} ]] && all_ready=0 && break
             [[ -z ${status[1]} ]] && all_ready=0 && break
             [[ ${status[0]} -lt 1 ]] && all_ready=0 && break
             [[ ${status[1]} -lt 1 ]] && all_ready=0 && break
             [[ ${status[0]} -ne ${status[1]} ]] && all_ready=0 && break
-          done <<< $(echo "${pods}" | grep -v Completed)
-          if (( all_ready )); then
+          done <${TempFile}
+          if ((all_ready)); then
             echo -e "\nAll pods are up:\n${pods}"
             return 0
           fi
