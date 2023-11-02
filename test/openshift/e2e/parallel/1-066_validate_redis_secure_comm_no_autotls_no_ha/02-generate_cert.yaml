@@ -3,9 +3,12 @@ kind: TestStep
 commands:
 - script: |
     set -e
-
-    echo -e "\n[SAN]\nsubjectAltName=DNS:argocd-redis.$NAMESPACE.svc.cluster.local\n[req]\ndistinguished_name=req" > ${PWD}/openssl_test.cnf
-
+    if [[ $(uname -o) == "Darwin" ]]; then
+        echo "\n[SAN]\nsubjectAltName=DNS:argocd-redis.$NAMESPACE.svc.cluster.local\n[req]\ndistinguished_name=req" >${PWD}/openssl_test.cnf
+    else
+        echo -e "\n[SAN]\nsubjectAltName=DNS:argocd-redis.$NAMESPACE.svc.cluster.local\n[req]\ndistinguished_name=req" >${PWD}/openssl_test.cnf
+    fi
+      
     openssl req -new -x509 -sha256 \
      -subj "/C=XX/ST=XX/O=Testing/CN=redis" \
      -reqexts SAN -extensions SAN \
