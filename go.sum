@@ -641,6 +641,8 @@ github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e85
 github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5/go.mod h1:AiEjAr6e/DCDiicjoC7W7LaZdO28sfgoBhjbGryzEZ8=
 github.com/argoproj-labs/argocd-operator v0.7.1-0.20231031185527-dc3c9a206b4a h1:He4qZ1By0dzCkkVA+nmM64WjRjbid17MSDBVbIDmK4c=
 github.com/argoproj-labs/argocd-operator v0.7.1-0.20231031185527-dc3c9a206b4a/go.mod h1:Og9pkqg8KdrQWOOlzsjJf0iNleVP6AIArXJ4HQeKvYg=
+github.com/argoproj-labs/argocd-operator v0.7.1-0.20231107063458-5482a8c7f2e6 h1:hhJKAxrqT8rq1Fpb9/NOHscK+ee5TaIK3NousvT+eDI=
+github.com/argoproj-labs/argocd-operator v0.7.1-0.20231107063458-5482a8c7f2e6/go.mod h1:Og9pkqg8KdrQWOOlzsjJf0iNleVP6AIArXJ4HQeKvYg=
 github.com/argoproj/argo-cd/v2 v2.8.4 h1:V3jBZdWsgIB/bhpsGcRo4ryGSYELnXZMYZ2taAwH0+o=
 github.com/argoproj/argo-cd/v2 v2.8.4/go.mod h1:8UQOF1UmocJR7lNkwe3IhSVLTaxvLcNgCBI/RPbszuE=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -765,6 +767,7 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/coreos/prometheus-operator v0.38.1-0.20200424145508-7e176fda06cc/go.mod h1:erio69w1R/aC14D5nfvAXSlE8FT8jt2Hnavc50Dp33A=
 github.com/coreos/prometheus-operator v0.40.0 h1:UNjQaRud+XpFj8C7bLxA0eDm2oVwE1MP9ITUPLJkySU=
 github.com/coreos/prometheus-operator v0.40.0/go.mod h1:QOoL5cVI3b1OHgpw8s+pH+Ok4AFRp2HOUvBpqs7UWcg=
+github.com/coreos/prometheus-operator v0.69.0/go.mod h1:/pK0i/0H0oTKaoxF+K0YhI05+9nxkIoxRmVO8pdM6LQ=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
