@@ -144,7 +144,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v1.8.0
+  name: gitops-operator.v1.11.0-svcmon
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -898,7 +898,7 @@ spec:
                   value: gitops-operator
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
-                image: quay.io/redhat-developer/gitops-operator:latest
+                image: quay.io/jrao/gitops-operator:1.11.0-svcmon
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -1021,7 +1021,7 @@ spec:
   provider:
     name: Red Hat Inc
   replaces: gitops-operator.v1.7.3
-  version: 1.8.0
+  version: 1.11.0-svcmon
   webhookdefinitions:
   - admissionReviewVersions:
     - v1alpha1
