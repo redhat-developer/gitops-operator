@@ -19,6 +19,7 @@
 16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
 17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
 18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
+19. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
 
 ## Installing OpenShift GitOps
 
