@@ -301,6 +301,9 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 			reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", operatorNS, "Name", operatorMetricsMonitorName)
 			return err
 		}
+
+		// no svc monitor found, nothing to do
+		return nil
 	}
 
 	if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != desiredMetricsServerName {
