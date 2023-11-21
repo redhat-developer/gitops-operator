@@ -296,23 +296,16 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 	existingServiceMonitor := &monitoringv1.ServiceMonitor{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: operatorMetricsMonitorName, Namespace: operatorNS}, existingServiceMonitor)
 
-	if err == nil {
-		changed := false
-
-		if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != desiredMetricsServerName {
-			existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName = desiredMetricsServerName
-			changed = true
-		}
-
-		if changed {
-			return r.Client.Update(context.TODO(), existingServiceMonitor)
-		}
-	} else if err != nil {
-
+	if err != nil {
 		if !errors.IsNotFound(err) {
 			reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", operatorNS, "Name", operatorMetricsMonitorName)
 			return err
 		}
+	}
+
+	if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != desiredMetricsServerName {
+		existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName = desiredMetricsServerName
+		return r.Client.Update(context.TODO(), existingServiceMonitor)
 	}
 
 	return nil
