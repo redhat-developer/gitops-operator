@@ -175,7 +175,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 
 	err = r.reconcileOperatorMetricsServiceMonitor(reqLogger)
 	if err != nil {
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
