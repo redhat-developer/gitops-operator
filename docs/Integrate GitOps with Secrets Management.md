@@ -17,7 +17,7 @@ There are 3 providers supported by the SSCSID Operator, refer the below links fo
 
 ### Prerequisites
 * Your cluster is installed on AWS and uses AWS Security Token Service (STS).
-* You have configured AWS Secrets Manager to store the required secrets.
+* [You have configured AWS Secrets Manager to store the required secrets](https://docs.aws.amazon.com/secretsmanager/latest/userguide/create_secret.html).
 * You have extracted and prepared the `ccoctl` binary.
 * You have installed the `jq` CLI tool.
 * You have access to the cluster as a user with the `cluster-admin` role.
@@ -401,4 +401,22 @@ oc exec taxi-<hash> -n dev -- cat /mnt/secrets-store/gitops-secret
 ## Additional Information
 ### Configure your AWS cluster to use AWS Security Token Service (STS)
 Follow [Steps to in-place migrate an OpenShift Cluster to STS](https://github.com/openshift/cloud-credential-operator/blob/master/docs/sts.md#steps-to-in-place-migrate-an-openshift-cluster-to-sts)
+### Obtain the `ccoctl` tool
+It's possible to obtain the ccoctl tool from the [mirror of latest OCP versions](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/) (it's available for the latest versions of all the newer minor releases).
 
+It's also possible to obtain it from the Cloud Credential Operator:
+1. Find the name of the Cloud Credential Operator pod:
+```
+$ oc get pod -n openshift-cloud-credential-operator -l app=cloud-credential-operator
+NAME                                        READY   STATUS    RESTARTS   AGE
+cloud-credential-operator-xxxxxxxxxx-yyyyyy   2/2     Running   0          6h33m
+```
+2. Copy the `ccoctl` binary from the pod to a local directory:
+```
+$ oc cp -c cloud-credential-operator openshift-cloud-credential-operator/[cco_pod_name:/usr/bin/ccoctl ./ccoctl
+```
+3. Change the `ccoctl` permissions to make the binary executable and check that it is possible to use it:
+```
+$ chmod 775 ./ccoctl
+$ ./ccoctl --help
+```
