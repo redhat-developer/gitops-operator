@@ -16,9 +16,9 @@ There are 3 providers supported by the SSCSID Operator, refer the below links fo
 ## Integration guidance with an example using AWS Secrets Manager
 
 ### Prerequisites
-* Your cluster is installed on AWS and uses AWS Security Token Service (STS).
+* [Your cluster is installed on AWS and uses AWS Security Token Service (STS)](#configure-your-aws-cluster-to-use-aws-security-token-service-sts).
 * [You have configured AWS Secrets Manager to store the required secrets](https://docs.aws.amazon.com/secretsmanager/latest/userguide/create_secret.html).
-* You have extracted and prepared the `ccoctl` binary.
+* [You have extracted and prepared the `ccoctl` binary](#obtain-the-ccoctl-tool).
 * You have installed the `jq` CLI tool.
 * You have access to the cluster as a user with the `cluster-admin` role.
 
