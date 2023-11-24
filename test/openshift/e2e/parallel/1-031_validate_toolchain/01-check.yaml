@@ -6,9 +6,9 @@ commands:
       set -o pipefail
 
       # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-      expected_kustomizeVersion='v5.1.0'
-      expected_helmVersion='v3.12.1'
-      expected_argocdVersion='v2.8.3'
+      expected_kustomizeVersion='v5.2.1'
+      expected_helmVersion='v3.13.2'
+      expected_argocdVersion='v2.9.2'
       
       if CI="prow"; then
       # when running against openshift-ci
