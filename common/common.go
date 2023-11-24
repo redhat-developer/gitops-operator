@@ -16,6 +16,8 @@ limitations under the License.
 
 package common
 
+import "os"
+
 const (
 	// ArgoCDInstanceName is the default Argo CD instance name
 	ArgoCDInstanceName = "openshift-gitops"
@@ -38,4 +40,11 @@ func InfraNodeSelector() map[string]string {
 	return map[string]string{
 		"node-role.kubernetes.io/infra": "",
 	}
+}
+
+func StringFromEnv(env string, defaultValue string) string {
+	if str := os.Getenv(env); str != "" {
+		return str
+	}
+	return defaultValue
 }
