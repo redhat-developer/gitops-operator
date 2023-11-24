@@ -29,13 +29,11 @@ import (
 	"go.uber.org/zap/zapcore"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -46,6 +44,9 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -84,8 +85,10 @@ func main() {
 
 	var enableHTTP2 = false
 
+	var labelSelectorFlag string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&labelSelectorFlag, "label-selector", common.StringFromEnv(argocdcommon.ArgoCDLabelSelectorKey, argocdcommon.ArgoCDDefaultLabelSelector), "The label selector is used to map to a subset of ArgoCD instances to reconcile")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -179,10 +182,17 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
 		os.Exit(1)
 	}
+	// Check the label selector format eg. "foo=bar"
+	if _, err := labels.Parse(labelSelectorFlag); err != nil {
+		setupLog.Error(err, "error parsing the labelSelector '%s'.", labelSelectorFlag)
+		os.Exit(1)
+	}
+	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		LabelSelector: labelSelectorFlag,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
