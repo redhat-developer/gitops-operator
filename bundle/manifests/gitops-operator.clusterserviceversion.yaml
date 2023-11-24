@@ -896,6 +896,7 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
+                - name: LABEL_SELECTOR
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
                 image: quay.io/redhat-developer/gitops-operator:latest
