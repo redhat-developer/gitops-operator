@@ -122,7 +122,7 @@ The Index image powers the listing of the Operator on OperatorHub.
 
 ## Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
 
-Please follow the steps mentioned in the doc to migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator.
+Please follow the [migration guide](https://github.com/redhat-developer/gitops-operator/blob/master/docs/Migration_Guide.md) when moving from the [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to the GitOps Operator.
 
 ## Progressive Delivery
 
