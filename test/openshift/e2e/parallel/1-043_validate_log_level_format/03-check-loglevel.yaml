@@ -6,15 +6,15 @@ commands:
     set -e
     set -o pipefail
     for wl in deployment/argocd-server deployment/argocd-repo-server statefulset/argocd-application-controller; do
-      wlCommand=$(oc get -n $NAMESPACE $wl -o jsonpath='{.spec.template.spec.containers[0].command}'| jq -r '.[]' )
+      wlCommand=$(oc get -n $NAMESPACE $wl -o jsonpath='{.spec.template.spec.containers[0].command}')
       level="debug"
       format="json"
-      if ! echo "$wlCommand" | grep -qPz -- "--loglevel\\n$level(\$|\\n)"; then
+      if ! echo "$wlCommand" | grep -e "\"--loglevel\",\"${level}\""; then
         echo "logLevel was not set correctly for $wl"
         echo "CWD: $wlCommand"
         exit 1
       fi
-      if ! echo "$wlCommand" | grep -qPz -- "--logformat\\n$format(\$|\\n)"; then
+      if ! echo "$wlCommand" | grep -e "\"--logformat\",\"${format}\""; then
         echo "logFormat was not set correctly for $wl"
         echo "CWD: $wlCommand"
         exit 1
