@@ -413,7 +413,7 @@ cloud-credential-operator-xxxxxxxxxx-yyyyyy   2/2     Running   0          6h33m
 ```
 2. Copy the `ccoctl` binary from the pod to a local directory:
 ```
-$ oc cp -c cloud-credential-operator openshift-cloud-credential-operator/[cco_pod_name:/usr/bin/ccoctl ./ccoctl
+$ oc cp -c cloud-credential-operator openshift-cloud-credential-operator/<cco_pod_name>:/usr/bin/ccoctl ./ccoctl
 ```
 3. Change the `ccoctl` permissions to make the binary executable and check that it is possible to use it:
 ```
