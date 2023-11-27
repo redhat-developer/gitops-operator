@@ -71,7 +71,7 @@ Follow the steps on [Installing OpenShift GitOps](OpenShift%20GitOps%20Usage%20G
 
 2. Bootstrap a GitOps repository
 
-Follow the steps on [Getting started with GitOps Application Manager (kam)](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1) and [Day 1 Operations](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1).
+Follow the steps on [Getting started with GitOps Application Manager (kam)](OpenShift%20GitOps%20Usage%20Guide.md#getting-started-with-gitops-application-manager-kam) and [Day 1 Operations](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1).
 
 
 ### Store resources of AWS Secrets Manager in the GitOps repository
