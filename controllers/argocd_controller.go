@@ -45,11 +45,12 @@ import (
 )
 
 const (
-	argocdNS           = "openshift-gitops"
-	depracatedArgoCDNS = "openshift-pipelines-app-delivery"
-	consoleLinkName    = "argocd"
-	argocdRouteName    = "openshift-gitops-server"
-	iconFilePath       = "/argo.png"
+	argocdNS                 = "openshift-gitops"
+	depracatedArgoCDNS       = "openshift-pipelines-app-delivery"
+	consoleLinkName          = "argocd"
+	argocdRouteName          = "openshift-gitops-server"
+	iconFilePath             = "/argo.png"
+	operatorPodNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
 
 var (
