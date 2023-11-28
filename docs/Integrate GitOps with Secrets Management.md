@@ -279,7 +279,7 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
     ```
     us-east-2
     ```
-    
+
     c. Retrieve the OIDC provider by running the following command:
     ```
     oc get --raw=/.well-known/openid-configuration | jq -r '.issuer'
@@ -303,7 +303,7 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
 
     e. Bind the service account with the role ARN by running the following command:
     ```
-    oc annotate -n dev sa/aws-provider eks.amazonaws.com/role-arn="<aws_role_arn>"
+    oc annotate -n dev sa/default eks.amazonaws.com/role-arn="<aws_role_arn>"
     ```
 
 3. Create a secret provider class to define your secrets store provider:
