@@ -262,13 +262,24 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
             - "secretsmanager:GetSecretValue"
             - "secretsmanager:DescribeSecret"
             effect: Allow
-            resource: "arn:aws:secretsmanager:<secret_region>:<your_IAM_account>:secret:<your-secret-xxxxxx>" // Secret ARN
+            resource: "arn:aws:secretsmanager:<aws_region>:<your_IAM_account>:secret:<your-secret-xxxxxx>" // Secret ARN
     secretRef:
         name: aws-creds
         namespace: dev
     serviceAccountNames:
         - default
     ```
+    **NOTE**
+
+    The <aws_region> of Secret ARN has to match the cluster region. If it doesn't match, you could create a replication of your secret in the region where your cluster is on. Run the below command to find your cluster region.
+    ```
+    oc get infrastructure cluster -o jsonpath='{.status.platformStatus.aws.region}'
+    ```
+    *Example output*
+    ```
+    us-east-2
+    ```
+    
     c. Retrieve the OIDC provider by running the following command:
     ```
     oc get --raw=/.well-known/openid-configuration | jq -r '.issuer'
@@ -288,16 +299,6 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
     2023/05/15 18:10:34 Role arn:aws:iam::<aws_account_id>:role/gitops-role-dev-aws-creds created
     2023/05/15 18:10:34 Saved credentials configuration to: credrequests-ccoctl-output/manifests/dev-aws-creds-credentials.yaml
     2023/05/15 18:10:35 Updated Role policy for Role gitops-role-dev-aws-creds
-    ```
-    **NOTE**
-
-    When create the IAM role, the <aws_region> has to match the cluster region. Run the below command to find your cluster region.
-    ```
-    oc get infrastructure cluster -o jsonpath='{.status.platformStatus.aws.region}'
-    ```
-    *Example output*
-    ```
-    us-east-2
     ```
 
     e. Bind the service account with the role ARN by running the following command:
