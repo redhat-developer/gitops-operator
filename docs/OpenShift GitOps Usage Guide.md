@@ -413,7 +413,7 @@ Make sure to click **Save**. You should now have a new tab called **Credentials*
 
 ## **Setting environment variables**
 
-Updating the following environment variables in the existing Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
+Setting the following environment variables when creating a Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
 
 <table>
   <tr>
