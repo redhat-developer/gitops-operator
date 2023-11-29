@@ -2,10 +2,10 @@
 
 ## Table of Contents
 1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
-2. [Configure RHSSO for OpenShift GitOps(>= v1.2)](#configure-rhsso-for-openshift-gitops-v12)  
-3. [Setting up OpenShift Login (=< v1.1.2)](#setting-up-openshift-login--v112)
+2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)  
+    a. [RHSSO / Keycloak](#rhssokeycloak)  
+    b. [Dex](#dex)
 4. [Setting environment variables](#setting-environment-variables)    
-5. [Configuring the groups claim](#configuring-the-groups-claim-)  
 6. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
 7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
 8. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
@@ -139,465 +139,17 @@ Now, you can create an Argo CD application and let Argo CD keep application reso
 
 [https://github.com/siamaksade/openshift-gitops-getting-started](https://github.com/siamaksade/openshift-gitops-getting-started)
 
-## Configure RHSSO for OpenShift GitOps(**>= v1.2**)
+## Configure SSO for OpenShift GitOps
 
-**Scope:**
+GitOps Operator supports Dex & RHSSO for providing single sign-on authentication and user management. 
 
-The scope of this section is to describe the steps to Install, Configure(**Setup Login with OpenShift**) and Uninstall the RHSSO with OpenShift GitOps operator v1.2.
+### RHSSO/Keycloak
 
-### **Install**
+GitOps comes with a bundled keycloak instance which is configured for authenticating with Argo CD component of Openshift GitOps. The main purpose of this instance created by the operator is to allow users to login into Argo CD with their OpenShift users.
 
-**Prerequisite:**
+Refer [RHSSO config guidance](./rhsso_config_guidance.md) for installation & configuration steps.
 
-**NOTE:** `DISABLE_DEX` environment variable is no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled using `.spec.sso.provider`. 
-
-Make sure you disable dex 
-
-`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "remove", "path": "/spec/sso"}]'`
-
-User/Admin needs to patch the Argo CD instance/s with the below command.
-
-`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
-
-Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
-
-**Note: Make sure the keycloak pods are up and running and the available replica count is 1. It usually takes 2-3 minutes.**
-
-#### **Additional Steps for Disconnected OpenShift Clusters**
-
-Skip this step for regular OCP and OSD clusters.
-
-In a [disconnected](https://access.redhat.com/documentation/en-us/red_hat_openshift_container_storage/4.7/html/planning_your_deployment/disconnected-environment_rhocs) cluster, Keycloak communicates with OpenShift Oauth Server through proxy. Below are some additional steps that need to be followed to get Keycloak integrated with OpenShift Oauth Login.
-
-##### **Login to the Keycloak Pod**
-
-`oc exec -it dc/keycloak -n <namespace> -- /bin/bash`
-
-
-##### **Run JBoss Cli command**
-
-`/opt/eap/bin/jboss-cli.sh`
-
-
-##### **Start an Embedded Standalone Server**
-
-`embed-server --server-config=standalone-openshift.xml`
-
-
-##### **Run the below commands to setup proxy mappings for OpenShift OAuth Server**
-
-**Get OAuth Server Host.  <oauth-server-host>**
-
-`oc get routes oauth-openshift -n openshift-authentication -o jsonpath='{.spec.host}’`
-
-**Get Proxy Server Host (and port).  <proxy-server-host>**
-
-`oc get proxy cluster -o jsonpath='{.spec.httpProxy}'`
-
-
-**Replace the <oauth-server-host> and <proxy-server-host> Server details in the below command and run to setup Proxy mappings.**
-
-`/subsystem=keycloak-server/spi=connectionsHttpClient/provider=default:write-attribute(name=properties.proxy-mappings,value=["<oauth-server-host>;<proxy-server-host>"])`
-
-
-##### **Stop the Embedded Server**
-
-`quit`
-
-
-##### **Reload JBoss**
-
-`/opt/eap/bin/jboss-cli.sh --connect --command=:reload`
-
-
-Exit oc remote shell to keycloak pod
-
-`exit`
-
-### **Login with OpenShift**
-
-Go to the OpenShift Console -> Networking -> Routes 
-
-Click on the \<argocd-instance\>-server route url to access the Argo CD UI.
-
-![image alt text](assets/9.gitops_server_route_url.png)
-
-You will be redirected to Argo CD Login Page.
-
-You can see an option to **LOG IN VIA KEYCLOAK** apart from the usual Argo CD login. Click on the button. (Please choose a different browser or incognito window to avoid caching issues).
-
-![image alt text](assets/10.login_via_keycloak.png)
-
-You will be redirected to a new page which provides you an option to **Login with OpenShift.**Click on the button to get redirected to the OpenShift Login Page.
-
-![image alt text](assets/11.keycloak_login_with_openshift.png)
-
-### ![image alt text](assets/12.login_page_openshift.png)
-
-Provide the OpenShift login credentials to get redirected to Argo CD. You can look at the user details by clicking on the User Information Tab as shown below.
-
-<table>
-  <tr>
-    <td><span>Note</span>: Keycloak does not allow Login with the "kube:admin" user. Please choose a different user. 
-
-The OpenShift-v4 Keycloak identity provider requires a non-null uid in order to be able to link the OpenShift user to the Keycloak user. Incase of user kubeadmin the user profile metadata does not contain such a UID.
-
-References:\
-https://github.com/eclipse/che/issues/16835 \
-https://github.com/openshift/origin/issues/24950
-
-As an option, You can configure an htpasswd Identity Provider using this [link](https://docs.openshift.com/container-platform/4.7/authentication/identity_providers/configuring-htpasswd-identity-provider.html).</td>
-  </tr>
-</table>
-
-
-![image alt text](assets/13.argocd_user_info.png)
-
-### **Configure Argo CD RBAC**
-
-
-For versions upto and not including v1.10, any user logged into Argo CD using RHSSO will be a read-only user by default.
-
-`policy.default: role:readonly`
-
-For versions starting v1.10 and above,
-
-- any user logged into the default Argo CD instance `openshift-gitops` in namespace `openshift-gitops` will have no access by default.
-
-`policy.default: ''`
-
-- any user logged into user managed custom Argo CD instance will have `read-only` access by default.
-
-`policy.default: 'role:readonly'`
-
-
-This behavior can be modified by updating the *argocd-rbac-cm*  configmap data section.
-
-`oc edit cm argocd-rbac-cm -n x`
-
-
-```
-metadata
-...
-...
-data:
-  policy.default: role:readonly
-```
-
-
-You can also do this via a patch
-
-`oc patch cm/argocd-rbac-cm -n openshift-gitops --type=merge -p '{"data":{"policy.default":"role:admin"}}'`
-
-**User Level Access**
-
-Admin needs to configure the Argo CD RBAC configmap to manage user level access.
-
-Adding the below configuration(policy.csv) to *Argo CD-rbac-cm*  configmap data section will grant **Admin** access to a user **foo** with email-id **foo@example.com**
-
-`oc edit cm argocd-rbac-cm -n <namespace>`
-
-```
-metadata
-...
-...
-data:
-  policy.default: role:readonly
-  policy.csv: |
-    g, foo@example.com, role:admin
-```
-
-A detailed information on configuring RBAC to your Argo CD instances is provided [here](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/).
-
-**Group Level Access:**
-
-**Note**: Currently, RHSSO cannot read the group information of OpenShift users. So, RBAC must be configured at the user level.
-
-### **Modify RHSSO Resource requests/limits**
-
-RHSSO container by default gets created with default resource requests and limits as shown below.
-
-**Default RHSSO Resource Requirements**
-
-<table>
-  <tr>
-    <td>Resource</td>
-    <td>Requests</td>
-    <td>Limits</td>
-  </tr>
-  <tr>
-    <td>CPU</td>
-    <td>500m</td>
-    <td>1000m</td>
-  </tr>
-  <tr>
-    <td>Memory</td>
-    <td>512 Mi</td>
-    <td>1024 Mi</td>
-  </tr>
-</table>
-
-
-Users can modify the default resource requirements by patching the Argo CD CR as shown below. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "keycloak": {"resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}}} }}]'`
-
-
-### **Persistence**
-
-The main purpose of RHSSO created by the operator is to allow users to login into Argo CD with their OpenShift users. It is not expected and not supported to update and use this RHSSO instance for any other use-cases.
-
-**Note**: RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
-
-### **Uninstall** 
-
-You can delete RHSSO and its relevant configuration by removing the SSO field from Argo CD Custom Resource Spec.
-
-`oc -n <namespace> patch argocd <argocd-instance-name> --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
-
-Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
-
-
-Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
-
-**NOTE:** `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are no longer supported in OpenShift GitOps v1.10 onwards. Keycloak can be configured using `.spec.sso.keycloak`. 
-
-### **Skip the Keycloak Login page and display the OpenShift Login page.**
-
-#### **Login to RHSSO**
-
-Go to the OpenShift Console -> Networking -> Routes 
-
-Click on the Keycloak route url to access the RHSSO Administrative Console.
-
-Get the Keycloak credentials by running the below command.
-
-`oc -n <namespace> extract secret/keycloak-secret --to=-`
-
-
-#### **Set OpenShift as a default Identity Provider**
-
-It is possible to automatically redirect to an identity provider instead of displaying the login form. To enable this go to the Authentication page in the administration console and select the Browser flow. Then click on config for the Identity Provider Redirector authenticator. Set Default Identity Provider to the alias of the identity provider you want to automatically redirect users to.
-
-**Identity Providers -> name** to **Authentication(Browser Flow) -> Identity Provider Redirector -> config -> Default Identity Provider**
-
-If the configured default identity provider is not found the login form will be displayed instead.
-
-## Setting up OpenShift Login (**=< v1.1.2**)
-
-You may want to log in to Argo CD using your Openshift Credentials through Keycloak as an Identity Broker by doing the following*.*
-
-### Prerequisites*: *
-
-**[Red Hat SSO](https://access.redhat.com/documentation/en-us/red_hat_single_sign-on/7.4/html/red_hat_single_sign-on_for_openshift_on_openjdk/get_started)** needs to be installed on the cluster.
-
-### Create a new client in Keycloak[¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#creating-a-new-client-in-keycloak)
-
-First we need to set up a new client. Start by logging into your keycloak server, select the realm you want to use (myrealm in this example) and then go to **Clients** and click the **create** button top right.
-
-Add a new client using Client ID as Argo CD, protocol as openid-connect and Root url as the Argo CD route URL. Refer to the Argo CD Installation section under Setting up a new Argo CD Instance.
-
-![image alt text](assets/14.new_keycloak_instance.png)
-
-Configure the client by setting the **Access Type** to *confidential* and set the Valid Redirect URIs to the callback url for your Argo CD hostname. It should be https://{hostname}/auth/callback (you can also leave the default less secure https://{hostname}/* ). You can also set the **Base URL** to */applications*.
-
-![image alt text](assets/15.configure_keycloak_instance.png)
-
-Make sure to click **Save**. You should now have a new tab called **Credentials**. You can copy the Secret that we'll use in our Argo CD configuration.
-
-![image alt text](assets/16.credentials_setup.png)
-
-## **Setting environment variables**
-
-Updating the following environment variables in the existing Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
-
-<table>
-  <tr>
-    <td>Environment variable</td>
-    <td>Default value</td>
-    <td>Description</td>
-  </tr>
-  <tr>
-    <td>ARGOCD_CLUSTER_CONFIG_NAMESPACES</td>
-    <td>none</td>
-    <td>When provided with a namespace, Argo CD is granted permissions to manage specific cluster-scoped resources which include
-    platform operators, optional OLM operators, user management, etc. Argo CD is not granted cluster-admin.</td>
-  </tr>
-  <tr>
-    <td>CONTROLLER_CLUSTER_ROLE</td>
-    <td>none</td>
-    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD application controller with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn't create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
-  </tr>
-  <tr>
-    <td>DISABLE_DEFAULT_ARGOCD_CONSOLELINK</td>
-    <td>false</td>
-    <td>When set to `true`, will disable the ConsoleLink for Argo CD, which appears as the link to Argo CD in the Application Launcher. This can be beneficial to users of multi-tenant clusters who have multiple instances of Argo CD.</td>
-  </tr>
-  <tr>
-    <td>DISABLE_DEFAULT_ARGOCD_INSTANCE</td>
-    <td>false</td>
-    <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace.</td>
-  </tr>
-  <tr>
-    <td>SERVER_CLUSTER_ROLE</td>
-    <td>none</td>
-    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD server with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
-  </tr>
-</table>
-
-## **Configuring the groups claim**[ ¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#configuring-the-groups-claim)
-
-In order for Argo CD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token. To do this we'll start by creating a new **Client Scope** called *groups*.
-
-![image alt text](assets/17.groups_claim_client_scope.png)
-
-Once you've created the client scope you can now add a Token Mapper which will add the groups claim to the token when the client requests the groups scope. Make sure to set the **Name** as well as the **Token Claim Name** to *groups*.
-
-![image alt text](assets/18.groups_claim_token_mapper.png)
-
-We can now configure the client to provide the *groups* scope. You can now assign the *groups* scope either to the **Assigned Default Client Scopes** or to the **Assigned Optional Client Scopes**. If you put it in the Optional category you will need to make sure that Argo CD requests the scope in it's OIDC configuration.
-
-![image alt text](assets/19.groups_claim_assigning_scope.png)
-
-Since we will always want group information, I recommend using the Default category. Make sure you click **Add selected** and that the *groups* claim is in the correct list on the **right**.
-
-![image alt text](assets/20.groups_claim_assign_default_scope.png)
-
-**Create a group called ****_ArgoCDAdmins_****.**
-
-![image alt text](assets/21.group_claim_admin_group.png)
-
-### **Configuring Argo CD OIDC**
-
-Let's start by storing the client secret you generated earlier in the Argo CD secret Argo CD-secret
-
-1. First you'll need to encode the client secret in base64: `$ echo -n '83083958-8ec6-47b0-a411-a8c55381fbd2' | base64`
-
-2. Then you can edit the secret and add the base64 value to a new key called oidc.keycloak.clientSecret using 
-
-`kubectl edit secret ****openshift-gitops-secret**** -n openshift-gitops`
-
-Your Secret should look something like this:
-
-```
-apiVersion: v1 
-kind: Secret 
-Metadata:
-name: openshift-gitops-secret 
-data:
-  oidc.keycloak.clientSecret: ODMwODM5NTgtOGVjNi00N2IwLWE0MTEtYThjNTUzODFmYmQy …
-```
-
-
-Now we can edit the Argo CD cr and add the oidc configuration to enable our keycloak authentication. You can use 
-
-`$ kubectl edit argocd -n openshift-gitops`.
-
-Your Argo CD cr should look like this:
-
-```
-apiVersion: argoproj.io/v1beta1
-kind: ArgoCD
-metadata:
-  creationTimestamp: null
-  name: argocd
-  namespace: argocd
-spec:
-  resourceExclusions: |
-    - apiGroups:
-      - tekton.dev
-      clusters:
-      - '*'
-      kinds:
-      - TaskRun
-      - PipelineRun
-  oidcConfig: |
-    name: OpenShift Single Sign-On
-    issuer: https://keycloak.example.com/auth/realms/myrelam
-    clientID: argocd
-    clientSecret: $oidc.keycloak.clientSecret
-    requestedScopes: ["openid", "profile", "email", "groups"]
-  server:
-    route:
-      enabled: true
-```
-
-
-Make sure that:
-- **issuer** ends with the correct realm (in this example *myrealm*)
-- **clientID** is set to the Client ID you configured in Keycloak 
-- **clientSecret** points to the right key you created in the *argocd-secret* Secret 
-- **requestedScopes** contains the *groups* claim if you didn't add it to the Default scope.
-
-### Login via Keycloak (RHSSO)
-
-![image alt text](assets/22.argocd_login_keycloak_rhsso.png)
-
-### **Keycloak Identity brokering with OpenShift OAuthClient**
-
-Prior to configuring OpenShift 4 Identity Provider, please locate the correct OpenShift 4 API URL up. The easiest way to obtain it is to invoke the following command (this might require [installing jq command](https://stedolan.github.io/jq/download/) separately) 
-
-`curl -s -k -H "Authorization: Bearer $(oc whoami -t)" https://<openshift-user-facing-api-url>/apis/config.openshift.io/v1/infrastructures/cluster | jq ".status.apiServerURL". `
-
-In most cases, the address will be protected by HTTPS. Therefore, it is essential to configure X509_CA_BUNDLE in the container and set it to /var/run/secrets/kubernetes.io/serviceaccount/ca.crt. Otherwise, Keycloak won’t be able to communicate with the API Server.
-
-Go to Identity Providers and select Openshift v4. Set the Base Url to OpenShift 4 API URL. Client ID as keycloak-broker(can be anything) and Client Secret to any secret that you want to set in Step 7.
-
-## **Registering an OAuth Client** 
-
-```
-kind: OAuthClient
-apiVersion: oauth.openshift.io/v1
-metadata:
- name: keycloak-broker 
-secret: "..." 
-redirectURIs:
-"https://keycloak-keycloak.apps.dev-svc-4.7-020201.devcluster.openshift.com/auth/realms/myrealm/broker/openshift-v4/endpoint" 
-grantMethod: prompt 
-```
-
-1. The name of the OAuth client is used as the client_id parameter when making requests to <namespace_route>/oauth/authorize and <namespace_route>/oauth/token.
-2. The secret is used as the client_secret parameter when making requests to <namespace_route>/oauth/token.
-3. The redirect_uri parameter specified in requests to <namespace_route>/oauth/authorize and <namespace_route>/oauth/token must be equal to or prefixed by one of the URIs listed in the redirectURIs parameter value.
-4. The grantMethod is used to determine what action to take when this client requests tokens and has not yet been granted access by the user. Specify auto to automatically approve the grant and retry the request, or prompt to prompt the user to approve or deny the grant.
-
-
-
-Now you can log into Argo CD using your Openshift Credentials through Keycloak as an Identity Broker.
-
-
-
-![image alt text](assets/23.argocd_ui_keycloak_rhsso.png)
-
-**Configure Groups and Argo CD RBAC**
-
-After this point, You must provide relevant access to the user to create applications, projects e.t.c.,. This can be achieved in two steps.
-
-1. Add the logged in user to the keycloak group *ArgoCDAdmins* created earlier. 
-
-![image alt text](assets/24.add_user_to_keycloak.png)
-
-2. Make sure *ArgoCDAdmins* group has required permissions in the Argo CD-rbac configmap. Please refer to the Argo CD RBAC documentation [here](https://argoproj.github.io/argo-cd/operator-manual/rbac/).
-
-In this case, I wish to provide admin access to the users in *ArgoCDAdmins* group 
-
-`$ kubectl edit configmap argocd-rbac-cm -n openshift-gitops`
-
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-data:
-  policy.csv: |
-    g, ArgoCDAdmins, role:admin
-```
-
-### Working with Dex
+### Dex
 
 **NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
 
@@ -683,6 +235,44 @@ oidc_config=$(oc get cm -n openshift-gitops argocd-cm -o json | jq '.data["dex.c
 oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/sso/dex/openShiftOAuth" }]'
 oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"sso\": { \"dex\": { \"config\": \"${oidc_config}\" } } } }"
 ```
+
+## Setting environment variables
+
+Updating the following environment variables in the existing Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
+
+<table>
+  <tr>
+    <td>Environment variable</td>
+    <td>Default value</td>
+    <td>Description</td>
+  </tr>
+  <tr>
+    <td>ARGOCD_CLUSTER_CONFIG_NAMESPACES</td>
+    <td>none</td>
+    <td>When provided with a namespace, Argo CD is granted permissions to manage specific cluster-scoped resources which include
+    platform operators, optional OLM operators, user management, etc. Argo CD is not granted cluster-admin.</td>
+  </tr>
+  <tr>
+    <td>CONTROLLER_CLUSTER_ROLE</td>
+    <td>none</td>
+    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD application controller with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn't create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
+  </tr>
+  <tr>
+    <td>DISABLE_DEFAULT_ARGOCD_CONSOLELINK</td>
+    <td>false</td>
+    <td>When set to `true`, will disable the ConsoleLink for Argo CD, which appears as the link to Argo CD in the Application Launcher. This can be beneficial to users of multi-tenant clusters who have multiple instances of Argo CD.</td>
+  </tr>
+  <tr>
+    <td>DISABLE_DEFAULT_ARGOCD_INSTANCE</td>
+    <td>false</td>
+    <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace.</td>
+  </tr>
+  <tr>
+    <td>SERVER_CLUSTER_ROLE</td>
+    <td>none</td>
+    <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD server with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
+  </tr>
+</table>
 
 ## Getting started with GitOps Application Manager (kam)
 
