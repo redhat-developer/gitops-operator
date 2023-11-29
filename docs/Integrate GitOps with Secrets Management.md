@@ -267,20 +267,21 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
     ```
 
     e. Check the role policy on AWS to confirm the <aws_region> of **Resource** in role policy matches the cluster region.
+    
     ```
     {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": [
-				"secretsmanager:GetSecretValue",
-				"secretsmanager:DescribeSecret"
-			],
-			"Resource": "arn:aws:secretsmanager:<aws_region>:<aws_account_id>:secret:your-secret-xxxxxx"
-		}
-	]
-}
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                ],
+                "Resource": "arn:aws:secretsmanager:<aws_region>:<aws_account_id>:secret:your-secret-xxxxxx"
+            }
+        ]
+    }
     ```
 
     f. Bind the service account with the role ARN by running the following command:
