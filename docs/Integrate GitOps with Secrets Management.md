@@ -1,4 +1,8 @@
-# Integrate GitOps with Secrets Management
+# Integrate GitOps Operator with Secrets Store CSI driver for Secrets Management
+
+The introduction of the Secrets Store CSI Driver, particularly in the OCP v4.14 release, marks a significant step in externalizing secrets management. This driver facilitates the secure attachment of secrets into application pods, ensuring that sensitive information is accessed securely and efficiently.
+
+In this documentation, we aim to guide GitOps users through the integration of the SSCSI Driver with the GitOps operator, enhancing the security and efficiency of your GitOps workflows. This integration represents a strategic advancement in our commitment to secure, compliant, and efficient operations within the GitOps framework.
 
 ## Steps to integrate GitOps with Secrets Store CSI driver
 
@@ -21,6 +25,7 @@ There are 3 providers supported by the SSCSID Operator, refer the below links fo
 * [You have extracted and prepared the `ccoctl` binary](#obtain-the-ccoctl-tool).
 * You have installed the `jq` CLI tool.
 * You have access to the cluster as a user with the `cluster-admin` role.
+* You have install GitOps Operator and have a GitOps repository ready to use the secrets.
 
 ### Install the SSCSID
 To install the Secrets Store CSI driver:
@@ -57,179 +62,138 @@ To install the Secrets Store CSI driver:
     apiVersion: operator.openshift.io/v1
     kind: ClusterCSIDriver
     metadata:
-        name: secrets-store.csi.k8s.io
+      name: secrets-store.csi.k8s.io
     spec:
-    managementState: Managed
+      managementState: Managed
     ```
 
     c. Click **Create**.
 
-### Install GitOps
-1. Install the GitOps Operator
-
-Follow the steps on [Installing OpenShift GitOps](OpenShift%20GitOps%20Usage%20Guide.md#installing-openshift-gitops).
-
-2. Bootstrap a GitOps repository
-
-Follow the steps on [Getting started with GitOps Application Manager (kam)](OpenShift%20GitOps%20Usage%20Guide.md#getting-started-with-gitops-application-manager-kam) and [Day 1 Operations](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1).
-
-
 ### Store resources of AWS Secrets Manager in the GitOps repository
 1. Add resources for AWS Secrets Manager provider
 
-    a. In your KAM generated GitOps repository, add `secret-provider-app.yaml` for resources of AWS Secrets Manager to `/config/argocd` directory.
-
-    *Example `secret-provider-app.yaml` file*
-    ```
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-    creationTimestamp: null
-    name: secret-provider-app
-    namespace: openshift-gitops
-    spec:
-    destination:
-        namespace: openshift-cluster-csi-drivers
-        server: https://kubernetes.default.svc
-    ignoreDifferences:
-    - group: argoproj.io
-        jsonPointers:
-        - /status
-        kind: Application
-    - group: triggers.tekton.dev
-        jsonPointers:
-        - /status
-        kind: EventListener
-    - group: triggers.tekton.dev
-        jsonPointers:
-        - /status
-        kind: TriggerTemplate
-    - group: triggers.tekton.dev
-        jsonPointers:
-        - /status
-        kind: TriggerBinding
-    - group: route.openshift.io
-        jsonPointers:
-        - /spec/host
-        kind: Route
-    project: default
-    source:
-        path: config/sscsid
-        repoURL: https://github.com/your-domain/gitops.git
-    syncPolicy:
-        automated:
-        prune: true
-        selfHeal: true
-    status:
-    health: {}
-    summary: {}
-    sync:
-        comparedTo:
-        destination: {}
-        source:
-            repoURL: ""
-        status: ""
-    ```
-
-    b. Create `/config/sscsid/` directory and add `aws-provider.yaml` file in it to deploy resources for AWS Secrets Manager.
+    a. In your GitOps repository, create a directory and add `aws-provider.yaml` file in it to deploy resources for AWS Secrets Manager.
 
     *Example `aws-provider.yaml` file*
     ```
     apiVersion: v1
     kind: ServiceAccount
     metadata:
-    name: csi-secrets-store-provider-aws
-    namespace: openshift-cluster-csi-drivers
+      name: csi-secrets-store-provider-aws
+      namespace: openshift-cluster-csi-drivers
     ---
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
-    name: csi-secrets-store-provider-aws-cluster-role
+      name: csi-secrets-store-provider-aws-cluster-role
     rules:
     - apiGroups: [""]
-    resources: ["serviceaccounts/token"]
-    verbs: ["create"]
+      resources: ["serviceaccounts/token"]
+      verbs: ["create"]
     - apiGroups: [""]
-    resources: ["serviceaccounts"]
-    verbs: ["get"]
+      resources: ["serviceaccounts"]
+      verbs: ["get"]
     - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get"]
+      resources: ["pods"]
+      verbs: ["get"]
     - apiGroups: [""]
-    resources: ["nodes"]
-    verbs: ["get"]
+      resources: ["nodes"]
+      verbs: ["get"]
     ---
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRoleBinding
     metadata:
-    name: csi-secrets-store-provider-aws-cluster-rolebinding
+      name: csi-secrets-store-provider-aws-cluster-rolebinding
     roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: csi-secrets-store-provider-aws-cluster-role
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: csi-secrets-store-provider-aws-cluster-role
     subjects:
     - kind: ServiceAccount
-    name: csi-secrets-store-provider-aws
-    namespace: openshift-cluster-csi-drivers
+      name: csi-secrets-store-provider-aws
+      namespace: openshift-cluster-csi-drivers
     ---
     apiVersion: apps/v1
     kind: DaemonSet
     metadata:
-    namespace: openshift-cluster-csi-drivers
-    name: csi-secrets-store-provider-aws
-    labels:
+      namespace: openshift-cluster-csi-drivers
+      name: csi-secrets-store-provider-aws
+      labels:
         app: csi-secrets-store-provider-aws
     spec:
-    updateStrategy:
+      updateStrategy:
         type: RollingUpdate
-    selector:
+      selector:
         matchLabels:
-        app: csi-secrets-store-provider-aws
-    template:
+          app: csi-secrets-store-provider-aws
+      template:
         metadata:
-        labels:
+          labels:
             app: csi-secrets-store-provider-aws
         spec:
-        serviceAccountName: csi-secrets-store-provider-aws
-        hostNetwork: false
-        containers:
+          serviceAccountName: csi-secrets-store-provider-aws
+          hostNetwork: false
+          containers:
             - name: provider-aws-installer
-            image: public.ecr.aws/aws-secrets-manager/secrets-store-csi-driver-provider-aws:1.0.r2-50-g5b4aca1-2023.06.09.21.19
-            imagePullPolicy: Always
-            args:
+              image: public.ecr.aws/aws-secrets-manager/secrets-store-csi-driver-provider-aws:1.0.r2-50-g5b4aca1-2023.06.09.21.19
+              imagePullPolicy: Always
+              args:
                 - --provider-volume=/etc/kubernetes/secrets-store-csi-providers
-            resources:
+              resources:
                 requests:
-                cpu: 50m
-                memory: 100Mi
+                  cpu: 50m
+                  memory: 100Mi
                 limits:
-                cpu: 50m
-                memory: 100Mi
-            securityContext:
+                  cpu: 50m
+                  memory: 100Mi
+              securityContext:
                 privileged: true
-            volumeMounts:
+              volumeMounts:
                 - mountPath: "/etc/kubernetes/secrets-store-csi-providers"
-                name: providervol
+                  name: providervol
                 - name: mountpoint-dir
-                mountPath: /var/lib/kubelet/pods
-                mountPropagation: HostToContainer
-        tolerations:
-        - operator: Exists
-        volumes:
+                  mountPath: /var/lib/kubelet/pods
+                  mountPropagation: HostToContainer
+          tolerations:
+            - operator: Exists
+          volumes:
             - name: providervol
-            hostPath:
+              hostPath:
                 path: "/etc/kubernetes/secrets-store-csi-providers"
             - name: mountpoint-dir
-            hostPath:
+              hostPath:
                 path: /var/lib/kubelet/pods
                 type: DirectoryOrCreate
-        nodeSelector:
+          nodeSelector:
             kubernetes.io/os: linux
+    ```
+
+    b. Add `secret-provider-app.yaml` in your GitOps repository to create an application for resources of AWS Secrets Manager.
+
+    *Example `secret-provider-app.yaml` file*
+    ```
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: secret-provider-app
+      namespace: openshift-gitops
+    spec:
+      destination:
+        namespace: openshift-cluster-csi-drivers
+        server: https://kubernetes.default.svc
+      project: default
+      source:
+        path: path/to/aws-provider/resources
+        repoURL: https://github.com/<your-domain>/gitops.git
+      syncPolicy:
+        automated:
+        prune: true
+        selfHeal: true
     ```
 
 2. Sync up resources with default Argo CD to deploy them in the cluster
 
-Add `argocd.argoproj.io/managed-by: openshift-gitops` label to `openshift-cluster-csi-drivers` namespace. In your local GitOps repository directory, run `oc apply -k config/argocd` to deploy resources. Now you can observe the `csi-secrets-store-provider-aws` daemonset keeps progressing/syncing. 
+Add `argocd.argoproj.io/managed-by: openshift-gitops` label to `openshift-cluster-csi-drivers` namespace. Apply resources managed by GitOps in your cluster. Now you can observe the `csi-secrets-store-provider-aws` daemonset keeps progressing/syncing. We will resolve this issue in the next step.
 
 ### Configure SSCSID to mount secrets from AWS Secrets Manager
 1. Grant privileged access to the *csi-secrets-store-provider-aws* service account by running the following command:
@@ -240,38 +204,39 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
 
 2. Grant permission to allow the service account to read the AWS secret object:
 
-    a. Create a `credentialsrequest-dir-aws` folder under `/environments/dev/` in your GitOps repository as the credentials request is namespaced.
+    a. Create a `credentialsrequest-dir-aws` folder under a namespace specific directory in your GitOps repository as the credentials request is namespaced. In this documentation we assume you want to mount a secret to a deployment under `dev` namespace which is in the `/environments/dev/` directory.
 
     b. Create a YAML file with the following configuration for the credentials request in `/environments/dev/credentialsrequest-dir-aws/`:
 
-    KAM generated GitOps repository has two environments in their own namespaces. In this documentation, we are going to mount the secret to the deployment pod in `environments/dev` environment which is under `dev` namespace.
+    In this documentation, we are going to mount a secret to the deployment pod in `dev` namespace.
 
     *Example `credentialsrequest.yaml` file*
     ```
     apiVersion: cloudcredential.openshift.io/v1
     kind: CredentialsRequest
     metadata:
-    name: aws-provider-test
-    namespace: openshift-cloud-credential-operator
+      name: aws-provider-test
+      namespace: openshift-cloud-credential-operator
     spec:
-    providerSpec:
+      providerSpec:
         apiVersion: cloudcredential.openshift.io/v1
         kind: AWSProviderSpec
         statementEntries:
         - action:
-            - "secretsmanager:GetSecretValue"
-            - "secretsmanager:DescribeSecret"
-            effect: Allow
-            resource: "arn:aws:secretsmanager:<aws_region>:<your_IAM_account>:secret:<your-secret-xxxxxx>" // Secret ARN
+          - "secretsmanager:GetSecretValue"
+          - "secretsmanager:DescribeSecret"
+          effect: Allow
+          resource: "<aws_secret_arn>"
     secretRef:
-        name: aws-creds
-        namespace: dev
+      name: aws-creds
+      namespace: dev
     serviceAccountNames:
-        - default
+      - default
     ```
+    
     **NOTE**
 
-    The <aws_region> of Secret ARN has to match the cluster region. If it doesn't match, you could create a replication of your secret in the region where your cluster is on. Run the below command to find your cluster region.
+    The <aws_region> of <aws_secret_arn> has to match the cluster region. If it doesn't match, you could create a replication of your secret in the region where your cluster is on. Run the below command to find your cluster region.
     ```
     oc get infrastructure cluster -o jsonpath='{.status.platformStatus.aws.region}'
     ```
@@ -301,84 +266,101 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
     2023/05/15 18:10:35 Updated Role policy for Role gitops-role-dev-aws-creds
     ```
 
-    e. Bind the service account with the role ARN by running the following command:
+    e. Check the role policy on AWS to confirm the <aws_region> of **Resource** in role policy matches the cluster region.
+    ```
+    {
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": [
+				"secretsmanager:GetSecretValue",
+				"secretsmanager:DescribeSecret"
+			],
+			"Resource": "arn:aws:secretsmanager:<aws_region>:<aws_account_id>:secret:your-secret-xxxxxx"
+		}
+	]
+}
+    ```
+
+    f. Bind the service account with the role ARN by running the following command:
     ```
     oc annotate -n dev sa/default eks.amazonaws.com/role-arn="<aws_role_arn>"
     ```
 
 3. Create a secret provider class to define your secrets store provider:
 
-`SecretProviderClass` resource is namespaced. Create a `secret-provider-class-aws.yaml` file in `/environments/dev/apps/app-taxi/services/taxi/base/config` directory in your GitOps repository.
+`SecretProviderClass` resource is namespaced. Create a `secret-provider-class-aws.yaml` file in the same directory where the target deployment is located in your GitOps repository.
 
 *Example `secret-provider-app.yaml` file*
 ```
 apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
-name: my-aws-provider
-namespace: dev  \\ Has to match the namespace of the resource which is going to use the secret
+  name: my-aws-provider
+  namespace: dev  \\ Has to match the namespace of the resource which is going to use the secret
 spec:
-provider: aws  \\ Specify the provider as aws
-parameters:  \\ Specify provider-specific parameters
+  provider: aws  \\ Specify the provider as aws
+  parameters:  \\ Specify provider-specific parameters
     objects: |
-    - objectName: "gitops-secret"  \\ This is the secret name you created in AWS
+      - objectName: "gitops-secret"  \\ This is the secret name you created in AWS
         objectType: "secretsmanager"
 ```
-After pushing this YAML file to your GitOps repository, the namespace-scoped `SecretProviderClass` resource will be populated in `dev-app-taxi` application page in Argo CD UI and automatically syncs as the KAM generated applications have Sync Policy set to automated.
+After pushing this YAML file to your GitOps repository, the namespace-scoped `SecretProviderClass` resource will be populated in the target application page in Argo CD UI. You may need to manually **Sync** the `SecretProviderClass` resource if the Sync Policy your application is not set to Auto.
 
 ### Configure the resource to use this mounted secret
 
 1. Add volume mounts configuration in the target resource
 
-In this documentation we will add volume mounting to deployment of app-taxi and configure the container pod to use the mounted secret.
+In this documentation we will add volume mounting to a deployment and configure the container pod to use the mounted secret.
 
-*Example updated `/environments/dev/apps/app-taxi/services/taxi/base/config/100-deployment.yaml` file to use the secret provider class*
+*Example deployment file to use the secret provider class*
 ```
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-creationTimestamp: null
-labels:
+  creationTimestamp: null
+  labels:
     app.kubernetes.io/name: taxi
     app.kubernetes.io/part-of: app-taxi
-name: taxi
-namespace: dev
+    name: taxi
+    namespace: dev
 spec:
-replicas: 1
-selector:
+  replicas: 1
+  selector:
     matchLabels:
     app.kubernetes.io/name: taxi
     app.kubernetes.io/part-of: app-taxi
-strategy: {}
-template:
+  strategy: {}
+  template:
     metadata:
     creationTimestamp: null
     labels:
-        app.kubernetes.io/name: taxi
-        app.kubernetes.io/part-of: app-taxi
+      app.kubernetes.io/name: taxi
+      app.kubernetes.io/part-of: app-taxi
     spec:
-    containers:
+      containers:
         - image: nginxinc/nginx-unprivileged:latest
-        imagePullPolicy: Always
-        name: taxi
-        ports:
+          imagePullPolicy: Always
+          name: taxi
+          ports:
             - containerPort: 8080
-        volumeMounts:
+          volumeMounts:
             - name: secrets-store-inline
-            mountPath: "/mnt/secrets-store"
-            readOnly: true
-        resources: {}
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          resources: {}
     serviceAccountName: default
     volumes:
-        - name: secrets-store-inline
+      - name: secrets-store-inline
         csi:
-            driver: secrets-store.csi.k8s.io
-            readOnly: true
-            volumeAttributes:
-            secretProviderClass: "my-aws-provider"
-status: {}
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+          secretProviderClass: "my-aws-provider"
+    status: {}
 ```
-Click `REFRESH` on the `dev-app-taxi` application page to apply the updated manifest. Then you can observe that all resources will be successfully synced up.
+Click `REFRESH` on the target application page to apply the updated deployment manifest. Then you can observe that all resources will be successfully synced up.
 
 2. Verification
 List the secrets in the pod mount:
