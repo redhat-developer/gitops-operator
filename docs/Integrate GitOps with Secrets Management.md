@@ -266,7 +266,7 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
     2023/05/15 18:10:35 Updated Role policy for Role gitops-role-dev-aws-creds
     ```
 
-    e. Check the role policy on AWS to confirm the <aws_region> of **Resource** in role policy matches the cluster region.
+    e. Check the role policy on AWS. The **Resource** is the Secret ARN you want to mount to your resources, and you must confirm the <aws_region> of **Resource** in role policy matches the cluster region.
     
     ```
     {
