@@ -304,7 +304,7 @@ spec:
   provider: aws  \\ Specify the provider as aws
   parameters:  \\ Specify provider-specific parameters
     objects: |
-      - objectName: "gitops-secret"  \\ This is the secret name you created in AWS
+      - objectName: "<your-secret-name>"  \\ This is the secret name you created in AWS
         objectType: "secretsmanager"
 ```
 After pushing this YAML file to your GitOps repository, the namespace-scoped `SecretProviderClass` resource will be populated in the target application page in Argo CD UI. You may need to manually **Sync** the `SecretProviderClass` resource if the Sync Policy your application is not set to Auto.
@@ -366,15 +366,15 @@ Click `REFRESH` on the target application page to apply the updated deployment m
 2. Verification
 List the secrets in the pod mount:
 ```
-oc exec taxi-<hash> -n dev -- ls /mnt/secrets-store/
+oc exec <deployment-pod-name> -n dev -- ls /mnt/secrets-store/
 ```
 *Example output*
 ```
-gitops-secret
+<your-secret-name>
 ```
 View a secret in the pod mount:
 ```
-oc exec taxi-<hash> -n dev -- cat /mnt/secrets-store/gitops-secret
+oc exec <deployment-pod-name> -n dev -- cat /mnt/secrets-store/<your-secret-name>
 ```
 *Example output*
 ```
