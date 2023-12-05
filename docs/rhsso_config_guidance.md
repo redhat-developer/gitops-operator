@@ -36,7 +36,7 @@ The scope of this document is to describe the steps to Install, Configure(**Setu
     - For a secure connection, set the value of the `rootCA` parameter as shown in the following example 
 
       ```yaml
-      apiVersion: argoproj.io/v1beta1
+      apiVersion: argoproj.io/v1alpha1
       kind: ArgoCD
       metadata:
         name: <argocd-instance-name> 
@@ -52,7 +52,7 @@ The scope of this document is to describe the steps to Install, Configure(**Setu
     - For an insecure connection, leave the value of the `rootCA` parameter empty and use the `oidc.tls.insecure.skip.verify` parameter as shown below
 
       ```yaml
-      apiVersion: argoproj.io/v1beta1
+      apiVersion: argoproj.io/v1alpha1
       kind: ArgoCD
       metadata:
         name: <argocd-instance-name> 
@@ -210,7 +210,7 @@ For versions starting v1.10 and above,
 This default behavior can be modified by updating the `.spec.rbac.defaultyPolicy` in ArgoCD CR.
 
 ```yaml
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -228,7 +228,7 @@ RHSSO reads the group information of OpenShift users. This allows admin to confi
 For example, below will give admin level access to all the users from `foo-admins` OpenShift group.
 
 ```yaml
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -247,7 +247,7 @@ Admin can control access at individual user level by adding rbac configurations 
 For example, below will give admin level access to user with email `foo@example.com`.
 
 ```yaml
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -274,7 +274,7 @@ RHSSO container by default gets created with following  resource requests and li
 Admin can modify the RHSSO resource requests/limits by updating `.spec.sso.keycloak.resources` field in ArgoCD CR. 
 
 ```yaml
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -346,7 +346,7 @@ oc -n <namespace> patch argocd <argocd-instance-name> --type json   -p='[{"op": 
 Or 
 
 ```yaml
-apiVersion: argoproj.io/v1beta1
+apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
