@@ -2,9 +2,9 @@
 
 ## Table of Contents
 1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
-2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)  
-    a. [RHSSO / Keycloak](#rhssokeycloak)  
-    b. [Dex](#dex)
+2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)   
+    a. [Dex](#dex)  
+    b. [RHSSO / Keycloak](#rhssokeycloak)  
 4. [Setting environment variables](#setting-environment-variables)    
 6. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
 7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
@@ -143,98 +143,20 @@ Now, you can create an Argo CD application and let Argo CD keep application reso
 
 GitOps Operator supports Dex & RHSSO for providing single sign-on authentication and user management. 
 
+The configurations are controlled via `.spec.sso` fields in ArgoCD CR. 
+
+### Dex
+
+Dex can be used to authenticate with Argo CD. Refer [Dex config guidance](./dex_config_guidance.md) for installation & configuration steps.
+
+> **Note**  
+Dex is automatically configured for default Argo CD instance in the openshift-gitops namespace to allow users to use OpenShift OAuth to login into Argo CD. Refer [Uninstall](./dex_config_guidance.md#uninstall) section to disable dex on default Argo CD instance.
+
 ### RHSSO/Keycloak
 
 GitOps comes with a bundled keycloak instance which is configured for authenticating with Argo CD component of Openshift GitOps. The main purpose of this instance created by the operator is to allow users to login into Argo CD with their OpenShift users.
 
 Refer [RHSSO config guidance](./rhsso_config_guidance.md) for installation & configuration steps.
-
-### Dex
-
-**NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
-
-**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows
-
-```
-spec:
-  sso:
-    provider: dex
-    dex:
-      openShiftOAuth: true
-```
-
-`oc patch argocd argocd --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
-
-**NOTE:** Dex resource creation will not be triggered, unless there is valid Dex configuration expressed through `.spec.sso.dex`. This could either be using the default openShift configuration
-
-```
-spec:
-  provider: dex
-  sso:
-    dex:
-      openShiftOAuth: true
-```
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
-
-or it could be custom Dex configuration provided by the user:
-
-```
-spec:
-  sso:
-    dex:
-      config: <custom-dex-config>
-```
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"config": <custom-dex-config>}}}}`
-
-**NOTE: Absence of either will result in an error due to failing health checks on Dex**
-
-#### Uninstalling Dex
-
-**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Please use `.spec.sso.provider` to enable/disable Dex.  
-
-Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider.  
-
-You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
-
-```
-spec:
-  sso:
-    provider: dex
-    dex:
-      openShiftOAuth: true
-  rbac:
-    defaultPolicy: 'role:readonly'
-    policy: |
-      g, system:cluster-admins, role:admin
-      g, ocp-admins, role:admin
-    scopes: '[groups]'
-```
-
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "rbac": { "defaultPolicy": "role:readonly", "scopes": "[groups]", "policy": "g, system:cluster-admins, role:admin\ng, ocp-admins, role:admin" } } }'`
-
-
-#### Restricting dex / openShiftOAuth to only a set of groups
-
-As discussed here [https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd](https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd) you can restrict oauth access to certain groups. Currently it is not possible to restrict the Argo CD to only a set of groups, through `openShiftOAuth: true`, the RFE is tracked upstream [here](https://github.com/argoproj-labs/argocd-operator/issues/391). However, you can let the operator generate the oauth client and dex.config and then configure it manually and thus be able to extend it.
-
-Assuming you have done the above steps to enable `openShiftOAuth: true`: you can use the following commands to:
-
-1. fetch the current dex.config from the Config Map, extend it with the required groups (e.g. here cluster-admins)
-
-2. disable the openShiftOAuth provisioning
-
-3. Put the extended config as manual dex.config
-
-This will disable any automatic (and further) full management of the dex / OpenShift integration.
-
-```
-oidc_config=$(oc get cm -n openshift-gitops argocd-cm -o json | jq '.data["dex.config"]' | sed 's@/callback@/callback\\n	groups:\\n  	- cluster-admins@' | sed 's/"//g')
-oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/sso/dex/openShiftOAuth" }]'
-oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"sso\": { \"dex\": { \"config\": \"${oidc_config}\" } } } }"
-```
 
 ## Setting environment variables
 
