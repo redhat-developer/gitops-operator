@@ -25,7 +25,7 @@ There are 3 providers supported by the SSCSID Operator, refer the below links fo
 * [You have extracted and prepared the `ccoctl` binary](#obtain-the-ccoctl-tool).
 * You have installed the `jq` CLI tool.
 * You have access to the cluster as a user with the `cluster-admin` role.
-* You have install GitOps Operator and have a GitOps repository ready to use the secrets.
+* You have installed GitOps Operator and have a GitOps repository ready to use the secrets.
 
 ### Install the SSCSID
 To install the Secrets Store CSI driver:
@@ -227,10 +227,10 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
           - "secretsmanager:DescribeSecret"
           effect: Allow
           resource: "<aws_secret_arn>"
-    secretRef:
-      name: aws-creds
-      namespace: dev
-    serviceAccountNames:
+      secretRef:
+        name: aws-creds
+        namespace: dev
+      serviceAccountNames:
       - default
     ```
     
@@ -293,18 +293,18 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
 
 `SecretProviderClass` resource is namespaced. Create a `secret-provider-class-aws.yaml` file in the same directory where the target deployment is located in your GitOps repository.
 
-*Example `secret-provider-app.yaml` file*
+*Example `secret-provider-class-aws.yaml` file*
 ```
 apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
   name: my-aws-provider
-  namespace: dev  \\ Has to match the namespace of the resource which is going to use the secret
+  namespace: dev                          # Has to match the namespace of the resource which is going to use the secret
 spec:
-  provider: aws  \\ Specify the provider as aws
-  parameters:  \\ Specify provider-specific parameters
+  provider: aws                           # Specify the provider as aws
+  parameters:                             # Specify provider-specific parameters
     objects: |
-      - objectName: "<your-secret-name>"  \\ This is the secret name you created in AWS
+      - objectName: "<your-secret-name>"
         objectType: "secretsmanager"
 ```
 After pushing this YAML file to your GitOps repository, the namespace-scoped `SecretProviderClass` resource will be populated in the target application page in Argo CD UI. You may need to manually **Sync** the `SecretProviderClass` resource if the Sync Policy your application is not set to Auto.
