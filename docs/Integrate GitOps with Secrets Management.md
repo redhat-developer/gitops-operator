@@ -5,7 +5,7 @@ The introduction of the Secrets Store CSI Driver, particularly in the OCP v4.14 
 In this documentation, we aim to guide GitOps users through the integration of the SSCSI Driver with the GitOps operator, enhancing the security and efficiency of your GitOps workflows. This integration represents a strategic advancement in our commitment to secure, compliant, and efficient operations within the GitOps framework.
 
 ## Steps to integrate GitOps with Secrets Store CSI driver
-
+**NOTE:** The Secrets Store CSI driver Operator will only be available on OCP versions v4.14+.
 1. [Install the Secrets Store CSI driver Operator(SSCSID)](https://docs.openshift.com/container-platform/4.14/nodes/pods/nodes-pods-secrets-store.html#persistent-storage-csi-secrets-store-driver-install_nodes-pods-secrets-store)
 2. Install the GitOps Operator
 3. Store secrets management related resources in the Git repository
@@ -234,8 +234,7 @@ oc adm policy add-scc-to-user privileged -z csi-secrets-store-provider-aws -n op
       - default
     ```
     
-    **NOTE**
-
+    **NOTE**  
     The <aws_region> of <aws_secret_arn> has to match the cluster region. If it doesn't match, you could create a replication of your secret in the region where your cluster is on. Run the below command to find your cluster region.
     ```
     oc get infrastructure cluster -o jsonpath='{.status.platformStatus.aws.region}'
