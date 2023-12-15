@@ -319,25 +319,13 @@ In this documentation we will add volume mounting to a deployment and configure 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
-  labels:
-    app.kubernetes.io/name: taxi
-    app.kubernetes.io/part-of: app-taxi
-    name: taxi
-    namespace: dev
+  name: taxi
+  namespace: dev
 spec:
   replicas: 1
-  selector:
-    matchLabels:
-    app.kubernetes.io/name: taxi
-    app.kubernetes.io/part-of: app-taxi
-  strategy: {}
   template:
     metadata:
-    creationTimestamp: null
-    labels:
-      app.kubernetes.io/name: taxi
-      app.kubernetes.io/part-of: app-taxi
+      ...
     spec:
       containers:
         - image: nginxinc/nginx-unprivileged:latest
@@ -358,7 +346,7 @@ spec:
           readOnly: true
           volumeAttributes:
           secretProviderClass: "my-aws-provider"
-    status: {}
+    ...
 ```
 Click `REFRESH` on the target application page to apply the updated deployment manifest. Then you can observe that all resources will be successfully synced up.
 
