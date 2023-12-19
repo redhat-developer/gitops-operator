@@ -697,140 +697,196 @@ oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \
 
 [https://github.com/redhat-developer/kam/tree/master/docs/journey/day1](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1)
 
-
-
 ## Setting up a new Argo CD instance
 
-GitOps Operator installs an instance of Argo CD in **openshift-gitops**namespace with additional permissions, which allows it to manage certain cluster scoped resources.
+GitOps Operator installs an instance of Argo CD in `openshift-gitops` namespace with additional permissions, which allows it to manage certain cluster scoped resources.
 
-If a user wishes to install their own instance for managing cluster configurations or deploying applications, the user can do so by deploying their own instance of Argo CD. 
+If a user wishes to install their own instance for managing cluster configurations or deploying applications, they can do so. This approach is recommended for multiple engineering teams, allowing each team to manage its isolated Argo CD instance for the continuous delivery of applications.
 
 The newly deployed instance, by default will only have the permissions to manage resources in the namespace where the Argo CD instance is being deployed. 
 
-### Application Delivery
-
-Multiple engineering teams may use their own instances of Argo CD to continuously deliver their applications. The recommended approach to doing so would be to let teams manage their own isolated Argo CD instances. 
-
-The new instance of Argo CD is granted permissions to manage/deploy resources only for the namespace in which the instance is deployed. 
-
-#### Argo CD Installation
+### Create new Argo CD Instance
 
 1. To install an Argo CD instance, go to Installed Operators.
 
 2. Create a new project or select an existing project where you want to install the Argo CD instance.
 
-![image alt text](assets/27.create_new_project.png)
+   ![image alt text](assets/27.create_new_project.png)
 
-* Select Openshift GitOps Operator from installed operators and select Argo CD tab.
+3. Select Openshift GitOps Operator from installed operators and select Argo CD tab.
 
-![image alt text](assets/28.create_new_argocd_instance.png)
+   ![image alt text](assets/28.create_new_argocd_instance.png)
 
-* Click on "Create" button to create Argo CD Instance and specify following configuration:
+4. Click on "Create" button to create Argo CD Instance and specify following configuration:
 
-    * Name: /<argocd-instance-name/>
+    - Name: \<argocd-instance-name\>
 
-    * Server -> Route -> Enable Route = true (creates an external OS Route to access Argo CD server)
+    - Server -> Route -> Enable Route = true (creates an external OS Route to access Argo CD server)
 
-* Open the Argo CD web UI by clicking on the route which is created in the project where the Argo CD is installed.
+5. Open the Argo CD web UI by clicking on the route which is created in the project where the Argo CD is installed.
 
-![image alt text](assets/29.argocd_new_instance_route.png) 
+   ![image alt text](assets/29.argocd_new_instance_route.png) 
 
-#### **Enable Replicas for Argo CD Server and Repo Server**
+### Deploy applications
 
-A user can enable a number of replicas for the Argo CD-server and Argo CD-repo-server workloads. As these workloads are stateless, the replica count can be increased to distribute the workload better among pods. However, if a horizontal autoscaler is enabled on Argo CD-server, it will be prioritized over the number set for replicas.
+To deploy apps using a new Argo CD instance, log in to it (refer to the previous step for the instance URL) and follow the [Creating Apps via UI](https://argo-cd.readthedocs.io/en/stable/getting_started/#creating-apps-via-ui) section of the upstream Argo CD documentation.
 
-**Example**
+> **Note**  
+The default permission of new Argo CD instance allows it to only create/manage resources in it's own namespace. To manage resources in other namespaces or at cluster level, refer [Expand Argo CD Instance Permissions](#expand-argo-cd-instance-permissions) section below.
 
-```
-apiVersion: argoproj.io/v1beta1
-kind: ArgoCD
-metadata:
-  name: example-argocd
-  labels:
-    example: repo
-spec:
-  repo:
-    replicas: 1
-  server:
-    replicas: 1
-    route:
-      enabled: true
-      path: /
-      tls:
-        insecureEdgeTerminationPolicy: Redirect
-        termination: passthrough
-      wildcardPolicy: None
-```
+### Cluster Scoped Argo CD
 
-#### Enable Notifications with Argo CD instance
+By default, any new Argo CD instance created is namespace scoped which means it can only manage resources at namespace level.
 
-Argo CD Notifications controller can be enabled/disabled using a new toggle within the Argo CD CR with default specs as follows:
+When the user wishes to install Argo CD with the purpose of managing OpenShift cluster resources, Argo CD can be granted permissions to [manage specific cluster-scoped resources](https://docs.google.com/document/d/1HncLIPlUkO5rfTHCi4zAygB6Xx6K3dAgI5PM5GT1G6A/edit#heading=h.e3snv4wit2fc) which include [platform operators](https://docs.openshift.com/container-platform/4.6/architecture/control-plane.html#platform-operators_control-plane), optional OLM operators, user management, etc. **Please note that, cluster scope Argo CD doesn't mean it is granted cluster-admin access**.
 
-``` yaml
-apiVersion: argoproj.io/v1beta1
-kind: ArgoCD
-metadata:
-  name: example-argocd
-spec:
-  notifications:
-    enabled: True
-```
+#### Cluster scope Argo CD Installation
 
-Notifications are disabled by default. Please refer to [upstream documentation](https://argocd-operator.readthedocs.io/en/latest/usage/notifications/) for further information
+Cluster scope Argo CD instance installation is controlled by `ARGOCD_CLUSTER_CONFIG_NAMESPACES` environment variable in operator. 
+
+To manage cluster-config using Argo CD,
+
+1. Use existing Argo CD instance or create a new ArgoCD instance using the steps provided above.
+
+2. As an admin, update the existing Subscription Object for Gitops Operator and add `ARGOCD_CLUSTER_CONFIG_NAMESPACES` env var in spec.
+
+    - On Openshift Console, go to `Administration -> CustomResourceDefinition -> Subscription -> Instances` and select `openshift-gitops-operator`.
+
+      ![image alt text](assets/4.subscription_instance.png)
+
+
+    - Select the `YAML` tab and edit the Subscription yaml to add `ARGOCD_CLUSTER_CONFIG_NAMESPACES` env var as defined below
+
+      ```yaml
+      spec:
+        config:
+          env:
+          - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
+            value: openshift-gitops, <namespace where Argo CD instance is installed>
+      ```
+
+This creates a cluster role & cluster rolebinding for argocd-application-controller & argocd-server of new Argo CD instance which allows it to access & manage cluster resources. 
+
+### Default Permissions provided to Argo CD instance
+
+By default Argo CD instance is provided the following permissions - 
+
+- Argo CD instance is provided with admin privileges for the namespace it is installed in. For instance, if an Argo CD instance is deployed in `foo` namespace, it will have **admin** privileges to manage resources for that namespace. 
+
+- Argo CD is provided the following cluster scoped permissions because Argo CD requires cluster-wide read privileges on resources to function properly. Please see [cluster-rbac](https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#cluster-rbac) upstream documentation for more details.
+
+  ```yaml
+  - verbs:
+      - get
+      - list
+      - watch
+    apiGroups:
+      - '*'
+    resources:
+      - '*'
+  - verbs:
+      - get
+      - list
+    nonResourceURLs:
+      - '*'
+  ```
+
+- Argo CD instance is provided additional Cluster Scoped permissions if it is used for Cluster Config Management.
+
+    |Resource Groups|What does it configure for the user/administrator|
+    |:-|:-|
+    |operators.coreos.com|Optional operators managed by OLM.|
+    |user.openshift.io , rbac.authorization.k8s.io|Groups, Users and their permissions.|
+    |config.openshift.io|Control plane Operators managed by CVO used to configure cluster-wide build configuration, registry configuration, scheduler policies, etc.|
+    |storage.k8s.io|Storage.|
+    |console.openshift.io|Console customization.|
+
+    ```yaml
+    - verbs:
+        - '*'
+      apiGroups:
+        - operators.coreos.com
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - operator.openshift.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - user.openshift.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - config.openshift.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - console.openshift.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - ''
+      resources:
+        - namespaces
+        - persistentvolumeclaims
+        - persistentvolumes
+        - configmaps
+    - verbs:
+        - '*'
+      apiGroups:
+        - rbac.authorization.k8s.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - storage.k8s.io
+      resources:
+        - '*'
+    - verbs:
+        - '*'
+      apiGroups:
+        - machine.openshift.io
+      resources:
+        - '*'
+    ```
+
+User can extend the permissions provided to Argo CD instance by following the steps provided in below section
+
+### Extend Argo CD Instance Permissions
 
 #### Deploy resources to a different namespace
 
-To grant Argo CD the permissions to manage resources in multiple namespaces, we need to configure the namespace with a label **"Argo CD.argoproj.io/managed-by"** and the value being the **namespace** of the Argo CD instance meant to manage the namespace. 
+To grant Argo CD the permissions to manage resources in multiple namespaces, we need to configure the namespace with a label `argocd.argoproj.io/managed-by` and the value being the `namespace` of the Argo CD instance meant to manage the namespace. 
 
-**Example**: For Argo CD instance deployed in the namespace `foo` wants to manage resources in namespace `bar`.
+For example, to allow Argo CD instance deployed in the namespace `foo` to manage resources in namespace `bar`, add the label `argocd.argoproj.io/managed-by: foo` on `bar` namespace
 
-* Create the following yaml named namespace.yaml ( available from July 21st / GitOps 1.2 )
-
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: bar // new namespace to be managed by an existing Argo CD instance
+  name: bar # namespace to be managed by an existing Argo CD instance
   labels:
-    argocd.argoproj.io/managed-by: foo // namespace of the Argo CD instance
+    argocd.argoproj.io/managed-by: foo # namespace of the Argo CD instance
 ```
 
+This creates a role & rolebinding in new namespace which allows the Argo CD instance to access & manage resources in it. 
 
-* Then, run the following command to create/configure the namespace. 
+##### Restrict permissions using custom role
 
-`oc apply -f namespace.yaml`
+As an administrative user, when you give Argo CD access to a namespace by using the `argocd.argoproj.io/managed-by` label, it assumes **namespace-admin** privileges. These privileges are an issue for administrators who provide namespaces to non-administrators, such as development teams, because the privileges enable non-administrators to modify objects such as network policies.
 
-### Via Openshift Console - 
-
-On Openshift Console, as an admin, navigate to **User Management -> Role Bindings ->** select **Create Binding.**
-
-This would open up a form, which would guide you through the process of creating a RoleBinding. 
-
-* For Binding Type select **Namespace role binding (RoleBinding)**
-
-    * We only need to provide the Binding Type, if selected Project is "All Projects"
-
-    * If the Project is already selected as the one you want to create RoleBinding for, it does not ask for Binding Type and assumes it to be a RoleBinding. 
-
-* Under Role Binding, provide a RoleBinding **Name** and **Namespace**(the one you are granting permissions for).
-
-* For Role, Select the Cluster Role** admin** (CR admin) from the drop down list. 
-
-* Under Subject, Select **Service Account** and the provide the Subject Namespace and Name. For our example it would be -
-
-    * Subject Namespace: openshift-gitops
-
-    * Subject Name: openshift-gitops-argocd-application-controller
-
-* Click on **Create** to create the RoleBinding
-
-![image alt text](assets/30.create_role_binding.png)
-
-#### Deploy resources to a different namespace with custom role
-
-As an administrative user, when you give Argo CD access to a namespace by using the `argocd.argoproj.io/managed-by` label, it assumes namespace-admin privileges. These privileges are an issue for administrators who provide namespaces to non-administrators, such as development teams, because the privileges enable non-administrators to modify objects such as network policies.
-
-With this update, administrators can configure a common cluster role for all the managed namespaces. In role bindings for the Argo CD application controller, the Operator refers to the `CONTROLLER_CLUSTER_ROLE` environment variable. In role bindings for the Argo CD server, the Operator refers to the `SERVER_CLUSTER_ROLE` environment variable. If these environment variables contain custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.
+To restrict the permissions, administrators can configure a common cluster role for all the managed namespaces using `CONTROLLER_CLUSTER_ROLE` & `SERVER_CLUSTER_ROLE` environment variable. If these environment variables contain custom roles, the Operator doesn’t create the default admin role for application controller &  argocd server respectively. Instead, it uses the existing custom role for all managed namespaces.
 
 **Example**: Custom role environment variables in operator Subscription:
 
@@ -869,178 +925,30 @@ spec:
             value: custom-server-role
 ```
 
-
-### Cluster Configuration
-
-When the user wishes to install Argo CD with the purpose of managing OpenShift cluster resources, Argo CD is granted permissions to [manage specific cluster-scoped resources](https://docs.google.com/document/d/1HncLIPlUkO5rfTHCi4zAygB6Xx6K3dAgI5PM5GT1G6A/edit#heading=h.e3snv4wit2fc) which include [platform operators](https://docs.openshift.com/container-platform/4.6/architecture/control-plane.html#platform-operators_control-plane), optional OLM operators, user management, etc. **Argo CD is not granted cluster-admin**.
-
-###  In-built permissions for cluster configuration
-
-Argo CD is granted the following permissions to manage specific cluster-scoped resources which include platform operators, optional OLM operators and user management. **Argo CD is not granted cluster-admin**.
-
-
-User can extend the permissions provided to Argo CD instance by following the steps provided in this [section](#heading=h.8m0tejtgffa7)  
-
-
-<table>
-  <tr>
-    <td>Resource Groups</td>
-    <td>What does it configure for the user/administrator</td>
-  </tr>
-  <tr>
-    <td>operators.coreos.com</td>
-    <td>Optional operators managed by OLM</td>
-  </tr>
-  <tr>
-    <td>user.openshift.io , rbac.authorization.k8s.io</td>
-    <td>Groups, Users and their permissions.</td>
-  </tr>
-  <tr>
-    <td>config.openshift.io</td>
-    <td>Control plane Operators managed by CVO used to configure cluster-wide build configuration, registry configuration, scheduler policies, etc.</td>
-  </tr>
-  <tr>
-    <td>storage.k8s.io</td>
-    <td>Storage.</td>
-  </tr>
-  <tr>
-    <td>console.openshift.io</td>
-    <td>Console customization.</td>
-  </tr>
-</table>
-
-
-#### Argo CD Installation
-
-To manage cluster-config, deploy an ArgoCD instance using the steps provided above. 
-
-* As an admin, update the existing Subscription Object for Gitops Operator and add `ARGOCD_CLUSTER_CONFIG_NAMESPACES` to the spec.
-
-* On Openshift Console, go to * **Administration -> CustomResourceDefinition -> Subscription -> Instances** and select **"openshift-gitops-operator".**
-
-![image alt text](assets/4.subscription_instance.png)
-
-
-Select the **YAML** tab and edit the Subscription yaml to add ENV, **ARGOCD_CLUSTER_CONFIG_NAMESPACES** as defined below.
-
-```
-spec:
-  config:
-    env:
-    - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
-      value: openshift-gitops, <namespace where Argo CD instance is installed>
-```
-
-#### Default Permissions provided to Argo CD instance
-
-By default Argo CD instance is provided the following permissions - 
-
-* Argo CD instance is provided with ADMIN privileges for the namespace it is installed in. For instance, if an Argo CD instance is deployed in **foo** namespace, it will have **ADMIN privileges** to manage resources for that namespace. 
-
-* Argo CD is provided the following cluster scoped permissions because Argo CD requires cluster-wide read privileges on resources to function properly. (Please see https://argo-cd.readthedocs.io/en/stable/operator-manual/security/#cluster-rbac for more details.): 
-
-```
- - verbs:
-    - get
-    - list
-    - watch
-   apiGroups:
-    - '*'
-   resources:
-    - '*'
- - verbs:
-    - get
-    - list
-   nonResourceURLs:
-    - '*'
-```
-
-
-* Argo CD instance is provided additional Cluster Scoped permissions if it is used for Cluster Config Management as defined above ([https://docs.google.com/document/d/1147S5yOdj5Golj3IrTBeeci2E1CjAkieGCcl0w90BS8/edit?pli=1#heading=h.itev1vnvtlyl](#heading=h.itev1vnvtlyl))
-
-```
-- verbs:
-    - '*'
-   apiGroups:
-    - operators.coreos.com
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - operator.openshift.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - user.openshift.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - config.openshift.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - console.openshift.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - ''
-   resources:
-    - namespaces
-    - persistentvolumeclaims
-    - persistentvolumes
-    - configmaps
- - verbs:
-    - '*'
-   apiGroups:
-    - rbac.authorization.k8s.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - storage.k8s.io
-   resources:
-    - '*'
- - verbs:
-    - '*'
-   apiGroups:
-    - machine.openshift.io
-   resources:
-    - '*'
-```
-
 #### Additional permissions
 
 If the user wishes to expand the permissions granted to Argo CD, they need to create Cluster Roles with additional permissions and then a new Cluster Role Binding to associate them to a Service Account. 
 
 For understanding, we will extend the permissions for pre-installed Argo CD instance to be able to list the secrets for all namespaces. 
 
-##### 	Create Cluster Role
+##### Create Cluster Role
 
-##### Via OpenShift Console-
+###### Via OpenShift Console
 
-* On Openshift Console, as an admin, navigate to **User Management -> Roles -> Create Role**
+- On Openshift Console, as an admin, navigate to `User Management -> Roles -> Create Role`
 
-* Use the following ClusterRole Yaml template and add rules to specify the additional permissions. For our example, we are adding the permissions to list the secrets for all namespaces. 
+- Use the following ClusterRole yaml template and add rules to specify the additional permissions. For our example, we are adding the permissions to list the secrets for all namespaces. 
 
-* Click on **Create**
+- Click on `Create`
 
-##### Via CLI - 
+###### Via CLI
 
-* Alternatively, user can create the following yaml using the command - 
+- Alternatively, user can create the following yaml using the command
 
-`oc create -f <path-to-following-yaml`
+    `oc create -f <path-to-following-yaml`
 
-```
+ClusterRole yaml template
+```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -1052,12 +960,11 @@ rules:
   verbs: ["*"]
 ```
 
+##### Create Cluster Role Binding
 
-##### 	Create Cluster Role Binding
+###### Via CLI
 
-##### Via CLI - 
-
-* Create the following yaml named cluster_role_binding.yaml
+- Create the following yaml named `cluster_role_binding.yaml`
 
 ```
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1075,32 +982,74 @@ subjects:
   namespace: openshift-gitops 
 ```
 
-
-* Use the following command to create Cluster Role Binding with the yaml provided above -
-
-		
-`oc create -f cluster_role_binding.yaml`
+- Use the following command to create Cluster Role Binding with the yaml provided above -
 	
+    `oc create -f cluster_role_binding.yaml`
+	
+###### Via OpenShift Console
 
-##### Via OpenShift Console -
+- On OpenShift Console, as an admin, navigate to `User Management -> Role Bindings -> Create Binding`
 
-* On OpenShift Console, as an admin, navigate to **User Management -> Role Bindings -> Create Binding**
+- Under the `Projects` tab, make sure you have selected `All Projects`, if not then select it.
 
-* Under the Projects tab, make sure you have selected "All Projects", if not then select it.
+- Select Binding Type as `Cluster-wide role binding (ClusterRoleBinding)`
 
-* Select Binding Type as **Cluster-wide role binding (ClusterRoleBinding)**
+- Provide Role Binding Name, this should be unique.   
+  example - "read-secrets-global"
 
-* Provide Role Binding Name, this should be unique, example - "read-secrets-global"
+- Select the Cluster Role created in previous steps or any existing cluster role from the drop down list. For our example, we will select "secrets-cluster-role" from the list.
 
-* Select the Cluster Role created in previous steps or any existing cluster role from the drop down list. For our example, we will select "secrets-cluster-role" from the list.
-
-* Under Subject, Select **Service Account** and the provide the Subject Namespace and Name. For our example it would be -
-
+- Under Subject, Select `Service Account` and the provide the Subject Namespace and Name.  
+For our example it would be
     * Subject Namespace: openshift-gitops
-
     * Subject Name: openshift-gitops-argocd-application-controller
 
-* Click on **Create** to create the Cluster Role Binding
+- Click on `Create` to create the Cluster Role Binding
+
+### Additional optional configurations
+
+#### Enable Replicas for Argo CD Server and Repo Server
+
+A user can enable a number of replicas for the Argo CD server and Argo CD repo-server workloads. As these workloads are stateless, the replica count can be increased to distribute the workload better among pods. However, if a horizontal autoscaler is enabled on Argo CD-server, it will be prioritized over the number set for replicas.
+
+**Example**
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+  labels:
+    example: repo
+spec:
+  repo:
+    replicas: 1
+  server:
+    replicas: 1
+    route:
+      enabled: true
+      path: /
+      tls:
+        insecureEdgeTerminationPolicy: Redirect
+        termination: passthrough
+      wildcardPolicy: None
+```
+
+#### Enable Notifications with Argo CD instance
+
+Argo CD Notifications controller can be enabled/disabled using a new toggle within the Argo CD CR with default specs as follows:
+
+``` yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  notifications:
+    enabled: True
+```
+
+Notifications are disabled by default. Please refer to [upstream documentation](https://argocd-operator.readthedocs.io/en/latest/usage/notifications/) for further information.
 
 ## Configure resource quota/requests for OpenShift GitOps workloads
 
