@@ -1,0 +1,55 @@
+# Disabling the test temporarily, refer to https://issues.redhat.com/browse/GITOPS-2650
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: ArgoCD
+# metadata:
+#   name: openshift-gitops
+#   namespace: openshift-gitops
+# status:
+#   phase: Available
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: openshift-gitops-redis
+#   namespace: openshift-gitops
+# status:
+#   readyReplicas: 1
+#   replicas: 1
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: openshift-gitops-repo-server
+#   namespace: openshift-gitops
+# status:
+#   readyReplicas: 1
+#   replicas: 1
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: openshift-gitops-server
+#   namespace: openshift-gitops
+# status:
+#   readyReplicas: 1
+#   replicas: 1
+# ---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: openshift-gitops-applicationset-controller
+#   namespace: openshift-gitops
+# status:
+#   readyReplicas: 1
+#   replicas: 1
+# ---
+# apiVersion: apps/v1
+# kind: StatefulSet
+# metadata:
+#   name: openshift-gitops-application-controller
+#   namespace: openshift-gitops
+# status:
+#   readyReplicas: 1
+#   replicas: 1
+# ---

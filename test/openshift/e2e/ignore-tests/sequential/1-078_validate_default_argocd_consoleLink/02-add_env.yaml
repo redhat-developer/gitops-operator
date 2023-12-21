@@ -1,0 +1,13 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    if ! [ -z $NON_OLM ]; then
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator DISABLE_DEFAULT_ARGOCD_CONSOLELINK=true
+    elif [ -z $CI ]; then
+      oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "value": "true"}]}}}'
+    else
+      oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+        --type merge --patch '{"spec": {"config": {"env": [{"name": "DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "value": "true"}]}}}'
+    fi

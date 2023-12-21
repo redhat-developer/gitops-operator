@@ -1,0 +1,28 @@
+# Check the route for kam in depth
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    status=$(oc get -n openshift-gitops route kam -o json | jq -r .status)
+    route_admitted=$(echo "$status" | jq -r '.ingress[0].conditions[0].type')
+    route_status=$(echo "$status" | jq -r '.ingress[0].conditions[0].status')
+    route_host=$(echo "$status" | jq -r '.ingress[0].host')
+    router_name=$(echo "$status" | jq -r '.ingress[0].routerName')
+    route_wildcard_policy=$(echo "$status" | jq -r '.ingress[0].wildcardPolicy')
+    if test "$route_admitted" != "Admitted" -o "$route_status" != "True"; then
+      echo "Route not ready"
+      exit 1
+    fi
+    if test "$route_host" = ""; then
+      echo "Route has no host"
+      exit 1
+    fi
+    if test "$router_name" != "default"; then
+      echo "Router is not default"
+      exit 1
+    fi
+    if test "$route_wildcard_policy" != "None"; then
+      echo "Route wildcard policy is not None"
+      exit 1
+    fi
+    exit 0
