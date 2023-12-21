@@ -1,0 +1,16 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+status:
+  health:
+    status: Healthy
+  sync:
+    status: Synced
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: guestbook
+  namespace: argocd

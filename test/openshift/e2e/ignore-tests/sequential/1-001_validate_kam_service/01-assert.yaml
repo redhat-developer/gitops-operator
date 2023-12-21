@@ -1,0 +1,40 @@
+# We need the openshift-gitops namespace installed by default
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-gitops
+---
+# We need a `kam` deployment in the namespace
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kam
+  namespace: openshift-gitops
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+# Route to kam exists and is properly configured
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kam
+  namespace: openshift-gitops
+spec:
+  port:
+    targetPort: 8443
+  tls:
+    insecureEdgeTerminationPolicy: None
+    termination: passthrough
+  to:
+    kind: Service
+    name: kam
+    weight: 100
+  wildcardPolicy: None
+---
+# Service for kam exists
+apiVersion: v1
+kind: Service
+metadata:
+  name: kam
+  namespace: openshift-gitops

@@ -1,0 +1,16 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
+    password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+    output=$(argocd login $api_server --username admin --password $password --insecure)
+
+    if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
+      if [[ "${output}" == *"rpc error: code = Unknown desc = server.secretkey is missing" ]]; then
+        echo "server.secretkey is missing"
+        exit 1
+      fi
+    fi
+    exit 0
+
