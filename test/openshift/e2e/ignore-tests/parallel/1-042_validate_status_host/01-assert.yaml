@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+status:
+  phase: Available
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: example-argocd-server

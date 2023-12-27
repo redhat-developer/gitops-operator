@@ -1,0 +1,15 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      set -e
+
+      # Removing finalizer from cm
+      oc patch cm/my-config-map-2 -n gitops-2242-ns-first --type json --patch='[ { "op": "remove", "path": "/metadata/finalizers" } ]'
+
+      # Deleting namespaces
+      oc delete ns gitops-2242-ns-first --wait=false
+      oc delete ns gitops-2242-ns-second --wait=false
+      oc delete ns gitops-2242-ns-main --wait=false
+
+      exit 0

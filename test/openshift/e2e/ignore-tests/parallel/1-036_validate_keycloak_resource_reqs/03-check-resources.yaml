@@ -1,0 +1,15 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    resources=$(oc get -n $NAMESPACE pod/keycloak-1-deploy -o jsonpath='{.spec.containers[0].resources}')
+    if [[ -n ${resources} ]]; then
+      if [[ "${resources}" != '{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}' ]]; then
+      echo "resources spec for pod/keycloak-1-deploy are incorrect"
+        echo "${resources}"
+        exit 1
+      fi
+    else
+      echo "resources spec not found in pod/keycloak-1-deploy"
+      exit 1
+    fi

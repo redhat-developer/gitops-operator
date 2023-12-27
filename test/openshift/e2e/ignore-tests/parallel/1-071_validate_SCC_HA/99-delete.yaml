@@ -1,0 +1,10 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+delete:
+- apiVersion: security.openshift.io/v1
+  kind: SecurityContextConstraints
+  metadata:
+    name: restricted-dropcaps

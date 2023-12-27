@@ -1,0 +1,10 @@
+# Point targetRevision to a branch with 0 replicas
+# in DeploymentConfig's manifest
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-deploymentconfig
+spec:
+  project: default
+  source:
+    path: test/examples/deploymentconfig-example_replica_0

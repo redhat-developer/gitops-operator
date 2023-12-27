@@ -1,0 +1,30 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -eo pipefail
+
+    # Get CSV name and also OCP version.
+    csv_name=$(oc get csv -n openshift-gitops-operator | awk '/gitops-operator/ {print $1}')
+    ocp_version=$(oc version | awk '/Server Version/ {split($3,a,"-"); print a[1]}')
+
+    if [[ ${ocp_version} =~ "4.15" ]]; then
+      exit 0
+    fi
+
+    # Patch the CSV to add the necessary env key:value for Dynamic Plugin
+    oc patch csv "${csv_name}" -n openshift-gitops-operator \
+    --type='json' \
+    -p='[{
+          "op": "add",
+          "path": "/spec/install/spec/deployments/0/spec/template/spec/containers/0/env/-",
+          "value": {
+                    "name": "DYNAMIC_PLUGIN_START_OCP_VERSION",
+                    "value": "'${ocp_version}'"
+          }
+    }]'
+
+    # Sleep 10 seconds, so the resources are launched before next assert step.
+    sleep 5
+    
+    exit 0

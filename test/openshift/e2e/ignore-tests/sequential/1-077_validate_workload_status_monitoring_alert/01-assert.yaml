@@ -1,0 +1,39 @@
+# Refer to https://issues.redhat.com/browse/GITOPS-2664
+
+# apiVersion: monitoring.coreos.com/v1
+# kind: PrometheusRule
+# metadata:
+#   name: argocd-component-status-alert
+#   namespace: openshift-gitops
+# spec:
+#   groups:
+#     - name: ArgoCDComponentStatus
+#       rules:
+#         - alert: ApplicationControllerNotReady
+#           for: 1m
+#           labels:
+#             severity: critical
+#         - alert: ServerNotReady
+#           for: 1m
+#           labels:
+#             severity: critical
+#         - alert: RepoServerNotReady
+#           for: 1m
+#           labels:
+#             severity: critical
+#         - alert: ApplicationSetControllerNotReady
+#           for: 5m
+#           labels:
+#             severity: warning
+#         - alert: DexNotReady
+#           for: 5m
+#           labels:
+#             severity: warning
+#         - alert: NotificationsControllerNotReady 
+#           for: 5m
+#           labels:
+#             severity: warning
+#         - alert: RedisNotReady 
+#           for: 5m
+#           labels:
+#             severity: warning
