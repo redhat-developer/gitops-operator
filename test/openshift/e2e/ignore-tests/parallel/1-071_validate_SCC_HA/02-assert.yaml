@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-application-controller
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-redis
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-server
+status:
+  phase: Running

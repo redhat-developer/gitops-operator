@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-kustomize
+  namespace: namespace-gitops-2038
+spec:
+  project: default
+  source:
+
+    repoURL: https://github.com/redhat-developer/gitops-operator.git
+    path: test/examples/kustomize-example
+    targetRevision: HEAD
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: namespace-gitops-2038
+  syncPolicy:
+    automated: {}
+

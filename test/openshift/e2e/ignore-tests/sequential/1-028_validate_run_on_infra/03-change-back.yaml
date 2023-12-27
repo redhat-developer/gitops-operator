@@ -1,0 +1,7 @@
+
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch gitopsservice cluster --type=json --patch='[{"op": "remove", "path": "/spec/tolerations"}, {"op": "remove", "path": "/spec/runOnInfra"}]'
+    oc patch statefulset openshift-gitops-application-controller -n openshift-gitops -p '{"spec":{"replicas":0}}'

@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patches the argocd instance with the label
+- script: |
+    kubectl label argocd test1 foo=bar -n test-argocd
+    
+- script: sleep 30

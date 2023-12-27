@@ -1,0 +1,35 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    expected_redis_config=(
+      'port 0'
+      'tls-port 6379'
+      'tls-cert-file /app/config/redis/tls/tls.crt'
+      'tls-ca-cert-file /app/config/redis/tls/tls.crt'
+      'tls-key-file /app/config/redis/tls/tls.key'
+      'tls-replication yes'
+      'tls-auth-clients no'
+    )
+
+    expected_sentinel_config=(
+      'port 0'
+      'tls-port 26379'
+      'tls-cert-file "/app/config/redis/tls/tls.crt"'
+      'tls-ca-cert-file "/app/config/redis/tls/tls.crt"'
+      'tls-key-file "/app/config/redis/tls/tls.key"'
+      'tls-replication yes'
+      'tls-auth-clients no'
+    )
+
+    for config in "${expected_redis_config[@]}"
+    do
+      oc exec -i pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/redis.conf
+    done
+
+    for config in "${expected_sentinel_config[@]}"
+    do
+      oc exec -i pod/argocd-redis-ha-server-0 -n $NAMESPACE -c redis -- grep "${config}" /data/conf/sentinel.conf
+    done
