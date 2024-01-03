@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch gitopsservice cluster --type=merge --patch='{"spec": {"runOnInfra": true, "tolerations": [{"effect": "NoSchedule", "key": "infra", "value": "reserved"}]}}'

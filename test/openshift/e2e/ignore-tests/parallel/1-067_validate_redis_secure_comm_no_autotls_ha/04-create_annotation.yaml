@@ -1,0 +1,6 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+    oc annotate secret argocd-operator-redis-tls argocds.argoproj.io/name=argocd -n $NAMESPACE

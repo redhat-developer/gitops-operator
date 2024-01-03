@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gitops-2242-ns-second
+  labels:
+    argocd.argoproj.io/managed-by: gitops-2242-ns-main

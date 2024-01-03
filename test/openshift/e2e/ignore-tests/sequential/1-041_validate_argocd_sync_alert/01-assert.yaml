@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+status:
+  phase: Available
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-operator-argocd-alerts
+  namespace: openshift-gitops
+spec:
+  groups:
+  - name: GitOpsOperatorArgoCD
+    rules:
+    - alert: ArgoCDSyncAlert
+      annotations:
+        message: ArgoCD application {{ $labels.name }} is out of sync
+      expr: argocd_app_info{namespace="openshift-gitops",sync_status="OutOfSync"} > 0
+      for: 5m
+      labels:
+        severity: warning

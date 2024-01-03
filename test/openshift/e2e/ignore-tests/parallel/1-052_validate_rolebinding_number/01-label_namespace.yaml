@@ -1,0 +1,6 @@
+# Add the managed-by label to the namespace created by Kuttl
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc label namespace $NAMESPACE argocd.argoproj.io/managed-by=openshift-gitops

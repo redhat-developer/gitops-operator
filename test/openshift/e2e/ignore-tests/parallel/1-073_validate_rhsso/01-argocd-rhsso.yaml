@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd-keycloak
+  labels:
+    example: keycloak
+spec:
+  sso:
+    provider: keycloak
+    keycloak:
+      rootCA: "---BEGIN---END---"
+  server:
+    route:
+      enabled: true

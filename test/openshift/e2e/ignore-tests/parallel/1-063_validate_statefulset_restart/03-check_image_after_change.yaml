@@ -1,0 +1,13 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    image=$(oc get statefulset/example-argocd-application-controller -o jsonpath='{.spec.template.spec.containers[].image}' -n $NAMESPACE)
+
+    if test "${image}" == "invalid_image"; then
+      echo "The application-controller statefulset is using 'invalid_image'"
+      exit 1
+    fi
+    exit 0
