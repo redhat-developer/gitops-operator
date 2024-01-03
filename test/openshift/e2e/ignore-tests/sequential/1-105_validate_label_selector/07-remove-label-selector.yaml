@@ -1,0 +1,23 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patches the subscription to remove label-selector from argocd-operator
+# - script: |
+#       oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator ARGOCD_LABEL_SELECTOR- -c manager
+# - script: sleep 30
+
+- script: |
+    if ! [ -z $NON_OLM ]; then
+
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator ARGOCD_LABEL_SELECTOR- -c manager
+       
+    elif [ -z $CI ]; then 
+
+      oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
+        --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
+    else
+    
+      oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+        --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
+    fi
+- script: sleep 120

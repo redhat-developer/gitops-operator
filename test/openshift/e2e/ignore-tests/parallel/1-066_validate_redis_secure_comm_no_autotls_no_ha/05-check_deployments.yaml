@@ -1,0 +1,51 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    if test "$(oc get deployments.apps argocd-redis -n $NAMESPACE --template '{{range .spec.template.spec.containers}}{{.args}}{{"\n"}}{{end}}')" != \
+    "[redis-server \
+    --protected-mode no \
+    --save  \
+    --appendonly no \
+    --tls-port 6379 \
+    --port 0 \
+    --tls-cert-file /app/config/redis/tls/tls.crt \
+    --tls-key-file /app/config/redis/tls/tls.key \
+    --tls-auth-clients no]"; then
+      echo "TLS .spec.template.spec.containers.args for argocd-redis deployment are wrong"
+      exit 1
+    fi
+
+- script: |
+    set -e
+
+    if test "$(oc get deployments.apps argocd-repo-server -n $NAMESPACE --template '{{range .spec.template.spec.containers}}{{.command}}{{"\n"}}{{end}}')" != \
+    "[uid_entrypoint.sh \
+    argocd-repo-server \
+    --redis argocd-redis.$NAMESPACE.svc.cluster.local:6379 \
+    --redis-use-tls \
+    --redis-ca-certificate /app/config/reposerver/tls/redis/tls.crt \
+    --loglevel info \
+    --logformat text]"; then
+      echo "TLS .spec.template.spec.containers.command for argocd-repo-server deployment is wrong"
+      exit 1
+    fi
+
+- script: |
+    set -e
+
+    if test "$(oc get deployments.apps argocd-server -n $NAMESPACE --template '{{range .spec.template.spec.containers}}{{.command}}{{"\n"}}{{end}}')" != \
+    "[argocd-server \
+    --staticassets /shared/app \
+    --dex-server https://argocd-dex-server.$NAMESPACE.svc.cluster.local:5556 \
+    --repo-server argocd-repo-server.$NAMESPACE.svc.cluster.local:8081 \
+    --redis argocd-redis.$NAMESPACE.svc.cluster.local:6379 \
+    --redis-use-tls \
+    --redis-ca-certificate /app/config/server/tls/redis/tls.crt \
+    --loglevel info \
+    --logformat text]"; then
+      echo "TLS .spec.template.spec.containers.command for argocd-server deployment is wrong"
+      exit 1
+    fi

@@ -1,0 +1,11 @@
+# Download all kam binaries from the URL in the host
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+timeout: 120
+commands:
+- script: |
+    set -e
+    base_url=$(oc get -n openshift-gitops route kam -o json | jq -r '.status.ingress[0].host')
+    curl -k --silent -o/dev/null "${base_url}/kam/kam_linux_amd64"
+    curl -k --silent -o/dev/null "${base_url}/kam/kam_darwin_amd64"
+    curl -k --silent -o/dev/null "${base_url}/kam/kam_windows_amd64.exe"

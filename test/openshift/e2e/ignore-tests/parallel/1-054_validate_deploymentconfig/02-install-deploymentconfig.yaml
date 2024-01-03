@@ -1,0 +1,31 @@
+# It would be better to have the "kind: Application" resource as it is,
+# but "${NAMESPACE}" expansion doesn't work in kuttl manifests
+# We also need to centralize the app examples in a public (common) repo.
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -eo pipefail
+    # Install ArgoCD Application with 2 replicas
+    cat << EOF | oc apply -f -
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: app-deploymentconfig
+      namespace: ${NAMESPACE}
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/redhat-developer/gitops-operator
+        path: test/examples/deploymentconfig-example
+        targetRevision: "HEAD"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: ${NAMESPACE}
+      syncPolicy:
+        automated: {}
+    EOF
+    # Give some time to Application before asserting
+    sleep 10
+    
+    exit 0

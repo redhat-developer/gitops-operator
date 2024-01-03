@@ -1,0 +1,155 @@
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -eou pipefail
+#     DIR="$(pwd)"
+
+#     cleanup() {
+#           argocd logout "${api_server}"
+#           oc delete application app-kustomize -n openshift-gitops
+#           rm -rf $WORK_DIR
+#     }
+
+#     WORK_DIR=`mktemp -d -p "$DIR"`
+
+#     # check if tmp dir was created
+#     if [[ ! "$WORK_DIR" || ! -d "$WORK_DIR" ]]; then
+#       echo "Could not create temp dir"
+#       exit 1
+#     fi
+
+#     trap cleanup INT TERM EXIT
+
+#     # Login to apiserver    
+#     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
+#     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+#     output=$(argocd login $api_server --username admin --password $password --insecure)
+   
+#     # ensure namespace exists
+#     oc get ns namespace-gitops-1672 2>/dev/null  || {
+#       oc new-project namespace-gitops-1672
+#       oc label namespace namespace-gitops-1672 argocd.argoproj.io/managed-by=openshift-gitops
+#     }
+
+#     # ensure template cleanup, if exists in namespace before we start tests
+#     oc delete template redis-template-gitops -n namespace-gitops-1672 --ignore-not-found=true
+
+#     # Adding duplicate GVK to check prune functionality against issue #GITOPS-1672
+#     cat > $WORK_DIR/app-template.yaml << EOF
+#     apiVersion: template.openshift.io/v1
+#     kind: Template
+#     metadata:
+#       name: redis-template-gitops
+#       annotations:
+#         description: "Description"
+#         iconClass: "icon-redis"
+#         tags: "database,nosql"
+#     objects:
+#     - apiVersion: v1
+#       kind: Pod
+#       metadata:
+#         name: redis-master
+#       spec:
+#         containers:
+#         - env:
+#           - name: REDIS_PASSWORD
+#             value: xyz1234s
+#           image: dockerfile/redis
+#           name: master
+#           ports:
+#           - containerPort: 6379
+#             protocol: TCP
+#     parameters:
+#     - description: Password used for Redis authentication
+#       from: '[A-Z0-9]{8}'
+#       generate: expression
+#       name: REDIS_PASSWORD
+#     labels:
+#       redis: master
+#     EOF
+
+#     cat > $WORK_DIR/app-template2.yaml << EOF
+#     apiVersion: template.openshift.io/v1
+#     kind: Template
+#     metadata:
+#       name: redis-template-gitops2
+#       annotations:
+#         description: "Description"
+#         iconClass: "icon-redis"
+#         tags: "database,nosql"
+#     objects:
+#     - apiVersion: v1
+#       kind: Pod
+#       metadata:
+#         name: redis-master
+#       spec:
+#         containers:
+#         - env:
+#           - name: REDIS_PASSWORD
+#             value: xyz1234s
+#           image: dockerfile/redis
+#           name: master
+#           ports:
+#           - containerPort: 6379
+#             protocol: TCP
+#     parameters:
+#     - description: Password used for Redis authentication
+#       from: '[A-Z0-9]{8}'
+#       generate: expression
+#       name: REDIS_PASSWORD
+#     labels:
+#       redis: master
+#     EOF
+
+#     # create application.yaml
+#     cat <<EOF | oc apply -f -
+#     apiVersion: argoproj.io/v1alpha1
+#     kind: Application
+#     metadata:
+#       name: app-kustomize
+#       namespace: openshift-gitops
+#     spec:
+#       project: default
+#       source:
+#         repoURL: 'file://$WORK_DIR.git'
+#         path: "."
+#         targetRevision: HEAD
+#       destination:
+#         server: 'https://kubernetes.default.svc'
+#         namespace: namespace-gitops-1672
+#       syncPolicy:
+#         syncOptions:
+#         - PruneLast=true
+#     EOF
+
+#     sleep 5
+
+#     if ! argocd app list 2>/dev/null; then
+#        echo "Application listing failed"
+#        exit 1
+#     fi
+
+#     if ! argocd app sync app-kustomize --local $WORK_DIR  --timeout 100 2>/dev/null; then
+#        echo "App didn't sync well with local flag"
+#        exit 1
+#     fi 
+
+#     # Now delete resource from git source and try to resync back
+#     rm -rf $WORK_DIR/app-template.yaml
+
+#     sleep 5
+
+#     # Now sync application with prune and PruneLast options enabled
+#     if ! argocd app sync app-kustomize --local $WORK_DIR  --prune --timeout 100 2>/dev/null; then
+#        echo "App didn't prune or synced well with local flag"
+#        exit 1
+#     fi 
+
+#     if oc get template redis-template-gitops -n namespace-gitops-1672  --no-headers 2>/dev/null; then
+#       echo "Templete is not pruned properly."
+#       exit 1
+#     else
+#       echo "Test is successful, no templates found"
+#       exit 0
+#     fi
