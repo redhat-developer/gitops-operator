@@ -370,7 +370,14 @@ oc exec <deployment-pod-name> -n dev -- cat /mnt/secrets-store/<your-secret-name
 
 
 ## Additional Information
+### Determining the Cloud Credential Operator mode
+Refer [Determining the Cloud Credential Operator mode](https://docs.openshift.com/container-platform/4.14/authentication/managing_cloud_provider_credentials/about-cloud-credential-operator.html#cco-determine-mode_about-cloud-credential-operator)
+### Configuring an AWS cluster to use short-term credentials
+Refer [Configuring an AWS cluster to use short-term credentials](https://docs.openshift.com/container-platform/4.14/installing/installing_aws/installing-aws-customizations.html#installing-aws-with-short-term-creds_installing-aws-customizations)
 ### Configure your AWS cluster to use AWS Security Token Service (STS)
+**Note**  
+Migration of a non-STS cluster to use STS is not supported, this is only for development or test purpose.
+
 Follow [Steps to in-place migrate an OpenShift Cluster to STS](https://github.com/openshift/cloud-credential-operator/blob/master/docs/sts.md#steps-to-in-place-migrate-an-openshift-cluster-to-sts)
 ### Obtain the `ccoctl` tool
 It's possible to obtain the ccoctl tool from the [mirror of latest OCP versions](https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/) (it's available for the latest versions of all the newer minor releases).
