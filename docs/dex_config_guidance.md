@@ -19,7 +19,7 @@ The scope of this document is to describe the steps to Install, Configure(Setup 
 To enable dex, set `.spec.sso.provider` to `dex` & add dex configs under `.spec.sso.dex` fields in ArgoCD CR.  
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name> 
@@ -71,7 +71,7 @@ To enable it, use `.spec.sso.dex.groups` field in ArgoCD CR.
 For example, below will give allow only users of `foo` & `bar` group to login into Argo CD via Dex.
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -108,7 +108,7 @@ For versions starting v1.10 and above,
 This default behavior can be modified by updating the `.spec.rbac.defaultyPolicy` in ArgoCD CR.
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -126,7 +126,7 @@ Dex reads the group information of OpenShift users. This allows admin to configu
 For example, below will give admin level access to all the users from `foo-admins` OpenShift group.
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -148,7 +148,7 @@ It is not recommended to use user level RBAC with OpenShift login as it poses se
 For example, below will give admin level access to a user with email `foo@example.com` & user with username `bar`
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -174,7 +174,7 @@ Dex container by default gets created with following  resource requests and limi
 Admin can modify the Dex resource requests/limits by updating `.spec.sso.dex.resources` field in ArgoCD CR. 
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
@@ -204,7 +204,7 @@ oc -n <namespace> patch argocd <argocd-instance-name> --type json   -p='[{"op": 
 Or 
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
   name: <argocd-instance-name>
