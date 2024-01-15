@@ -1,0 +1,59 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestAssert
+timeout: 1200
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  ha:
+    enabled: true
+status:
+  phase: Available
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-application-controller
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-redis-ha-haproxy
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: argocd-redis-ha-server-1
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: argocd-redis-ha-server-2
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-repo-server
+status:
+  phase: Running
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-server
+status:
+  phase: Running

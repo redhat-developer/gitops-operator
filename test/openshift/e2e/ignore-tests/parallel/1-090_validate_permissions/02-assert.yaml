@@ -1,0 +1,22 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: gitopsservices.pipelines.openshift.io
+spec:
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        properties:
+          spec:
+            description: GitopsServiceSpec defines the desired state of GitopsService
+            properties:
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                description: NodeSelector is a map of key value pairs used for node
+                  selection in the default workloads
+                type: object
+              tolerations:
+                description: Tolerations allow the default workloads to schedule onto
+                  nodes with matching taints

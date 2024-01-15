@@ -1,0 +1,12 @@
+# apiVersion: argoproj.io/v1alpha1
+# kind: ArgoCD
+# metadata:
+#   name: openshift-gitops
+#   namespace: openshift-gitops
+#   labels:
+#     example: argocd
+# spec:
+#   applicationSet: 
+#     image: test-image
+#   monitoring:
+#     enabled: true

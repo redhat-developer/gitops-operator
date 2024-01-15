@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+  namespace: test-1-23-custom
+spec:
+  template:
+    spec:
+      containers:
+      - command:
+        - argocd-server
+        - --repo-server-strict-tls
+        - --staticassets
+        - /shared/app
+        - --dex-server
+        - https://argocd-dex-server.test-1-23-custom.svc.cluster.local:5556
+        - --repo-server
+        - argocd-repo-server.test-1-23-custom.svc.cluster.local:8081
+        - --redis
+        - argocd-redis.test-1-23-custom.svc.cluster.local:6379
+        - --loglevel
+        - info
+        - --logformat
+        - text

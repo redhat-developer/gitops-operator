@@ -86,6 +86,7 @@ The following environment variables can be set to configure various options for 
 | **SERVER_CLUSTER_ROLE** |This environment variable enables administrators to configure a common cluster role to use across all of the managed namespaces in the role bindings the operator creates for the Argo CD server. | None |
 | **WATCH_NAMESPACE** | namespaces in which Argo applications can be created | None |
 | **ENABLE_CONVERSION_WEBHOOK** | This environment variable enables conversion webhook to convert v1alpha1 ArgoCD resources to v1beta1 | true |
+| **ARGOCD_LABEL_SELECTOR** | This environment variable will enable the operator to reconcile only the corresponding ArgoCD instances having the matching label selector. The label selector can be set on argocd-opertor by exporting `ARGOCD_LABEL_SELECTOR` (eg: `export ARGOCD_LABEL_SELECTOR=foo=bar`). The labels can be added to the argocd instances using the command `kubectl label argocd test1 foo=bar -n test-argocd`. | None |
 ### Running the script
 
 #### Usage

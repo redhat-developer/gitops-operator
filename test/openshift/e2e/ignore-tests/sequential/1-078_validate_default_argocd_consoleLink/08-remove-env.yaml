@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    if ! [ -z $NON_OLM ]; then
+      oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator DISABLE_DEFAULT_ARGOCD_CONSOLELINK=null
+    elif [ -z $CI ]; then
+        oc -n openshift-gitops-operator patch subscription openshift-gitops-operator --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+    else
+        oc -n openshift-gitops-operator patch subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` --type='json' -p='[{"op": "remove", "path": "/spec/config" }]'
+    fi
