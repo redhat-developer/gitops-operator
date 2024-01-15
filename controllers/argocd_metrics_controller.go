@@ -20,6 +20,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -41,11 +42,13 @@ import (
 )
 
 const (
-	readRoleNameFormat        = "%s-read"
-	readRoleBindingNameFormat = "%s-prometheus-k8s-read-binding"
-	alertRuleName             = "gitops-operator-argocd-alerts"
-	dashboardNamespace        = "openshift-config-managed"
-	dashboardFolder           = "dashboards"
+	readRoleNameFormat         = "%s-read"
+	readRoleBindingNameFormat  = "%s-prometheus-k8s-read-binding"
+	alertRuleName              = "gitops-operator-argocd-alerts"
+	dashboardNamespace         = "openshift-config-managed"
+	dashboardFolder            = "dashboards"
+	operatorMetricsServiceName = "openshift-gitops-operator-metrics-service"
+	operatorMetricsMonitorName = "openshift-gitops-operator-metrics-monitor"
 )
 
 type ArgoCDMetricsReconciler struct {
@@ -170,6 +173,11 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 		return reconcile.Result{}, err
 	}
 
+	err = r.reconcileOperatorMetricsServiceMonitor(reqLogger)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -272,6 +280,38 @@ func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace string,
 	}
 	reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", namespace, "Name", name)
 	return err
+}
+
+func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogger logr.Logger) error {
+
+	data, err := os.ReadFile(operatorPodNamespacePath)
+	if err != nil {
+		reqLogger.Error(err, "Error retrieving operator's running namespace")
+		return err
+	}
+
+	operatorNS := string(data)
+	desiredMetricsServerName := operatorMetricsServiceName + "." + operatorNS + ".svc"
+
+	existingServiceMonitor := &monitoringv1.ServiceMonitor{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: operatorMetricsMonitorName, Namespace: operatorNS}, existingServiceMonitor)
+
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", operatorNS, "Name", operatorMetricsMonitorName)
+			return err
+		}
+
+		// no svc monitor found, nothing to do
+		return nil
+	}
+
+	if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != desiredMetricsServerName {
+		existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName = desiredMetricsServerName
+		return r.Client.Update(context.TODO(), existingServiceMonitor)
+	}
+
+	return nil
 }
 
 func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {

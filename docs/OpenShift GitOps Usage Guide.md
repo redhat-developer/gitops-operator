@@ -19,8 +19,20 @@
 16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
 17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
 18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
+19. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
 
 ## Installing OpenShift GitOps
+
+#### Terminologies:
+
+* **Update channel**: Choose the channel according to the required operator version. latest channel points to the latest released version
+
+  **Note**: For installing a z stream release, upgrade the operator in the respective versioned channel (or in the latest accordingly)
+* **Installation mode**: As mentioned, the operator is only supported in default mode, retaining the value as is.
+* **Installed Namespace**: openshift-operators namespace was the default installation namespace. Starting 1.10.0, we support installation in openshift-gitops-operator namespace as default. Choosing this namespace and enabling the Namespace monitoring option below, enables the monitoring. openshift-operators can also be used as the installation namespace but monitoring wouldn’t be possible with this namespace.
+* **Update approval**: As the name suggests, with Automatic approval, updates are applied automatically, whereas with Manual approval, updates would require Manual intervention
+* **Console plugin**: Enable/ Disable console plugin
+
 
 ### Operator Install GUI
 
@@ -48,32 +60,61 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-gitops-operator
+  namespace: <Installed namespace>
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
 spec:
-  channel: stable
-  installPlanApproval: Automatic
+  channel: <Update channel>
+  installPlanApproval: <Update approval>
   name: openshift-gitops-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  ```
+  startingCSV: openshift-gitops-operator.v<version of the operator>
+```
 
 
 Then, you apply this to the cluster.
 
 `$ oc apply -f openshift-gitops-sub.yaml`
 
+#### Note: 
+* startingCSV parameter in the subscription allows you to choose the required version
+* If you want the Installed namespace to be openshift-gitops-operator
+    * Create the namespace and the OperatorGroup before applying the subscription
+    * You can enable cluster monitoring manually by adding the below mentioned label
+
+```
+// Create the namespace
+$ oc create ns openshift-gitops-operator
+
+// Create the OperatorGroup
+$ oc create -f - <<EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-gitops-operator
+spec:
+  upgradeStrategy: Default
+
+// Enable cluster monitoring
+$ oc label namespace openshift-gitops-operator openshift.io/cluster-monitoring=true
+```
+
 After a while (about 1-2 minutes), you should see the following Pods appear.
 
 ```
-$ oc get pods -n openshift-gitops
-NAME                                                      	READY   STATUS	RESTARTS   AGE
-cluster-b5798d6f9-zr576                                   	1/1 	Running   0      	65m
-kam-69866d7c48-8nsjv                                      	1/1 	Running   0      	65m
-openshift-gitops-application-controller-0                 	1/1 	Running   0      	53m
-openshift-gitops-applicationset-controller-6447b8dfdd-5ckgh 1/1 	Running   0      	65m
-openshift-gitops-redis-74bd8d7d96-49bjf                   	1/1 	Running   0      	65m
-openshift-gitops-repo-server-c999f75d5-l4rsg              	1/1 	Running   0      	65m
-openshift-gitops-server-5785f7668b-wj57t                  	1/1 	Running   0      	53m
+$ oc get pods -n openshift-gitops 
+NAME                                                         READY   STATUS    RESTARTS   AGE
+cluster-65885cfb44-x6lx4                                     1/1     Running   0          55s
+gitops-plugin-58b577c9c9-p78xl                               1/1     Running   0          55s
+kam-84c7c688c7-5h6pz                                         1/1     Running   0          55s
+openshift-gitops-application-controller-0                    1/1     Running   0          52s
+openshift-gitops-applicationset-controller-f66d47bc4-9rsd8   1/1     Running   0          52s
+openshift-gitops-dex-server-55f8c6c44-s9jcl                  1/1     Running   0          51s
+openshift-gitops-redis-75d88d67c8-jrvr5                      1/1     Running   0          52s
+openshift-gitops-repo-server-77987b679-mr6ld                 1/1     Running   0          52s
+openshift-gitops-server-86df579bbf-zz9lx                     1/1     Running   0          52s
 ```
 
 ### Installation of OpenShift GitOps without ready-to-use Argo CD instance, for ROSA/OSD
@@ -132,6 +173,8 @@ Alternatively, you may fetch the Argo CD instance’s  admin password running th
 And now you can log in to the Argo CD UI as *admin* using the retrieved password.
 
 ![image alt text](assets/8.argocd_login_ui.png)
+
+GitOps Operator comes with a bundled Dex instance which can be configured for authenticating with Argo CD component of Openshift GitOps. For logging in, click on **LOG IN VIA OPENSHIFT** and use the credentials for kubeadmin user when redirected to Openshift login page.
 
 ### Create an Argo CD Application
 

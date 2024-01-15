@@ -221,6 +221,10 @@ func (r *ReconcileGitopsService) reconcileCLIServer(cr *pipelinesv1alpha1.Gitops
 			existingDeployment.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 			changed = true
 		}
+		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.Containers[0].Image, deploymentObj.Spec.Template.Spec.Containers[0].Image) {
+			existingDeployment.Spec.Template.Spec.Containers[0].Image = deploymentObj.Spec.Template.Spec.Containers[0].Image
+			changed = true
+		}
 		if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
 			existingDeployment.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
 			changed = true

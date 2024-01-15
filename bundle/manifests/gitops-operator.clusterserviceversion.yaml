@@ -896,6 +896,7 @@ spec:
                   value: openshift-gitops
                 - name: OPERATOR_NAME
                   value: gitops-operator
+                - name: LABEL_SELECTOR
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
                 image: quay.io/redhat-developer/gitops-operator:latest
@@ -931,6 +932,7 @@ spec:
                 - --tls-private-key-file=/etc/tls/private/tls.key
                 - --logtostderr=true
                 - --allow-paths=/metrics
+                - --http2-disable
                 image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.13
                 name: kube-rbac-proxy
                 ports:

@@ -1,0 +1,22 @@
+# We need the openshift-gitops namespace installed by default
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-gitops
+---
+# We need a cluster deployment in the namespace
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster
+  namespace: openshift-gitops
+status:
+  replicas: 1
+  readyReplicas: 1
+---
+# Service for cluster exists
+apiVersion: v1
+kind: Service
+metadata:
+  name: cluster
+  namespace: openshift-gitops

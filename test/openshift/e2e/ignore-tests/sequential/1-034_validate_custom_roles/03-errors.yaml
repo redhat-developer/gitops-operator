@@ -1,0 +1,24 @@
+# Check if the default roles are removed from the namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-server
+  namespace: custom-role-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-application-controller
+  namespace: custom-role-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-server
+  namespace: test-1-034-custom
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-argocd-application-controller
+  namespace: test-1-034-custom
