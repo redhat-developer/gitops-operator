@@ -3,5 +3,6 @@
 # metadata:
 #   name: openshift-gitops
 #   namespace: openshift-gitops
-# status:
-#   phase: Available
+# spec:
+#   ha:
+#    enabled: false

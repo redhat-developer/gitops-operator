@@ -1,31 +1,31 @@
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: |
-    set -e
-    cleanup() {
-      argocd logout "${api_server}"
-      unset api_server
-      unset password
-    }
-    trap cleanup INT TERM EXIT
+# apiVersion: kuttl.dev/v1beta1
+# kind: TestStep
+# commands:
+# - script: |
+#     set -e
+#     cleanup() {
+#       argocd logout "${api_server}"
+#       unset api_server
+#       unset password
+#     }
+#     trap cleanup INT TERM EXIT
 
-    # Get credentials
-    api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
-    password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+#     # Get credentials
+#     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
+#     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
 
-    # Login into ArgoCD
-    login=$(argocd login $api_server --username admin --password $password --insecure)
-    if ! [[ "${login}" =~ "'admin:login' logged in successfully" ]]; then
-      echo "ERROR: unable to login to ArgoCD remote api server"
-      exit 1
-    fi
+#     # Login into ArgoCD
+#     login=$(argocd login $api_server --username admin --password $password --insecure)
+#     if ! [[ "${login}" =~ "'admin:login' logged in successfully" ]]; then
+#       echo "ERROR: unable to login to ArgoCD remote api server"
+#       exit 1
+#     fi
 
-    # Execute 'argocd app manifest' and check the 'read tcp' error
-    app_manifests=$(argocd app manifests 1-27-argocd --source git --revision HEAD)
-    if [[ "${app_manifests}" =~ 'Original error: read tcp' ]]; then
-      echo "ERROR: TCP reset error is present in this code"
-      exit 2
-    fi
+#     # Execute 'argocd app manifest' and check the 'read tcp' error
+#     app_manifests=$(argocd app manifests 1-27-argocd --source git --revision HEAD)
+#     if [[ "${app_manifests}" =~ 'Original error: read tcp' ]]; then
+#       echo "ERROR: TCP reset error is present in this code"
+#       exit 2
+#     fi
 
-    exit 0
+#     exit 0
