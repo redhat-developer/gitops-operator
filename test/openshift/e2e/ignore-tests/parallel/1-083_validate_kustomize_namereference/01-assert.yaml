@@ -1,8 +1,0 @@
-apiVersion: argoproj.io/v1alpha1
-kind: ArgoCD
-metadata:
-  name: argocd
-  namespace: namespace-gitops-2038
-status:
-  phase: Available
-

@@ -1,6 +1,0 @@
-# ---
-# apiVersion: template.openshift.io/v1
-# kind: Template
-# metadata:
-#   name: redis-template-gitops
-#   namespace: namespace-gitops-1672
