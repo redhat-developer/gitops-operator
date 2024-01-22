@@ -1,0 +1,6 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: argocd-tls-certs-cm
+data:
+  test.example.com: BEGIN CERTIFICATE

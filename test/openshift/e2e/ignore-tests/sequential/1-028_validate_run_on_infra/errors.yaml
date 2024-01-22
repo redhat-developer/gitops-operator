@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kam
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-repo-server
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-dex-server
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-gitops-redis
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: openshift-gitops-application-controller
+  namespace: openshift-gitops
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/infra: ""
+      tolerations:
+      - effect: NoSchedule
+        key: infra
+        value: reserved

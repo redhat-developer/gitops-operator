@@ -1,0 +1,24 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -e
+
+    cat << EOF | oc apply -f -
+    apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: test-1-58-custom
+      namespace: ${NAMESPACE}
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/redhat-developer/gitops-operator
+        path: test/examples/bgd-k8s
+        targetRevision: "HEAD"
+      destination:
+        server: "https://kubernetes.default.svc"
+        namespace: ${NAMESPACE}
+      syncPolicy:
+        automated: {}
+    EOF

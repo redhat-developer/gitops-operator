@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/redhat-developer/gitops-operator.git
+    path: test/examples/guestbook
+    targetRevision: HEAD
+    plugin:
+      env:
+        - name: FOO
+          value: myfoo
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd
+  syncPolicy:
+    automated: {}

@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestSuite
+name: gitops-operator-e2e
+testDirs:
+  - .
+suppress:
+  - events
+parallel: 5
+timeout: 1200
+reportFormat: JSON
+reportName: openshift-gitops-e2e

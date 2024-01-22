@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -eo pipefail
+
+    # Expected and Current RoleBindings
+    expected_rb=(
+      "openshift-gitops-argocd-application-controller"
+      "openshift-gitops-argocd-server"
+    )
+    current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}') )
+
+    # Check that the required RoleBindings exist:
+    for rb in "${expected_rb[@]}"
+    do
+      oc get rolebinding "${rb}" -n "${NAMESPACE}" > /dev/null
+    done
+
+    # Check that there are only two RoleBindings
+    echo "Current RoleBindings: ${current_rb[*]}"
+    [[ "${#current_rb[@]}" == "2" ]]

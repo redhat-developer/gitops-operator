@@ -2,10 +2,10 @@
 
 ## Table of Contents
 1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
-2. [Configure RHSSO for OpenShift GitOps(>= v1.2)](#configure-rhsso-for-openshift-gitops-v12)  
-3. [Setting up OpenShift Login (=< v1.1.2)](#setting-up-openshift-login--v112)
+2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)   
+    a. [Dex](#dex)  
+    b. [RHSSO / Keycloak](#rhssokeycloak)  
 4. [Setting environment variables](#setting-environment-variables)    
-5. [Configuring the groups claim](#configuring-the-groups-claim-)  
 6. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
 7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
 8. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
@@ -19,8 +19,21 @@
 16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
 17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
 18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
+19. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
+20. [Using ApplicationSets](#using-applicationsets)
 
 ## Installing OpenShift GitOps
+
+#### Terminologies:
+
+* **Update channel**: Choose the channel according to the required operator version. latest channel points to the latest released version
+
+  **Note**: For installing a z stream release, upgrade the operator in the respective versioned channel (or in the latest accordingly)
+* **Installation mode**: As mentioned, the operator is only supported in default mode, retaining the value as is.
+* **Installed Namespace**: openshift-operators namespace was the default installation namespace. Starting 1.10.0, we support installation in openshift-gitops-operator namespace as default. Choosing this namespace and enabling the Namespace monitoring option below, enables the monitoring. openshift-operators can also be used as the installation namespace but monitoring wouldn’t be possible with this namespace.
+* **Update approval**: As the name suggests, with Automatic approval, updates are applied automatically, whereas with Manual approval, updates would require Manual intervention
+* **Console plugin**: Enable/ Disable console plugin
+
 
 ### Operator Install GUI
 
@@ -48,32 +61,61 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
   name: openshift-gitops-operator
-  namespace: openshift-gitops-operator
+  namespace: <Installed namespace>
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
 spec:
-  channel: stable
-  installPlanApproval: Automatic
+  channel: <Update channel>
+  installPlanApproval: <Update approval>
   name: openshift-gitops-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  ```
+  startingCSV: openshift-gitops-operator.v<version of the operator>
+```
 
 
 Then, you apply this to the cluster.
 
 `$ oc apply -f openshift-gitops-sub.yaml`
 
+#### Note: 
+* startingCSV parameter in the subscription allows you to choose the required version
+* If you want the Installed namespace to be openshift-gitops-operator
+    * Create the namespace and the OperatorGroup before applying the subscription
+    * You can enable cluster monitoring manually by adding the below mentioned label
+
+```
+// Create the namespace
+$ oc create ns openshift-gitops-operator
+
+// Create the OperatorGroup
+$ oc create -f - <<EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-gitops-operator
+spec:
+  upgradeStrategy: Default
+
+// Enable cluster monitoring
+$ oc label namespace openshift-gitops-operator openshift.io/cluster-monitoring=true
+```
+
 After a while (about 1-2 minutes), you should see the following Pods appear.
 
 ```
-$ oc get pods -n openshift-gitops
-NAME                                                      	READY   STATUS	RESTARTS   AGE
-cluster-b5798d6f9-zr576                                   	1/1 	Running   0      	65m
-kam-69866d7c48-8nsjv                                      	1/1 	Running   0      	65m
-openshift-gitops-application-controller-0                 	1/1 	Running   0      	53m
-openshift-gitops-applicationset-controller-6447b8dfdd-5ckgh 1/1 	Running   0      	65m
-openshift-gitops-redis-74bd8d7d96-49bjf                   	1/1 	Running   0      	65m
-openshift-gitops-repo-server-c999f75d5-l4rsg              	1/1 	Running   0      	65m
-openshift-gitops-server-5785f7668b-wj57t                  	1/1 	Running   0      	53m
+$ oc get pods -n openshift-gitops 
+NAME                                                         READY   STATUS    RESTARTS   AGE
+cluster-65885cfb44-x6lx4                                     1/1     Running   0          55s
+gitops-plugin-58b577c9c9-p78xl                               1/1     Running   0          55s
+kam-84c7c688c7-5h6pz                                         1/1     Running   0          55s
+openshift-gitops-application-controller-0                    1/1     Running   0          52s
+openshift-gitops-applicationset-controller-f66d47bc4-9rsd8   1/1     Running   0          52s
+openshift-gitops-dex-server-55f8c6c44-s9jcl                  1/1     Running   0          51s
+openshift-gitops-redis-75d88d67c8-jrvr5                      1/1     Running   0          52s
+openshift-gitops-repo-server-77987b679-mr6ld                 1/1     Running   0          52s
+openshift-gitops-server-86df579bbf-zz9lx                     1/1     Running   0          52s
 ```
 
 ### Installation of OpenShift GitOps without ready-to-use Argo CD instance, for ROSA/OSD
@@ -133,285 +175,34 @@ And now you can log in to the Argo CD UI as *admin* using the retrieved password
 
 ![image alt text](assets/8.argocd_login_ui.png)
 
+GitOps Operator comes with a bundled Dex instance which can be configured for authenticating with Argo CD component of Openshift GitOps. For logging in, click on **LOG IN VIA OPENSHIFT** and use the credentials for kubeadmin user when redirected to Openshift login page.
+
 ### Create an Argo CD Application
 
 Now, you can create an Argo CD application and let Argo CD keep application resources live states in sync with the configuration in Git.   
 
 [https://github.com/siamaksade/openshift-gitops-getting-started](https://github.com/siamaksade/openshift-gitops-getting-started)
 
-## Configure RHSSO for OpenShift GitOps(**>= v1.2**)
+## Configure SSO for OpenShift GitOps
 
-**Scope:**
+GitOps Operator supports Dex & RHSSO for providing single sign-on authentication and user management. 
 
-The scope of this section is to describe the steps to Install, Configure(**Setup Login with OpenShift**) and Uninstall the RHSSO with OpenShift GitOps operator v1.2.
+The configurations are controlled via `.spec.sso` fields in ArgoCD CR. 
 
-### **Install**
+### Dex
 
-**Prerequisite:**
+Dex can be used to authenticate with Argo CD. Refer [Dex config guidance](./dex_config_guidance.md) for installation & configuration steps.
 
-**NOTE:** `DISABLE_DEX` environment variable is no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled using `.spec.sso.provider`. 
+> **Note**  
+Dex is automatically configured for default Argo CD instance in the openshift-gitops namespace to allow users to use OpenShift OAuth to login into Argo CD. Refer [Uninstall](./dex_config_guidance.md#uninstall) section to disable dex on default Argo CD instance.
 
-Make sure you disable dex 
+### RHSSO/Keycloak
 
-`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "remove", "path": "/spec/sso"}]'`
+GitOps comes with a bundled keycloak instance which is configured for authenticating with Argo CD component of Openshift GitOps. The main purpose of this instance created by the operator is to allow users to login into Argo CD with their OpenShift users.
 
-User/Admin needs to patch the Argo CD instance/s with the below command.
+Refer [RHSSO config guidance](./rhsso_config_guidance.md) for installation & configuration steps.
 
-`oc -n <namespace> patch argocd <argocd-instance-name> --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
-
-Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak"} }]'`
-
-**Note: Make sure the keycloak pods are up and running and the available replica count is 1. It usually takes 2-3 minutes.**
-
-#### **Additional Steps for Disconnected OpenShift Clusters**
-
-Skip this step for regular OCP and OSD clusters.
-
-In a [disconnected](https://access.redhat.com/documentation/en-us/red_hat_openshift_container_storage/4.7/html/planning_your_deployment/disconnected-environment_rhocs) cluster, Keycloak communicates with OpenShift Oauth Server through proxy. Below are some additional steps that need to be followed to get Keycloak integrated with OpenShift Oauth Login.
-
-##### **Login to the Keycloak Pod**
-
-`oc exec -it dc/keycloak -n <namespace> -- /bin/bash`
-
-
-##### **Run JBoss Cli command**
-
-`/opt/eap/bin/jboss-cli.sh`
-
-
-##### **Start an Embedded Standalone Server**
-
-`embed-server --server-config=standalone-openshift.xml`
-
-
-##### **Run the below commands to setup proxy mappings for OpenShift OAuth Server**
-
-**Get OAuth Server Host.  <oauth-server-host>**
-
-`oc get routes oauth-openshift -n openshift-authentication -o jsonpath='{.spec.host}’`
-
-**Get Proxy Server Host (and port).  <proxy-server-host>**
-
-`oc get proxy cluster -o jsonpath='{.spec.httpProxy}'`
-
-
-**Replace the <oauth-server-host> and <proxy-server-host> Server details in the below command and run to setup Proxy mappings.**
-
-`/subsystem=keycloak-server/spi=connectionsHttpClient/provider=default:write-attribute(name=properties.proxy-mappings,value=["<oauth-server-host>;<proxy-server-host>"])`
-
-
-##### **Stop the Embedded Server**
-
-`quit`
-
-
-##### **Reload JBoss**
-
-`/opt/eap/bin/jboss-cli.sh --connect --command=:reload`
-
-
-Exit oc remote shell to keycloak pod
-
-`exit`
-
-### **Login with OpenShift**
-
-Go to the OpenShift Console -> Networking -> Routes 
-
-Click on the \<argocd-instance\>-server route url to access the Argo CD UI.
-
-![image alt text](assets/9.gitops_server_route_url.png)
-
-You will be redirected to Argo CD Login Page.
-
-You can see an option to **LOG IN VIA KEYCLOAK** apart from the usual Argo CD login. Click on the button. (Please choose a different browser or incognito window to avoid caching issues).
-
-![image alt text](assets/10.login_via_keycloak.png)
-
-You will be redirected to a new page which provides you an option to **Login with OpenShift.**Click on the button to get redirected to the OpenShift Login Page.
-
-![image alt text](assets/11.keycloak_login_with_openshift.png)
-
-### ![image alt text](assets/12.login_page_openshift.png)
-
-Provide the OpenShift login credentials to get redirected to Argo CD. You can look at the user details by clicking on the User Information Tab as shown below.
-
-<table>
-  <tr>
-    <td><span>Note</span>: Keycloak does not allow Login with the "kube:admin" user. Please choose a different user. 
-
-The OpenShift-v4 Keycloak identity provider requires a non-null uid in order to be able to link the OpenShift user to the Keycloak user. Incase of user kubeadmin the user profile metadata does not contain such a UID.
-
-References:\
-https://github.com/eclipse/che/issues/16835 \
-https://github.com/openshift/origin/issues/24950
-
-As an option, You can configure an htpasswd Identity Provider using this [link](https://docs.openshift.com/container-platform/4.7/authentication/identity_providers/configuring-htpasswd-identity-provider.html).</td>
-  </tr>
-</table>
-
-
-![image alt text](assets/13.argocd_user_info.png)
-
-### **Configure Argo CD RBAC**
-
-
-For versions upto and not including v1.10, any user logged into Argo CD using RHSSO will be a read-only user by default.
-
-`policy.default: role:readonly`
-
-For versions starting v1.10 and above,
-
-- any user logged into the default Argo CD instance `openshift-gitops` in namespace `openshift-gitops` will have no access by default.
-
-`policy.default: ''`
-
-- any user logged into user managed custom Argo CD instance will have `read-only` access by default.
-
-`policy.default: 'role:readonly'`
-
-
-This behavior can be modified by updating the *argocd-rbac-cm*  configmap data section.
-
-`oc edit cm argocd-rbac-cm -n x`
-
-
-```
-metadata
-...
-...
-data:
-  policy.default: role:readonly
-```
-
-
-You can also do this via a patch
-
-`oc patch cm/argocd-rbac-cm -n openshift-gitops --type=merge -p '{"data":{"policy.default":"role:admin"}}'`
-
-**User Level Access**
-
-Admin needs to configure the Argo CD RBAC configmap to manage user level access.
-
-Adding the below configuration(policy.csv) to *Argo CD-rbac-cm*  configmap data section will grant **Admin** access to a user **foo** with email-id **foo@example.com**
-
-`oc edit cm argocd-rbac-cm -n <namespace>`
-
-```
-metadata
-...
-...
-data:
-  policy.default: role:readonly
-  policy.csv: |
-    g, foo@example.com, role:admin
-```
-
-A detailed information on configuring RBAC to your Argo CD instances is provided [here](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/).
-
-**Group Level Access:**
-
-**Note**: Currently, RHSSO cannot read the group information of OpenShift users. So, RBAC must be configured at the user level.
-
-### **Modify RHSSO Resource requests/limits**
-
-RHSSO container by default gets created with default resource requests and limits as shown below.
-
-**Default RHSSO Resource Requirements**
-
-<table>
-  <tr>
-    <td>Resource</td>
-    <td>Requests</td>
-    <td>Limits</td>
-  </tr>
-  <tr>
-    <td>CPU</td>
-    <td>500m</td>
-    <td>1000m</td>
-  </tr>
-  <tr>
-    <td>Memory</td>
-    <td>512 Mi</td>
-    <td>1024 Mi</td>
-  </tr>
-</table>
-
-
-Users can modify the default resource requirements by patching the Argo CD CR as shown below. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type='json' -p='[{"op": "add", "path": "/spec/sso", "value": {"provider": "keycloak", "keycloak": {"resources": {"requests": {"cpu": "512m", "memory": "512Mi"}, "limits": {"cpu": "1024m", "memory": "1024Mi"}}} }}]'`
-
-
-### **Persistence**
-
-The main purpose of RHSSO created by the operator is to allow users to login into Argo CD with their OpenShift users. It is not expected and not supported to update and use this RHSSO instance for any other use-cases.
-
-**Note**: RHSSO created by this feature **only persists the changes that are made by the operator**. Incase of RHSSO restarts, any additional configuration created by the Admin in RHSSO will be deleted. 
-
-### **Uninstall** 
-
-You can delete RHSSO and its relevant configuration by removing the SSO field from Argo CD Custom Resource Spec.
-
-`oc -n <namespace> patch argocd <argocd-instance-name> --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
-
-Below `oc` command can be used to patch the default Argo CD Instance in the openshift-gitops namespace. 
-
-`oc -n openshift-gitops patch argocd openshift-gitops --type json   -p='[{"op": "remove", "path": "/spec/sso"}]'`
-
-
-Or you can manually remove the **.spec.sso** field from the Argo CD Instance.
-
-**NOTE:** `.spec.sso.image`, `.spec.sso.version`, `.spec.sso.resources` and `.spec.sso.verifyTLS` are no longer supported in OpenShift GitOps v1.10 onwards. Keycloak can be configured using `.spec.sso.keycloak`. 
-
-### **Skip the Keycloak Login page and display the OpenShift Login page.**
-
-#### **Login to RHSSO**
-
-Go to the OpenShift Console -> Networking -> Routes 
-
-Click on the Keycloak route url to access the RHSSO Administrative Console.
-
-Get the Keycloak credentials by running the below command.
-
-`oc -n <namespace> extract secret/keycloak-secret --to=-`
-
-
-#### **Set OpenShift as a default Identity Provider**
-
-It is possible to automatically redirect to an identity provider instead of displaying the login form. To enable this go to the Authentication page in the administration console and select the Browser flow. Then click on config for the Identity Provider Redirector authenticator. Set Default Identity Provider to the alias of the identity provider you want to automatically redirect users to.
-
-**Identity Providers -> name** to **Authentication(Browser Flow) -> Identity Provider Redirector -> config -> Default Identity Provider**
-
-If the configured default identity provider is not found the login form will be displayed instead.
-
-## Setting up OpenShift Login (**=< v1.1.2**)
-
-You may want to log in to Argo CD using your Openshift Credentials through Keycloak as an Identity Broker by doing the following*.*
-
-### Prerequisites*: *
-
-**[Red Hat SSO](https://access.redhat.com/documentation/en-us/red_hat_single_sign-on/7.4/html/red_hat_single_sign-on_for_openshift_on_openjdk/get_started)** needs to be installed on the cluster.
-
-### Create a new client in Keycloak[¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#creating-a-new-client-in-keycloak)
-
-First we need to set up a new client. Start by logging into your keycloak server, select the realm you want to use (myrealm in this example) and then go to **Clients** and click the **create** button top right.
-
-Add a new client using Client ID as Argo CD, protocol as openid-connect and Root url as the Argo CD route URL. Refer to the Argo CD Installation section under Setting up a new Argo CD Instance.
-
-![image alt text](assets/14.new_keycloak_instance.png)
-
-Configure the client by setting the **Access Type** to *confidential* and set the Valid Redirect URIs to the callback url for your Argo CD hostname. It should be https://{hostname}/auth/callback (you can also leave the default less secure https://{hostname}/* ). You can also set the **Base URL** to */applications*.
-
-![image alt text](assets/15.configure_keycloak_instance.png)
-
-Make sure to click **Save**. You should now have a new tab called **Credentials**. You can copy the Secret that we'll use in our Argo CD configuration.
-
-![image alt text](assets/16.credentials_setup.png)
-
-## **Setting environment variables**
+## Setting environment variables
 
 Updating the following environment variables in the existing Subscription Object for the GitOps Operator will allow you (as an admin) to change certain properties in your cluster:
 
@@ -448,241 +239,6 @@ Updating the following environment variables in the existing Subscription Object
     <td>Administrators can configure a common cluster role for all the managed namespaces in role bindings for the Argo CD server with this environment variable. Note: If this environment variable contains custom roles, the Operator doesn’t create the default admin role. Instead, it uses the existing custom role for all managed namespaces.</td>
   </tr>
 </table>
-
-## **Configuring the groups claim**[ ¶](https://argoproj.github.io/argo-cd/operator-manual/user-management/keycloak/#configuring-the-groups-claim)
-
-In order for Argo CD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token. To do this we'll start by creating a new **Client Scope** called *groups*.
-
-![image alt text](assets/17.groups_claim_client_scope.png)
-
-Once you've created the client scope you can now add a Token Mapper which will add the groups claim to the token when the client requests the groups scope. Make sure to set the **Name** as well as the **Token Claim Name** to *groups*.
-
-![image alt text](assets/18.groups_claim_token_mapper.png)
-
-We can now configure the client to provide the *groups* scope. You can now assign the *groups* scope either to the **Assigned Default Client Scopes** or to the **Assigned Optional Client Scopes**. If you put it in the Optional category you will need to make sure that Argo CD requests the scope in it's OIDC configuration.
-
-![image alt text](assets/19.groups_claim_assigning_scope.png)
-
-Since we will always want group information, I recommend using the Default category. Make sure you click **Add selected** and that the *groups* claim is in the correct list on the **right**.
-
-![image alt text](assets/20.groups_claim_assign_default_scope.png)
-
-**Create a group called ****_ArgoCDAdmins_****.**
-
-![image alt text](assets/21.group_claim_admin_group.png)
-
-### **Configuring Argo CD OIDC**
-
-Let's start by storing the client secret you generated earlier in the Argo CD secret Argo CD-secret
-
-1. First you'll need to encode the client secret in base64: `$ echo -n '83083958-8ec6-47b0-a411-a8c55381fbd2' | base64`
-
-2. Then you can edit the secret and add the base64 value to a new key called oidc.keycloak.clientSecret using 
-
-`kubectl edit secret ****openshift-gitops-secret**** -n openshift-gitops`
-
-Your Secret should look something like this:
-
-```
-apiVersion: v1 
-kind: Secret 
-Metadata:
-name: openshift-gitops-secret 
-data:
-  oidc.keycloak.clientSecret: ODMwODM5NTgtOGVjNi00N2IwLWE0MTEtYThjNTUzODFmYmQy …
-```
-
-
-Now we can edit the Argo CD cr and add the oidc configuration to enable our keycloak authentication. You can use 
-
-`$ kubectl edit argocd -n openshift-gitops`.
-
-Your Argo CD cr should look like this:
-
-```
-apiVersion: argoproj.io/v1beta1
-kind: ArgoCD
-metadata:
-  creationTimestamp: null
-  name: argocd
-  namespace: argocd
-spec:
-  resourceExclusions: |
-    - apiGroups:
-      - tekton.dev
-      clusters:
-      - '*'
-      kinds:
-      - TaskRun
-      - PipelineRun
-  oidcConfig: |
-    name: OpenShift Single Sign-On
-    issuer: https://keycloak.example.com/auth/realms/myrelam
-    clientID: argocd
-    clientSecret: $oidc.keycloak.clientSecret
-    requestedScopes: ["openid", "profile", "email", "groups"]
-  server:
-    route:
-      enabled: true
-```
-
-
-Make sure that:
-- **issuer** ends with the correct realm (in this example *myrealm*)
-- **clientID** is set to the Client ID you configured in Keycloak 
-- **clientSecret** points to the right key you created in the *argocd-secret* Secret 
-- **requestedScopes** contains the *groups* claim if you didn't add it to the Default scope.
-
-### Login via Keycloak (RHSSO)
-
-![image alt text](assets/22.argocd_login_keycloak_rhsso.png)
-
-### **Keycloak Identity brokering with OpenShift OAuthClient**
-
-Prior to configuring OpenShift 4 Identity Provider, please locate the correct OpenShift 4 API URL up. The easiest way to obtain it is to invoke the following command (this might require [installing jq command](https://stedolan.github.io/jq/download/) separately) 
-
-`curl -s -k -H "Authorization: Bearer $(oc whoami -t)" https://<openshift-user-facing-api-url>/apis/config.openshift.io/v1/infrastructures/cluster | jq ".status.apiServerURL". `
-
-In most cases, the address will be protected by HTTPS. Therefore, it is essential to configure X509_CA_BUNDLE in the container and set it to /var/run/secrets/kubernetes.io/serviceaccount/ca.crt. Otherwise, Keycloak won’t be able to communicate with the API Server.
-
-Go to Identity Providers and select Openshift v4. Set the Base Url to OpenShift 4 API URL. Client ID as keycloak-broker(can be anything) and Client Secret to any secret that you want to set in Step 7.
-
-## **Registering an OAuth Client** 
-
-```
-kind: OAuthClient
-apiVersion: oauth.openshift.io/v1
-metadata:
- name: keycloak-broker 
-secret: "..." 
-redirectURIs:
-"https://keycloak-keycloak.apps.dev-svc-4.7-020201.devcluster.openshift.com/auth/realms/myrealm/broker/openshift-v4/endpoint" 
-grantMethod: prompt 
-```
-
-1. The name of the OAuth client is used as the client_id parameter when making requests to <namespace_route>/oauth/authorize and <namespace_route>/oauth/token.
-2. The secret is used as the client_secret parameter when making requests to <namespace_route>/oauth/token.
-3. The redirect_uri parameter specified in requests to <namespace_route>/oauth/authorize and <namespace_route>/oauth/token must be equal to or prefixed by one of the URIs listed in the redirectURIs parameter value.
-4. The grantMethod is used to determine what action to take when this client requests tokens and has not yet been granted access by the user. Specify auto to automatically approve the grant and retry the request, or prompt to prompt the user to approve or deny the grant.
-
-
-
-Now you can log into Argo CD using your Openshift Credentials through Keycloak as an Identity Broker.
-
-
-
-![image alt text](assets/23.argocd_ui_keycloak_rhsso.png)
-
-**Configure Groups and Argo CD RBAC**
-
-After this point, You must provide relevant access to the user to create applications, projects e.t.c.,. This can be achieved in two steps.
-
-1. Add the logged in user to the keycloak group *ArgoCDAdmins* created earlier. 
-
-![image alt text](assets/24.add_user_to_keycloak.png)
-
-2. Make sure *ArgoCDAdmins* group has required permissions in the Argo CD-rbac configmap. Please refer to the Argo CD RBAC documentation [here](https://argoproj.github.io/argo-cd/operator-manual/rbac/).
-
-In this case, I wish to provide admin access to the users in *ArgoCDAdmins* group 
-
-`$ kubectl edit configmap argocd-rbac-cm -n openshift-gitops`
-
-```
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-rbac-cm
-data:
-  policy.csv: |
-    g, ArgoCDAdmins, role:admin
-```
-
-### Working with Dex
-
-**NOTE:** As of v1.3.0, Dex is automatically configured. You can log into the default Argo CD instance in the openshift-gitops namespace using the OpenShift or kubeadmin credentials. As an admin you can disable the Dex installation after the Operator is installed which will remove the Dex deployment from the openshift-gitops namespace.
-
-**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Dex can be enabled/disabled by setting `.spec.sso.provider: dex` as follows
-
-```
-spec:
-  sso:
-    provider: dex
-    dex:
-      openShiftOAuth: true
-```
-
-`oc patch argocd argocd --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
-
-**NOTE:** Dex resource creation will not be triggered, unless there is valid Dex configuration expressed through `.spec.sso.dex`. This could either be using the default openShift configuration
-
-```
-spec:
-  provider: dex
-  sso:
-    dex:
-      openShiftOAuth: true
-```
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"openShiftOAuth": true}}}}`
-
-or it could be custom Dex configuration provided by the user:
-
-```
-spec:
-  sso:
-    dex:
-      config: <custom-dex-config>
-```
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "sso": { "provider": "dex", "dex": {"config": <custom-dex-config>}}}}`
-
-**NOTE: Absence of either will result in an error due to failing health checks on Dex**
-
-#### Uninstalling Dex
-
-**NOTE:** `DISABLE_DEX` environment variable & `.spec.dex` fields are no longer supported in OpenShift GitOps v1.10 onwards. Please use `.spec.sso.provider` to enable/disable Dex.  
-
-Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider.  
-
-You can enable RBAC on Argo CD by following the instructions provided in the Argo CD [RBAC Configuration](https://argoproj.github.io/argo-cd/operator-manual/rbac/). Example RBAC configuration looks like this.
-
-```
-spec:
-  sso:
-    provider: dex
-    dex:
-      openShiftOAuth: true
-  rbac:
-    defaultPolicy: 'role:readonly'
-    policy: |
-      g, system:cluster-admins, role:admin
-      g, ocp-admins, role:admin
-    scopes: '[groups]'
-```
-
-
-`oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch='{ "spec": { "rbac": { "defaultPolicy": "role:readonly", "scopes": "[groups]", "policy": "g, system:cluster-admins, role:admin\ng, ocp-admins, role:admin" } } }'`
-
-
-#### Restricting dex / openShiftOAuth to only a set of groups
-
-As discussed here [https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd](https://cloud.redhat.com/blog/openshift-authentication-integration-with-argocd) you can restrict oauth access to certain groups. Currently it is not possible to restrict the Argo CD to only a set of groups, through `openShiftOAuth: true`, the RFE is tracked upstream [here](https://github.com/argoproj-labs/argocd-operator/issues/391). However, you can let the operator generate the oauth client and dex.config and then configure it manually and thus be able to extend it.
-
-Assuming you have done the above steps to enable `openShiftOAuth: true`: you can use the following commands to:
-
-1. fetch the current dex.config from the Config Map, extend it with the required groups (e.g. here cluster-admins)
-
-2. disable the openShiftOAuth provisioning
-
-3. Put the extended config as manual dex.config
-
-This will disable any automatic (and further) full management of the dex / OpenShift integration.
-
-```
-oidc_config=$(oc get cm -n openshift-gitops argocd-cm -o json | jq '.data["dex.config"]' | sed 's@/callback@/callback\\n	groups:\\n  	- cluster-admins@' | sed 's/"//g')
-oc patch argocd/openshift-gitops -n openshift-gitops --type='json' --patch='[{"op": "remove", "path": "/spec/sso/dex/openShiftOAuth" }]'
-oc patch argocd/openshift-gitops -n openshift-gitops --type='merge' --patch="{ \"spec\": { \"sso\": { \"dex\": { \"config\": \"${oidc_config}\" } } } }"
-```
 
 ## Getting started with GitOps Application Manager (kam)
 
@@ -1448,3 +1004,341 @@ As of GitOps Operator v1.10.0, the operator will deploy monitoring dashboards in
 ![Dashboard Select Dropdown](assets/39.gitops_monitoring_dashboards_dropdown.png)
 
 **Note: At this time disabling or changing the content of the dashboards is not supported.**
+
+## Using ApplicationSets
+
+#### Background:
+
+Operators may be responsible for hundreds of clusters (including cluster additions and deletions), and thus installing and managing these add-ons must be fully automated. Monorepos present problems with manual effort, and giving users the correct level of access to applications can be a challenge overall. 
+
+A lot of these problems can be solved with the use of the App-of-Apps pattern; however, the App-of-Apps pattern still presents some issues: 
+- Users must still maintain a collection of individual Application resources in git
+- Because of the repetitive nature of writing these Application specs, users often end up scripting the generation of Application specs
+- Because the Application CR exposes sensitive fields such as project, cluster, namespace a high degree of trust is required of developers
+- sync and deletion behaviour of a 'parent app' can sometimes produce counterintuitive results on child apps; etc.. 
+
+A better way to solve these problems than using the App-of-Apps pattern is through the use of ApplicationSets.
+
+### Introducing ApplicationSets
+
+ApplicationSets are a separate CRD that allows cluster administrators to define a single ApplicationSet Kubernetes YAML resource that will generate (and update or delete) multiple corresponding Argo CD Application CRs.
+
+ApplicationSets offers a number of improvements via automation. With ApplicationSets you can: 
+- automatically deploy to multiple cluster at once, and automatically adapt to the addition/removal of clusters
+- handle large deployments of Argo CD Applications from a single mono-repository, automatically responding to the addition/removal of new applications to the repository
+- enable development teams to manage large groups of applications securely, via self-service, without cluster administrator review, on a cluster managed via Argo CD.
+- have applications managed by the ApplicationSet controller, which can be managed by only a single instance of an ApplicationSet custom resource (CR)... that means no more juggling of large numbers of Argo CD Application objects when targeting multiple clusters/repositories!
+
+When you create, update, or delete an ApplicationSet resource, the ApplicationSet Controller responds by creating, updating, or deleting one or more corresponding Argo CD Application resources.
+
+The ApplicationSet Controller does: 
+- create, update, and delete Application resources within the default `gitops-operator` namespace. 
+- ensure that the Application resources remain consistent with the defined declarative ApplicationSet resource
+
+The ApplicationSet Controller does NOT:
+- Create/modify/delete Kubernetes resources (other than the Application CR)
+- Connect to clusters other than the one Argo CD is deployed to
+- Interact with namespaces other than the one Argo CD is deployed within
+- Manage the application resources of the applications it creates (Argo CD itself is responsible for the actual deployment of the generated child Application resources, such as Deployments, Services, and ConfigMaps)
+
+The ApplicationSet Controller can thus be thought of as an Application 'factory', taking an ApplicationSet resource as input, and outputting one or more Argo CD Application resources that correspond to the parameters of that set.
+
+Creation, update, or deletion of ApplicationSets will have a direct effect on the Applications present in the Argo CD namespace. Likewise, cluster events (the addition/deletion of Argo CD cluster secrets, when using Cluster generator), or changes in Git (when using Git generator), will be used as input to the ApplicationSet controller in constructing Application resources.
+
+Because it is such a powerful tool, **only admins may create, update, and delete ApplicationSets.**
+
+Note: All ApplicationSet resources and the ApplicationSet controller must be installed in the same namespace as Argo CD. ApplicationSet resources in a different namespace will be ignored.
+
+### ApplicationSets Getting Started and Installation
+
+In all current supported versions of GitOps Operator, there is no extra installation needed to install the ApplicationSet controller with your existing GitOps Operator Installation. 
+
+The name of the ApplicationSet Controller that installs as part of the OpenShift GitOps Operator is `openshift-gitops-applicationset-controller`. 
+
+The following options are available for the Argo CD ApplicationSet Controller in the ArgoCD CR under `.spec.applicationSet`: 
+
+| Name    | Default | Description |
+| -------- | ------- |------- |
+| env  | Empty   | Env lets you specify environment for applicationSet controller pods |
+| extraCommandArgs | Empty     | ExtraCommandArgs allows users to pass command line arguments to ApplicationSet controller. They get added to default command line arguments provided by the operator. Please note that the command line arguments provided as part of ExtraCommandArgs will not overwrite the default command line arguments. |
+| image    | Empty  | Image is the Argo CD ApplicationSet image (optional) |
+| logLevel   | ArgoCDDefaultLogLevel  | The log level to be used by the ArgoCD Application Controller component. Valid options are `debug` , `info` , `error` , and `warn`. |
+| resources   | Empty  | Resources defines the Compute Resources required by the container for ApplicationSet. |
+| version   | Empty  | Version is the Argo CD ApplicationSet image tag.(optional) |
+| webhookServer    | Empty  | WebhookServerSpec defines the options for the ApplicationSet Webhook Server component.|
+| scmRootCAConfigMap    | Empty  | SCMRootCAConfigMap is the name of the config map that stores the Gitlab SCM Provider's TLS certificate which will be mounted on the ApplicationSet Controller (optional)|
+<!--- Add "enabled" option once it's functional- either v1.11.1 or v1.12? -->
+<!--- | enabled    | true  | Enabled is the flag to enable the Application Set Controller during ArgoCD installation. (optional) | -->
+
+
+**ApplicationSet ExtraCommandArgs:**
+
+The example shows how a user can add command arguments to the ApplicationSet Controller. 
+
+```
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: example
+spec:
+  applicationSet:
+    extraCommandArgs:
+      - --foo
+      - bar
+```
+
+The following describes all the available fields of an ApplicationSet: 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: hello-world-appset
+  namespace: openshift-gitops
+spec:
+  # See docs for available generators and their specs.
+  generators:
+  - list:
+      elements:
+      - cluster: https://kubernetes.default.svc
+  # Determines whether go templating will be used in the `template` field below.
+  goTemplate: false
+  # Optional list of go templating options, see https://pkg.go.dev/text/template#Template.Option
+  # This is only relevant if `goTemplate` is true
+  goTemplateOptions: ["missingkey="]
+  # These fields are identical to the Application spec.
+  template:
+    metadata:
+      name: hello-world-app
+    spec:
+      project: my-project
+  # This sync policy pertains to the ApplicationSet, not to the Applications it creates.
+  syncPolicy:
+    # Determines whether the controller will delete Applications when an ApplicationSet is deleted.
+    preserveResourcesOnDeletion: false
+  # Alpha feature to determine the order in which ApplicationSet applies changes.
+  strategy:
+  # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
+  # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
+  # changes overwritten by the ApplicationSet.
+  ignoreApplicationDifferences:
+  - jsonPointers:
+    - /spec/source/targetRevision
+  - name: some-app
+    jqPathExpressions:
+    - .spec.source.helm.values
+```
+
+### ApplicationSet Generators
+
+Generators are responsible for generating parameters, which are then rendered into the template fields of the ApplicationSet resource.
+
+There are currently (as of GitOps v1.11.0) 9 types of Generators:
+- List Generator: The List generator allows you to target Argo CD Applications to clusters based on a fixed list of any chosen key/value element pairs.
+- Cluster Generator: The Cluster generator allows you to target Argo CD Applications to clusters, based on the list of clusters defined within (and managed by) Argo CD (which includes automatically responding to cluster addition/removal events from Argo CD).
+- Git Generator: The Git generator allows you to create Applications based on files within a Git repository, or based on the directory structure of a Git repository.
+- Matrix Generator: The Matrix generator may be used to combine the generated parameters of two separate generators.
+- Merge Generator: The Merge generator may be used to merge the generated parameters of two or more Generators. Additional generators can override the values of the base generator.
+- SCM Provider Generator: The Source Code Management (SCM) Provider generator uses the API of an SCM provider (eg GitHub) to automatically discover repositories within an organization.
+- Pull Request Generator: The Pull Request generator uses the API of an SCMaaS provider (eg GitHub) to automatically discover open pull requests within an repository.
+- Cluster Decision Resource Generator: The Cluster Decision Resource generator is used to interface with Kubernetes custom resources that use custom resource-specific logic to decide which set of Argo CD clusters to deploy to.
+- Plugin Generator: The Plugin generator makes RPC HTTP requests to provide parameters.
+
+NOTE: Clusters that you put into any generators must already be defined in Argo CD in order to use them with ApplicationSets. The ApplicationSet controller does not create clusters within Argo CD as it does not have credentials to do so. 
+
+
+### ApplicationSet Resource Updating, Pruning & Deletion
+
+The ApplicationSet Controller creates/modifies/deletes Argo CD Application resources, based on the contents of the ApplicationSet CR.
+
+Once again, please note that **only admins may create, update, and delete ApplicationSets.**
+
+All Argo CD Application resources created by the ApplicationSet controller (from an ApplicationSet) will contain:
+- A `.metadata.ownerReferences` reference back to the parent ApplicationSet resource
+  - This means that when the ApplicationSet is deleted, the Applications will automatically be deleted.
+- An Argo CD `resources-finalizer.argocd.argoproj.io` finalizer in `.metadata.finalizers` of the Application (only applies if `.syncPolicy.preserveResourcesOnDeletion` is set to false)
+  - This means that when the Application is deleted, all of the child resources of that Application will be deleted.
+
+When an applicationSet is deleted, the following will occur:
+1. The ApplicationSet itself is deleted
+2. Any Applications that were created from the now-deleted ApplicationSet will be deleted (or Applications that have an owner-reference to the deleted ApplicationSet)
+3. Any deployed resources (Deployments, Services, Configmaps, etc), from the deleted Applications will also be deleted. 
+
+However, the ApplicationSet controller has settings that can limit its ability to make changes to Applications it has generated, for example, preventing the controller from deleting child Applications.
+
+Some of these settings are…
+
+#### 1. Dry-run: Prevent ApplicationSet from creating/modifying/deleting all Applications
+
+To prevent the ApplicationSet controller from creating, modifying, or deleting any Application resources, you may enable dry-run mode. This essentially switches the controller into a "read only" mode, where the controller reconcile loop will run, but no resources will be modified.
+
+  To enable dry-run: 
+
+  1. Add `--dryrun true` to the ApplicationSet Deployment's container launch parameters with `kubectl edit deployment/openshift-gitops-applicationset-controller -n openshift-gitops`
+  2. Locate the `.spec.template.spec.containers[0].command` field, and add the required parameter(s):
+  ```
+  spec:
+    # (...)
+  template:
+    # (...)
+    spec:
+      containers:
+      - command:
+        - entrypoint.sh
+        - openshift-gitops-applicationset-controller
+        # Insert new parameters here, for example:
+        # --dryrun true
+    # (...)
+  ```
+#### 2. Using Managed Application Modification Policies
+
+The ApplicationSet Controller spec allows you to add a `syncPolicy.applicationsSync` field, like so: 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  # (...)
+  syncPolicy:
+    applicationsSync: create-only 
+```
+The options for the `applicationsSync` field are:
+- create-only: Prevents ApplicationSet controller from modifying or deleting Applications.
+- create-update: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
+- create-delete: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
+- sync (default): Update and Delete are allowed.
+
+You could also do the same via the `--policy` addition to the ApplicationSet controller Deployment.
+Run `kubectl edit deployment/gitops-applicationset-controller -n openshift-gitops` and then edit the `.spec.template.spec.containers[0].command` to have the following: 
+```
+spec:
+    # (...)
+  template:
+    # (...)
+    spec:
+      containers:
+      - command:
+        - entrypoint.sh
+        - openshift-gitops-applicationset-controller
+        # Insert new parameters here, for example:
+        # --policy create-update
+    # (...)
+```
+When `--policy` is set as it is above, it does take precedence over the previously mentioned `.spec.syncPolicy.applicationsSync` field. 
+
+Note: this does not prevent deletion of Applications if the ApplicationSet itself is deleted. 
+
+#### 3. Ignoring certain changes to Applications
+
+The ApplicationSet spec has an `ignoreApplicationDifferences` field which allows you to specify which fields of the ApplicationSet should be ignored when comparing Applications. Multiple ignore rules can be used and each ignore rule may specify a list of either `jsonPointers` or `jqPathExpressions` to ignore. You may optionally also specify a name to apply the ignore rule to a specific Application, or omit the name to apply the ignore rule to all Applications.
+
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/source/targetRevision
+    - name: some-app
+      jqPathExpressions:
+        - .spec.source.helm.values
+```
+**Temporarily Ignoring Certain Changes to Applications**
+
+If you have an ApplicationSet that is configured to automatically sync Applications, there may come a time when you may want to temporarily disable auto-sync for a specific Application. You can do this by adding an ignore rule for the spec.syncPolicy.automated field:
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  ignoreApplicationDifferences:
+    - jsonPointers:
+        - /spec/syncPolicy
+```
+
+**Limitations of `ignoreApplicationDifferences`: **
+
+When the ignored field is part of a list, such as when you have an Application with multiple sources, changes to other fields or in other sources will cause the entire list to be replaced, and the related fields will be reset to the value defined in the ApplicationSet. This is due to how ApplicationSets generate MergePatches, which state that “existing lists will be completely replaced by new lists" when there is a change to the list. So in the case of having multiple sources, if we have an ApplicationSet that looks like this: 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  ignoreApplicationDifferences:
+    - jqPathExpressions:
+        - .spec.sources[] | select(.repoURL == "https://git.example.com/org/repo1").targetRevision
+  template:
+    spec:
+      sources:
+      - repoURL: https://git.example.com/org/repo1
+        targetRevision: main
+      - repoURL: https://git.example.com/org/repo2
+        targetRevision: main
+```
+We can change the `targetRevision` of the first repo source and the ApplicationSet controller will not overwrite the changes. 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+  - repoURL: https://git.example.com/org/repo1
+    targetRevision: fix/bug-123
+  - repoURL: https://git.example.com/org/repo2
+    targetRevision: main
+```
+But if we change the targetRevision of the second repo source, the ApplicationSet will overwrite the entire sources field. 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+  - repoURL: https://git.example.com/org/repo1
+    targetRevision: main
+  - repoURL: https://git.example.com/org/repo2
+    targetRevision: main
+```
+
+#### 4. Preventing an Application’s child resources from being deleted when the parent application is deleted
+
+By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well. To prevent this behavior and keep the child resources, add the `preserveResourcesOnDeletion: true` field to the syncPolicy of the ApplicationSet:
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  # (...)
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+```
+Using the `preserveResourcesOnDeletion` policy will prevent the finalizer from being added to Applications, thus stopping their deletion. 
+
+Another way of achieving this behavior would be to delete the ApplicationSet using a non-cascading delete:
+```
+kubectl delete ApplicationSet (NAME) --cascade=orphan
+```
+
+Please note though that when using the non-cascaded delete, the `resources-finalizer.argocd.argoproj.io` is still specified on the Application. This means that when the Application is deleted, all of its deployed resources will also be deleted. If you don’t want this behavior, use the `preserveResourcesOnDeletion` policy above instead. 
+
+
+#### 5. Preventing an Application’s child resources from being modified
+
+When an Application resource is updated by the ApplicationSet controller, all of the child resources of the Application will be updated accordingly. However, by default (and as a safety mechanism), automated syncs will not delete resources when Argo CD detects the resource is no longer defined in Git. You can "pause" updates to cluster resources managed by the `Application` resource by unsetting the `spec.template.syncPolicy.automated`. As an extra precaution, you could also have `spec.template.syncPolicy.automated.prune` set to false to prevent any unexpected changes. 
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  # (...)
+  syncPolicy:
+    automated:
+      prune: false 
+```
+
+#### 6. Preserving Application annotation and labels
+
+If you have annotations and/or labels that you have applied to Applications after their generation by an ApplicationSet, to keep those annotations/labels when syncing you must use the `preservedFields` property like below:
+```
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+spec:
+  # (...)
+  preservedFields:
+    annotations: ["my-custom-annotation"]
+    labels: ["my-custom-label"]
+```
+By default, the Argo CD notifications and the Argo CD refresh type annotations are also preserved.
+
