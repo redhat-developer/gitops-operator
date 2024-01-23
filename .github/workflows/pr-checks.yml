@@ -1,12 +1,10 @@
-name: static checks
+name: PR checks
+
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - "master"
   pull_request:
     branches:
-      - "*"
+      - master
+      - 'v*.*'
 
 jobs:
   lint:
@@ -15,12 +13,22 @@ jobs:
 
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.18"
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "x64"
+
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Run linters
+        run: make lint
+
 
   unit:
     name: Unit Tests with Code coverage
@@ -28,44 +36,37 @@ jobs:
 
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "^1.18"
 
       - name: Checkout Git Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Run Go Tests
-        run: make test
+      - name: Unit Tests with Code Coverage
+        run: |
+          make test
+
+      - name: Upload Code Coverage Report
+        uses: codecov/codecov-action@v3
+        with:
+          file: cover.out
+          verbose: true
+          fail_ci_if_error: true
   
-      - name: Check format
-        run: |
-          if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
-            echo "not well formatted sources are found"
-            exit 1
-          fi
+  source-scan:
+    name: Gosec code scanning
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Generate coverage report
-        run: |
-          go test `go list ./... | grep -v examples` -coverprofile=coverage.txt -covermode=atomic
+      - name: Run gosec
+        uses: securego/gosec@v2.18.2
+        with:
+          args: '-no-fail -fmt sarif -out gosec.sarif ./...'
 
-      - name: Upload coverage report
-        uses: codecov/codecov-action@v1
+      - name: Upload gosec scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
         with:
-          file: ./coverage.txt
-          flags: unittests
-          name: codecov-umbrella  
-
-      - name: Get code coverage artifiact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
-        with:
-          name: code-coverage
-      - name: Get test result artifact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
-        with:
-          name: test-results
-          path: test-results
-      - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
-        with:
-          file: coverage.out
+          sarif_file: 'gosec.sarif'
