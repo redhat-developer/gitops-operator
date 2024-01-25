@@ -261,6 +261,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 
 	OCPVersion, err := util.GetClusterVersion(r.Client)
+	log.Printf("OCP version: %v", OCPVersion)
 	if err != nil {
 		log.Printf("Unable to get cluster version: %v", err)
 		return reconcile.Result{}, nil
