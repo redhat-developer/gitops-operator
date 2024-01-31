@@ -53,15 +53,16 @@ argocd version --client
 ```
 Sample output:
 ```
-argocd: v2.10.0+f943664
-  BuildDate: 2024-01-19T22:59:02Z
-  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
-  GitTreeState: dirty
-  GoVersion: go1.21.6
+argocd: v2.9.2+c5ea5c4
+  BuildDate: 2023-12-18T12:35:23Z
+  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+  GitTreeState: clean
+  GoVersion: go1.20.10
   Compiler: gc
-  Platform: darwin/arm64
+  Platform: linux/amd64
+  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
 ```
-**Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps version installed in the cluster.
+**Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
 ### Installing the Red Hat OpenShift GitOps CLI on Windows
 #### Prerequisites
@@ -77,15 +78,16 @@ argocd version --client
 ```
 Sample output:
 ```
-argocd: v2.10.0+f943664
-  BuildDate: 2024-01-19T22:59:02Z
-  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
-  GitTreeState: dirty
-  GoVersion: go1.21.6
+argocd: v2.9.2+c5ea5c4
+  BuildDate: 2023-12-18T12:35:23Z
+  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+  GitTreeState: clean
+  GoVersion: go1.20.10
   Compiler: gc
-  Platform: darwin/arm64
+  Platform: linux/amd64
+  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
 ```
-**Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps version installed in the cluster.
+**Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
 ### Installing the Red Hat OpenShift GitOps CLI on macOS
 #### Prerequisites
@@ -104,14 +106,16 @@ argocd version --client
 ```
 Sample output:
 ```
-argocd: v2.10.0+f943664
-  BuildDate: 2024-01-19T22:59:02Z
-  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
-  GitTreeState: dirty
-  GoVersion: go1.21.6
+argocd: v2.9.2+c5ea5c4
+  BuildDate: 2023-12-18T12:35:23Z
+  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+  GitTreeState: clean
+  GoVersion: go1.20.10
   Compiler: gc
-  Platform: darwin/arm64
+  Platform: linux/amd64
+  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
 ```
+**Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
 ## OpenShift GitOps argocd reference
 This section lists the basic `argocd` CLI commands.
