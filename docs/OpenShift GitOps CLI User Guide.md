@@ -114,11 +114,20 @@ argocd: v2.10.0+f943664
 ```
 
 ## OpenShift GitOps argocd reference
-This section lists the basic `argocd`` CLI commands.
+This section lists the basic `argocd` CLI commands.
+**Note** MicroShift based installation do not host an ArgoCD server and supports only the `core` mode of execution. 
+In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands.
+
 ### Basic syntax
-```
-argocd [command or options] [arguments…​]
-```
+- Normal mode
+  ```
+  argocd [command or options] [arguments…​]
+  ```
+
+- Core mode
+  ```
+  KUBECONFIG=~/.kube/config argocd --core [command or options] [arguments…​]
+  ```
 ### Global options
 
 | Option| Argument Type | Description|
