@@ -133,14 +133,14 @@ After you install the `argocd` CLI, you can enable tab completion to automatical
 The following procedure enables tab completion for Bash.
 
 1. Save the Bash completion code to a file:
-```
-$ argocd completion bash > argocd_bash_completion
-```
-Copy the file to /etc/bash_completion.d/:
-```
-$ sudo cp argocd_bash_completion /etc/bash_completion.d/
-```
-Alternatively, you can save the file to a local directory and source it from your `.bashrc` file instead.
+  ```
+  $ argocd completion bash > argocd_bash_completion
+  ```
+2. Copy the file to /etc/bash_completion.d/:
+  ```
+  $ sudo cp argocd_bash_completion /etc/bash_completion.d/
+  ```
+  Alternatively, you can save the file to a local directory and source it from your `.bashrc` file instead.
 
 Tab completion is enabled when you open a new terminal.
 
@@ -157,26 +157,32 @@ In the `core` mode (`--core` argument specified), the CLI talks directly to the 
 In the normal mode, users have to login to the ArgoCD server component using the login component before executing the commands.
 
   1. Get the admin password for the ArgoCD server
-    ```
-    ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
-    ```
+      ```
+      ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      ```
   2. Login to the ArgoCD server using the login command
-    ```
-    argocd login --username admin --password ${ADMIN_PASSWD} <server url>
-    #eg:
-    argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
-    ```
+      ```
+      argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      #eg:
+      argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      ```
   3. Execute the argocd commands
-    ```
-    argocd [command or options] [arguments…​]
-    ```
+      ```
+      argocd [command or options] [arguments…​]
+      ```
 
 #### Core mode
 
-In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands.
-  ```
-  KUBECONFIG=~/.kube/config argocd --core [command or options] [arguments…​]
-  ```
+In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands. The commands would be run as user configured in the kubeconfig file. 
+
+  1. With the default context in kubeconfig file
+    ```
+    KUBECONFIG=~/.kube/config argocd --core [command or options] [arguments…​]
+    ```
+  2. With a custom context in kubeconfig file
+    ```
+    KUBECONFIG=~/.kube/config argocd --core --kube-context [context] [command or options] [arguments…​]
+    ```
 
 ### Global options
 
