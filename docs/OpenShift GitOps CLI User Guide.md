@@ -117,21 +117,67 @@ argocd: v2.9.2+c5ea5c4
 ```
 **Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
+## Configuring OpenShift GitOps CLI (argocd)
+
+Configure the Red Hat OpenShift GitOps `argocd` CLI to enable tab completion.
+
+### Enabling tab completion
+
+After you install the `argocd` CLI, you can enable tab completion to automatically complete `argocd` commands or suggest options when you press Tab.
+
+#### Prerequisites
+- You must have the `argocd` CLI tool installed.
+- You must have bash-completion installed on your local system.
+
+####  Procedure
+The following procedure enables tab completion for Bash.
+
+1. Save the Bash completion code to a file:
+```
+$ argocd completion bash > argocd_bash_completion
+```
+Copy the file to /etc/bash_completion.d/:
+```
+$ sudo cp argocd_bash_completion /etc/bash_completion.d/
+```
+Alternatively, you can save the file to a local directory and source it from your `.bashrc` file instead.
+
+Tab completion is enabled when you open a new terminal.
+
 ## OpenShift GitOps argocd reference
+
 This section lists the basic `argocd` CLI commands.
 **Note** MicroShift based installation do not host an ArgoCD server and supports only the `core` mode of execution. 
 In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands.
 
 ### Basic syntax
-- Normal mode
-  ```
-  argocd [command or options] [arguments…​]
-  ```
 
-- Core mode
+#### Normal mode
+
+In the normal mode, users have to login to the ArgoCD server component using the login component before executing the commands.
+
+  1. Get the admin password for the ArgoCD server
+    ```
+    ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+    ```
+  2. Login to the ArgoCD server using the login command
+    ```
+    argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+    #eg:
+    argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+    ```
+  3. Execute the argocd commands
+    ```
+    argocd [command or options] [arguments…​]
+    ```
+
+#### Core mode
+
+In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands.
   ```
   KUBECONFIG=~/.kube/config argocd --core [command or options] [arguments…​]
   ```
+
 ### Global options
 
 | Option| Argument Type | Description|
@@ -158,7 +204,7 @@ In the `core` mode (`--core` argument specified), the CLI talks directly to the 
 | --redis-name | string | Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis") |
 
 
-### Global Commands
+### Utility Commands
 
 #### version
 Print version information
@@ -236,16 +282,12 @@ compinit
 ###### Flags:
   -h, --help   help for completion
 
-### Login Commands
+### Login related Commands
 * [argocd login](./cli/argocd_login.md)   - Log in to an Argo CD server
 * [argocd logout](./cli/argocd_logout.md) - Log out from Argo CD
 * [argocd relogin](./cli/argocd_relogin.md)   - Refresh an expired authenticate token
-* [argocd gpg add](./cli/argocd_gpg_add.md)	 - Adds a GPG public key to the server's keyring
-* [argocd gpg get](./cli/argocd_gpg_get.md)	 - Get the GPG public key with ID <KEYID> from the server
-* [argocd gpg list](./cli/argocd_gpg_list.md)	 - List configured GPG public keys
-* [argocd gpg rm](./cli/argocd_gpg_rm.md)	 - Removes a GPG public key from the server's keyring
 
-### Admin Commands
+### Administrative Commands
 * [argocd admin](./cli/argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
 * [argocd admin export](./cli/argocd_admin_export.md) - Export all Argo CD data to stdout (default) or a file
 * [argocd admin import](./cli/argocd_admin_import.md) - Import Argo CD data from stdin (specify `-') or a file
@@ -277,7 +319,7 @@ compinit
 * [argocd admin settings resource-overrides](./cli/argocd_admin_settings_resource-overrides.md)	 - Troubleshoot resource overrides
 * [argocd admin settings validate](./cli/argocd_admin_settings_validate.md)	 - Validate settings
 
-### Account related commands
+### Account management commands
 * [argocd account](./cli/argocd_account.md)	 - Manage argo accounts
 * [argocd account bcrypt](./cli/argocd_account_bcrypt.md)	 - Generate bcrypt hash for any password
 * [argocd account can-i](./cli/argocd_account_can-i.md)	 - Can I
@@ -288,7 +330,13 @@ compinit
 * [argocd account list](./cli/argocd_account_list.md)	 - List accounts
 * [argocd account update-password](./cli/argocd_account_update-password.md)	 - Update an account's password
 
-### Project related commands
+### GPG key management Commands
+* [argocd gpg add](./cli/argocd_gpg_add.md)	 - Adds a GPG public key to the server's keyring
+* [argocd gpg get](./cli/argocd_gpg_get.md)	 - Get the GPG public key with ID <KEYID> from the server
+* [argocd gpg list](./cli/argocd_gpg_list.md)	 - List configured GPG public keys
+* [argocd gpg rm](./cli/argocd_gpg_rm.md)	 - Removes a GPG public key from the server's keyring
+
+### Project management commands
 * [argocd proj](./cli/argocd_proj.md)	 - Manage projects
 * [argocd proj add-destination](./cli/argocd_proj_add-destination.md)	 - Add project destination
 * [argocd proj add-orphaned-ignore](./cli/argocd_proj_add-orphaned-ignore.md)	 - Add a resource to orphaned ignore list
@@ -311,7 +359,7 @@ compinit
 * [argocd proj set](./cli/argocd_proj_set.md)	 - Set project parameters
 * [argocd proj windows](./cli/argocd_proj_windows.md)	 - Manage a project's sync windows
 
-### Application related commands
+### Application management commands
 * [argocd app](./cli/argocd_app.md)	 - Manage argo Applications
 * [argocd app actions](./cli/argocd_app_actions.md)	 - Manage Resource actions
 * [argocd app create](./cli/argocd_app_create.md)	 - Create an application
@@ -354,7 +402,7 @@ compinit
 * [argocd app unset](./cli/argocd_app_unset.md)	 - Unset application parameters
 * [argocd app wait](./cli/argocd_app_wait.md)	 - Wait for an application to reach a synced and healthy state
 
-### Application Set related commands
+### Application Set management commands
 * [argocd appset](./cli/argocd_appset.md)	 - argocd controls a Argo CD server
 * [argocd appset create](./cli/argocd_appset_create.md)	 - Create one or more ApplicationSets
 * [argocd appset delete](./cli/argocd_appset_delete.md)	 - Delete one or more ApplicationSets
@@ -362,7 +410,7 @@ compinit
 * [argocd appset list](./cli/argocd_appset_list.md)	 - List ApplicationSets
 * [argocd appset update](./cli/argocd_appset_update.md)	 - Updates the given ApplicationSet(s)
 
-### Repository related commands
+### Repository management commands
 * [argocd repo add](./cli/argocd_repo_add.md)	 - Add git repository connection parameters
 * [argocd repo get](./cli/argocd_repo_get.md)	 - Get a configured repository by URL
 * [argocd repo list](./cli/argocd_repo_list.md)	 - List configured repositories
