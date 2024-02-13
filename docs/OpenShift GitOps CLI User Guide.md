@@ -425,3 +425,155 @@ compinit
 * [argocd repocreds add](./cli/argocd_repocreds_add.md)	 - Add git repository connection parameters
 * [argocd repocreds list](./cli/argocd_repocreds_list.md)	 - List configured repository credentials
 * [argocd repocreds rm](./cli/argocd_repocreds_rm.md)	 - Remove repository credentials
+
+
+## Creating an application by using OpenShift GitOps argocd CLI
+
+### Create an application in Normal mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+  1. Get the admin password for the ArgoCD server
+      ```
+      ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      ```
+  2. Login to the ArgoCD server using the login command
+      ```
+      argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      #eg:
+      argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      ```
+  3. Validate that you are able to run `argocd` commands in normal mode by executing the following command to list all Applications. 
+    ```
+    # argocd app list
+    ```
+  If the configuration is correct, then existing Applications will be listed with header as below
+    ```
+    NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
+    ```
+  4. Let's create an application in normal mode
+    ```
+    # argocd app create app-spring-petclinic \
+        --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
+        --path app \
+        --revision main \
+        --dest-server  https://kubernetes.default.svc \
+        --dest-namespace spring-petclinic \
+        --directory-recurse \
+        --sync-policy automated \
+        --self-heal \
+        --sync-option Prune=true \
+        --sync-option CreateNamespace=true \
+        --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+    ```
+  5. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+    ```
+    # argocd app list
+    ```
+
+### Create an application in Core mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+
+  1. Login to the OpenShift Cluster using the `oc` CLI tool
+    ```
+    # oc login -u [username] -p [password] [server_url]
+    eg:
+    # oc login -u kubeadmin -p ${ADMIN_PASSWD} https://api.crc.testing:6443
+    ```
+  2. Check if the context is set correctly in the kubeconfig file
+    ```
+    # oc config current-context
+    ```
+  3. Set the default namespace of the current context to `openshift-gitops`
+    ```
+    # oc config set-context --current --namespace openshift-gitops
+    ```
+  4. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
+    ```
+    # argocd app list --core
+    ```
+  If the configuration is correct, then existing Applications will be listed with header as below
+    ```
+    NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
+    ```
+  5. Let's create an application in core mode
+    ```
+    # argocd app create app-spring-petclinic --core \
+        --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
+        --path app \
+        --revision main \
+        --dest-server  https://kubernetes.default.svc \
+        --dest-namespace spring-petclinic \
+        --directory-recurse \
+        --sync-policy automated \
+        --self-heal \
+        --sync-option Prune=true \
+        --sync-option CreateNamespace=true \
+        --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+    ```
+  6. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+    ```
+    # argocd app list --core
+    ```
+
+
+## Syncing an application by using OpenShift GitOps argocd CLI
+
+### Syncing an application in normal mode
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+#### Procedure
+
+  1. Get the admin password for the ArgoCD server
+      ```
+      ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      ```
+  2. Login to the ArgoCD server using the login command
+      ```
+      argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      #eg:
+      argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      ```
+  3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
+    ```
+    argocd app sync --core openshift-gitops/app-spring-petclinic
+    ```
+### Syncing an application in core mode
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+
+  1. Login to the OpenShift Cluster using the `oc` CLI tool
+    ```
+    # oc login -u [username] -p [password] [server_url]
+    eg:
+    # oc login -u kubeadmin -p ${ADMIN_PASSWD} https://api.crc.testing:6443
+    ```
+  2. Check if the context is set correctly in the kubeconfig file
+    ```
+    # oc config current-context
+    ```
+  3. Set the default namespace of the current context to `openshift-gitops`
+    ```
+    # oc config set-context --current --namespace openshift-gitops
+    ```
+
+  4. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+    ```
+    # argocd app sync --core openshift-gitops/app-spring-petclinic
+    ```
