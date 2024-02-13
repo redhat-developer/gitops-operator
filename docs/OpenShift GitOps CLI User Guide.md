@@ -185,6 +185,7 @@ In the `core` mode (`--core` argument specified), the CLI talks directly to the 
     ```
 
 ### Global options
+Global options are options applicable to all sub-commands of `argocd`.
 
 | Option| Argument Type | Description|
 | ----- | ------------- |----------- |
