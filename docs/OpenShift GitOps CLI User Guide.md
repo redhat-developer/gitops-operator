@@ -1,4 +1,15 @@
 # OpenShift GitOps CLI User Guide
+<<<<<<< Updated upstream
+=======
+OpenShift GitOps `argocd` CLI enables users to manage OpenShift GitOps from a terminal. Using the CLI tool, users can manage ArgoCD resources (Application, ApplicationSets, AppProjects, User accounts, GPG keys etc) from a client terminal.
+
+**Note:** Both the archives and the RPMs contain the `argocd` executable binary file.
+
+**WARNING** 	
+Red Hat OpenShift GitOps with the `argocd` CLI tool is a Technology Preview feature only.
+
+**Tip:** This guide assumes you have a grounding in the tools that OpenShift GitOps is based on. Please read [about Red Hat OpenShift GitOps](https://docs.openshift.com/gitops/1.11/understanding_openshift_gitops/about-redhat-openshift-gitops.html) to learn about these tools.
+>>>>>>> Stashed changes
 
 ## Installing OpenShift GitOps CLI (argocd)
 Use the CLI tool to manage Red Hat OpenShift GitOps from a terminal. You can install the CLI tool on different platforms.
@@ -183,6 +194,10 @@ In the `core` mode (`--core` argument specified), the CLI talks directly to the 
     ```
     KUBECONFIG=~/.kube/config argocd --core --kube-context [context] [command or options] [arguments…​]
     ```
+<<<<<<< Updated upstream
+=======
+**NOTE** If there are multiple ArgoCD instances, then set the default namespace of the current context to interact with the right ArgoCD instance.
+>>>>>>> Stashed changes
 
 ### Global options
 Global options are options applicable to all sub-commands of `argocd`.
@@ -577,4 +592,11 @@ compinit
   4. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
     ```
     # argocd app sync --core openshift-gitops/app-spring-petclinic
+<<<<<<< Updated upstream
     ```
+=======
+    ```
+
+## References
+https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd/
+>>>>>>> Stashed changes

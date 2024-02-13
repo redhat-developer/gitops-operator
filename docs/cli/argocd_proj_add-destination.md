@@ -7,6 +7,10 @@ Add project destination
 ```
 argocd proj add-destination PROJECT SERVER/NAME NAMESPACE [flags]
 ```
+<<<<<<< Updated upstream
+=======
+**WARNING** When using glob patterns like `*` in the argument, ensure that it is properly quoted '*' to avoid the underlying shell interpreting it as a shell wildcard
+>>>>>>> Stashed changes
 
 ### Examples
 
