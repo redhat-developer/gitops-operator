@@ -20,31 +20,6 @@ argocd proj create PROJECT [flags]
 
 ### Options
 
-```
-      --allow-cluster-resource stringArray      List of allowed cluster level resources
-      --allow-namespaced-resource stringArray   List of allowed namespaced resources
-      --deny-cluster-resource stringArray       List of denied cluster level resources
-      --deny-namespaced-resource stringArray    List of denied namespaced resources
-      --description string                      Project description
-  -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
-  -f, --file string                             Filename or URL to Kubernetes manifests for the project
-  -h, --help                                    help for create
-      --orphaned-resources                      Enables orphaned resources monitoring
-      --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
-      --signature-keys strings                  GnuPG public key IDs for commit signature verification
-      --source-namespaces strings               List of source namespaces for applications
-<<<<<<< Updated upstream
-  -s, --src stringArray                         Permitted source repository URL
-      --upsert                                  Allows to override a project with the same name even if supplied project spec is different from existing spec
-```
-
-### Options inherited from parent commands
-
-=======
-
-      --upsert                                  Allows to override a project with the same name even if supplied project spec is different from existing spec
-```
->>>>>>> Stashed changes
 | Option | Argument type | Description |
 | ---------------- | ------ | ---- |
 | --allow-cluster-resource | string Array| List of allowed cluster level resources |
@@ -52,19 +27,13 @@ argocd proj create PROJECT [flags]
 | --deny-cluster-resource | string Array| List of denied cluster level resources |
 | --deny-namespaced-resource | string Array| List of denied namespaced resources |
 | --description | string | Project description |
-<<<<<<< Updated upstream
-=======
 | -d, --dest |stringArray    |                   Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)|
 |  -f, --file |string                            | Filename or URL to Kubernetes manifests for the project|
 |  -h, --help                                   | |help for create|
->>>>>>> Stashed changes
 | --orphaned-resources| Enables orphaned resources monitoring |
 | --orphaned-resources-warn| Specifies if applications should have a warning condition when orphaned resources detected |
 | --signature-keys | string s| GnuPG public key IDs for commit signature verification |
 | --source-namespaces | string s| List of source namespaces for applications |
-<<<<<<< Updated upstream
-| --upsert| Allows to override a project with the same name even if supplied project spec is different from existing spec |
-=======
 |  -s, --src | stringArray    |                     Permitted source repository URL|
 | --upsert| Allows to override a project with the same name even if supplied project spec is different from existing spec |
 
@@ -72,7 +41,6 @@ argocd proj create PROJECT [flags]
 
 | Option | Argument type | Description |
 | ---------------- | ------ | ---- |
->>>>>>> Stashed changes
 | --auth-token | string | Authentication token |
 | --client-crt | string | Client certificate file |
 | --client-crt-key | string | Client certificate key file |
