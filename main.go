@@ -94,8 +94,27 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
 
+	//Configure log level
+	logLevelStr := strings.ToLower(os.Getenv("LOG_LEVEL"))
+	logLevel := zapcore.InfoLevel
+	switch logLevelStr {
+	case "debug":
+		logLevel = zapcore.DebugLevel
+	case "info":
+		logLevel = zapcore.InfoLevel
+	case "warn":
+		logLevel = zapcore.WarnLevel
+	case "error":
+		logLevel = zapcore.ErrorLevel
+	case "panic":
+		logLevel = zapcore.PanicLevel
+	case "fatal":
+		logLevel = zapcore.FatalLevel
+	}
+
 	opts := zap.Options{
 		Development: true,
+		Level:       logLevel,
 		TimeEncoder: zapcore.RFC3339TimeEncoder,
 	}
 	opts.BindFlags(flag.CommandLine)
