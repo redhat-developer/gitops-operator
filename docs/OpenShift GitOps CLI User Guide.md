@@ -162,7 +162,9 @@ In the `core` mode (`--core` argument specified), the CLI talks directly to the 
 
 #### Normal mode
 
-In the normal mode, users have to login to the ArgoCD server component using the login component before executing the commands.
+In the normal mode (default mode), the `argocd` CLI client makes API requests to the ArgoCD server component. This requires users to explicitly login to the ArgoCD server component using the ArgoCD credentials before executing further commands. Users should remain logged in to the ArgoCD server when running the commands. If the login times out in between, users can re-login using the `relogin` command. After running all commands, users can logout using the `logout` command.
+
+##### Steps to login to the ArgoCD server and execute a command.
 
   1. Get the admin password for the ArgoCD server
       ```
@@ -171,26 +173,59 @@ In the normal mode, users have to login to the ArgoCD server component using the
   2. Login to the ArgoCD server using the login command
       ```
       argocd login --username admin --password ${ADMIN_PASSWD} <server url>
-      #eg:
+      ```
+      eg:
+      ```
       argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
       ```
   3. Execute the argocd commands
       ```
       argocd [command or options] [arguments…​]
       ```
+      eg:
+      ```
+      argocd app list
+      ```
 
 #### Core mode
 
-In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server set as per the `KUBECONFIG` environment variable or the default file `$HOME/.kube/config`. There is no need for users to login into the ArgoCD server for executing commands. The commands would be run as user configured in the kubeconfig file. 
+In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server (unlike in normal mode, where the CLI talks to the ArgoCD Server) using the credentials set in the kubeconfig file. The default kubeconfig file is available at location `$HOME/.kube/config` can be customized using the `KUBECONFIG` environment variable. Unlike the normal mode, there is no explicit login step required for user authentication. The command would be executed using the credentials provided in the `kubeconfig` file. ArgoCD commands can be executed in the core mode using one of the following options.
 
-  1. With the default context in kubeconfig file
+##### Option 1: With default kubeconfig file (using the default context)
     ```
-    KUBECONFIG=~/.kube/config argocd --core [command or options] [arguments…​]
+    argocd --core [command or options] [arguments…​]
     ```
-  2. With a custom context in kubeconfig file
+    eg:
     ```
-    KUBECONFIG=~/.kube/config argocd --core --kube-context [context] [command or options] [arguments…​]
+    argocd --core app list
     ```
+##### Option 2: With default kubeconfig file (using a custom context)
+    ```
+    argocd --core --kube-context [context]  [command or options] [arguments…​]
+    ```
+    eg:
+    ```
+    argocd --core  --kube-context kubeadmin-local app list
+    ```
+
+##### Option 3: With a custom kubeconfig file (using the default context)
+    ```
+    KUBECONFIG=~/.kube/custom_config argocd --core [command or options] [arguments…​]
+    ```
+    eg:
+    ```
+    KUBECONFIG=~/.kube/custom_config argocd --core app list
+    ```
+
+##### Option 4:  With a custom kubeconfig file (using a custom context)
+    ```
+    KUBECONFIG=~/.kube/custom_config argocd --core --kube-context [context] [command or options] [arguments…​]
+    ```
+    eg:
+    ```
+    KUBECONFIG=~/.kube/custom_config argocd --kube-context kubeadmin-local --core app list
+    ```
+
 **NOTE** If there are multiple ArgoCD instances, then set the default namespace of the current context to interact with the right ArgoCD instance.
 
 ### Global options
@@ -454,7 +489,9 @@ compinit
   2. Login to the ArgoCD server using the login command
       ```
       argocd login --username admin --password ${ADMIN_PASSWD} <server url>
-      #eg:
+      ```
+      eg:
+      ```
       argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
       ```
   3. Validate that you are able to run `argocd` commands in normal mode by executing the following command to list all Applications. 
@@ -553,7 +590,9 @@ compinit
   2. Login to the ArgoCD server using the login command
       ```
       argocd login --username admin --password ${ADMIN_PASSWD} <server url>
-      #eg:
+      ```
+      eg:
+      ```
       argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
       ```
   3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
