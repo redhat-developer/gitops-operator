@@ -131,6 +131,11 @@ git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 make test-e2e
 
 
+cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
+
+hack/run-upstream-argo-rollouts-e2e-tests.sh
+
+
 # mkdir -p $WORK_DIR/results || exit 1
 # mkdir -p $DIR/results || exit 1
 
