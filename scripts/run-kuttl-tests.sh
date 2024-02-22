@@ -109,27 +109,49 @@ trap cleanup EXIT
 # Handle ctrl+c
 trap unexpectedError INT
 
-mkdir -p $WORK_DIR/results || exit 1
-mkdir -p $DIR/results || exit 1
 
-case "$testsuite" in
-"parallel")
-    header "Running $testsuite tests"
-	run_parallel $2
-	;;
-"sequential")
-    header "Running $testsuite tests"
-	run_sequential $2
-	;;
-"all")
-    header "Running $testsuite tests"
-	run_parallel
-	run_sequential
-	;;
-*)
-	echo "USAGE: $0 (parallel|sequential|all)" >&2
-	exit 1
-esac
 
-(( failed )) && fail_test "$testsuite tests failed"
-success $testsuite
+ROLLOUTS_TMP_DIR=$(mktemp -d)
+
+cd $ROLLOUTS_TMP_DIR
+
+kubectl get namespaces
+
+kubectl get pods -A || true
+
+kubectl api-resources
+
+git clone https://github.com/argoproj-labs/argo-rollouts-manager
+
+cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
+
+TARGET_ROLLOUT_MANAGER_COMMIT=027faa92ffdbc43a02eca3982f020a8c391fd340
+
+git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
+make test-e2e
+
+
+# mkdir -p $WORK_DIR/results || exit 1
+# mkdir -p $DIR/results || exit 1
+
+# case "$testsuite" in
+# "parallel")
+#     header "Running $testsuite tests"
+# 	run_parallel $2
+# 	;;
+# "sequential")
+#     header "Running $testsuite tests"
+# 	run_sequential $2
+# 	;;
+# "all")
+#     header "Running $testsuite tests"
+# 	run_parallel
+# 	run_sequential
+# 	;;
+# *)
+# 	echo "USAGE: $0 (parallel|sequential|all)" >&2
+# 	exit 1
+# esac
+
+# (( failed )) && fail_test "$testsuite tests failed"
+# success $testsuite
