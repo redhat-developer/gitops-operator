@@ -144,7 +144,7 @@ The following procedure enables tab completion for Bash.
   ```
   $ argocd completion bash > argocd_bash_completion
   ```
-2. Copy the file to /etc/bash_completion.d/:
+2. Copy the file to `/etc/bash_completion.d/`:
   ```
   $ sudo cp argocd_bash_completion /etc/bash_completion.d/
   ```
@@ -313,9 +313,9 @@ To access completions in your current shell, run the following command
 ```
 $ source <(argocd completion bash)
 ```
-Alternatively, write it to a file and source in .bash_profile
+Alternatively, write it to a file and source in `.bash_profile`
 
-For zsh, add the following to your ~/.zshrc file:
+For zsh, add the following to your `~/.zshrc` file:
 ```
 $ source <(argocd completion zsh)
 $ compdef _argocd argocd
