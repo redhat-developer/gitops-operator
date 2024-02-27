@@ -716,7 +716,8 @@ spec:
                 description: GATrackingID is the google analytics tracking ID to use.
                 type: string
               grafana:
-                description: Grafana defines the Grafana server options for ArgoCD.
+                description: 'Deprecated: Grafana defines the Grafana server options
+                  for ArgoCD.'
                 properties:
                   enabled:
                     description: Enabled will toggle Grafana support globally for
@@ -7163,11 +7164,23 @@ spec:
                           Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                         type: object
                     type: object
+                  scmProviders:
+                    description: SCMProviders defines the list of allowed custom SCM
+                      provider API URLs
+                    items:
+                      type: string
+                    type: array
                   scmRootCAConfigMap:
                     description: SCMRootCAConfigMap is the name of the config map
                       that stores the Gitlab SCM Provider's TLS certificate which
                       will be mounted on the ApplicationSet Controller (optional).
                     type: string
+                  sourceNamespaces:
+                    description: SourceNamespaces defines the namespaces applicationset
+                      resources are allowed to be created in
+                    items:
+                      type: string
+                    type: array
                   version:
                     description: Version is the Argo CD ApplicationSet image tag.
                       (optional)
@@ -7588,7 +7601,8 @@ spec:
                 description: GATrackingID is the google analytics tracking ID to use.
                 type: string
               grafana:
-                description: Grafana defines the Grafana server options for ArgoCD.
+                description: 'Deprecated: Grafana defines the Grafana server options
+                  for ArgoCD.'
                 properties:
                   enabled:
                     description: Enabled will toggle Grafana support globally for

@@ -221,6 +221,13 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
+  - notificationsconfigurations
+  - notificationsconfigurations/finalizers
+  verbs:
+  - '*'
+- apiGroups:
+  - argoproj.io
+  resources:
   - rolloutmanagers
   verbs:
   - create
