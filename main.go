@@ -35,6 +35,7 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -222,6 +223,14 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
+		os.Exit(1)
+	}
+
+	if err = (&notificationsprovisioner.NotificationsConfigurationReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Notifications Configuration")
 		os.Exit(1)
 	}
 
