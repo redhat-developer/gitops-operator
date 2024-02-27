@@ -12,7 +12,7 @@ Red Hat OpenShift GitOps with the `argocd` CLI tool is a Technology Preview feat
 Use the CLI tool to manage Red Hat OpenShift GitOps from a terminal. You can install the CLI tool on different platforms.
 
 ### Installing the Red Hat OpenShift GitOps CLI on Linux using an RPM
-For Red Hat Enterprise Linux (RHEL) version 8, you can install the Red Hat OpenShift GitOps CLI as an RPM.
+For Red Hat Enterprise Linux (RHEL) version 8 or later, you can install the Red Hat OpenShift GitOps CLI as an RPM.
 #### Prerequisites
 You have an active OpenShift Container Platform subscription on your Red Hat account.
 You have root or sudo privileges on your local system.
@@ -27,7 +27,7 @@ You have root or sudo privileges on your local system.
 ```
 - List the available subscriptions:
 ```
-# subscription-manager list --available --matches '*openshift-gitops*'
+# subscription-manager list --available --matches '*gitops*'
 ```
 - In the output for the previous command, find the pool ID for your OpenShift Container Platform subscription and attach the subscription to the registered system:
 ```
@@ -36,19 +36,19 @@ You have root or sudo privileges on your local system.
 - Enable the repositories required by Red Hat OpenShift GitOps:
     - Linux (x86_64, amd64)
         ```
-        # subscription-manager repos --enable="openshift-gitops-1.12-for-rhel-8-x86_64-rpms"
+        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-x86_64-rpms"
         ```
     - Linux on IBM zSystems and IBM® LinuxONE (s390x)
         ```
-        # subscription-manager repos --enable="openshift-gitops-1.12-for-rhel-8-s390x-rpms"
+        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-s390x-rpms"
         ```
     - Linux on IBM Power (ppc64le)
         ```
-        # subscription-manager repos --enable="openshift-gitops-1.12-for-rhel-8-ppc64le-rpms"
+        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-ppc64le-rpms"
         ```
     - Linux on ARM (aarch64, arm64)
         ```
-        # subscription-manager repos --enable="openshift-gitops-1.12-for-rhel-8-aarch64-rpms"
+        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-aarch64-rpms"
         ```
 - Install the `openshift-gitops-argocd-cli` package:
 ```
