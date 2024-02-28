@@ -12,7 +12,7 @@ Red Hat OpenShift GitOps with the `argocd` CLI tool is a Technology Preview feat
 Use the CLI tool to manage Red Hat OpenShift GitOps from a terminal. You can install the CLI tool on different platforms.
 
 ### Installing the Red Hat OpenShift GitOps CLI on Linux using an RPM
-For Red Hat Enterprise Linux (RHEL) version 8 or later, you can install the Red Hat OpenShift GitOps CLI as an RPM.
+For Red Hat Enterprise Linux (RHEL) version 8 or version 9, you can install the Red Hat OpenShift GitOps CLI as an RPM.
 #### Prerequisites
 You have an active OpenShift Container Platform subscription on your Red Hat account.
 You have root or sudo privileges on your local system.
@@ -34,22 +34,40 @@ You have root or sudo privileges on your local system.
 # subscription-manager attach --pool=<pool_id>
 ```
 - Enable the repositories required by Red Hat OpenShift GitOps:
-    - Linux (x86_64, amd64)
-        ```
-        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-x86_64-rpms"
-        ```
-    - Linux on IBM zSystems and IBM® LinuxONE (s390x)
-        ```
-        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-s390x-rpms"
-        ```
-    - Linux on IBM Power (ppc64le)
-        ```
-        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-ppc64le-rpms"
-        ```
-    - Linux on ARM (aarch64, arm64)
-        ```
-        # subscription-manager repos --enable="gitops-1.12-for-rhel-8-aarch64-rpms"
-        ```
+    - RHEL 8
+        - Linux (x86_64, amd64)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-8-x86_64-rpms"
+            ```
+        - Linux on IBM zSystems and IBM® LinuxONE (s390x)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-8-s390x-rpms"
+            ```
+        - Linux on IBM Power (ppc64le)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-8-ppc64le-rpms"
+            ```
+        - Linux on ARM (aarch64, arm64)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-8-aarch64-rpms"
+            ```
+    - RHEL 9
+        - Linux (x86_64, amd64)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-9-x86_64-rpms"
+            ```
+        - Linux on IBM zSystems and IBM® LinuxONE (s390x)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-9-s390x-rpms"
+            ```
+        - Linux on IBM Power (ppc64le)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-9-ppc64le-rpms"
+            ```
+        - Linux on ARM (aarch64, arm64)
+            ```
+            # subscription-manager repos --enable="gitops-1.12-for-rhel-9-aarch64-rpms"
+            ```
 - Install the `openshift-gitops-argocd-cli` package:
 ```
 # yum install openshift-gitops-argocd-cli
