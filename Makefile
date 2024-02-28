@@ -110,7 +110,12 @@ test-gitopsservice-nondefault:
 	go test -p 1 -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
 
 test: manifests generate fmt vet ## Run unit tests.
-	go test `go list ./... | grep -v test` -coverprofile cover.out
+	go test `go list ./... | grep -v test` -coverprofile coverage.out
+
+.PHONY: coverage
+coverage: test ## run coverage tests
+	go tool cover -html=coverage.out -o coverage.html
+	open coverage.html
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential: ## Runs kuttl e2e sequentail tests
