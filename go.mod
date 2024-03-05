@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
-	github.com/argoproj-labs/argocd-operator v0.10.0
+	github.com/argoproj-labs/argocd-operator v0.10.1-0.20240305111621-c242083c769c
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
