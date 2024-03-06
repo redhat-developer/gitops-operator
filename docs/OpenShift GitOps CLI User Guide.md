@@ -656,7 +656,7 @@ $ compinit
       ```
       eg:
       ```
-      # oc login -u kubeadmin -p 'Qlr1Mq9y6bDHhB3F0JdCSXNAgjiTtG$X' https://api.crc.testing:6443
+      # oc login -u kubeadmin -p '<password>' https://api.crc.testing:6443
       ```
   2. Check if the context is set correctly in the kubeconfig file
       ```
