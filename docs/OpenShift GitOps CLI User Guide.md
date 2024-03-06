@@ -198,8 +198,11 @@ In the normal mode (default mode), the `argocd` CLI client makes API requests to
       ```
       eg:
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      # get the admin password and use it by enclosing in single quotes.
+      # echo ${ADMIN_PASSWD}
+      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
+        **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
   3. Execute the argocd commands
       ```
       # argocd [command or options] [arguments…​]
@@ -519,8 +522,11 @@ $ compinit
       ```
       eg:
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      # get the admin password and use it by enclosing in single quotes.
+      # echo ${ADMIN_PASSWD}
+      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
+        **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
   3. Validate that you are able to run `argocd` commands in normal mode by executing the following command to list all Applications. 
       ```
       # argocd app list
@@ -626,8 +632,12 @@ $ compinit
       ```
       eg:
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      # get the admin password and use it by enclosing in single quotes.
+      # echo ${ADMIN_PASSWD}
+      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
+      **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
+
   3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
       ```
       # argocd app sync openshift-gitops/app-spring-petclinic
@@ -646,7 +656,7 @@ $ compinit
       ```
       eg:
       ```
-      # oc login -u kubeadmin -p ${ADMIN_PASSWD} https://api.crc.testing:6443
+      # oc login -u kubeadmin -p 'Qlr1Mq9y6bDHhB3F0JdCSXNAgjiTtG$X' https://api.crc.testing:6443
       ```
   2. Check if the context is set correctly in the kubeconfig file
       ```
@@ -686,8 +696,11 @@ $ compinit
       ```
       eg:
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      # get the admin password and use it by enclosing in single quotes.
+      # echo ${ADMIN_PASSWD}
+      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
+        **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
   3. Validate that you are able to run `argocd` commands in normal mode by executing the following command to list all Applications. 
       ```
       # argocd app list
@@ -791,8 +804,11 @@ $ compinit
       ```
       eg:
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      # get the admin password and use it by enclosing in single quotes.
+      # echo ${ADMIN_PASSWD}
+      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
+        **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
   3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
       ```
       # argocd app sync openshift-gitops/cluster-configs
