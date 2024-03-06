@@ -79,14 +79,14 @@ Run the following command to validate that the installation has succeeded.
 ```
 Sample output:
 ```
-argocd: v2.9.2+c5ea5c4
-  BuildDate: 2023-12-18T12:35:23Z
-  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+argocd: v2.9.5+f943664
+  BuildDate: 2024-02-15T05:19:27Z
+  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
   GitTreeState: clean
   GoVersion: go1.20.10
   Compiler: gc
   Platform: linux/amd64
-  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
+  ExtraBuildInfo: openshift-gitops-version: 1.12.0, release: 0015022024
 ```
 **Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
@@ -104,14 +104,14 @@ Run the following command to validate that the installation has succeeded.
 ```
 Sample output:
 ```
-argocd: v2.9.2+c5ea5c4
-  BuildDate: 2023-12-18T12:35:23Z
-  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+argocd: v2.9.5+f943664
+  BuildDate: 2024-02-15T05:19:27Z
+  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
   GitTreeState: clean
   GoVersion: go1.20.10
   Compiler: gc
   Platform: linux/amd64
-  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
+  ExtraBuildInfo: openshift-gitops-version: 1.12.0, release: 0015022024
 ```
 **Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
@@ -132,14 +132,14 @@ Run the following command to validate that the installation has succeeded.
 ```
 Sample output:
 ```
-argocd: v2.9.2+c5ea5c4
-  BuildDate: 2023-12-18T12:35:23Z
-  GitCommit: c5ea5c4df52943a6fff6c0be181fde5358970304
+argocd: v2.9.5+f943664
+  BuildDate: 2024-02-15T05:19:27Z
+  GitCommit: f9436641a616d277ab1f98694e5ce4c986d4ea05
   GitTreeState: clean
   GoVersion: go1.20.10
   Compiler: gc
   Platform: linux/amd64
-  ExtraBuildInfo: openshift-gitops-version: 1.11.0, release: 0718122023
+  ExtraBuildInfo: openshift-gitops-version: 1.12.0, release: 0015022024
 ```
 **Note:** The above output is just for reference. The actual details might be different based on the version of OpenShift GitOps argocd CLI client installed.
 
@@ -186,9 +186,13 @@ In the normal mode (default mode), the `argocd` CLI client makes API requests to
 
   1. Get the admin password for the ArgoCD server
       ```
-      # ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
       ```
-  2. Login to the ArgoCD server using the login command
+  2. Get the ArgoCD server url using the following command
+      ```
+      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
+      ```
+  3. Login to the ArgoCD server using the login command
       ```
       # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
       ```
@@ -503,9 +507,13 @@ $ compinit
 #### Procedure
   1. Get the admin password for the ArgoCD server
       ```
-      # ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
       ```
-  2. Login to the ArgoCD server using the login command
+  2. Get the ArgoCD server url using the following command
+      ```
+      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
+      ```
+  3. Login to the ArgoCD server using the login command
       ```
       # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
       ```
@@ -606,9 +614,13 @@ $ compinit
 
   1. Get the admin password for the ArgoCD server
       ```
-      # ADMIN_PASSWD=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d)
+      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
       ```
-  2. Login to the ArgoCD server using the login command
+  2. Get the ArgoCD server url using the following command
+      ```
+      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
+      ```
+  3. Login to the ArgoCD server using the login command
       ```
       # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
       ```
@@ -618,7 +630,7 @@ $ compinit
       ```
   3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
       ```
-      # argocd app sync --core openshift-gitops/app-spring-petclinic
+      # argocd app sync openshift-gitops/app-spring-petclinic
       ```
 ### Syncing an application in core mode
 #### Prerequisites
@@ -649,6 +661,173 @@ $ compinit
       ```
       # argocd app sync --core openshift-gitops/app-spring-petclinic
       ```
+
+## Declarative cluster configuration using OpenShift GitOps argocd CLI
+
+### Create cluster config application in Normal mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+  1. Get the admin password for the ArgoCD server
+      ```
+      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+      ```
+  2. Get the ArgoCD server url using the following command
+      ```
+      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
+      ```
+  3. Login to the ArgoCD server using the login command
+      ```
+      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
+      ```
+      eg:
+      ```
+      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      ```
+  3. Validate that you are able to run `argocd` commands in normal mode by executing the following command to list all Applications. 
+      ```
+      # argocd app list
+      ```
+      If the configuration is correct, then existing Applications will be listed with header as below
+      ```
+      NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
+      ```
+  4. Let's create an application in normal mode
+      ```
+      # argocd app create cluster-configs \
+          --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
+          --path cluster \
+          --revision main \
+          --dest-server  https://kubernetes.default.svc \
+          --dest-namespace spring-petclinic \
+          --directory-recurse \
+          --sync-policy manual \
+          --self-heal \
+          --sync-option Prune=true \
+          --sync-option CreateNamespace=true \
+          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+      ```
+  5. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+      ```
+      # argocd app list
+      ```
+
+### Create cluster config application  in Core mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+
+  1. Login to the OpenShift Cluster using the `oc` CLI tool
+      ```
+      # oc login -u [username] -p [password] [server_url]
+      ```
+      eg:
+      ```
+      # oc login -u kubeadmin -p ${ADMIN_PASSWD} https://api.crc.testing:6443
+      ```
+  2. Check if the context is set correctly in the kubeconfig file
+      ```
+      # oc config current-context
+      ```
+  3. Set the default namespace of the current context to `openshift-gitops`
+      ```
+      # oc config set-context --current --namespace openshift-gitops
+      ```
+  4. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
+      ```
+      # argocd app list --core
+      ```
+      If the configuration is correct, then existing Applications will be listed with header as below
+      ```
+      NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
+      ```
+  5. Let's create an application in core mode
+      ```
+      # argocd app create cluster-configs --core \
+          --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
+          --path cluster \
+          --revision main \
+          --dest-server  https://kubernetes.default.svc \
+          --dest-namespace spring-petclinic \
+          --directory-recurse \
+          --sync-policy manual \
+          --self-heal \
+          --sync-option Prune=true \
+          --sync-option CreateNamespace=true \
+          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+      ```
+  6. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+      ```
+      # argocd app list --core
+      ```
+
+### Syncing cluster configuration application in normal mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+#### Procedure
+
+  1. Get the admin password for the ArgoCD server
+      ```
+      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+      ```
+  2. Get the ArgoCD server url using the following command
+      ```
+      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
+      ```
+  3. Login to the ArgoCD server using the login command
+      ```
+      # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      ```
+      eg:
+      ```
+      # argocd login --username admin --password ${ADMIN_PASSWD} openshift-gitops.openshift-gitops.apps-crc.testing
+      ```
+  3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
+      ```
+      # argocd app sync openshift-gitops/cluster-configs
+      ```
+### Syncing cluster configuration application in core mode
+
+#### Prerequisites
+
+- OpenShift CLI (oc)
+- OpenShift GitOps CLI (argocd)
+
+#### Procedure
+
+  1. Login to the OpenShift Cluster using the `oc` CLI tool
+      ```
+      # oc login -u [username] -p [password] [server_url]
+      ```
+      eg:
+      ```
+      # oc login -u kubeadmin -p ${ADMIN_PASSWD} https://api.crc.testing:6443
+      ```
+  2. Check if the context is set correctly in the kubeconfig file
+      ```
+      # oc config current-context
+      ```
+  3. Set the default namespace of the current context to `openshift-gitops`
+      ```
+      # oc config set-context --current --namespace openshift-gitops
+      ```
+
+  4. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+      ```
+      # argocd app sync --core openshift-gitops/cluster-configs
+      ```
+
 
 ## References
 https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd/
