@@ -194,7 +194,7 @@ In the normal mode (default mode), the `argocd` CLI client makes API requests to
       ```
   3. Login to the ArgoCD server using the login command
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
       ```
       eg:
       ```
@@ -515,7 +515,7 @@ $ compinit
       ```
   3. Login to the ArgoCD server using the login command
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
       ```
       eg:
       ```
@@ -622,7 +622,7 @@ $ compinit
       ```
   3. Login to the ArgoCD server using the login command
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
       ```
       eg:
       ```
@@ -787,7 +787,7 @@ $ compinit
       ```
   3. Login to the ArgoCD server using the login command
       ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} <server url>
+      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
       ```
       eg:
       ```
