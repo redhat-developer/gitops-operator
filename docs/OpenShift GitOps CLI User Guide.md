@@ -199,17 +199,14 @@ In the normal mode (default mode), the `argocd` CLI client makes API requests to
       eg:
       ```
       # get the admin password and use it by enclosing in single quotes.
-      # echo ${ADMIN_PASSWD}
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
-  3. Execute the argocd commands
+
+      Upon successful login, the context that would be used for the session would be displayed as below.
       ```
-      # argocd [command or options] [arguments…​]
-      ```
-      eg:
-      ```
-      # argocd app list
+      'admin:login' logged in successfully
+      Context '<server_url>' updated
       ```
 
 #### Core mode
@@ -308,7 +305,7 @@ Print version information
 ```
 - Print only full version of the server
 ```
-# argocd version --server openshift-gitops.openshift-gitops.crc.local
+# argocd version --server <server_url>
 ```
 - Print the full version of client and server in JSON format
 ```
@@ -344,20 +341,14 @@ Write bash or zsh shell completion code to standard output.
 For bash, ensure you have bash completions installed and enabled.
 To access completions in your current shell, run the following command
 ```
-$ source <(argocd completion bash)
+# source <(argocd completion bash)
 ```
 Alternatively, write it to a file and source in `.bash_profile`
 
 For zsh, add the following to your `~/.zshrc` file:
 ```
-$ source <(argocd completion zsh)
-$ compdef _argocd argocd
-```
-Optionally, also add the following, in case you are getting errors involving compdef & compinit such as command not found: 
-```
-$ compdef:
-autoload -Uz compinit
-$ compinit
+source <(argocd completion zsh)
+compdef _argocd argocd
 ```
 
 ##### Usage:
@@ -531,7 +522,6 @@ $ compinit
       eg:
       ```
       # get the admin password and use it by enclosing in single quotes.
-      # echo ${ADMIN_PASSWD}
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
@@ -651,7 +641,6 @@ $ compinit
       eg:
       ```
       # get the admin password and use it by enclosing in single quotes.
-      # echo ${ADMIN_PASSWD}
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
@@ -763,7 +752,6 @@ $ compinit
       eg:
       ```
       # get the admin password and use it by enclosing in single quotes.
-      # echo ${ADMIN_PASSWD}
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
