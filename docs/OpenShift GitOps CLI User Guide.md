@@ -626,80 +626,6 @@ $ compinit
       # argocd app list --core
       ```
 
-
-## Syncing an application by using OpenShift GitOps argocd CLI
-
-### Syncing an application in normal mode
-#### Prerequisites
-
-- OpenShift CLI (oc)
-- OpenShift GitOps CLI (argocd)
-#### Procedure
-
-  1. Get the admin password for the ArgoCD server
-      ```
-      # ADMIN_PASSWD=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
-      ```
-  2. Get the ArgoCD server url using the following command
-      ```
-      # SERVER_URL=$(oc get routes openshift-gitops-server -n openshift-gitops -o jsonpath='{.status.ingress[0].host}')
-      ```
-  3. Login to the ArgoCD server using the login command
-      ```
-      # argocd login --username admin --password ${ADMIN_PASSWD} ${SERVER_URL}
-      ```
-      eg:
-      ```
-      # get the admin password and use it by enclosing in single quotes.
-      # echo ${ADMIN_PASSWD}
-      # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
-      ```
-      **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
-  4. If the argo application is created with `none` sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
-      ```
-      # argocd app sync openshift-gitops/app-spring-petclinic
-      ```
-  5. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
-      ```
-      # argocd app list
-      ```
-### Syncing an application in core mode
-#### Prerequisites
-
-- OpenShift CLI (oc)
-- OpenShift GitOps CLI (argocd)
-
-#### Procedure
-
-  1. Login to the OpenShift Cluster using the `oc` CLI tool
-      ```
-      # oc login -u [username] -p [password] [server_url]
-      ```
-      eg:
-      ```
-      # oc login -u kubeadmin -p '<password>' https://api.crc.testing:6443
-      ```
-  2. Check if the context is set correctly in the kubeconfig file
-      ```
-      # oc config current-context
-      ```
-  3. Set the default namespace of the current context to `openshift-gitops`
-      ```
-      # oc config set-context --current --namespace openshift-gitops
-      ```
-  4. Set the following environment variables to override the argocd component names
-     ```
-     # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
-     ```
-  5. If the argo application is created with `none` sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
-      ```
-      # argocd app sync --core openshift-gitops/app-spring-petclinic
-      ```
-  6. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
-      ```
-      # argocd app list --core
-      ```
-
 ## Declarative cluster configuration using OpenShift GitOps argocd CLI
 
 ### Create cluster config application in Normal mode
@@ -754,7 +680,7 @@ $ compinit
       ```
       # oc label ns spring-petclinic "argocd.argoproj.io/managed-by=openshift-gitops"
       ```
-  6. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` since the sync policy is set to `none`and the health of the application is `Healthy`.
+  6. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` as the sync policy was set to `none` and the health of the application is `Healthy`.
       ```
       # argocd app list
       ```
@@ -809,7 +735,7 @@ $ compinit
           --sync-option Prune=true \
           --sync-option CreateNamespace=true
       ```
-  7. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` since the sync policy is set to `none` and the health of the application is `Healthy`.
+  7. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` as the sync policy was set to `none` and the health of the application is `Healthy`.
       ```
       # argocd app list --core
       ```
@@ -841,7 +767,7 @@ $ compinit
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
-  4. Since the argo application is created with a `none` sync policy, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+  4. As the argo application is created with sync policy `none`, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
       ```
       # argocd app sync openshift-gitops/cluster-configs
       ```
@@ -878,7 +804,7 @@ $ compinit
      ```
      # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
      ```
-  5. Since the argo application is created with a `none` sync policy, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+  5. As the argo application is created with sync policy `none`, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
       ```
       # argocd app sync --core openshift-gitops/cluster-configs
       ```
