@@ -214,44 +214,52 @@ In the normal mode (default mode), the `argocd` CLI client makes API requests to
 
 #### Core mode
 
-In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server (unlike in normal mode, where the CLI talks to the ArgoCD Server) using the credentials set in the kubeconfig file. The default kubeconfig file is available at location `$HOME/.kube/config` can be customized using the `KUBECONFIG` environment variable. Unlike the normal mode, there is no explicit login step required for user authentication. The command would be executed using the credentials provided in the `kubeconfig` file. ArgoCD commands can be executed in the core mode using one of the following options.
+In the `core` mode (`--core` argument specified), the CLI talks directly to the Kubernetes API server (unlike in normal mode, where the CLI talks to the ArgoCD Server) using the credentials set in the kubeconfig file. The default kubeconfig file is available at location `$HOME/.kube/config` can be customized using the `KUBECONFIG` environment variable. Unlike the normal mode, there is no explicit login step required for user authentication. The command would be executed using the credentials provided in the `kubeconfig` file.
 
-##### Option 1: With default kubeconfig file (using the default context)
+##### Steps to execute command in the core mode
+
+1. ArgoCD commands can be executed in the core mode using one of the following options.
+
+###### Option 1: With default kubeconfig file (using the default context)
   ```
   # argocd --core [command or options] [arguments…​]
   ```
   eg:
   ```
-  # argocd --core app list
+  # ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server argocd --core app list
+  (or)
+  # argocd --core app list --repo-server-name openshift-gitops-repo-server
   ```
-##### Option 2: With default kubeconfig file (using a custom context)
+###### Option 2: With default kubeconfig file (using a custom context)
   ```
   # argocd --core --kube-context [context]  [command or options] [arguments…​]
   ```
   eg:
   ```
-  # argocd --core  --kube-context kubeadmin-local app list
+  # ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server argocd --core  --kube-context kubeadmin-local app list
+  (or)
+  # argocd --core  --kube-context kubeadmin-local app list --repo-server-name openshift-gitops-repo-server
   ```
 
-##### Option 3: With a custom kubeconfig file (using the default context)
+###### Option 3: With a custom kubeconfig file (using the default context)
   ```
   # KUBECONFIG=~/.kube/custom_config argocd --core [command or options] [arguments…​]
   ```
   eg:
   ```
-  # KUBECONFIG=~/.kube/custom_config argocd --core app list
+  # KUBECONFIG=~/.kube/custom_config argocd --core app list --repo-server-name openshift-gitops-repo-server
   ```
 
-##### Option 4:  With a custom kubeconfig file (using a custom context)
+###### Option 4:  With a custom kubeconfig file (using a custom context)
   ```
   # KUBECONFIG=~/.kube/custom_config argocd --core --kube-context [context] [command or options] [arguments…​]
   ```
   eg:
   ```
-  # KUBECONFIG=~/.kube/custom_config argocd --kube-context kubeadmin-local --core app list
+  # KUBECONFIG=~/.kube/custom_config argocd --kube-context kubeadmin-local --core app list --repo-server-name openshift-gitops-repo-server
   ```
 
-**NOTE** If there are multiple ArgoCD instances, then set the default namespace of the current context to interact with the right ArgoCD instance.
+**NOTE** If there are multiple ArgoCD instances, then set the default namespace of the current context to the namespace of the ArgoCD instance that you want to interact with. Also set the environment variable `ARGOCD_REPO_SERVER_NAME` or use the command line option `--repo-server-name` to specify the repo server component name in the format `<argocd-instance-name>-repo-server`.
 
 ### Global options
 Global options are options applicable to all sub-commands of `argocd`.
@@ -547,10 +555,13 @@ $ compinit
           --sync-policy automated \
           --self-heal \
           --sync-option Prune=true \
-          --sync-option CreateNamespace=true \
-          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+          --sync-option CreateNamespace=true
       ```
-  5. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+  5. Label the destination namespace `spring-petclinic` to be managed by `openshif-gitops` argocd instance as below
+      ```
+      # oc label ns spring-petclinic "argocd.argoproj.io/managed-by=openshift-gitops"
+      ```
+  6. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and the health of the application is `Healthy`.
       ```
       # argocd app list
       ```
@@ -580,7 +591,11 @@ $ compinit
       ```
       # oc config set-context --current --namespace openshift-gitops
       ```
-  4. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
+  4. Set the following environment variables to override the argocd component names
+     ```
+     # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
+     ```
+  5. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
       ```
       # argocd app list --core
       ```
@@ -588,7 +603,7 @@ $ compinit
       ```
       NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
       ```
-  5. Let's create an application in core mode
+  6. Let's create an application in core mode
       ```
       # argocd app create app-spring-petclinic --core \
           --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
@@ -600,10 +615,13 @@ $ compinit
           --sync-policy automated \
           --self-heal \
           --sync-option Prune=true \
-          --sync-option CreateNamespace=true \
-          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+          --sync-option CreateNamespace=true
       ```
-  6. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+  7. Label the destination namespace `spring-petclinic` to be managed by `openshif-gitops` argocd instance as below
+      ```
+      # oc label ns spring-petclinic "argocd.argoproj.io/managed-by=openshift-gitops"
+      ```
+  8. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and the health of the application is `Healthy`.
       ```
       # argocd app list --core
       ```
@@ -637,10 +655,13 @@ $ compinit
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
       **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
-
-  3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
+  4. If the argo application is created with `none` sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
       ```
       # argocd app sync openshift-gitops/app-spring-petclinic
+      ```
+  5. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
+      ```
+      # argocd app list
       ```
 ### Syncing an application in core mode
 #### Prerequisites
@@ -666,10 +687,17 @@ $ compinit
       ```
       # oc config set-context --current --namespace openshift-gitops
       ```
-
-  4. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+  4. Set the following environment variables to override the argocd component names
+     ```
+     # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
+     ```
+  5. If the argo application is created with `none` sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
       ```
       # argocd app sync --core openshift-gitops/app-spring-petclinic
+      ```
+  6. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
+      ```
+      # argocd app list --core
       ```
 
 ## Declarative cluster configuration using OpenShift GitOps argocd CLI
@@ -718,13 +746,15 @@ $ compinit
           --dest-server  https://kubernetes.default.svc \
           --dest-namespace spring-petclinic \
           --directory-recurse \
-          --sync-policy manual \
-          --self-heal \
+          --sync-policy none \
           --sync-option Prune=true \
-          --sync-option CreateNamespace=true \
-          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+          --sync-option CreateNamespace=true
       ```
-  5. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+  5. Label the destination namespace `spring-petclinic` to be managed by `openshif-gitops` argocd instance as below
+      ```
+      # oc label ns spring-petclinic "argocd.argoproj.io/managed-by=openshift-gitops"
+      ```
+  6. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` since the sync policy is set to `none`and the health of the application is `Healthy`.
       ```
       # argocd app list
       ```
@@ -754,7 +784,11 @@ $ compinit
       ```
       # oc config set-context --current --namespace openshift-gitops
       ```
-  4. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
+  4. Set the following environment variables to override the argocd component names
+     ```
+     # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
+     ```
+  5. Validate that you are able to run `argocd` commands in core mode by executing the following command to list all Applications. 
       ```
       # argocd app list --core
       ```
@@ -762,7 +796,7 @@ $ compinit
       ```
       NAME CLUSTER NAMESPACE  PROJECT  STATUS  HEALTH   SYNCPOLICY  CONDITIONS  REPO PATH TARGET
       ```
-  5. Let's create an application in core mode
+  6. Let's create an application in core mode
       ```
       # argocd app create cluster-configs --core \
           --repo https://github.com/redhat-developer/openshift-gitops-getting-started.git \
@@ -771,13 +805,11 @@ $ compinit
           --dest-server  https://kubernetes.default.svc \
           --dest-namespace spring-petclinic \
           --directory-recurse \
-          --sync-policy manual \
-          --self-heal \
+          --sync-policy none \
           --sync-option Prune=true \
-          --sync-option CreateNamespace=true \
-          --annotations "argocd.argoproj.io/managed-by=openshift-gitops"
+          --sync-option CreateNamespace=true
       ```
-  6. List the application to confirm that the application is created successfully and repeat the command till the application reaches the state `Synced` and `Healthy`
+  7. List the application to confirm that the application is created successfully. The application will stay in the state `OutOfSync` since the sync policy is set to `none` and the health of the application is `Healthy`.
       ```
       # argocd app list --core
       ```
@@ -809,9 +841,13 @@ $ compinit
       # argocd login --username admin --password '<password>' openshift-gitops.openshift-gitops.apps-crc.testing
       ```
         **IMPORTANT** passwords can contain special characters like `$` which would be interpreted as shell variables. This can cause the command to fail as a wrong value (shell interpreted) of password would be sent to the server. Always use single quotes '' to enclose the actual value of the password to avoid such errors.
-  3. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in normal mode as below
+  4. Since the argo application is created with a `none` sync policy, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
       ```
       # argocd app sync openshift-gitops/cluster-configs
+      ```
+  5. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
+      ```
+      # argocd app list
       ```
 ### Syncing cluster configuration application in core mode
 
@@ -838,10 +874,17 @@ $ compinit
       ```
       # oc config set-context --current --namespace openshift-gitops
       ```
-
-  4. If the argo application is created with manual sync policy, then the user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
+  4. Set the following environment variables to override the argocd component names
+     ```
+     # export ARGOCD_REPO_SERVER_NAME=openshift-gitops-repo-server
+     ```
+  5. Since the argo application is created with a `none` sync policy, user has to trigger the sync operation manually. This can be done by using the `argocd` CLI in core mode as below
       ```
       # argocd app sync --core openshift-gitops/cluster-configs
+      ```
+  6. List the application to confirm that the application has reached the state `Synced` and the health of the application is `Healthy`.
+      ```
+      # argocd app list --core
       ```
 
 
