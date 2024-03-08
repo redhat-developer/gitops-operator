@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
-  name: argocd-sample
+  name: argocd
 spec:
   server:
     resources:
@@ -17,10 +17,21 @@ spec:
     resources:
       limits:
         cpu: 1000m
-        memory: 512Mi
+        memory: 1024Mi
       requests:
         cpu: 250m
         memory: 256Mi
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+      resources:
+        limits:
+          cpu: 500m
+          memory: 256Mi
+        requests:
+          cpu: 250m
+          memory: 128Mi
   ha:
     enabled: false
     resources:
@@ -30,6 +41,11 @@ spec:
       requests:
         cpu: 250m
         memory: 128Mi
+  rbac:
+    defaultPolicy: ''
+    policy: |
+      g, system:cluster-admins, role:admin
+    scopes: '[groups]'
   redis:
     resources:
       limits:
@@ -38,16 +54,14 @@ spec:
       requests:
         cpu: 250m
         memory: 128Mi
-  sso:
-    provider: dex
-    dex:
-      resources:
-        limits:
-          cpu: 500m
-          memory: 256Mi
-        requests:
-          cpu: 250m
-          memory: 128Mi
+  resourceExclusions: |
+    - apiGroups:
+      - tekton.dev
+      clusters:
+      - '*'
+      kinds:
+      - TaskRun
+      - PipelineRun        
   controller:
     resources:
       limits:
