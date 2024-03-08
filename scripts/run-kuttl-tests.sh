@@ -121,11 +121,14 @@ kubectl get pods -A || true
 
 kubectl api-resources
 
-git clone https://github.com/argoproj-labs/argo-rollouts-manager
+#git clone https://github.com/argoproj-labs/argo-rollouts-manager
+
+git clone https://github.com/jgwest/argo-rollouts-manager
 
 cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
-TARGET_ROLLOUT_MANAGER_COMMIT=25d137a24c28f4bb0b312c0a8c67c589ac047537
+#TARGET_ROLLOUT_MANAGER_COMMIT=25d137a24c28f4bb0b312c0a8c67c589ac047537
+TARGET_ROLLOUT_MANAGER_COMMIT=4b89a85de472a060eab7a5c36b2605f19c94182d
 
 git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 make test-e2e
