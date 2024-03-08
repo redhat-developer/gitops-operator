@@ -30,101 +30,6 @@ metadata:
         },
         {
           "apiVersion": "argoproj.io/v1alpha1",
-          "kind": "ArgoCD",
-          "metadata": {
-            "name": "argocd"
-          },
-          "spec": {
-            "controller": {
-              "resources": {
-                "limits": {
-                  "cpu": "2000m",
-                  "memory": "2048Mi"
-                },
-                "requests": {
-                  "cpu": "250m",
-                  "memory": "1024Mi"
-                }
-              }
-            },
-            "ha": {
-              "enabled": false,
-              "resources": {
-                "limits": {
-                  "cpu": "500m",
-                  "memory": "256Mi"
-                },
-                "requests": {
-                  "cpu": "250m",
-                  "memory": "128Mi"
-                }
-              }
-            },
-            "rbac": {
-              "defaultPolicy": "",
-              "policy": "g, system:cluster-admins, role:admin\n",
-              "scopes": "[groups]"
-            },
-            "redis": {
-              "resources": {
-                "limits": {
-                  "cpu": "500m",
-                  "memory": "256Mi"
-                },
-                "requests": {
-                  "cpu": "250m",
-                  "memory": "128Mi"
-                }
-              }
-            },
-            "repo": {
-              "resources": {
-                "limits": {
-                  "cpu": "1000m",
-                  "memory": "1024Mi"
-                },
-                "requests": {
-                  "cpu": "250m",
-                  "memory": "256Mi"
-                }
-              }
-            },
-            "resourceExclusions": "- apiGroups:\n  - tekton.dev\n  clusters:\n  - '*'\n  kinds:\n  - TaskRun\n  - PipelineRun        \n",
-            "server": {
-              "resources": {
-                "limits": {
-                  "cpu": "500m",
-                  "memory": "256Mi"
-                },
-                "requests": {
-                  "cpu": "125m",
-                  "memory": "128Mi"
-                }
-              },
-              "route": {
-                "enabled": true
-              }
-            },
-            "sso": {
-              "dex": {
-                "openShiftOAuth": true,
-                "resources": {
-                  "limits": {
-                    "cpu": "500m",
-                    "memory": "256Mi"
-                  },
-                  "requests": {
-                    "cpu": "250m",
-                    "memory": "128Mi"
-                  }
-                }
-              },
-              "provider": "dex"
-            }
-          }
-        },
-        {
-          "apiVersion": "argoproj.io/v1alpha1",
           "kind": "NotificationsConfiguration",
           "metadata": {
             "name": "default-notifications-configuration"
@@ -153,6 +58,94 @@ metadata:
           }
         },
         {
+          "apiVersion": "argoproj.io/v1beta1",
+          "kind": "ArgoCD",
+          "metadata": {
+            "name": "argocd-sample"
+          },
+          "spec": {
+            "controller": {
+              "resources": {
+                "limits": {
+                  "cpu": "2000m",
+                  "memory": "2048Mi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "1024Mi"
+                }
+              }
+            },
+            "ha": {
+              "enabled": false,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "128Mi"
+                }
+              }
+            },
+            "redis": {
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "128Mi"
+                }
+              }
+            },
+            "repo": {
+              "resources": {
+                "limits": {
+                  "cpu": "1000m",
+                  "memory": "512Mi"
+                },
+                "requests": {
+                  "cpu": "250m",
+                  "memory": "256Mi"
+                }
+              }
+            },
+            "server": {
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "125m",
+                  "memory": "128Mi"
+                }
+              },
+              "route": {
+                "enabled": true
+              }
+            },
+            "sso": {
+              "dex": {
+                "resources": {
+                  "limits": {
+                    "cpu": "500m",
+                    "memory": "256Mi"
+                  },
+                  "requests": {
+                    "cpu": "250m",
+                    "memory": "128Mi"
+                  }
+                }
+              },
+              "provider": "dex"
+            }
+          }
+        },
+        {
           "apiVersion": "pipelines.openshift.io/v1alpha1",
           "kind": "GitopsService",
           "metadata": {
@@ -166,6 +159,13 @@ metadata:
     containerImage: quay.io/redhat-developer/gitops-operator
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
+    features.operators.openshift.io/disconnected: "true"
+    features.operators.openshift.io/fips-compliant: "false"
+    features.operators.openshift.io/proxy-aware: "true"
+    features.operators.openshift.io/tls-profiles: "false"
+    features.operators.openshift.io/token-auth-aws: "false"
+    features.operators.openshift.io/token-auth-azure: "false"
+    features.operators.openshift.io/token-auth-gcp: "false"
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-gitops-operator
     operators.openshift.io/infrastructure-features: '["disconnected"]'
