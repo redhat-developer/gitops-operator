@@ -61,7 +61,7 @@ metadata:
           "apiVersion": "argoproj.io/v1beta1",
           "kind": "ArgoCD",
           "metadata": {
-            "name": "argocd-sample"
+            "name": "argocd"
           },
           "spec": {
             "controller": {
@@ -89,6 +89,11 @@ metadata:
                 }
               }
             },
+            "rbac": {
+              "defaultPolicy": "",
+              "policy": "g, system:cluster-admins, role:admin\n",
+              "scopes": "[groups]"
+            },
             "redis": {
               "resources": {
                 "limits": {
@@ -105,7 +110,7 @@ metadata:
               "resources": {
                 "limits": {
                   "cpu": "1000m",
-                  "memory": "512Mi"
+                  "memory": "1024Mi"
                 },
                 "requests": {
                   "cpu": "250m",
@@ -113,6 +118,7 @@ metadata:
                 }
               }
             },
+            "resourceExclusions": "- apiGroups:\n  - tekton.dev\n  clusters:\n  - '*'\n  kinds:\n  - TaskRun\n  - PipelineRun        \n",
             "server": {
               "resources": {
                 "limits": {
@@ -130,6 +136,7 @@ metadata:
             },
             "sso": {
               "dex": {
+                "openShiftOAuth": true,
                 "resources": {
                   "limits": {
                     "cpu": "500m",
