@@ -136,7 +136,7 @@ make test-e2e
 
 cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
-hack/run-upstream-argo-rollouts-e2e-tests.sh
+SKIP_RUN_STEP=true hack/run-upstream-argo-rollouts-e2e-tests.sh
 
 
 # mkdir -p $WORK_DIR/results || exit 1
