@@ -128,7 +128,7 @@ git clone https://github.com/jgwest/argo-rollouts-manager
 cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
 #TARGET_ROLLOUT_MANAGER_COMMIT=25d137a24c28f4bb0b312c0a8c67c589ac047537
-TARGET_ROLLOUT_MANAGER_COMMIT=07dff54a1966d7e3cb9692f55a18d8c2a37fe3ef
+TARGET_ROLLOUT_MANAGER_COMMIT=6285ada9df3e69ebbfa8039c0c12900117ef7f5b
 
 git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 make test-e2e
