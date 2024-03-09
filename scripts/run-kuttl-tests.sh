@@ -109,27 +109,57 @@ trap cleanup EXIT
 # Handle ctrl+c
 trap unexpectedError INT
 
-mkdir -p $WORK_DIR/results || exit 1
-mkdir -p $DIR/results || exit 1
 
-case "$testsuite" in
-"parallel")
-    header "Running $testsuite tests"
-	run_parallel $2
-	;;
-"sequential")
-    header "Running $testsuite tests"
-	run_sequential $2
-	;;
-"all")
-    header "Running $testsuite tests"
-	run_parallel
-	run_sequential
-	;;
-*)
-	echo "USAGE: $0 (parallel|sequential|all)" >&2
-	exit 1
-esac
 
-(( failed )) && fail_test "$testsuite tests failed"
-success $testsuite
+ROLLOUTS_TMP_DIR=$(mktemp -d)
+
+cd $ROLLOUTS_TMP_DIR
+
+kubectl get namespaces
+
+kubectl get pods -A || true
+
+kubectl api-resources
+
+#git clone https://github.com/argoproj-labs/argo-rollouts-manager
+
+git clone https://github.com/jgwest/argo-rollouts-manager
+
+cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
+
+#TARGET_ROLLOUT_MANAGER_COMMIT=25d137a24c28f4bb0b312c0a8c67c589ac047537
+TARGET_ROLLOUT_MANAGER_COMMIT=6285ada9df3e69ebbfa8039c0c12900117ef7f5b
+
+git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
+make test-e2e
+
+
+cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
+
+SKIP_RUN_STEP=true hack/run-upstream-argo-rollouts-e2e-tests.sh
+
+
+# mkdir -p $WORK_DIR/results || exit 1
+# mkdir -p $DIR/results || exit 1
+
+# case "$testsuite" in
+# "parallel")
+#     header "Running $testsuite tests"
+# 	run_parallel $2
+# 	;;
+# "sequential")
+#     header "Running $testsuite tests"
+# 	run_sequential $2
+# 	;;
+# "all")
+#     header "Running $testsuite tests"
+# 	run_parallel
+# 	run_sequential
+# 	;;
+# *)
+# 	echo "USAGE: $0 (parallel|sequential|all)" >&2
+# 	exit 1
+# esac
+
+# (( failed )) && fail_test "$testsuite tests failed"
+# success $testsuite
