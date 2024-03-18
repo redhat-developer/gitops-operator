@@ -89,7 +89,7 @@ spec:
 
 #### Default access
 
-For versions upto and not including v1.10, 
+For versions up to and not including v1.10, 
 
 - any user (except `kube:admin`) logged into Argo CD using Dex will be a **read-only** user by default.
 
