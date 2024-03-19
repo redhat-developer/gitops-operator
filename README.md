@@ -27,13 +27,13 @@ spec:
 
 ![a relative link](docs/assets/operatorhub-listing.png)
 
-3. Install the operator in the `openshift-gitops-operator` namesapce using the defaults in the wizard, and optionally, select the checkbox to enable cluster monitoring on the namesapce. Wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-gitops-operator` namespace.
+3. Install the operator in the `openshift-gitops-operator` namespace using the defaults in the wizard, and optionally, select the checkbox to enable cluster monitoring on the namespace. Wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-gitops-operator` namespace.
 
 ![a relative link](docs/assets/installed-operator.png)
 
 4. To validate if the installation was successful, look for the route named `cluster` in the `openshift-gitops` namespace. Note: the namespace doesn't have to exist in advance, the operator creates it for you.
 
-That's it! Your API `route` should be created for you. You don't need to expliclty create any operand/CR.
+That's it! Your API `route` should be created for you. You don't need to explicitly create any operand/CR.
 
 ## Contributing
 
