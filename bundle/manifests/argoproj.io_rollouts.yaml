@@ -3,6 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.12.1
+  creationTimestamp: null
   name: rollouts.argoproj.io
 spec:
   group: argoproj.io
@@ -13,7 +14,6 @@ spec:
     shortNames:
     - ro
     singular: rollout
-  preserveUnknownFields: false
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
