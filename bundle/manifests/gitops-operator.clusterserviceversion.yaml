@@ -223,7 +223,7 @@ spec:
       resources:
       - kind: ArgoCD
         name: ""
-        version: v1alpha1
+        version: v1beta1
       - kind: ConfigMap
         name: ""
         version: v1
@@ -294,14 +294,6 @@ spec:
       displayName: RolloutManager
       kind: RolloutManager
       name: rolloutmanagers.argoproj.io
-      version: v1alpha1
-    - description: A Rollout acts as a drop-in replacement for a Deployment resource.
-        It provides additional blueGreen and canary update strategies.
-        These strategies can create AnalysisRuns and Experiments during the update,
-        which will progress the update, or abort it.
-      displayName: Rollout
-      kind: Rollout
-      name: rollouts.argoproj.io
       version: v1alpha1
   description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
