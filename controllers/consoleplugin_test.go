@@ -2,10 +2,13 @@ package controllers
 
 import (
 	"context"
+	"maps"
 	"testing"
 
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1061,6 +1064,36 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 			assert.Equal(t, deployment.Spec.Template.Spec.DNSPolicy, corev1.DNSClusterFirst)
 		})
 	}
+}
+
+func TestPlugin_reconcileDeployment_changedInfraNodeSelector(t *testing.T) {
+
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			RunOnInfra:  true,
+			Tolerations: deploymentDefaultTolerations(),
+		},
+	}
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(gitopsService).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	nSelector := common.InfraNodeSelector()
+	maps.Copy(nSelector, argocommon.DefaultNodeSelector())
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
 }
 
 func TestPlugin_reconcileDeployment(t *testing.T) {
