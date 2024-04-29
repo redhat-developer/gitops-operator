@@ -761,6 +761,10 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				"app.kubernetes.io/name": ns.Name,
+
+				// restricted-v2 pinning is recommended for openshift workloads
+				// This SCC mutates the Pod Spec to pass PSA's restricted policy.
+				"openshift.io/required-scc": "restricted-v2",
 			},
 		},
 		Spec: podSpec,
