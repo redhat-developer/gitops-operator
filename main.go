@@ -219,8 +219,9 @@ func main() {
 	}
 
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:                       mgr.GetClient(),
+		Scheme:                       mgr.GetScheme(),
+		OpenShiftRoutePluginLocation: getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
@@ -252,6 +253,29 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+// getArgoRolloutsOpenshiftRouteTrafficManagerPath returns the location of the Argo Rollouts OpenShift Route Traffic Management plugin. The location of the plugin is different based on whether we are running as part of OpenShift GitOps, or gitops-operator.
+func getArgoRolloutsOpenshiftRouteTrafficManagerPath() string {
+
+	// First, allow the user to change the plugin location via env var
+	openShiftRoutePluginLocation := os.Getenv("OPENSHIFT_ROUTE_PLUGIN_LOCATION")
+	if openShiftRoutePluginLocation != "" {
+		return openShiftRoutePluginLocation
+	}
+
+	// Next, if we are running on an image built by CPaaS, then we can assume that the openshift-route-plugin has been installed to '/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin' within the 'registry.redhat.io/openshift-gitops-1/argo-rollouts-rhel*' container image.
+	// However, if we are not running an image built by CPaaS, for example, because we are running the gitops-operator upstream E2E tests, then we default to retrieving Route plugin from the upstream dependency: https://github.com/argoproj-labs/argo-rollouts-manager/blob/1f89f7a53b712f83c7051503d571ae2758fed9d6/main.go#L53
+
+	argoRolloutsImage := os.Getenv("ARGO_ROLLOUTS_IMAGE")
+	if argoRolloutsImage != "" && strings.HasPrefix(argoRolloutsImage, "registry.redhat.io/openshift-gitops") {
+		openShiftRoutePluginLocation = "/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin"
+		return openShiftRoutePluginLocation
+	}
+
+	// Otherwise, if ARGO_ROLLOUTS_IMAGE is not set, or is not an OpenShift GitOps image, then we return the default from the dependency.
+	return rolloutManagerProvisioner.DefaultOpenShiftRoutePluginURL
+
 }
 
 func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) error) {
