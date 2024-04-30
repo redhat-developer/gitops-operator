@@ -123,12 +123,6 @@ spec:
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
-    - description: NotificationsConfigurations contains the notification template used to generate notifications
-        that notify users about important changes in the application state.
-      displayName: NotificationsConfiguration
-      kind: NotificationsConfiguration
-      name: notificationsconfigurations.argoproj.io
-      version: v1alpha1
     - description: A controller for managing Argo Rollouts
       displayName: RolloutManager
       kind: RolloutManager
