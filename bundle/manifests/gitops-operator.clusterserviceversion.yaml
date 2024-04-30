@@ -169,7 +169,7 @@ metadata:
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-gitops-operator
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.10.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.22.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
@@ -924,7 +924,9 @@ spec:
           - create
         serviceAccountName: openshift-gitops-operator-controller-manager
       deployments:
-      - name: openshift-gitops-operator-controller-manager
+      - label:
+          control-plane: gitops-operator
+        name: openshift-gitops-operator-controller-manager
         spec:
           replicas: 1
           selector:

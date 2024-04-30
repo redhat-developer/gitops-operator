@@ -26,3 +26,4 @@ export KUBECONFIG=$TMP_DIR/kubeconfig
 
 # Run e2e test
 make test-e2e
+
