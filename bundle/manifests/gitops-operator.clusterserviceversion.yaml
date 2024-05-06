@@ -157,15 +157,15 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: An AnalysisRun is an instantiation of an AnalysisTemplate.
-        AnalysisRuns are like Jobs in that they eventually complete.
+    - description: An AnalysisRun is an instantiation of an AnalysisTemplate. AnalysisRuns
+        are like Jobs in that they eventually complete.
       displayName: AnalysisRun
       kind: AnalysisRun
       name: analysisruns.argoproj.io
       version: v1alpha1
-    - description: An AnalysisTemplate is a template spec which defines how to
-        perform a canary analysis, such as the metrics, its frequency,
-        and the values which are considered successful or failed.
+    - description: An AnalysisTemplate is a template spec which defines how to perform
+        a canary analysis, such as the metrics, its frequency, and the values which
+        are considered successful or failed.
       displayName: AnalysisTemplate
       kind: AnalysisTemplate
       name: analysistemplates.argoproj.io
@@ -186,6 +186,9 @@ spec:
       displayName: AppProject
       kind: AppProject
       name: appprojects.argoproj.io
+      version: v1alpha1
+    - kind: ArgoCD
+      name: argocds.argoproj.io
       version: v1alpha1
     - description: Argo CD is the representation of an Argo CD deployment.
       displayName: Argo CD
@@ -238,14 +241,16 @@ spec:
         name: ""
         version: v1
       version: v1beta1
-    - description: A ClusterAnalysisTemplate is like an AnalysisTemplate,but it is not limited to its namespace.
-        It can be used by any Rollout throughout the cluster.
+    - description: A ClusterAnalysisTemplate is like an AnalysisTemplate,but it is
+        not limited to its namespace. It can be used by any Rollout throughout the
+        cluster.
       displayName: ClusterAnalysisTemplate
       kind: ClusterAnalysisTemplate
       name: clusteranalysistemplates.argoproj.io
       version: v1alpha1
-    - description: An Experiment is limited run of one or more ReplicaSets for the purposes of analysis.
-        Experiments typically run for a pre-determined duration, but can also run indefinitely until stopped.
+    - description: An Experiment is limited run of one or more ReplicaSets for the
+        purposes of analysis. Experiments typically run for a pre-determined duration,
+        but can also run indefinitely until stopped.
       displayName: Experiment
       kind: Experiment
       name: experiments.argoproj.io
@@ -260,7 +265,9 @@ spec:
       kind: RolloutManager
       name: rolloutmanagers.argoproj.io
       version: v1alpha1
-
+    - kind: Rollout
+      name: rollouts.argoproj.io
+      version: v1alpha1
   description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
     GitOps principles for managing cluster configurations and automating secure and
@@ -536,6 +543,18 @@ spec:
           - argoproj.io
           resources:
           - rollouts
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rollouts
           - rollouts/finalizers
           - rollouts/scale
           - rollouts/status
@@ -548,6 +567,20 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rollouts/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - rollouts/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - autoscaling
           resources:
