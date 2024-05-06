@@ -248,6 +248,18 @@ rules:
   - argoproj.io
   resources:
   - rollouts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
   - rollouts/finalizers
   - rollouts/scale
   - rollouts/status
@@ -260,6 +272,20 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts/status
+  verbs:
+  - get
+  - patch
+  - update
 - apiGroups:
   - autoscaling
   resources:
