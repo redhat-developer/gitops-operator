@@ -30,6 +30,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
+	argocdCtrl "github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
@@ -541,6 +542,73 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Repo.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Server.Resources != nil)
+}
+
+func TestReconcile_VerifyTLSConfig(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	ctx := context.Background()
+
+	getArgoCDCR := func() *argoapp.ArgoCD {
+		return &argoapp.ArgoCD{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      serviceNamespace,
+				Namespace: serviceNamespace,
+			},
+			Spec: argoapp.ArgoCDSpec{
+				Server: argoapp.ArgoCDServerSpec{
+					Route: argoapp.ArgoCDRouteSpec{
+						Enabled: true,
+					},
+				},
+				ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			},
+		}
+	}
+
+	t.Run("should not update TLS config if it is already configured", func(t *testing.T) {
+		existingArgoCD := getArgoCDCR()
+		// update the TLS config before reconciling
+		existingArgoCD.Spec.Server.Route.TLS = &routev1.TLSConfig{
+			Termination: routev1.TLSTerminationEdge,
+		}
+
+		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(newGitopsService(), existingArgoCD).Build()
+		reconciler := newReconcileGitOpsService(fakeClient, s)
+
+		_, err := reconciler.Reconcile(ctx, newRequest("test", "test"))
+		assertNoError(t, err)
+
+		// TLS Configuration of the existing Argo CD instance shouldn't be updated
+		updatedArgoCD := &argoapp.ArgoCD{}
+		err = fakeClient.Get(ctx, types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+			updatedArgoCD)
+		assert.NilError(t, err)
+
+		assert.Equal(t, *updatedArgoCD.Spec.Server.Route.TLS, *existingArgoCD.Spec.Server.Route.TLS)
+	})
+
+	t.Run("should update TLS config if it is not configured", func(t *testing.T) {
+		existingArgoCD := getArgoCDCR()
+		fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(newGitopsService(), existingArgoCD).Build()
+		reconciler := newReconcileGitOpsService(fakeClient, s)
+
+		assert.Assert(t, existingArgoCD.Spec.Server.Route.TLS == nil)
+		_, err := reconciler.Reconcile(ctx, newRequest("test", "test"))
+		assertNoError(t, err)
+
+		// TLS Configuration of the existing Argo CD instance should get updated
+		updatedArgoCD := &argoapp.ArgoCD{}
+		err = fakeClient.Get(ctx, types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+			updatedArgoCD)
+		assert.NilError(t, err)
+
+		desiredArgoCDCR, err := argocdCtrl.NewCR(existingArgoCD.Name, existingArgoCD.Namespace)
+		assert.NilError(t, err)
+		assert.Equal(t, *updatedArgoCD.Spec.Server.Route.TLS, *desiredArgoCDCR.Spec.Server.Route.TLS)
+	})
+
 }
 
 func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {

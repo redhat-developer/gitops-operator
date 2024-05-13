@@ -18,6 +18,7 @@ package argocd
 
 import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	routev1 "github.com/openshift/api/route/v1"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -156,7 +157,13 @@ func getArgoRepoServerSpec() argoapp.ArgoCDRepoSpec {
 
 func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 	return argoapp.ArgoCDServerSpec{
-		Route: argoapp.ArgoCDRouteSpec{Enabled: true},
+		Route: argoapp.ArgoCDRouteSpec{
+			Enabled: true,
+			TLS: &routev1.TLSConfig{
+				Termination:                   routev1.TLSTerminationReencrypt,
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+			},
+		},
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("128Mi"),
