@@ -109,73 +109,135 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 	}
 
 	const clusterMonitoringLabel = "openshift.io/cluster-monitoring"
-	_, exists := namespace.Labels[clusterMonitoringLabel]
-	if !exists {
-		if namespace.Labels == nil {
-			namespace.Labels = make(map[string]string)
+	labelVal, exists := namespace.Labels[clusterMonitoringLabel]
+
+	if argocd.Spec.Monitoring.DisableMetrics == nil || !*argocd.Spec.Monitoring.DisableMetrics {
+		if !exists || labelVal != "true" {
+			if namespace.Labels == nil {
+				namespace.Labels = make(map[string]string)
+			}
+			namespace.Labels[clusterMonitoringLabel] = "true"
+			err = r.Client.Update(ctx, &namespace)
+			if err != nil {
+				reqLogger.Error(err, "Error updating namespace",
+					"Namespace", namespace.Name)
+				return reconcile.Result{}, err
+			}
 		}
-		namespace.Labels[clusterMonitoringLabel] = "true"
-		err = r.Client.Update(ctx, &namespace)
+
+		// Create role to grant read permission to the openshift metrics stack
+		err = r.createReadRoleIfAbsent(request.Namespace, argocd, reqLogger)
 		if err != nil {
-			reqLogger.Error(err, "Error updating namespace",
-				"Namespace", namespace.Name)
+			return reconcile.Result{}, err
+		}
+
+		// Create role binding to grant read permission to the openshift metrics stack
+		err = r.createReadRoleBindingIfAbsent(request.Namespace, argocd, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Create ServiceMonitor for ArgoCD application metrics
+		serviceMonitorLabel := fmt.Sprintf("%s-metrics", request.Name)
+		serviceMonitorName := request.Name
+		err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Create ServiceMonitor for ArgoCD API server metrics
+		serviceMonitorLabel = fmt.Sprintf("%s-server-metrics", request.Name)
+		serviceMonitorName = fmt.Sprintf("%s-server", request.Name)
+		err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Create ServiceMonitor for ArgoCD repo server metrics
+		serviceMonitorLabel = fmt.Sprintf("%s-repo-server", request.Name)
+		serviceMonitorName = fmt.Sprintf("%s-repo-server", request.Name)
+		err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Create alert rule
+		err = r.createPrometheusRuleIfAbsent(request.Namespace, argocd, reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcileDashboards(reqLogger)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		err = r.reconcileOperatorMetricsServiceMonitor(reqLogger)
+		if err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
-		reqLogger.Info("Namespace already has cluster-monitoring label",
-			"Namespace", namespace.Name)
-	}
+		if exists {
+			namespace.Labels[clusterMonitoringLabel] = "false"
+			err = r.Client.Update(ctx, &namespace)
+			if err != nil {
+				reqLogger.Error(err, "Error updating namespace",
+					"Namespace", namespace.Name)
+				return reconcile.Result{}, err
+			}
 
-	// Create role to grant read permission to the openshift metrics stack
-	err = r.createReadRoleIfAbsent(request.Namespace, argocd, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete role to grant read permission to the openshift metrics stack
+			err = r.Client.Delete(context.TODO(), &rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Namespace: request.Namespace, Name: fmt.Sprintf(readRoleNameFormat, request.Namespace)}})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					reqLogger.Error(err, "Error deleting role in ",
+						"Namespace", request.Namespace)
+					return reconcile.Result{}, err
+				}
+			}
 
-	// Create role binding to grant read permission to the openshift metrics stack
-	err = r.createReadRoleBindingIfAbsent(request.Namespace, argocd, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete role binding to grant read permission to the openshift metrics stack
+			err = r.Client.Delete(context.TODO(), &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Namespace: request.Namespace, Name: fmt.Sprintf(readRoleBindingNameFormat, request.Namespace)}})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					reqLogger.Error(err, "Error deleting rolebinding in ",
+						"Namespace", request.Namespace)
+					return reconcile.Result{}, err
+				}
+			}
 
-	// Create ServiceMonitor for ArgoCD application metrics
-	serviceMonitorLabel := fmt.Sprintf("%s-metrics", request.Name)
-	serviceMonitorName := request.Name
-	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete ServiceMonitor for ArgoCD application metrics
+			serviceMonitorName := request.Name
+			err = r.deleteServiceMonitor(serviceMonitorName, request.Namespace, reqLogger)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 
-	// Create ServiceMonitor for ArgoCD API server metrics
-	serviceMonitorLabel = fmt.Sprintf("%s-server-metrics", request.Name)
-	serviceMonitorName = fmt.Sprintf("%s-server", request.Name)
-	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete ServiceMonitor for ArgoCD API server metrics
+			serviceMonitorName = fmt.Sprintf("%s-server", request.Name)
+			err = r.deleteServiceMonitor(serviceMonitorName, request.Namespace, reqLogger)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 
-	// Create ServiceMonitor for ArgoCD repo server metrics
-	serviceMonitorLabel = fmt.Sprintf("%s-repo-server", request.Name)
-	serviceMonitorName = fmt.Sprintf("%s-repo-server", request.Name)
-	err = r.createServiceMonitorIfAbsent(request.Namespace, argocd, serviceMonitorName, serviceMonitorLabel, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete ServiceMonitor for ArgoCD repo server metrics
+			serviceMonitorName = fmt.Sprintf("%s-repo-server", request.Name)
+			err = r.deleteServiceMonitor(serviceMonitorName, request.Namespace, reqLogger)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 
-	// Create alert rule
-	err = r.createPrometheusRuleIfAbsent(request.Namespace, argocd, reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+			// Delete alert rule
+			err = r.Client.Delete(context.TODO(), &monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Namespace: request.Namespace, Name: alertRuleName}})
+			if err != nil {
+				if !errors.IsNotFound(err) {
+					reqLogger.Error(err, "Error deleting prometheus in ",
+						"Namespace", request.Namespace)
+					return reconcile.Result{}, err
+				}
+			}
 
-	err = r.reconcileDashboards(reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = r.reconcileOperatorMetricsServiceMonitor(reqLogger)
-	if err != nil {
-		return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -280,6 +342,20 @@ func (r *ArgoCDMetricsReconciler) createServiceMonitorIfAbsent(namespace string,
 	}
 	reqLogger.Error(err, "Error querying for ServiceMonitor", "Namespace", namespace, "Name", name)
 	return err
+}
+
+func (r *ArgoCDMetricsReconciler) deleteServiceMonitor(name string, namespace string, reqLogger logr.Logger) error {
+
+	err := r.Client.Delete(context.TODO(), &monitoringv1.ServiceMonitor{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Error deleting servicemonitor",
+				"Namespace", namespace)
+			return err
+		}
+	}
+	return nil
+
 }
 
 func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogger logr.Logger) error {
