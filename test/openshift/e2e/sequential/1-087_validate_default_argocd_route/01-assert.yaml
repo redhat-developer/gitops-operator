@@ -6,11 +6,7 @@ metadata:
 spec:
   server:
     route:
-      enabled: true
-      tls:
-        termination: passthrough
-        insecureEdgeTerminationPolicy: None
-  
+      enabled: true  
 status:
   phase: Available
 ---
@@ -24,7 +20,7 @@ spec:
     targetPort: https
   tls:
     insecureEdgeTerminationPolicy: None
-    termination: passthrough
+    termination: reencrypt
   to:
     kind: Service
     name: openshift-gitops-server

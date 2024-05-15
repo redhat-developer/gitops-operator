@@ -8,7 +8,7 @@ spec:
     route:
       enabled: true
       tls:
-        termination: reencrypt
+        termination: passthrough
         insecureEdgeTerminationPolicy: None
   
 status:
@@ -24,7 +24,7 @@ spec:
     targetPort: https
   tls:
     insecureEdgeTerminationPolicy: None
-    termination: reencrypt
+    termination: passthrough
   to:
     kind: Service
     name: openshift-gitops-server
