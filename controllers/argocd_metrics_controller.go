@@ -529,7 +529,8 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 						},
 						For: "5m",
 						Labels: map[string]string{
-							"severity": "warning",
+							"severity":    "warning",
+							"description": "ArgoCDSyncAlert is listed if Argo CD app is out of sync",
 						},
 					},
 				},

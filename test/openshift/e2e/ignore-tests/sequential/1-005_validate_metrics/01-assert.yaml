@@ -50,3 +50,4 @@ spec:
       expr: argocd_app_info{namespace="openshift-gitops",sync_status="OutOfSync"} > 0
       labels:
         severity: warning
+        description: ArgoCDSyncAlert is listed if Argo CD app is out of sync
