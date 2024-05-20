@@ -476,11 +476,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		// if existingArgoCD.Spec.Server.Route.TLS == nil {
-		// 	existingArgoCD.Spec.Server.Route.TLS = defaultArgoCDInstance.Spec.Server.Route.TLS
-		// 	changed = true
-		// }
-
 		if changed {
 			reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
 			err = r.Client.Update(context.TODO(), existingArgoCD)

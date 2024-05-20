@@ -158,10 +158,6 @@ func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 	return argoapp.ArgoCDServerSpec{
 		Route: argoapp.ArgoCDRouteSpec{
 			Enabled: true,
-			// TLS: &routev1.TLSConfig{
-			// 	Termination:                   routev1.TLSTerminationReencrypt,
-			// 	InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-			// },
 		},
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
