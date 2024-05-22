@@ -156,9 +156,7 @@ func getArgoRepoServerSpec() argoapp.ArgoCDRepoSpec {
 
 func getArgoServerSpec() argoapp.ArgoCDServerSpec {
 	return argoapp.ArgoCDServerSpec{
-		Route: argoapp.ArgoCDRouteSpec{
-			Enabled: true,
-		},
+		Route: argoapp.ArgoCDRouteSpec{Enabled: true},
 		Resources: &v1.ResourceRequirements{
 			Requests: v1.ResourceList{
 				v1.ResourceMemory: resourcev1.MustParse("128Mi"),
