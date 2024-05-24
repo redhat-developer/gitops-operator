@@ -483,8 +483,6 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
-	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 	var replicas int32 = 1
 
@@ -586,9 +584,11 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
 
-			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
+			fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService(), d).Build()
+			reconciler := newReconcileGitOpsService(fakeClient, s)
+
+			_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
 
 			deployment := &appsv1.Deployment{}
