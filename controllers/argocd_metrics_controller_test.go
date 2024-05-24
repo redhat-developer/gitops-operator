@@ -283,7 +283,8 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		assert.Equal(t, rule.OwnerReferences[0].Name, tc.instanceName)
 
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Alert, "ArgoCDSyncAlert")
-		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["message"] != "")
+		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["summary"] != "")
+		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["description"] != "")
 		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Labels["severity"] != "")
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].For, "5m")
 		expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", tc.namespace)
