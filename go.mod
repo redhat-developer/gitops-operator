@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.21
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240508151103-837f3074a22a
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240523090051-c132cfa3b129
 	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240522063919-1ff45e5571c1
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.1
@@ -18,6 +18,7 @@ require (
 	golang.org/x/mod v0.17.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.2
+	k8s.io/apiextensions-apiserver v0.29.2
 	k8s.io/apimachinery v0.29.2
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
@@ -58,6 +59,7 @@ require (
 	github.com/operator-framework/operator-sdk v0.18.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.50.0 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
@@ -81,7 +83,6 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.29.2 // indirect
 	k8s.io/component-base v0.29.2 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240227032403-f107216b40e2 // indirect
