@@ -420,6 +420,15 @@ rules:
   - update
   - watch
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - get
+  - list
+  - update
+- apiGroups:
   - oauth.openshift.io
   resources:
   - oauthclients
