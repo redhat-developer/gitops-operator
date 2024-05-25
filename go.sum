@@ -637,8 +637,8 @@ github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4x
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240523090051-c132cfa3b129 h1:YtNAop3DoYHtEURYAE3tCdt/2atebYfBtviRd5vGLqs=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240523090051-c132cfa3b129/go.mod h1:k3wvHCFndILKZytoWhbK8kTUBUsnzS1GmnxMF3X0W0Y=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240525211646-b3e573f0e6ea h1:mEBK+0Y8wd/JFxq9TYyE9UY3Q1vC9G+U6+nFqy9GTvw=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240525211646-b3e573f0e6ea/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
 github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240522063919-1ff45e5571c1 h1:YDYzf9ixW2hxGf+3UjBPJHlJxHAqZy15gu5I+FiJHio=
 github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240522063919-1ff45e5571c1/go.mod h1:7sKiKXblkKFvdZQ6VVerbp4+HBboi3VdZuqSuTa7OX8=
 github.com/argoproj/argo-cd/v2 v2.10.8 h1:WRnzXqMiAapSYzR6fkDUBfen+irHlOeCG6zrXWuPU9E=
@@ -1551,8 +1551,6 @@ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZN
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/pquerna/cachecontrol v0.1.0/go.mod h1:NrUG3Z7Rdu85UNR3vm7SOsl1nFIeSiQnrHV5K9mBcUI=
 github.com/prometheus-community/prom-label-proxy v0.1.1-0.20200616110844-0fbfa11fa8f3/go.mod h1:XdjyZg7LCbCC5FADHtpgNp6kQ0W9beXVGfmcvndMj5Y=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.50.0 h1:eIYVhtUPLDah0nhcHaWItFM595UAGVFKECaWoW02FUA=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.50.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus/alertmanager v0.18.0/go.mod h1:WcxHBl40VSPuOaqWae6l6HpnEOVRIycEJ7i9iYkadEE=
 github.com/prometheus/alertmanager v0.20.0/go.mod h1:9g2i48FAyZW6BtbsnvHtMHQXl2aVtrORKwKVCQ+nbrg=
 github.com/prometheus/client_golang v0.0.0-20180209125602-c332b6f63c06/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=

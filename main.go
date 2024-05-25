@@ -220,10 +220,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	isNamespaceScoped := strings.ToLower(os.Getenv(rolloutManagerProvisioner.NamespaceScopedArgoRolloutsController)) == "true"
+
+	if isNamespaceScoped {
+		setupLog.Info("Argo Rollouts manager running in namespaced-scoped mode")
+	} else {
+		setupLog.Info("Argo Rollouts manager running in cluster-scoped mode")
+	}
+
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client:                       mgr.GetClient(),
-		Scheme:                       mgr.GetScheme(),
-		OpenShiftRoutePluginLocation: getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
+		Client:                                mgr.GetClient(),
+		Scheme:                                mgr.GetScheme(),
+		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
+		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
