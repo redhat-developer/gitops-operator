@@ -45,6 +45,7 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -169,6 +170,7 @@ func main() {
 	registerComponentOrExit(mgr, templatev1.AddToScheme)
 	registerComponentOrExit(mgr, appsv1.AddToScheme)
 	registerComponentOrExit(mgr, oauthv1.AddToScheme)
+	registerComponentOrExit(mgr, crdv1.AddToScheme)
 
 	// Start webhook only if ENABLE_CONVERSION_WEBHOOK is set
 	if strings.EqualFold(os.Getenv("ENABLE_CONVERSION_WEBHOOK"), "true") {
@@ -218,10 +220,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	isNamespaceScoped := strings.ToLower(os.Getenv(rolloutManagerProvisioner.NamespaceScopedArgoRolloutsController)) == "true"
+
+	if isNamespaceScoped {
+		setupLog.Info("Argo Rollouts manager running in namespaced-scoped mode")
+	} else {
+		setupLog.Info("Argo Rollouts manager running in cluster-scoped mode")
+	}
+
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client:                       mgr.GetClient(),
-		Scheme:                       mgr.GetScheme(),
-		OpenShiftRoutePluginLocation: getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
+		Client:                                mgr.GetClient(),
+		Scheme:                                mgr.GetScheme(),
+		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
+		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
