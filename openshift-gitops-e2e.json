@@ -1,15 +1,8 @@
 {
-   "name": "",
-   "tests": 0,
-   "failures": 0,
-   "time": "556.349",
-   "testsuite": [
-     {
-       "tests": 0,
-       "failures": 0,
-       "timestamp": "2024-05-27T23:54:12.208812+05:30",
-       "time": "0.000",
-       "name": "./test/openshift/e2e/sequential"
-     }
-   ]
- }
+  "name": "",
+  "tests": 0,
+  "failures": 0,
+  "time": "0.030",
+  "failure": {
+    "message": "fatal error getting client: Get \"https://api.ci-ln-1zxgkcb-76ef8.aws-2.ci.openshift.org:6443/api?timeout=32s\": dial tcp: lookup api.ci-ln-1zxgkcb-76ef8.aws-2.ci.openshift.org on 192.168.0.1:53: no such host"
+  }
