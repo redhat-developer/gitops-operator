@@ -1,12 +1,12 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: ClusterRole
 metadata:
-  name: argo-rollouts
   labels:
     app.kubernetes.io/component: argo-rollouts
     app.kubernetes.io/name: argo-rollouts
     app.kubernetes.io/part-of: argo-rollouts
+  name: argo-rollouts
 rules:
 - apiGroups:
   - argoproj.io
@@ -221,3 +221,14 @@ rules:
   - watch
   - get
   - update
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - create
+  - watch
+  - get
+  - update
+  - patch
+  - list

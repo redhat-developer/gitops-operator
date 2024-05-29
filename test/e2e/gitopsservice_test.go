@@ -156,13 +156,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
 
-			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
-			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
-			// Thus, applying missing rules for 'argocd-application-controller'
-			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			err = applyMissingPermissions("openshift-gitops", "openshift-gitops")
-			Expect(err).NotTo(HaveOccurred())
-
 			cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
 			err = cmd.Run()
 			Expect(err).NotTo(HaveOccurred())
@@ -341,9 +334,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
 			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
 			// Thus, applying missing rules for 'argocd-application-controller'
-			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			err := applyMissingPermissions("openshift-gitops", "openshift-gitops")
-			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
 				_, err := helper.ProjectExists("default", "openshift-gitops")
@@ -416,14 +406,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				return nil
 			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
-			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
-			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
-			// Thus, applying missing rules for 'argocd-application-controller'
-			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			if err := applyMissingPermissions(argocdInstance, sourceNS); err != nil {
-				Expect(err).NotTo(HaveOccurred())
-			}
-
 			// create a target namespace to deploy resources
 			// allow argocd to create resources in the target namespace by adding managed-by label
 			targetNamespaceObj := &corev1.Namespace{
@@ -491,13 +473,6 @@ var _ = Describe("GitOpsServiceController", func() {
 	Context("Validate permission label feature for OOTB Argo CD instance", func() {
 		argocdTargetNamespace := "argocd-target"
 		It("Create target namespace", func() {
-			// 'When GitOps operator is run locally (not installed via OLM), it does not correctly setup
-			// the 'argoproj.io' Role rules for the 'argocd-application-controller'
-			// Thus, applying missing rules for 'argocd-application-controller'
-			// TODO: Remove once https://github.com/redhat-developer/gitops-operator/issues/148 is fixed
-			err := applyMissingPermissions(argoCDInstanceName, argoCDNamespace)
-			Expect(err).NotTo(HaveOccurred())
-
 			// create a target namespace to deploy resources
 			// allow argocd to create resources in the target namespace by adding managed-by label
 			targetNamespaceObj := &corev1.Namespace{
@@ -508,7 +483,7 @@ var _ = Describe("GitOpsServiceController", func() {
 					},
 				},
 			}
-			err = k8sClient.Create(context.TODO(), targetNamespaceObj)
+			err := k8sClient.Create(context.TODO(), targetNamespaceObj)
 			if !kubeerrors.IsAlreadyExists(err) {
 				Expect(err).NotTo(HaveOccurred())
 			}
