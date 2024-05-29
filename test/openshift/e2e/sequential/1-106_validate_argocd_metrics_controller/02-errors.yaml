@@ -1,0 +1,42 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: openshift-gitops
+  labels:
+    openshift.io/cluster-monitoring: 'true'
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops-repo-server
+  namespace: openshift-gitops
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: openshift-gitops-server  
+  namespace: openshift-gitops
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openshift-gitops-read
+  namespace: openshift-gitops
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openshift-gitops-prometheus-k8s-read-binding
+  namespace: openshift-gitops
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-operator-argocd-alerts
+  namespace: openshift-gitops      

@@ -52,7 +52,7 @@ const (
 	argoCDInstanceName = "openshift-gitops"
 )
 
-func newClient(s *runtime.Scheme, namespace, name string) client.Client {
+func newClient(s *runtime.Scheme, namespace, name string, disableMetrics *bool) client.Client {
 	ns := corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
 			Name: namespace,
@@ -63,14 +63,19 @@ func newClient(s *runtime.Scheme, namespace, name string) client.Client {
 			Name:      name,
 			Namespace: namespace,
 		},
+		Spec: argoapp.ArgoCDSpec{
+			Monitoring: argoapp.ArgoCDMonitoringSpec{
+				DisableMetrics: disableMetrics,
+			},
+		},
 	}
 	return fake.NewClientBuilder().WithScheme(s).WithObjects(&ns, &argocd).Build()
 }
 
-func newMetricsReconciler(t *testing.T, namespace, name string) ArgoCDMetricsReconciler {
+func newMetricsReconciler(t *testing.T, namespace, name string, disableMetrics *bool) ArgoCDMetricsReconciler {
 	t.Helper()
 	s := newScheme()
-	c := newClient(s, namespace, name)
+	c := newClient(s, namespace, name, disableMetrics)
 	r := ArgoCDMetricsReconciler{Client: c, Scheme: s}
 	return r
 }
@@ -90,7 +95,7 @@ func TestReconcile_add_namespace_label(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, nil)
 		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
@@ -117,7 +122,7 @@ func TestReconcile_add_read_role(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, nil)
 		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
@@ -160,7 +165,7 @@ func TestReconcile_add_read_role_binding(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, nil)
 		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
@@ -204,7 +209,7 @@ func TestReconcile_add_service_monitors(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, nil)
 		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
@@ -255,6 +260,46 @@ func TestReconcile_add_service_monitors(t *testing.T) {
 	}
 }
 
+func TestReconcile_remove_service_monitors(t *testing.T) {
+	testCases := []struct {
+		instanceName string
+		namespace    string
+	}{
+		{
+			instanceName: argoCDInstanceName,
+			namespace:    "openshift-gitops",
+		},
+		{
+			instanceName: "instance-two",
+			namespace:    "namespace-two",
+		},
+	}
+	flagPtr := true
+	for _, tc := range testCases {
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, &flagPtr)
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
+		assert.NilError(t, err)
+
+		serviceMonitor := monitoringv1.ServiceMonitor{}
+		serviceMonitorName := tc.instanceName
+
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceMonitorName, Namespace: tc.namespace}, &serviceMonitor)
+		assert.Error(t, err, err.Error())
+
+		serviceMonitor = monitoringv1.ServiceMonitor{}
+		serviceMonitorName = fmt.Sprintf("%s-server", tc.instanceName)
+
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceMonitorName, Namespace: tc.namespace}, &serviceMonitor)
+		assert.Error(t, err, err.Error())
+
+		serviceMonitor = monitoringv1.ServiceMonitor{}
+		serviceMonitorName = fmt.Sprintf("%s-repo-server", tc.instanceName)
+
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceMonitorName, Namespace: tc.namespace}, &serviceMonitor)
+		assert.Error(t, err, err.Error())
+	}
+}
+
 func TestReconciler_add_prometheus_rule(t *testing.T) {
 	testCases := []struct {
 		instanceName string
@@ -269,8 +314,9 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 			namespace:    "namespace-two",
 		},
 	}
+	flagPtr := false
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, &flagPtr)
 		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
 		assert.NilError(t, err)
 
@@ -319,7 +365,7 @@ func TestReconciler_add_dashboard(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		r := newMetricsReconciler(t, tc.namespace, tc.instanceName)
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, nil)
 		// Create dashboard namespace
 		err := r.Client.Create(context.TODO(), &ns)
 		assert.NilError(t, err)
