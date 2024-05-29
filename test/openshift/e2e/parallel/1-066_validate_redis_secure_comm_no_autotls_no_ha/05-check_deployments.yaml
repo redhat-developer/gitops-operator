@@ -9,6 +9,7 @@ commands:
     --protected-mode no \
     --save  \
     --appendonly no \
+    --requirepass \$(REDIS_PASSWORD) \
     --tls-port 6379 \
     --port 0 \
     --tls-cert-file /app/config/redis/tls/tls.crt \
