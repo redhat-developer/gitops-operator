@@ -152,10 +152,9 @@ func createNewCommitAndBranch(latestRolloutsManagerCommitId string, newBranchNam
 		return false, err
 	}
 
-	// TODO: Uncomment this once we have argo-rollouts test integration with gitops-oeprator
-	// if err := regenerateE2ETestScript(latestRolloutsManagerCommitId, pathToGitOpsOperatorGitRepo); err != nil {
-	// 	return false, err
-	// }
+	if err := regenerateE2ETestScript(latestRolloutsManagerCommitId, pathToGitOpsOperatorGitRepo); err != nil {
+		return false, err
+	}
 
 	if err := copyCRDsFromRolloutsManagerRepo(pathToArgoRolloutsManagerRepo, pathToGitOpsOperatorGitRepo); err != nil {
 		return false, fmt.Errorf("unable to copy rollouts CRDs: %w", err)
@@ -247,7 +246,7 @@ func regenerateE2ETestScript(commitID string, pathToGitRepo string) error {
 	// Format of string to modify:
 	// TARGET_ROLLOUT_MANAGER_COMMIT=(commit id)
 
-	path := filepath.Join(pathToGitRepo, "scripts/openshiftci-presubmit-all-tests.sh")
+	path := filepath.Join(pathToGitRepo, "scripts/run-rollouts-e2e-tests.sh")
 
 	fileBytes, err := os.ReadFile(path)
 	if err != nil {
