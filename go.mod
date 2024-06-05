@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240525211646-b3e573f0e6ea
-	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240528113109-cc67ce184e7e
+	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240529173644-1c00c1a21df6
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
@@ -27,7 +27,7 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.10.8 // indirect
+	github.com/argoproj/argo-cd/v2 v2.11.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -43,7 +43,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
