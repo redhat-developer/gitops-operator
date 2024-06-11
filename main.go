@@ -280,7 +280,7 @@ func getArgoRolloutsOpenshiftRouteTrafficManagerPath() string {
 
 	argoRolloutsImage := os.Getenv("ARGO_ROLLOUTS_IMAGE")
 	if argoRolloutsImage != "" && strings.HasPrefix(argoRolloutsImage, "registry.redhat.io/openshift-gitops") {
-		openShiftRoutePluginLocation = "/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin"
+		openShiftRoutePluginLocation = "file:/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin"
 		return openShiftRoutePluginLocation
 	}
 
