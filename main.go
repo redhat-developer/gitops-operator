@@ -128,6 +128,15 @@ func main() {
 		setupLog.Info("unable to inspect cluster")
 	}
 
+	if err := argocd.InspectCluster(); err != nil {
+		setupLog.Info("unable to inspect cluster")
+	}
+
+	if !argocd.IsRouteAPIAvailable() {
+		setupLog.Info("route API not available")
+		os.Exit(1)
+	}
+
 	disableHTTP2 := func(c *tls.Config) {
 		if enableHTTP2 {
 			return
