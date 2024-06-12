@@ -4,6 +4,8 @@
 # - Runs the (cluster-scoped) E2E tests of the Argo Rollouts operator
 # - Runs the upstream E2E tests from the argo-rollouts repo
 
+set -e
+
 ROLLOUTS_TMP_DIR=$(mktemp -d)
 
 cd $ROLLOUTS_TMP_DIR
@@ -24,7 +26,7 @@ make test-e2e
 
 # Clean up old namespaces created by test
 # NOTE: remove this once this is handled by 'make test-e2e' in argo-rollouts-manager repo
-kubectl delete rolloutmanagers --all -n test-rom-ns-1
+kubectl delete rolloutmanagers --all -n test-rom-ns-1 || true
 
 cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
