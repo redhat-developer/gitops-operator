@@ -362,6 +362,10 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 
 	data, err := os.ReadFile(operatorPodNamespacePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			reqLogger.Info(fmt.Sprintf("Unable to retrieve the operator's running namespace via '%s': you should only see this message when running within unit tests, otherwise it is an error.", operatorPodNamespacePath))
+			return nil
+		}
 		reqLogger.Error(err, "Error retrieving operator's running namespace")
 		return err
 	}
