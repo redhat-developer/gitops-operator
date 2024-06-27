@@ -24,8 +24,8 @@ spec:
   port:
     targetPort: 8443
   tls:
-    insecureEdgeTerminationPolicy: None
-    termination: passthrough
+    insecureEdgeTerminationPolicy: Redirect
+    termination: reencrypt
   to:
     kind: Service
     name: kam

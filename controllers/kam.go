@@ -144,8 +144,8 @@ func newRouteForCLI() *routev1.Route {
 			TargetPort: intstr.IntOrString{IntVal: portTLS},
 		},
 		TLS: &routev1.TLSConfig{
-			Termination:                   routev1.TLSTerminationPassthrough,
-			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
+			Termination:                   routev1.TLSTerminationReencrypt,
+			InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
 		},
 	}
 
