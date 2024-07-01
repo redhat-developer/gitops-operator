@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+
 	"os"
 	"reflect"
 	"strings"
@@ -57,6 +58,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -128,11 +130,7 @@ func main() {
 		setupLog.Info("unable to inspect cluster")
 	}
 
-	if err := argocd.InspectCluster(); err != nil {
-		setupLog.Info("unable to inspect cluster")
-	}
-
-	if !argocd.IsRouteAPIAvailable() {
+	if routeAvailable, err := argoutil.VerifyAPI(routev1.GroupName, routev1.GroupVersion.Version); !routeAvailable || err != nil {
 		setupLog.Info("route API not available")
 		os.Exit(1)
 	}
