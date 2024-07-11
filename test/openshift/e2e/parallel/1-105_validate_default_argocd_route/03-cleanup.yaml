@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+# patch the Argo CD CR to revert the updates to TLS Config
+- script: |
+    kubectl patch argocd openshift-gitops -n openshift-gitops --type='json' -p='[{"op": "remove", "path": "/spec/server/route/tls"}]'
+- script: sleep 10

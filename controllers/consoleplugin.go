@@ -279,7 +279,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			return reconcile.Result{}, err
 		}
 	} else {
-		existingSpecTemplate := existingPluginDeployment.Spec.Template
+		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
 		changed := !reflect.DeepEqual(existingPluginDeployment.ObjectMeta.Labels, newPluginDeployment.ObjectMeta.Labels) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
@@ -304,7 +304,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			existingSpecTemplate.Spec.DNSPolicy = newSpecTemplate.Spec.DNSPolicy
 			existingPluginDeployment.Spec.Template.Spec.NodeSelector = newPluginDeployment.Spec.Template.Spec.NodeSelector
 			existingPluginDeployment.Spec.Template.Spec.Tolerations = newPluginDeployment.Spec.Template.Spec.Tolerations
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginDeployment)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginDeployment)
 		}
 	}
 	return reconcile.Result{}, nil

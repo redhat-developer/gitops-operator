@@ -46,7 +46,8 @@ spec:
     rules:
     - alert: ArgoCDSyncAlert
       annotations:
-        message: ArgoCD application {{ $labels.name }} is out of sync
+        summary: Argo CD application is out of sync
+        description: Argo CD application {{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.
       expr: argocd_app_info{namespace="openshift-gitops",sync_status="OutOfSync"} > 0
       labels:
         severity: warning

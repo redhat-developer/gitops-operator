@@ -34,6 +34,20 @@ spec:
           spec:
             description: RolloutManagerSpec defines the desired state of Argo Rollouts
             properties:
+              additionalMetadata:
+                description: Metadata to apply to the generated resources
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Annotations to add to the resources during its creation.
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Labels to add to the resources during its creation.
+                    type: object
+                type: object
               env:
                 description: Env lets you specify environment for Rollouts pods
                 items:

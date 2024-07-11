@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  server:
+    route:
+      enabled: true
+      tls:
+        termination: passthrough
+        insecureEdgeTerminationPolicy: None
+  
+status:
+  phase: Available
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openshift-gitops-server
+  namespace: openshift-gitops
+spec:
+  port:
+    targetPort: https
+  tls:
+    insecureEdgeTerminationPolicy: None
+    termination: passthrough
+  to:
+    kind: Service
+    name: openshift-gitops-server
+    weight: 100
+status:
+  ingress:
+  - conditions:
+    - status: "True"
+      type: Admitted
