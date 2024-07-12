@@ -1,11 +1,9 @@
 # Dockerfile to bootstrap build and test in openshift-ci
 
-FROM registry.ci.openshift.org/openshift/release:golang-1.19
+FROM registry.ci.openshift.org/openshift/release:golang-1.21
 
 ARG KUBECTL_KUTTL_VERSION=0.12.1
 ARG OPERATOR_SDK_VERSION=1.22.2
-
-RUN yum -y install dnf httpd-tools podman docker
 
 # Install kubectl tool which is used in e2e-tests
 RUN curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
