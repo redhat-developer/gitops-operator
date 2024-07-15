@@ -24,6 +24,7 @@ spec:
         - --http2-disable
         ports:
         - containerPort: 8443
+          protocol: TCP
           name: metrics
         resources:
           limits:
