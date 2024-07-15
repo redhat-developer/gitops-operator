@@ -11,6 +11,7 @@ spec:
   ports:
   - name: metrics
     port: 8443
+    protocol: TCP
     targetPort: metrics
   selector:
     control-plane: gitops-operator
