@@ -1,0 +1,23 @@
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    set -eo pipefail
+
+    ocp_major_version=$(oc version -o json | jq -r '.openshiftVersion' | cut -d'.' -f 1)
+    ocp_minor_version=$(oc version -o json | jq -r '.openshiftVersion' | cut -d'.' -f 2)
+
+    security_context=$(oc get deployment/openshift-gitops-operator-controller-manager -n openshift-operators -o jsonpath='{.spec.template.spec.containers[].securityContext}')
+    expected_security_context='{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true}'
+
+    if [ "${ocp_major_version}" -eq 4 ]  && [ "${ocp_minor_version}" -ge 12 ]; then
+        if [ "${security_context}" = "${expected_security_context}" ]; then
+            exit 0
+        else
+            echo "Error: deployment/openshift-gitops-operator-controller-manager container's security context is wrong"
+            exit 1
+        fi
+    else
+        echo "Info: This test is only applicable to OCP version 4.12 and higher."
+        exit 0
+    fi
