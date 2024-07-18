@@ -56,7 +56,7 @@ IMG ?= $(IMAGE):$(VERSION)
 
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.32.0
+OPERATOR_SDK_VERSION ?= v1.35.0
 
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -171,11 +171,11 @@ e2e-non-olm-tests-all:
 
 .PHONY: build
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -o bin/manager ./cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	REDIS_CONFIG_PATH="build/redis" go run ./main.go
+	REDIS_CONFIG_PATH="build/redis" go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
