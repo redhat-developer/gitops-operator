@@ -6,6 +6,8 @@ import (
 	"os"
 	"reflect"
 
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -241,16 +243,30 @@ func pluginConfigMap() *corev1.ConfigMap {
 	}
 }
 
-func (r *ReconcileGitopsService) reconcileDeployment(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	newPluginDeployment := pluginDeployment()
 
-	if err := controllerutil.SetControllerReference(instance, newPluginDeployment, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	newPluginDeployment.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
+
+	if cr.Spec.RunOnInfra {
+		newPluginDeployment.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
+	}
+	if len(cr.Spec.NodeSelector) > 0 {
+		newPluginDeployment.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(newPluginDeployment.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
+	}
+
+	if len(cr.Spec.Tolerations) > 0 {
+		newPluginDeployment.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}
 
 	// Check if this Deployment already exists
 	existingPluginDeployment := &appsv1.Deployment{}
+
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: newPluginDeployment.Name, Namespace: newPluginDeployment.Namespace}, existingPluginDeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -263,7 +279,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(instance *pipelinesv1alpha1
 			return reconcile.Result{}, err
 		}
 	} else {
-		existingSpecTemplate := existingPluginDeployment.Spec.Template
+		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
 		changed := !reflect.DeepEqual(existingPluginDeployment.ObjectMeta.Labels, newPluginDeployment.ObjectMeta.Labels) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
@@ -272,7 +288,9 @@ func (r *ReconcileGitopsService) reconcileDeployment(instance *pipelinesv1alpha1
 			!reflect.DeepEqual(existingSpecTemplate.Spec.Containers, newSpecTemplate.Spec.Containers) ||
 			!reflect.DeepEqual(existingSpecTemplate.Spec.Volumes, newSpecTemplate.Spec.Volumes) ||
 			!reflect.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy)
+			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
+			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
+			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
@@ -284,7 +302,9 @@ func (r *ReconcileGitopsService) reconcileDeployment(instance *pipelinesv1alpha1
 			existingSpecTemplate.Spec.Volumes = newSpecTemplate.Spec.Volumes
 			existingSpecTemplate.Spec.RestartPolicy = newSpecTemplate.Spec.RestartPolicy
 			existingSpecTemplate.Spec.DNSPolicy = newSpecTemplate.Spec.DNSPolicy
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginDeployment)
+			existingPluginDeployment.Spec.Template.Spec.NodeSelector = newPluginDeployment.Spec.Template.Spec.NodeSelector
+			existingPluginDeployment.Spec.Template.Spec.Tolerations = newPluginDeployment.Spec.Template.Spec.Tolerations
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginDeployment)
 		}
 	}
 	return reconcile.Result{}, nil

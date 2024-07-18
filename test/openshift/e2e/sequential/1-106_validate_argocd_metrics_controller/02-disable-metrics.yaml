@@ -1,0 +1,7 @@
+# We must not use declarative update/creation for gitopsservice, because kuttl
+# would delete the resource after the test finishes.
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+- script: |
+    oc patch argocd openshift-gitops -n openshift-gitops --type='json' -p='[{"op": "replace", "path": "/spec/monitoring/disableMetrics", "value": true}]'
