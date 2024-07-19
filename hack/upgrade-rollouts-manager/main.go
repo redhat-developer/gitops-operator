@@ -47,7 +47,7 @@ func main() {
 	}
 	commitIds := strings.Split(stdout, "\n")
 	if len(commitIds) == 0 {
-		exitWithError(fmt.Errorf("unable to retrive commit ids"))
+		exitWithError(fmt.Errorf("unable to retrieve commit ids"))
 	}
 
 	mostRecentCommitID := commitIds[0]
@@ -133,7 +133,7 @@ func createNewCommitAndBranch(latestRolloutsManagerCommitId string, newBranchNam
 		{"git", "stash"},
 		{"git", "fetch", "parent"},
 		{"git", "checkout", "master"},
-		{"git", "rebase", "parent/master"},
+		{"git", "reset", "--hard", "parent/master"},
 		{"git", "checkout", "-b", newBranchName},
 	}
 
@@ -257,7 +257,7 @@ func regenerateE2ETestScript(commitID string, pathToGitRepo string) error {
 
 	for _, line := range strings.Split(string(fileBytes), "\n") {
 
-		if strings.Contains(line, envName) {
+		if strings.HasPrefix(line, envName+"=") {
 
 			res += envName + "=" + commitID + "\n"
 

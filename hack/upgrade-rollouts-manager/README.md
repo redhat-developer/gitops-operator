@@ -12,7 +12,6 @@ The Go code and script in this directory will automatically open a pull request 
 ### Prerequisites
 - GitHub CLI (_gh_) installed and on PATH
 - Go installed and on PATH
-- Operator-sdk installed and on PATH
 - You must have your own fork of the [argo-rollouts-manager](https://github.com/argoproj-labs/argo-rollouts-manager) repository in GitHub(e.g. `jgwest/argo-rollouts-manager`)
 - Your local SSH key registered (e.g. `~/.ssh/id_rsa.pub`) with GitHub to allow git clone via SSH
 
