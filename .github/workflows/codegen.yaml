@@ -1,0 +1,60 @@
+name: Verify generated code is up to date
+on:
+  push:
+    branches:
+    - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  check-go-modules:
+    name: "Check for go.mod/go.sum synchronicity"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Download all Go modules
+        run: |
+          go mod download
+      - name: Check for tidyness of go.mod and go.sum
+        run: |
+          go mod tidy
+          git diff --exit-code -- .
+
+  check-sdk-codegen:
+    name: "Check for changes from make bundle"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      - name: Run make bundle
+        run: |
+          make bundle
+
+      # We ignore '*createdAt:*' because various generated YAMLs have a 'createdAt' field that is always updated with the current time.
+
+      - name: Ensure there is no diff in bundle
+        run: |
+          git diff --ignore-matching-lines='.*createdAt:.*' --exit-code -- .
+
+      - name: Run make generate
+        run: |
+          make generate
+      - name: Ensure there is no diff in generated assets
+        run: |
+          git diff --ignore-matching-lines='.*createdAt:.*' --exit-code -- .
+      - name: Run make manifests
+        run: |
+          make manifests
+      - name: Ensure there is no diff in manifests
+        run: |
+          git diff --ignore-matching-lines='.*createdAt:.*' --exit-code -- .
