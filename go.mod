@@ -4,18 +4,18 @@ go 1.21
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.3-0.20240525211646-b3e573f0e6ea
-	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240606074049-b7e666622415
+	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240717043955-806551f68206
 	github.com/coreos/prometheus-operator v0.40.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.33.1
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.17.5
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.17.0
+	golang.org/x/mod v0.19.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.2
 	k8s.io/apiextensions-apiserver v0.29.2
@@ -27,11 +27,12 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.11.2 // indirect
+	github.com/argoproj/argo-cd/v2 v2.11.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/cert-manager/cert-manager v1.14.4 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.11.3 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
@@ -56,14 +57,13 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/openshift/client-go v0.0.0-20240215090359-b71f6f2731f5 // indirect
-	github.com/operator-framework/operator-sdk v0.18.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.19.1 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.48.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	github.com/sethvargo/go-password v0.2.0 // indirect
+	github.com/sethvargo/go-password v0.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
@@ -85,6 +85,7 @@ require (
 	k8s.io/component-base v0.29.2 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240227032403-f107216b40e2 // indirect
+	sigs.k8s.io/gateway-api v1.0.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
