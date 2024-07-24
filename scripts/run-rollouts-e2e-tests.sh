@@ -16,7 +16,7 @@ cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in go.mod of gitops-operator (which will usually be the most recent argo-rollouts-manager commit)
-TARGET_ROLLOUT_MANAGER_COMMIT=b3e573f0e6ea3a5ec3eeba70ebb5d90e58efcd68
+TARGET_ROLLOUT_MANAGER_COMMIT=192dd2c3b5dd026e2c59c5765e98ca2f70ca01f9
 
 git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 
@@ -34,3 +34,4 @@ cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 # 2) Run E2E tests from argoproj/argo-rollouts repo
 
 SKIP_RUN_STEP=true hack/run-upstream-argo-rollouts-e2e-tests.sh
+
