@@ -423,7 +423,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		}
 	} else {
 		changed := false
-
 		if existingArgoCD.Spec.ApplicationSet != nil {
 			if existingArgoCD.Spec.ApplicationSet.Resources == nil {
 				existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
@@ -478,6 +477,10 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 				changed = true
 			}
+			// Handle the case where NodePlacement should be removed
+		} else if existingArgoCD.Spec.NodePlacement != nil {
+			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
+			changed = true
 		}
 
 		if changed {
