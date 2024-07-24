@@ -624,8 +624,8 @@ github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240722162401-192dd2c3b
 github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240722162401-192dd2c3b5dd/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
 github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240717043955-806551f68206 h1:9aldn/g7WxGlPrSJrnyRq5RYkhWAXpg69e3Ygvf3GZs=
 github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240717043955-806551f68206/go.mod h1:WN3DyeUxFxNJFCxg1JtnLDTuAqi+Wv82qeMmrZhoyp0=
-github.com/argoproj/argo-cd/v2 v2.11.4 h1:ADwC/pbRkAo4RQ0txHaMpd//yn0ZD/GkKuGXOkBa9bg=
-github.com/argoproj/argo-cd/v2 v2.11.4/go.mod h1:0H0h5kihqrTC5TiRxFkgE/IHirSN2bJ8JJVo3mMepnU=
+github.com/argoproj/argo-cd/v2 v2.11.6 h1:rAqp1oduTOaugPjlhmjDmjY+zf1chBEX/5SQZItXDcY=
+github.com/argoproj/argo-cd/v2 v2.11.6/go.mod h1:RfmtLRki6JBwq9jkgCMie9MzfvYqs0DfzbuG3JcDrPk=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=
 github.com/armon/go-metrics v0.3.0/go.mod h1:zXjbSimjXTd7vOpY8B0/2LpvNvDoXBuplAD+gJD3GYs=
