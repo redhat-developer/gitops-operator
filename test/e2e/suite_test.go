@@ -26,6 +26,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoapi "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -128,6 +129,7 @@ var _ = BeforeSuite(func() {
 	Expect(configv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(templatev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(appsv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(argoapi.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
