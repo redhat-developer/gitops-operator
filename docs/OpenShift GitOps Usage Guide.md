@@ -999,7 +999,7 @@ Refer [Working with Dex](#working-with-dex) section for more details.
 
 ## GitOps Monitoring Dashboards 
 
-As of GitOps Operator v1.10.0, the operator will deploy monitoring dashboards in the console Admin perspective. When navigating to *Observe* → *Monitoring* in the console, users should see three GitOps dashboards in the dropdown dashboard list: GitOps Overview, GitOps Components, and GitOps gRPC. These dashboards are based on the upstream Argo CD dashboards but have been modified to work with OpenShift console. 
+As of GitOps Operator will deploy monitoring dashboards in the console Admin perspective. When navigating to *Observe* → *Monitoring* in the console, users should see four GitOps dashboards in the dropdown dashboard list: GitOps Overview, GitOps Components, GitOps gRPC and Rollouts. These dashboards are based on the upstream Argo CD dashboards but have been modified to work with OpenShift console. 
 
 ![Dashboard Select Dropdown](assets/39.gitops_monitoring_dashboards_dropdown.png)
 
