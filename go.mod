@@ -1,10 +1,10 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.21
+go 1.21.0
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240722162401-192dd2c3b5dd
-	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240802182151-b4daa97202ef
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240807084148-a96aa79b5464
+	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240808123233-e231fd3340f4
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
@@ -17,9 +17,9 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.19.0
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.29.2
-	k8s.io/apiextensions-apiserver v0.29.2
-	k8s.io/apimachinery v0.29.2
+	k8s.io/api v0.29.6
+	k8s.io/apiextensions-apiserver v0.29.6
+	k8s.io/apimachinery v0.29.6
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	sigs.k8s.io/controller-runtime v0.17.2
@@ -27,7 +27,7 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.11.6 // indirect
+	github.com/argoproj/argo-cd/v2 v2.12.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cert-manager/cert-manager v1.14.4 // indirect
@@ -82,8 +82,9 @@ require (
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/component-base v0.29.2 // indirect
+	k8s.io/component-base v0.29.6 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/kube-aggregator v0.29.6 // indirect
 	k8s.io/kube-openapi v0.0.0-20240227032403-f107216b40e2 // indirect
 	sigs.k8s.io/gateway-api v1.0.0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

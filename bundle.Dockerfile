@@ -7,7 +7,7 @@ LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
 LABEL operators.operatorframework.io.bundle.package.v1=gitops-operator
 LABEL operators.operatorframework.io.bundle.channels.v1=latest,gitops-1.8
 LABEL operators.operatorframework.io.bundle.channel.default.v1=latest
-LABEL operators.operatorframework.io.metrics.builder=operator-sdk-v1.35.0
+LABEL operators.operatorframework.io.metrics.builder=operator-sdk-v1.36.0
 LABEL operators.operatorframework.io.metrics.mediatype.v1=metrics+v1
 LABEL operators.operatorframework.io.metrics.project_layout=go.kubebuilder.io/v4
 
