@@ -177,7 +177,7 @@ metadata:
     operatorframework.io/cluster-monitoring: "true"
     operatorframework.io/suggested-namespace: openshift-gitops-operator
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.36.0
+    operators.operatorframework.io/builder: operator-sdk-v1.35.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
