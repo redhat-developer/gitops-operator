@@ -37,7 +37,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -91,6 +90,62 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
+}
+
+func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	var err error
+
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			NodeSelector: map[string]string{
+				"foo": "bar",
+			},
+		},
+	}
+
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	existingArgoCD := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      serviceNamespace,
+			Namespace: serviceNamespace,
+		},
+		Spec: argoapp.ArgoCDSpec{
+			Server: argoapp.ArgoCDServerSpec{
+				Route: argoapp.ArgoCDRouteSpec{
+					Enabled: true,
+				},
+			},
+			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Provider: "dex",
+				Dex: &argoapp.ArgoCDDexSpec{
+					Config: "test-config",
+				},
+			},
+		},
+	}
+
+	err = fakeClient.Create(context.TODO(), existingArgoCD)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// verify whether existingArgoCD NodePlacement is updated when user is patching nodePlacement through GitopsService CR
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		existingArgoCD)
+	assertNoError(t, err)
+	assert.Check(t, existingArgoCD.Spec.NodePlacement != nil)
+	assert.DeepEqual(t, existingArgoCD.Spec.NodePlacement.NodeSelector, gitopsService.Spec.NodeSelector)
 }
 
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
@@ -553,14 +608,14 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 
 	// Create namespace object for default ArgoCD instance and set resource quota to it.
 	defaultArgoNS := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name: serviceNamespace,
 		},
 	}
 	fakeClient.Create(context.TODO(), defaultArgoNS)
 
 	dummyResourceObj := &corev1.ResourceQuota{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-compute-resources", serviceNamespace),
 			Namespace: serviceNamespace,
 		},
@@ -613,7 +668,7 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 	gitopsService := &pipelinesv1alpha1.GitopsService{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name: serviceName,
 		},
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{

@@ -29,7 +29,6 @@ import (
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -349,7 +348,7 @@ func TestReconciler_add_dashboard(t *testing.T) {
 
 	// Need to create one configmap to test update existing versus create
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: v1.ObjectMeta{
 			Name:      "gitops-overview",
 			Namespace: dashboardNamespace,
 		},

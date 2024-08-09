@@ -423,7 +423,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		}
 	} else {
 		changed := false
-
 		if existingArgoCD.Spec.ApplicationSet != nil {
 			if existingArgoCD.Spec.ApplicationSet.Resources == nil {
 				existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
@@ -472,7 +471,14 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+		// if user is patching nodePlacement through GitopsService CR, then existingArgoCD NodePlacement is updated.
+		if defaultArgoCDInstance.Spec.NodePlacement != nil {
+			if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
+				changed = true
+			}
+			// Handle the case where NodePlacement should be removed
+		} else if existingArgoCD.Spec.NodePlacement != nil {
 			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 			changed = true
 		}
