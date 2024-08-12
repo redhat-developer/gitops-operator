@@ -109,6 +109,7 @@ var _ = BeforeSuite(func() {
 	Expect(configv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(templatev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(appsv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(argoapi.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:scheme
 
