@@ -22,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+const kubeAppLabelName = "app.kubernetes.io/name"
+
 func TestPlugin(t *testing.T) {
 	testConsolePlugin := consolePlugin()
 
