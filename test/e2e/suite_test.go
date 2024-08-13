@@ -20,11 +20,13 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argoapi "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
@@ -87,6 +89,12 @@ const (
 	interval                            = time.Millisecond * 250
 )
 
+func TestAPIs(t *testing.T) {
+
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Controller Suite")
+}
+
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
@@ -110,7 +118,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	Expect(routev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
-	Expect(argoapi.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(argov1alpha1api.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(argov1beta1api.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(monitoringv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(operatorsv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(operatorsv1alpha1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
@@ -119,7 +128,6 @@ var _ = BeforeSuite(func() {
 	Expect(configv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(templatev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(appsv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
-
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
