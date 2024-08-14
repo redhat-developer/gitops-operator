@@ -41,6 +41,7 @@ const (
 	kubeAppLabelPartOf           = "app.kubernetes.io/part-of"
 	kubeAppLabelRuntimeNamespace = "app.kubernetes.io/runtime-namespace"
 	httpdConfigMapName           = "httpd-cfg"
+	kubeAppLabelName             = "app.kubernetes.io/name"
 )
 
 func getPluginPodSpec() corev1.PodSpec {
