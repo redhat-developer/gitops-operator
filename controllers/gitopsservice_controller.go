@@ -254,10 +254,6 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
-	// if result, err := r.reconcileCLIServer(instance, request); err != nil {
-	// 	return result, err
-	// }
-
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
 	if dynamicPluginStartOCPVersion == "" {
 		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
