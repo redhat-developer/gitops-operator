@@ -4,7 +4,7 @@ go 1.21.0
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240807084148-a96aa79b5464
-	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240808123233-e231fd3340f4
+	github.com/argoproj-labs/argocd-operator v0.9.0-rc3.0.20240814112125-6a5b0817a758
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
@@ -15,7 +15,7 @@ require (
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.19.0
+	golang.org/x/mod v0.20.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.6
 	k8s.io/apiextensions-apiserver v0.29.6
