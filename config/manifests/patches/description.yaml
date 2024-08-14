@@ -11,9 +11,7 @@
     target OpenShift and Kubernetes clusters\n* Support for the Helm and Kustomize
     templating tools\n* Configuration drift detection and visualization on live clusters\n*
     Audit trails of rollouts to the clusters\n* Monitoring and logging integration
-    with OpenShift\n* Automated GitOps bootstrapping using Tekton and Argo CD with
-    [GitOps Application Manager CLI](https://github.com/redhat-developer/kam)\n\n##
-    Components\n* Argo CD 2.7.6\n* GitOps Application Manager CLI ([download](https://github.com/redhat-developer/kam/releases))\n\n##
+    with OpenShift\n##Components\n* Argo CD 2.7.6\n\n##
     How to Install \nAfter installing the OpenShift GitOps operator, an instance  of
     Argo CD is installed in the `openshift-gitops` namespace which has sufficent privileges
     for managing cluster configurations. You can create additional Argo CD instances

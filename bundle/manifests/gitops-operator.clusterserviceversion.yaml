@@ -1117,11 +1117,6 @@ spec:
   - devtools
   - gitops
   - pipelines
-  links:
-  - name: Day 1 Operations
-    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day1
-  - name: Day 2 Operations
-    url: https://github.com/redhat-developer/kam/tree/master/docs/journey/day2
   maintainers:
   - email: shbose@redhat.com
     name: shoubhik

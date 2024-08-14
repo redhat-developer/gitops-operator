@@ -39,7 +39,6 @@ import (
 	. "github.com/onsi/gomega"
 	osappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
-	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
@@ -121,32 +120,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			checkIfPresent(types.NamespacedName{Name: prefixedName}, &rbacv1.ClusterRole{})
 			checkIfPresent(types.NamespacedName{Name: prefixedName}, &rbacv1.ClusterRoleBinding{})
 			checkIfPresent(types.NamespacedName{Name: prefixedName, Namespace: argoCDNamespace}, &corev1.ServiceAccount{})
-		})
-	})
-
-	Context("Check if kam resources are created", func() {
-		name := "kam"
-		It("Deployment that hosts kam is created", func() {
-			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &appsv1.Deployment{})
-		})
-
-		It("Service that serves kam is created", func() {
-			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, &corev1.Service{})
-		})
-
-		It("Console CLI download resource that adds kam route to OpenShift's CLI download page is created", func() {
-
-			By("route that serves kam is created")
-			route := &routev1.Route{}
-			checkIfPresent(types.NamespacedName{Name: name, Namespace: argoCDNamespace}, route)
-
-			By("CLI download link is created")
-			consoleCLIDownload := &console.ConsoleCLIDownload{}
-			checkIfPresent(types.NamespacedName{Name: name}, consoleCLIDownload)
-
-			By("CLI download link should match the kam route")
-			consoleCLILink := strings.TrimLeft(consoleCLIDownload.Spec.Links[0].Href, "https://")
-			Expect(route.Spec.Host + "/kam/").Should(Equal(consoleCLILink))
 		})
 	})
 

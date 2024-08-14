@@ -22,7 +22,6 @@ ARGOCD_DEX_IMAGE=${ARGOCD_DEX_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_O
 ARGOCD_IMAGE=${ARGOCD_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}"}
 BACKEND_IMAGE=${BACKEND_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}"}
 GITOPS_CONSOLE_PLUGIN_IMAGE=${GITOPS_CONSOLE_PLUGIN_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}"}
-KAM_IMAGE=${KAM_IMAGE:-"${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}kam-delivery-rhel8:${GITOPS_OPERATOR_VER}"}
 
 # other images
 ARGOCD_KEYCLOAK_IMAGE=${ARGOCD_KEYCLOAK_IMAGE:-"registry.redhat.io/rh-sso-7/sso76-openshift-rhel8:7.6-32"}
@@ -221,8 +220,6 @@ spec:
           value: ${ARGOCD_REDIS_HA_PROXY_IMAGE}
         - name: GITOPS_CONSOLE_PLUGIN_IMAGE
           value: ${GITOPS_CONSOLE_PLUGIN_IMAGE}
-        - name: KAM_IMAGE
-          value: ${KAM_IMAGE}
         - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
           value: \"${ARGOCD_CLUSTER_CONFIG_NAMESPACES}\"
         - name: CONTROLLER_CLUSTER_ROLE
@@ -291,7 +288,6 @@ function extract_component_images_from_bundle_image() {
   ARGOCD_REDIS_HA_PROXY_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_REDIS_HA_PROXY_IMAGE").value')
   BACKEND_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="BACKEND_IMAGE").value')
   GITOPS_CONSOLE_PLUGIN_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="GITOPS_CONSOLE_PLUGIN_IMAGE").value')
-  KAM_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="KAM_IMAGE").value')
 }
 
 # Initialize a temporary work directory to store the artifacts and 
@@ -436,7 +432,6 @@ function print_info() {
   echo "ARGOCD_REDIS_HA_PROXY_IMAGE: ${ARGOCD_REDIS_HA_PROXY_IMAGE}"
   echo "BACKEND_IMAGE: ${BACKEND_IMAGE}"
   echo "GITOPS_CONSOLE_PLUGIN_IMAGE: ${GITOPS_CONSOLE_PLUGIN_IMAGE}"
-  echo "KAM_IMAGE: ${KAM_IMAGE}"
   echo ""
 
   echo "Operator configurations:"

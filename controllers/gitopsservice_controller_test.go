@@ -70,25 +70,25 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
-	t.Run("Kam Image present as env variable", func(t *testing.T) {
-		image := "quay.io/org/test"
-		t.Setenv(cliImageEnvName, image)
+	// t.Run("Kam Image present as env variable", func(t *testing.T) {
+	// 	image := "quay.io/org/test"
+	// 	t.Setenv(cliImageEnvName, image)
 
-		deployment := newDeploymentForCLI()
+	// 	deployment := newDeploymentForCLI()
 
-		got := deployment.Spec.Template.Spec.Containers[0].Image
-		if got != image {
-			t.Errorf("Image mismatch: got %s, want %s", got, image)
-		}
-	})
-	t.Run("env variable for Kam image not found", func(t *testing.T) {
-		deployment := newDeploymentForCLI()
+	// 	got := deployment.Spec.Template.Spec.Containers[0].Image
+	// 	if got != image {
+	// 		t.Errorf("Image mismatch: got %s, want %s", got, image)
+	// 	}
+	// })
+	// t.Run("env variable for Kam image not found", func(t *testing.T) {
+	// 	deployment := newDeploymentForCLI()
 
-		got := deployment.Spec.Template.Spec.Containers[0].Image
-		if got != cliImage {
-			t.Errorf("Image mismatch: got %s, want %s", got, cliImage)
-		}
-	})
+	// 	got := deployment.Spec.Template.Spec.Containers[0].Image
+	// 	if got != cliImage {
+	// 		t.Errorf("Image mismatch: got %s, want %s", got, cliImage)
+	// 	}
+	// })
 
 }
 
@@ -497,52 +497,52 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 	assert.DeepEqual(t, securityContext, want)
 }
 
-func TestReconcile_KamSecurityContext(t *testing.T) {
-	logf.SetLogger(argocd.ZapLogger(true))
-	s := scheme.Scheme
-	addKnownTypesToScheme(s)
+// func TestReconcile_KamSecurityContext(t *testing.T) {
+// 	logf.SetLogger(argocd.ZapLogger(true))
+// 	s := scheme.Scheme
+// 	addKnownTypesToScheme(s)
 
-	util.SetConsoleAPIFound(true)
-	defer util.SetConsoleAPIFound(false)
+// 	util.SetConsoleAPIFound(true)
+// 	defer util.SetConsoleAPIFound(false)
 
-	// Testing on OCP versions < 4.11.0
-	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
-	reconciler := newReconcileGitOpsService(fakeClient, s)
+// 	// Testing on OCP versions < 4.11.0
+// 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
+// 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
-	assertNoError(t, err)
+// 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+// 	assertNoError(t, err)
 
-	deployment := appsv1.Deployment{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
-	assertNoError(t, err)
+// 	deployment := appsv1.Deployment{}
+// 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+// 	assertNoError(t, err)
 
-	// Testing on OCP versions < 4.11.0
+// 	// Testing on OCP versions < 4.11.0
 
-	fakeClient = fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
-	reconciler = newReconcileGitOpsService(fakeClient, s)
+// 	fakeClient = fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.12.1"), newGitopsService()).Build()
+// 	reconciler = newReconcileGitOpsService(fakeClient, s)
 
-	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
-	assertNoError(t, err)
+// 	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+// 	assertNoError(t, err)
 
-	deployment = appsv1.Deployment{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
-	assertNoError(t, err)
+// 	deployment = appsv1.Deployment{}
+// 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: cliName, Namespace: serviceNamespace}, &deployment)
+// 	assertNoError(t, err)
 
-	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
-	want := &corev1.SecurityContext{
-		AllowPrivilegeEscalation: util.BoolPtr(false),
-		Capabilities: &corev1.Capabilities{
-			Drop: []corev1.Capability{
-				"ALL",
-			},
-		},
-		RunAsNonRoot: util.BoolPtr(true),
-		SeccompProfile: &corev1.SeccompProfile{
-			Type: corev1.SeccompProfileTypeRuntimeDefault,
-		},
-	}
-	assert.DeepEqual(t, securityContext, want)
-}
+// 	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
+// 	want := &corev1.SecurityContext{
+// 		AllowPrivilegeEscalation: util.BoolPtr(false),
+// 		Capabilities: &corev1.Capabilities{
+// 			Drop: []corev1.Capability{
+// 				"ALL",
+// 			},
+// 		},
+// 		RunAsNonRoot: util.BoolPtr(true),
+// 		SeccompProfile: &corev1.SeccompProfile{
+// 			Type: corev1.SeccompProfileTypeRuntimeDefault,
+// 		},
+// 	}
+// 	assert.DeepEqual(t, securityContext, want)
+// }
 
 func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	logf.SetLogger(argocd.ZapLogger(true))
