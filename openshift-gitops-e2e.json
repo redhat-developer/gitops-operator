@@ -1,9 +1,23 @@
 {
    "name": "",
-   "tests": 0,
+   "tests": 1,
    "failures": 0,
-   "time": "0.030",
-   "failure": {
-     "message": "fatal error getting client: Get \"https://api.ci-ln-1zxgkcb-76ef8.aws-2.ci.openshift.org:6443/api?timeout=32s\": dial tcp: lookup api.ci-ln-1zxgkcb-76ef8.aws-2.ci.openshift.org on 192.168.0.1:53: no such host"
-   }
+   "time": "23.931",
+   "testsuite": [
+     {
+       "tests": 1,
+       "failures": 0,
+       "timestamp": "2024-08-22T09:44:51.574792+05:30",
+       "time": "16.962",
+       "name": "./test/openshift/e2e/parallel",
+       "testcase": [
+         {
+           "classname": "parallel",
+           "name": "1-031_validate_toolchain",
+           "timestamp": "2024-08-22T09:44:51.576861+05:30",
+           "time": "16.960"
+         }
+       ]
+     }
+   ]
  }
