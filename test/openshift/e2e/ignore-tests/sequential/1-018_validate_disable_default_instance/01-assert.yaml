@@ -46,9 +46,3 @@ metadata:
   name: cluster
   namespace: openshift-gitops
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kam
-  namespace: openshift-gitops
----

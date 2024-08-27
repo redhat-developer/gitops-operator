@@ -24,7 +24,6 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 
 	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -46,19 +45,12 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 			},
 		}
 
-		It("Backend and kam resources are created in 'openshift-gitops' namespace", func() {
+		It("Backend resources are created in 'openshift-gitops' namespace", func() {
 			resourceList := []helper.ResourceList{
 				{
 					Resource: &appsv1.Deployment{},
 					ExpectedResources: []string{
 						"cluster",
-						"kam",
-					},
-				},
-				{
-					Resource: &routev1.Route{},
-					ExpectedResources: []string{
-						"kam",
 					},
 				},
 			}

@@ -5,22 +5,21 @@
 2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)   
     a. [Dex](#dex)  
     b. [RHSSO / Keycloak](#rhssokeycloak)  
-4. [Setting environment variables](#setting-environment-variables)    
-6. [Getting started with GitOps Application Manager (kam)](#getting-started-with-gitops-application-manager-kam)  
-7. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
-8. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
-9. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
-10. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
-11. [Monitoring](#monitoring)  
-12. [Logging](#logging)  
-13. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
-14. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
-15. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
-16. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-17. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
-18. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
-19. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
-20. [Using ApplicationSets](#using-applicationsets)
+3. [Setting environment variables](#setting-environment-variables)    
+4. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
+5. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
+6. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
+7. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
+8. [Monitoring](#monitoring)  
+9. [Logging](#logging)  
+10. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
+11. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
+12. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
+13. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
+14. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
+15. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
+16. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
+17. [Using ApplicationSets](#using-applicationsets)
 
 ## Installing OpenShift GitOps
 
@@ -109,7 +108,6 @@ $ oc get pods -n openshift-gitops
 NAME                                                         READY   STATUS    RESTARTS   AGE
 cluster-65885cfb44-x6lx4                                     1/1     Running   0          55s
 gitops-plugin-58b577c9c9-p78xl                               1/1     Running   0          55s
-kam-84c7c688c7-5h6pz                                         1/1     Running   0          55s
 openshift-gitops-application-controller-0                    1/1     Running   0          52s
 openshift-gitops-applicationset-controller-f66d47bc4-9rsd8   1/1     Running   0          52s
 openshift-gitops-dex-server-55f8c6c44-s9jcl                  1/1     Running   0          51s
@@ -240,18 +238,6 @@ Updating the following environment variables in the existing Subscription Object
   </tr>
 </table>
 
-## Getting started with GitOps Application Manager (kam)
-
-### Download the kam CLI
-
-![image alt text](assets/25.download_kam_cli.png)
-
-![image alt text](assets/26.kam_download_index.png)
-
-
-### **Bootstrap a GitOps repository**
-
-[https://github.com/redhat-developer/kam/tree/master/docs/journey/day1](https://github.com/redhat-developer/kam/tree/master/docs/journey/day1)
 
 ## Setting up a new Argo CD instance
 
@@ -721,7 +707,6 @@ OpenShift allows certain workloads installed by the OpenShift GitOps Operator to
 Note: Other Argo CD instances installed to user namespaces are not eligible to run on Infrastructure nodes.
 	
 Follow the steps to move these default workloads to infrastructure node
-* kam deployment
 * cluster deployment (backend service)
 * openshift-gitops-applicationset-controller deployment
 * openshift-gitops-dex-server deployment
