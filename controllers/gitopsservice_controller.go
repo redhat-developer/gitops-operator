@@ -231,7 +231,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return reconcile.Result{}, err
 		}
 	} else {
-		needUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		needUpdate, updateNameSpace := ensurePodSecurityLabels(namespaceRef)
 		if needUpdate {
 			err = r.Client.Update(context.TODO(), updateNameSpace)
 			if err != nil {
