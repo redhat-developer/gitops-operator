@@ -230,6 +230,14 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		} else {
 			return reconcile.Result{}, err
 		}
+	} else {
+		needUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		if needUpdate {
+			err = r.Client.Update(context.TODO(), updateNameSpace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	gitopsserviceNamespacedName := types.NamespacedName{
@@ -369,6 +377,15 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 				return reconcile.Result{}, err
 			}
 		}
+
+		needUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		if needUpdate {
+			err = r.Client.Update(context.TODO(), updateNameSpace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
 	}
 
 	// Set GitopsService instance as the owner and controller
@@ -919,4 +936,21 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 			},
 		},
 	}
+}
+
+func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
+	for key := range namespace.Labels {
+		if strings.HasPrefix(key, "pod-security") {
+			return false, namespace
+		}
+	}
+
+	namespace.Labels["pod-security.kubernetes.io/enforce"] = "restricted"
+	namespace.Labels["pod-security.kubernetes.io/enforce-version"] = "v1.29"
+	namespace.Labels["pod-security.kubernetes.io/audit"] = "restricted"
+	namespace.Labels["pod-security.kubernetes.io/audit-version"] = "latest"
+	namespace.Labels["pod-security.kubernetes.io/warn"] = "restricted"
+	namespace.Labels["pod-security.kubernetes.io/warn-version"] = "latest"
+
+	return true, namespace
 }
