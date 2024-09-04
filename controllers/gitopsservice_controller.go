@@ -230,6 +230,14 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		} else {
 			return reconcile.Result{}, err
 		}
+	} else {
+		needUpdate, updateNameSpace := ensurePodSecurityLabels(namespaceRef)
+		if needUpdate {
+			err = r.Client.Update(context.TODO(), updateNameSpace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	gitopsserviceNamespacedName := types.NamespacedName{
@@ -369,6 +377,15 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 				return reconcile.Result{}, err
 			}
 		}
+
+		needUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		if needUpdate {
+			err = r.Client.Update(context.TODO(), updateNameSpace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
 	}
 
 	// Set GitopsService instance as the owner and controller
@@ -919,4 +936,26 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 			},
 		},
 	}
+}
+
+func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
+
+	pssLabels := map[string]string{
+		"pod-security.kubernetes.io/enforce":         "restricted",
+		"pod-security.kubernetes.io/enforce-version": "v1.29",
+		"pod-security.kubernetes.io/audit":           "restricted",
+		"pod-security.kubernetes.io/audit-version":   "latest",
+		"pod-security.kubernetes.io/warn":            "restricted",
+		"pod-security.kubernetes.io/warn-version":    "latest",
+	}
+
+	changed := false
+	for pssKey, pssVal := range pssLabels {
+		if nsVal, exists := namespace.Labels[pssKey]; !exists || nsVal != pssVal {
+			namespace.Labels[pssKey] = pssVal
+			changed = true
+		}
+
+	}
+	return changed, namespace
 }
