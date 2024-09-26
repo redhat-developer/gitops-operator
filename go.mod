@@ -2,6 +2,8 @@ module github.com/redhat-developer/gitops-operator
 
 go 1.21.0
 
+replace github.com/argoproj-labs/argocd-operator => github.com/svghadi/argocd-operator v0.0.0-20240926110351-3b2817d873ca
+
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541
 	github.com/argoproj-labs/argocd-operator v0.12.0-rc3
@@ -96,7 +98,7 @@ replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
+	//github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb
 	k8s.io/api => k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.3
