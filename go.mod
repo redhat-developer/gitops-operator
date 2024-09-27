@@ -2,7 +2,7 @@ module github.com/redhat-developer/gitops-operator
 
 go 1.21.0
 
-replace github.com/argoproj-labs/argocd-operator => github.com/svghadi/argocd-operator v0.0.0-20240926110351-3b2817d873ca
+replace github.com/argoproj-labs/argocd-operator => github.com/svghadi/argocd-operator v0.0.0-20240927054216-c1ccc6043299
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541
