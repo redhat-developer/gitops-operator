@@ -87,6 +87,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - get
+  - list
+- apiGroups:
   - appmesh.k8s.aws
   resources:
   - virtualnodes

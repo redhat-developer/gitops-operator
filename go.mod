@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.2-0.20230515023837-0632f3e856d5
-	github.com/argoproj-labs/argocd-operator v0.10.1-rc3.0.20240522071222-bc233a44e8d7
+	github.com/argoproj-labs/argocd-operator v0.10.2-0.20240819100323-3b09f8f06bae
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
@@ -26,8 +26,7 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.10.9 // indirect
-	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 // indirect
+	github.com/argoproj/argo-cd/v2 v2.10.16 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -43,7 +42,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -85,6 +84,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.29.2 // indirect
 	k8s.io/component-base v0.29.2 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/kube-aggregator v0.29.0 // indirect
 	k8s.io/kube-openapi v0.0.0-20240227032403-f107216b40e2 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
@@ -110,6 +110,8 @@ replace (
 	k8s.io/controller-manager => k8s.io/controller-manager v0.28.3
 	k8s.io/cri-api => k8s.io/cri-api v0.28.3
 	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.28.3
+	k8s.io/dynamic-resource-allocation => k8s.io/dynamic-resource-allocation v0.28.3
+	k8s.io/kms => k8s.io/kms v0.28.3
 	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.28.3
 	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.28.3
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9
