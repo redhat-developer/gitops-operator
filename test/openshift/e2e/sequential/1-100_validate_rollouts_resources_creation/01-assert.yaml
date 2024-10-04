@@ -3,6 +3,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: argo-rollouts
+  namespace: openshift-gitops
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -33,11 +34,13 @@ kind: Secret
 apiVersion: v1
 metadata:
   name: argo-rollouts-notification-secret
+  namespace: openshift-gitops
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: argo-rollouts
+  namespace: openshift-gitops  
 status:
   readyReplicas: 1
 ---
@@ -45,3 +48,4 @@ apiVersion: v1
 kind: Service
 metadata:
   name: argo-rollouts-metrics
+  namespace: openshift-gitops  
