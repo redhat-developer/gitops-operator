@@ -2,6 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: RolloutManager
 metadata:
   name: example-rollout-manager
+  namespace: openshift-gitops  
   labels:
     example: example-rollout-manager
 spec: {}
