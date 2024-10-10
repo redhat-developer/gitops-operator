@@ -28,7 +28,6 @@ require (
 
 require (
 	github.com/argoproj/argo-cd/v2 v2.11.9 // indirect
-	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
