@@ -592,10 +592,10 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 				Name: "GitOpsOperatorArgoCD",
 				Rules: []monitoringv1.Rule{
 					{
-						Alert: "ArgoCDSyncAlert",
+						Alert: "ArgoCDOutOfSyncAlert",
 						Annotations: map[string]string{
 							"summary":     "Argo CD application is out of sync",
-							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDOutOfSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
 						},
 						Expr: intstr.IntOrString{
 							Type: intstr.String,
@@ -609,6 +609,21 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 						For: "5m",
 						Labels: map[string]string{
 							"severity": "warning",
+						},
+					},
+					{
+						Alert: "ArgoCDUnknownSyncAlert",
+						Annotations: map[string]string{
+							"summary":     "Argo CD application sync state is unknown",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is in an unknown sync state. Check ArgoCDUnknownSyncAlert status, this often occurs when the Application is misconfigured.",
+						},
+						Expr: intstr.IntOrString{
+							Type:   intstr.String,
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"Unknown\"} > 0", namespace),
+						},
+						For: "5m",
+						Labels: map[string]string{
+							"severity": "critical",
 						},
 					},
 					{
