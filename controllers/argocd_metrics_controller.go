@@ -592,10 +592,10 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 				Name: "GitOpsOperatorArgoCD",
 				Rules: []monitoringv1.Rule{
 					{
-						Alert: "ArgoCDOutOfSyncAlert",
+						Alert: "ArgoCDSyncAlert",
 						Annotations: map[string]string{
 							"summary":     "Argo CD application is out of sync",
-							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDOutOfSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
 						},
 						Expr: intstr.IntOrString{
 							Type: intstr.String,
