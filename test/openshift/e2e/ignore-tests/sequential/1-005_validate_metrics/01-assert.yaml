@@ -47,7 +47,35 @@ spec:
     - alert: ArgoCDSyncAlert
       annotations:
         summary: Argo CD application is out of sync
-        description: Argo CD application {{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.
+        description: Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.
       expr: argocd_app_info{namespace="openshift-gitops",sync_status="OutOfSync"} > 0
+      labels:
+        severity: warning
+    - alert: ArgoCDUnknownSyncAlert
+      annotations:
+        summary: Argo CD application sync state is unknown
+        description: Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is in an unknown sync state. Check ArgoCDUnknownSyncAlert status, this often occurs when the Application is misconfigured.
+      expr: argocd_app_info{namespace="openshift-gitops",sync_status="Unknown"} > 0
+      labels:
+        severity: critical
+    - alert: ArgoCDHealthAlert
+      annotations:
+        summary: Argo CD application is not healthy
+        description: Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is not healthy. Check ArgoCDHealthAlert status, this alert is designed to notify that an application managed by Argo CD is not in a healthy, suspended, progressing or degraded state.
+      expr: argocd_app_info{namespace="openshift-gitops", health_status!~"Healthy|Suspended|Progressing|Degraded"} > 0
+      labels:
+        severity: warning
+    - alert: ArgoCDDegradedAlert
+      annotations:
+        summary: Argo CD application is degraded
+        description: Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is degraded. Check ArgoCDDegradedAlert status, this alert is designed to notify that an application managed by Argo CD is degraded.
+      expr: argocd_app_info{namespace="openshift-gitops", health_status="Degraded"} > 0
+      labels:
+        severity: critical
+    - alert: ArgoCDProgressingAlert
+      annotations:
+        summary: Argo CD application has been progressing for more than 10 minutes
+        description: Argo CD application {{ $labels.namespace }}/{{ $labels.name }} has been progressing for more than 10 minutes. Check ArgoCDProgressingAlert status, this alert is designed to notify when an application is taking a long time to exit the Progressing state.
+      expr: argocd_app_info{namespace="openshift-gitops", health_status="Progressing"} > 0
       labels:
         severity: warning
