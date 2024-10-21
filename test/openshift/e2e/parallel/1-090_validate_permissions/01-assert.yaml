@@ -223,6 +223,13 @@ spec:
         - apiGroups:
           - argoproj.io
           resources:
+          - notificationsconfigurations
+          - notificationsconfigurations/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - argoproj.io
+          resources:
           - rolloutmanagers
           verbs:
           - create
@@ -408,6 +415,18 @@ spec:
           - networking.k8s.io
           resources:
           - ingresses
+          verbs:
+          - create
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - networking.k8s.io
+          resources:
+          - ingresses
+          - networkpolicies
           verbs:
           - create
           - delete
