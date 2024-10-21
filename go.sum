@@ -637,8 +637,8 @@ github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4x
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241004113423-fc2d5cc721f9 h1:q1M17YEE3tX/NYEv802pSgYxz8ZQrSK8VKVc3xGQG5Q=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241004113423-fc2d5cc721f9/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241019175410-e054d35fd0d9 h1:2yX5LMiwAbJAk2F0eZLOY4+2oA3P0RVlk3UZLqoCWh8=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241019175410-e054d35fd0d9/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
 github.com/argoproj-labs/argocd-operator v0.11.1-0.20241010065622-764dd5d8fed9 h1:oJWYeHLYmalJZ8M/2Xbxxe13H3NyneXry/LZ+RcVJ2Q=
 github.com/argoproj-labs/argocd-operator v0.11.1-0.20241010065622-764dd5d8fed9/go.mod h1:jqPwIfqquPrRahApcN7jfzEB/o185ZGfJwRhNEqd4hk=
 github.com/argoproj/argo-cd/v2 v2.11.9 h1:tk7jCH+HAqMLu4pWAndv6WGTocmuY1kVCGK1b8b2d1k=

@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.21
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241004113423-fc2d5cc721f9
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20241019175410-e054d35fd0d9
 	github.com/argoproj-labs/argocd-operator v0.11.1-0.20241010065622-764dd5d8fed9
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.1
