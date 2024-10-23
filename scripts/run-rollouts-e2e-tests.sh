@@ -16,7 +16,7 @@ cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in go.mod of gitops-operator (which will usually be the most recent argo-rollouts-manager commit)
-TARGET_ROLLOUT_MANAGER_COMMIT=52fd4a22e49e9bb0a3947262cce75931b63b209b
+TARGET_ROLLOUT_MANAGER_COMMIT=85db81b64541a2e0f10616acca8b24ac63f46b42
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in the version of argo-rollouts-manager that is in go.mod
@@ -67,5 +67,6 @@ cd "$ROLLOUTS_TMP_DIR/rollouts-plugin-trafficrouter-openshift"
 git checkout $TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT
 
 make test-e2e
+
 
 

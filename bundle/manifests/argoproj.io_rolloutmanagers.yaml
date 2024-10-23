@@ -228,6 +228,15 @@ spec:
                 items:
                   type: string
                 type: array
+              ha:
+                description: HA options for High Availability support for Rollouts.
+                properties:
+                  enabled:
+                    description: Enabled will toggle HA support globally for RolloutManager.
+                    type: boolean
+                required:
+                - enabled
+                type: object
               image:
                 description: Image defines Argo Rollouts controller image (optional)
                 type: string
@@ -283,6 +292,65 @@ spec:
                             Value is the taint value the toleration matches to.
                             If the operator is Exists, the value should be empty, otherwise just a regular string.
                           type: string
+                      type: object
+                    type: array
+                type: object
+              plugins:
+                description: Plugins specify the traffic and metric plugins in Argo
+                  Rollout
+                properties:
+                  metric:
+                    description: Metric holds a list of metric plugins used to gather
+                      and report metrics during rollouts.
+                    items:
+                      description: Plugin is used to integrate traffic management
+                        and metric plugins into the Argo Rollouts controller. For
+                        more information on these plugins, see the upstream Argo Rollouts
+                        documentation.
+                      properties:
+                        location:
+                          description: Location supports http(s):// urls and file://,
+                            though file:// requires the plugin be available on the
+                            filesystem
+                          type: string
+                        name:
+                          description: Name of the plugin, it must match the name
+                            required by the plugin so it can find its configuration
+                          type: string
+                        sha256:
+                          description: SHA256 is an optional sha256 checksum of the
+                            plugin executable
+                          type: string
+                      required:
+                      - location
+                      - name
+                      type: object
+                    type: array
+                  trafficManagement:
+                    description: TrafficManagement holds a list of traffic management
+                      plugins used to control traffic routing during rollouts.
+                    items:
+                      description: Plugin is used to integrate traffic management
+                        and metric plugins into the Argo Rollouts controller. For
+                        more information on these plugins, see the upstream Argo Rollouts
+                        documentation.
+                      properties:
+                        location:
+                          description: Location supports http(s):// urls and file://,
+                            though file:// requires the plugin be available on the
+                            filesystem
+                          type: string
+                        name:
+                          description: Name of the plugin, it must match the name
+                            required by the plugin so it can find its configuration
+                          type: string
+                        sha256:
+                          description: SHA256 is an optional sha256 checksum of the
+                            plugin executable
+                          type: string
+                      required:
+                      - location
+                      - name
                       type: object
                     type: array
                 type: object
