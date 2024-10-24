@@ -10,4 +10,19 @@ commands:
     else
         oc patch subscription/openshift-gitops-operator -n openshift-gitops-operator --type json --patch='[ { "op": "remove", "path": "/spec/config" } ]'
     fi
-- script: sleep 10
+- script: |
+    # Loop to wait until SERVER_CLUSTER_ROLE is removed from the Argo CD server Deployment
+    for i in {1..30}; do
+      if oc get deployment openshift-gitops-argocd-server -n openshift-gitops -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q 'SERVER_CLUSTER_ROLE=custom-argocd-role'; then
+        echo "Waiting for SERVER_CLUSTER_ROLE to be removed..."
+        sleep 5
+      else
+        echo "SERVER_CLUSTER_ROLE has been removed."
+        break
+      fi
+    done
+    # If after the loop the variable is still set, fail the step
+    if oc get deployment openshift-gitops-argocd-server -n openshift-gitops -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q 'SERVER_CLUSTER_ROLE=custom-argocd-role'; then
+      echo "ERROR: SERVER_CLUSTER_ROLE was not removed after waiting."
+      exit 1
+    fi
