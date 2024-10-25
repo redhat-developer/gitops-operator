@@ -5,4 +5,4 @@ metadata:
   namespace: openshift-gitops
 spec:
   ha:
-   enabled: false
+    enabled: false
