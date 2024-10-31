@@ -620,8 +620,10 @@ github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4x
 github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240807084148-a96aa79b5464 h1:LTMoDmQoIjqhe+pulFiG7l80pnjjZX6WiivURO2uXsQ=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.4-0.20240807084148-a96aa79b5464/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541 h1:T4JSu0lAPWsxmbPut0h08JFQz4Q1NFXCJraXisNgKMw=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
+github.com/argoproj-labs/argocd-operator v0.12.0-rc1.0.20241031054316-c658393241a5 h1:6s5vBXemQNRKrFCfun8qdhHrhyanWpIffQv4T7d7/l4=
+github.com/argoproj-labs/argocd-operator v0.12.0-rc1.0.20241031054316-c658393241a5/go.mod h1:TYDl+YVuzr6mTcSjKn6+qLd14QwVcihUW9REiVVt2Us=
 github.com/argoproj/argo-cd/v2 v2.12.3 h1:Bi4QahHTnKl3esU5MplQP1wraGhaTpvgAV4GsMqc3Zc=
 github.com/argoproj/argo-cd/v2 v2.12.3/go.mod h1:2fh6q4NX/cylbH6Ktx/KjJsX7sOBwF3jbGnO0IZyNOc=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
@@ -1516,8 +1518,6 @@ github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/stretchr/testify v1.9.0 h1:HtqpIVDClZ4nwg75+f6Lvsy/wHu+3BoSGCbBAcpTsTg=
 github.com/stretchr/testify v1.9.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
-github.com/svghadi/argocd-operator v0.0.0-20240927054216-c1ccc6043299 h1:W1K4XsBlXBzzB1eMI3zBJgMYFzRyxdPdHK//FqDCe3U=
-github.com/svghadi/argocd-operator v0.0.0-20240927054216-c1ccc6043299/go.mod h1:TYDl+YVuzr6mTcSjKn6+qLd14QwVcihUW9REiVVt2Us=
 github.com/thanos-io/thanos v0.11.0/go.mod h1:N/Yes7J68KqvmY+xM6J5CJqEvWIvKSR5sqGtmuD6wDc=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tinylib/msgp v1.0.2/go.mod h1:+d+yLhGm8mzTaHzB+wgMYrodPfmZrzkirds8fDWklFE=
