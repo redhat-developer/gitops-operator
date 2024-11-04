@@ -4,14 +4,14 @@ go 1.21.0
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541
-	github.com/argoproj-labs/argocd-operator v0.12.0-rc3
+	github.com/argoproj-labs/argocd-operator v0.12.0-rc1.0.20241031054316-c658393241a5
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.34.0
-	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
+	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
@@ -96,7 +96,6 @@ replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20220929131120-2bde012f248a
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb
 	k8s.io/api => k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.3
