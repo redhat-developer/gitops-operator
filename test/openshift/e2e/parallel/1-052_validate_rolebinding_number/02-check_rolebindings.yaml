@@ -9,14 +9,40 @@ commands:
       "openshift-gitops-argocd-application-controller"
       "openshift-gitops-argocd-server"
     )
-    current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}') )
 
-    # Check that the required RoleBindings exist:
-    for rb in "${expected_rb[@]}"
-    do
-      oc get rolebinding "${rb}" -n "${NAMESPACE}" > /dev/null
+    # Check that eventually the current role bindings equal the expected role
+    # bindings. Timeout after 60 seconds
+    timer=0
+    current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}' | sort) )
+    while [[ "${current_rb[@]}" != "${expected_rb[@]}" ]]; do
+      if [[ $timer -eq 60 ]]; then
+        echo "timed out waiting for current role bindings to equal expected role bindings"
+        echo "current role bindings: ${current_rb[*]}"
+        echo "expected role bindings: ${expected_rb[*]}"
+        exit 1
+      fi
+
+      timer=$((timer+5))
+      sleep 5
+      current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}' | sort) )
     done
 
-    # Check that there are only two RoleBindings
-    echo "Current RoleBindings: ${current_rb[*]}"
-    [[ "${#current_rb[@]}" == "2" ]]
+    # Check that the expected role bindings continue to exist for at least the
+    # next 20 seconds
+    timer=0
+    while [ true ]; do
+      if [[ $timer -eq 20 ]]; then
+        break
+      fi
+
+      current_rb=( $(oc get rolebindings -n "${NAMESPACE}" | awk '/gitops/ {print $1}' | sort) )
+      if [[ "${current_rb[@]}" != "${expected_rb[@]}" ]]; then
+        echo "current role bindings have changed, now not equal to expected role bindings"
+        echo "current role bindings: ${current_rb[*]}"
+        echo "expected role bindings: ${expected_rb[*]}"
+        exit 1
+      fi
+
+      timer=$((timer+5))
+      sleep 5
+    done
