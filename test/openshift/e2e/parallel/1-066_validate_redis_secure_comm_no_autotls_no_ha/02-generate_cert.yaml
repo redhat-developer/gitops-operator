@@ -17,5 +17,4 @@ commands:
      -out ${PWD}/redis.crt \
      -newkey rsa:4096 \
      -nodes \
-     -sha256 \
      -days 10
