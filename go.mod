@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.5
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241107234728-9f79ece2e923
 	github.com/argoproj-labs/argocd-operator v0.13.0-rc1
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
