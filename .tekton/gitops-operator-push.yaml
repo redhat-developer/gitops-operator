@@ -24,7 +24,7 @@ spec:
   - name: output-image
     value: quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/openshift-gitops-operator/gitops-operator:{{revision}}
   - name: dockerfile
-    value: Dockerfile
+    value: Containerfile.plugin
   pipelineSpec:
     finally:
     - name: show-sbom
