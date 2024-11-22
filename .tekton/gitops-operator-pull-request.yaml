@@ -28,6 +28,10 @@ spec:
     value: 5d
   - name: dockerfile
     value: Containerfile.plugin
+  - name: hermetic
+    value: true
+  - name: prefetch-input
+    value: '{"type": "gomod", "path": "."}'
   pipelineSpec:
     finally:
     - name: show-sbom
@@ -228,6 +232,8 @@ spec:
         - $(params.build-args[*])
       - name: BUILD_ARGS_FILE
         value: $(params.build-args-file)
+      - name: TARGET_VERSION
+        value: '{{target_branch}}'
       runAfter:
       - prefetch-dependencies
       taskRef:

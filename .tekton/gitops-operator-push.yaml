@@ -25,6 +25,10 @@ spec:
     value: quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/openshift-gitops-operator/gitops-operator:{{revision}}
   - name: dockerfile
     value: Containerfile.plugin
+  - name: hermetic
+    value: true
+  - name: prefetch-input
+    value: '{"type": "gomod", "path": "."}'
   pipelineSpec:
     finally:
     - name: show-sbom
@@ -220,6 +224,8 @@ spec:
         value: $(params.image-expires-after)
       - name: COMMIT_SHA
         value: $(tasks.clone-repository.results.commit)
+      - name: TARGET_VERSION
+        value: '{{target_branch}}'
       - name: BUILD_ARGS
         value:
         - $(params.build-args[*])
