@@ -6,8 +6,8 @@ commands:
       set -o pipefail
 
       # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-      expected_kustomizeVersion='v5.4.2'
-      expected_helmVersion='v3.15.2'
+      expected_kustomizeVersion='v5.4.3'
+      expected_helmVersion='v3.15.4'
       expected_argocdVersion='v2.13.1'
       
       if CI="prow"; then
