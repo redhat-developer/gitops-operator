@@ -18,6 +18,9 @@ metadata:
   namespace: rh-openshift-gitops-tenant
 spec:
   params:
+  - name: build-platforms
+    value:
+      - linux/x86_64
   - name: git-url
     value: '{{source_url}}'
   - name: revision
@@ -27,7 +30,11 @@ spec:
   - name: image-expires-after
     value: 5d
   - name: dockerfile
-    value: Dockerfile
+    value: Containerfile.plugin
+  - name: hermetic
+    value: true
+  - name: prefetch-input
+    value: '{"type": "gomod", "path": "."}'
   pipelineSpec:
     finally:
     - name: show-sbom
@@ -228,6 +235,8 @@ spec:
         - $(params.build-args[*])
       - name: BUILD_ARGS_FILE
         value: $(params.build-args-file)
+      - name: TARGET_VERSION
+        value: '{{target_branch}}'
       runAfter:
       - prefetch-dependencies
       taskRef:
