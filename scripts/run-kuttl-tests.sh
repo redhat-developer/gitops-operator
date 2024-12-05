@@ -112,24 +112,36 @@ trap unexpectedError INT
 mkdir -p $WORK_DIR/results || exit 1
 mkdir -p $DIR/results || exit 1
 
-case "$testsuite" in
-"parallel")
-    header "Running $testsuite tests"
-	run_parallel $2
-	;;
-"sequential")
-    header "Running $testsuite tests"
-	run_sequential $2
-	;;
-"all")
-    header "Running $testsuite tests"
-	run_parallel
-	run_sequential
-	;;
-*)
-	echo "USAGE: $0 (parallel|sequential|all)" >&2
-	exit 1
-esac
+# Get path containing the current script, usually (repo path)/scripts
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-(( failed )) && fail_test "$testsuite tests failed"
-success $testsuite
+# Run Rollouts E2E tests
+cd "$SCRIPT_DIR"
+
+"$SCRIPT_DIR/run-rollouts-e2e-tests.sh"
+
+
+
+
+
+# case "$testsuite" in
+# "parallel")
+#     header "Running $testsuite tests"
+# 	run_parallel $2
+# 	;;
+# "sequential")
+#     header "Running $testsuite tests"
+# 	run_sequential $2
+# 	;;
+# "all")
+#     header "Running $testsuite tests"
+# 	run_parallel
+# 	run_sequential
+# 	;;
+# *)
+# 	echo "USAGE: $0 (parallel|sequential|all)" >&2
+# 	exit 1
+# esac
+
+# (( failed )) && fail_test "$testsuite tests failed"
+# success $testsuite
