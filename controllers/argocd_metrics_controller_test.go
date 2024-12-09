@@ -313,6 +313,38 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 			namespace:    "namespace-two",
 		},
 	}
+	testMonitoringRules := []struct {
+		name     string
+		duration string
+		expr     string
+	}{
+		{
+			name:     "ArgoCDSyncAlert",
+			duration: "5m",
+			expr:     "argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0",
+		},
+		{
+			name:     "ArgoCDUnknownSyncAlert",
+			duration: "5m",
+			expr:     "argocd_app_info{namespace=\"%s\",sync_status=\"Unknown\"} > 0",
+		},
+		{
+			name:     "ArgoCDHealthAlert",
+			duration: "5m",
+			expr:     "argocd_app_info{namespace=\"%s\", health_status!~\"Healthy|Suspended|Progressing|Degraded\"} > 0",
+		},
+		{
+			name:     "ArgoCDDegradedAlert",
+			duration: "5m",
+			expr:     "argocd_app_info{namespace=\"%s\", health_status=\"Degraded\"} > 0",
+		},
+		{
+			name:     "ArgoCDProgressingAlert",
+			duration: "10m",
+			expr:     "argocd_app_info{namespace=\"%s\", health_status=\"Progressing\"} > 0",
+		},
+	}
+
 	flagPtr := false
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, &flagPtr)
@@ -327,13 +359,15 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		assert.Equal(t, rule.OwnerReferences[0].Kind, argocdKind)
 		assert.Equal(t, rule.OwnerReferences[0].Name, tc.instanceName)
 
-		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Alert, "ArgoCDSyncAlert")
-		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["summary"] != "")
-		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["description"] != "")
-		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Labels["severity"] != "")
-		assert.Equal(t, rule.Spec.Groups[0].Rules[0].For, "5m")
-		expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", tc.namespace)
-		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Expr.StrVal, expr)
+		for index, testMonitoringRule := range testMonitoringRules {
+			assert.Equal(t, rule.Spec.Groups[0].Rules[index].Alert, testMonitoringRule.name)
+			assert.Assert(t, rule.Spec.Groups[0].Rules[index].Annotations["summary"] != "")
+			assert.Assert(t, rule.Spec.Groups[0].Rules[index].Annotations["description"] != "")
+			assert.Assert(t, rule.Spec.Groups[0].Rules[index].Labels["severity"] != "")
+			assert.Equal(t, rule.Spec.Groups[0].Rules[index].For, testMonitoringRule.duration)
+			expr := fmt.Sprintf(testMonitoringRule.expr, tc.namespace)
+			assert.Equal(t, rule.Spec.Groups[0].Rules[index].Expr.StrVal, expr)
+		}
 	}
 }
 
