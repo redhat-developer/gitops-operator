@@ -542,7 +542,8 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 	// Create namespace object for default ArgoCD instance and set resource quota to it.
 	defaultArgoNS := &corev1.Namespace{
 		ObjectMeta: v1.ObjectMeta{
-			Name: serviceNamespace,
+			Name:      serviceNamespace,
+			Namespace: serviceNamespace,
 		},
 	}
 	fakeClient.Create(context.TODO(), defaultArgoNS)
