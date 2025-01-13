@@ -633,6 +633,110 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 
 }
 
+func TestReconcile_PSSLabels(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	testCases := []struct {
+		name      string
+		namespace string
+		labels    map[string]string
+	}{
+		{
+			name:      "modified valid PSS labels for openshift-gitops ns",
+			namespace: "openshift-gitops",
+			labels: map[string]string{
+				"pod-security.kubernetes.io/enforce":         "privileged",
+				"pod-security.kubernetes.io/enforce-version": "v1.30",
+				"pod-security.kubernetes.io/audit":           "privileged",
+				"pod-security.kubernetes.io/audit-version":   "v1.29",
+				"pod-security.kubernetes.io/warn":            "privileged",
+				"pod-security.kubernetes.io/warn-version":    "v1.29",
+			},
+		},
+		{
+			name:      "modified invalid and empty PSS labels for openshift-gitops ns",
+			namespace: "openshift-gitops",
+			labels: map[string]string{
+				"pod-security.kubernetes.io/enforce":         "invalid",
+				"pod-security.kubernetes.io/enforce-version": "invalid",
+				"pod-security.kubernetes.io/warn":            "invalid",
+				"pod-security.kubernetes.io/warn-version":    "invalid",
+			},
+		},
+	}
+
+	expected_labels := map[string]string{
+		"pod-security.kubernetes.io/enforce":         "restricted",
+		"pod-security.kubernetes.io/enforce-version": "v1.29",
+		"pod-security.kubernetes.io/audit":           "restricted",
+		"pod-security.kubernetes.io/audit-version":   "latest",
+		"pod-security.kubernetes.io/warn":            "restricted",
+		"pod-security.kubernetes.io/warn-version":    "latest",
+	}
+
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.7.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Create a user defined namespace
+	testNS := newRestrictedNamespace("test")
+	err = fakeClient.Create(context.TODO(), testNS)
+	assertNoError(t, err)
+
+	// Create an ArgoCD instance in the user defined namespace
+	testArgoCD := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+		Spec: argoapp.ArgoCDSpec{},
+	}
+	err = fakeClient.Create(context.TODO(), testArgoCD)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Check if PSS labels are addded to the user defined ns
+	reconciled_ns := &corev1.Namespace{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "test"},
+		reconciled_ns)
+	assertNoError(t, err)
+
+	for label, _ := range reconciled_ns.ObjectMeta.Labels {
+		_, found := expected_labels[label]
+		// Fail if label is found
+		assert.Check(t, found != true)
+	}
+
+	for _, tc := range testCases {
+		existing_ns := &corev1.Namespace{}
+		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
+
+		// Assign new values, confirm the assignment and update the PSS labels
+		existing_ns.ObjectMeta.Labels = tc.labels
+		fakeClient.Update(context.TODO(), existing_ns)
+		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
+		assert.DeepEqual(t, existing_ns.ObjectMeta.Labels, tc.labels)
+
+		_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+		assertNoError(t, err)
+
+		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, reconciled_ns), err)
+
+		for key, value := range expected_labels {
+			label, found := reconciled_ns.ObjectMeta.Labels[key]
+			// Fail if label is not found, comapre the values with the expected values if found
+			assert.Check(t, found)
+			assert.Equal(t, label, value)
+		}
+	}
+}
+
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})

@@ -107,10 +107,12 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
 		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
 		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
-		Watches(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name: "openshift-gitops",
-		}},
-			handler.EnqueueRequestsFromMapFunc(namespaceMapper),
+		Watches(
+			&corev1.Namespace{},
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+				return obj.GetName() == "openshift-gitops"
+			})),
 		).
 		Complete(r)
 }
@@ -971,10 +973,6 @@ func namespaceMapper(ctx context.Context, o client.Object) []reconcile.Request {
 	namespacedName := client.ObjectKey{
 		Name: o.GetName(),
 	}
-	// result := []reconcile.Request{
-	// 	{NamespacedName: namespacedName},
-	// }
-	// return result
 	return []reconcile.Request{
 		{NamespacedName: namespacedName},
 	}
