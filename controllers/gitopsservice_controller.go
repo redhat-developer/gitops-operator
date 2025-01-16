@@ -50,6 +50,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -106,6 +107,13 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
 		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
 		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
+		Watches(
+			&corev1.Namespace{},
+			&handler.EnqueueRequestForObject{},
+			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+				return obj.GetName() == "openshift-gitops"
+			})),
+		).
 		Complete(r)
 }
 
@@ -219,7 +227,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 
 	// Create namespace if it doesn't already exist
 	namespaceRef := newRestrictedNamespace(namespace)
-	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, &corev1.Namespace{})
+	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", namespace)
@@ -231,8 +239,8 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return reconcile.Result{}, err
 		}
 	} else {
-		needUpdate, updateNameSpace := ensurePodSecurityLabels(namespaceRef)
-		if needUpdate {
+		needsUpdate, updateNameSpace := ensurePodSecurityLabels(namespaceRef)
+		if needsUpdate {
 			err = r.Client.Update(context.TODO(), updateNameSpace)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -345,7 +353,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
 	// 4.7 Cluster: Both backend and argocd instance in openshift-gitops namespace
 	argocdNS := newRestrictedNamespace(defaultArgoCDInstance.Namespace)
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, argocdNS)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
@@ -378,8 +386,8 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		needUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
-		if needUpdate {
+		needsUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		if needsUpdate {
 			err = r.Client.Update(context.TODO(), updateNameSpace)
 			if err != nil {
 				return reconcile.Result{}, err
