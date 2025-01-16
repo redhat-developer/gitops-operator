@@ -967,13 +967,3 @@ func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespa
 	}
 	return changed, namespace
 }
-
-func namespaceMapper(ctx context.Context, o client.Object) []reconcile.Request {
-	// var result = []reconcile.Request{}
-	namespacedName := client.ObjectKey{
-		Name: o.GetName(),
-	}
-	return []reconcile.Request{
-		{NamespacedName: namespacedName},
-	}
-}
