@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -30,6 +31,28 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+func runCommandWithOutput(cmdList ...string) (string, string, error) {
+
+	// Output the commands to be run, so that if the test fails we can determine why
+	fmt.Println(cmdList)
+
+	cmd := exec.Command(cmdList[0], cmdList[1:]...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+
+	// Output the stdout/sterr text, so that if the test fails we can determine why
+	fmt.Println(stdoutStr, stderrStr)
+
+	return stdoutStr, stderrStr, err
+
+}
+
 var _ = Describe("Argo CD metrics controller", func() {
 	Context("Check if monitoring resources are created", func() {
 		It("Role is created", func() {
@@ -37,8 +60,7 @@ var _ = Describe("Argo CD metrics controller", func() {
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
 
-			cmd := exec.Command(ocPath, "apply", "-f", buildYAML)
-			err = cmd.Run()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", buildYAML)
 			Expect(err).NotTo(HaveOccurred())
 			// Alert delay
 			time.Sleep(60 * time.Second)
