@@ -55,6 +55,7 @@ metadata:
               "trigger.on-sync-status-unknown": "- description: Application status is 'Unknown'\n  send:\n  - app-sync-status-unknown\n  when: app.status.sync.status == 'Unknown'",
               "trigger.on-sync-succeeded": "- description: Application syncing has succeeded\n  send:\n  - app-sync-succeeded\n  when: app.status.operationState.phase in ['Succeeded']"
             }
+            "minKubeVersion": "1.25"                     
           }
         },
         {
@@ -617,13 +618,7 @@ spec:
           resources:
           - horizontalpodautoscalers
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'    
         - apiGroups:
           - batch
           resources:
@@ -1132,3 +1127,4 @@ spec:
     targetPort: 9443
     type: ConversionWebhook
     webhookPath: /convert
+  
