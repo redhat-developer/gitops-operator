@@ -23,6 +23,3 @@
     across hybrid multi-cluster Kubernetes environments. OpenShift GitOps is built
     around Argo CD as the core upstream project and assists customers to establish
     an end-to-end application delivery workflow on GitOps principles.\n"
-- op: add
-  path: "/spec/minKubeVersion"
-  value: "1.25.0"
