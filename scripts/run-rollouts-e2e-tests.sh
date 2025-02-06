@@ -213,6 +213,3 @@ git checkout $TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT
 
 make test-e2e
 
-
-
-

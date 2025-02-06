@@ -6,6 +6,10 @@ set -e
 # Do not show token in CI log
 set +x
 
+# Get path containing the current script, usually (repo path)/scripts
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+
 # show commands
 set -x
 export CI="prow"
@@ -24,3 +28,7 @@ export KUBECONFIG=$TMP_DIR/kubeconfig
 # Run e2e test
 make test-e2e
 
+# Run Rollouts E2E tests
+cd "$SCRIPT_DIR"
+
+# "$SCRIPT_DIR/run-rollouts-e2e-tests.sh"
