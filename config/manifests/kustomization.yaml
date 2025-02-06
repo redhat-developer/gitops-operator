@@ -67,3 +67,9 @@ patchesJson6902:
     kind: ClusterServiceVersion
     name: gitops-operator.v1.8.0
   path: patches/min-kube-version.yaml
+- target:
+    group: operators.coreos.com
+    version: v1alpha1
+    kind: ClusterServiceVersion
+    name: gitops-operator.v1.8.0
+  path: patches/min-kube-version.yaml
