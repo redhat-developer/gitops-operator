@@ -333,6 +333,17 @@ func policyRulesForClusterConfig() []rbacv1.PolicyRule {
 				"*",
 			},
 		},
+		{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"serviceaccounts",
+			},
+			Verbs: []string{
+				"impersonate",
+			},
+		},
 	}
 }
 
