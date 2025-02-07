@@ -622,8 +622,8 @@ github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541 h1:T4JSu0lAPWsxmbPut0h08JFQz4Q1NFXCJraXisNgKMw=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541/go.mod h1:seR9B+tx6AbGaya+JA61HDBFciKx7FM7t/1IMhOwXlM=
-github.com/argoproj-labs/argocd-operator v0.13.0-rc2 h1:n1HPO8S7Zef0rQCxKvt5viutJyajx31GHk+NAXiFQIQ=
-github.com/argoproj-labs/argocd-operator v0.13.0-rc2/go.mod h1:C+XJqZ/Amd2+HWo8DznSo3pSUNfsC6woSrNRWGHze2g=
+github.com/argoproj-labs/argocd-operator v0.13.1-0.20250115090452-66246bc55b80 h1:F0dzf1fpZwfngGDxiDvwmBw4SHFsiiOd2nYbuiZ5R9I=
+github.com/argoproj-labs/argocd-operator v0.13.1-0.20250115090452-66246bc55b80/go.mod h1:C+XJqZ/Amd2+HWo8DznSo3pSUNfsC6woSrNRWGHze2g=
 github.com/argoproj/argo-cd/v2 v2.12.3 h1:Bi4QahHTnKl3esU5MplQP1wraGhaTpvgAV4GsMqc3Zc=
 github.com/argoproj/argo-cd/v2 v2.12.3/go.mod h1:2fh6q4NX/cylbH6Ktx/KjJsX7sOBwF3jbGnO0IZyNOc=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
