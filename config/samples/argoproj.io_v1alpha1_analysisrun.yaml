@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisRun
+metadata:
+  labels:
+    app.kubernetes.io/name: analysisrun
+    app.kubernetes.io/instance: analysisrun-sample
+    app.kubernetes.io/part-of: argo-analysisrun-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-analysisrun-manager
+  name: analysisrun-sample
+spec: {}

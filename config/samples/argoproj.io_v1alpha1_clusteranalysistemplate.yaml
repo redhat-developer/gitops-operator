@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: clusteranalysistemplate
+    app.kubernetes.io/instance: clusteranalysistemplate-sample
+    app.kubernetes.io/part-of: argo-clusteranalysistemplate-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-clusteranalysistemplate-manager
+  name: clusteranalysistemplate-sample
+spec: {}
