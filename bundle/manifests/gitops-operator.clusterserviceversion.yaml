@@ -6,6 +6,36 @@ metadata:
       [
         {
           "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "AnalysisRun",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-analysisrun-manager",
+              "app.kubernetes.io/instance": "analysisrun-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "analysisrun",
+              "app.kubernetes.io/part-of": "argo-analysisrun-manager"
+            },
+            "name": "analysisrun-sample"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "AnalysisTemplate",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-analysistemplate-manager",
+              "app.kubernetes.io/instance": "analysistemplate-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "analysistemplate",
+              "app.kubernetes.io/part-of": "argo-analysistemplate-manager"
+            },
+            "name": "analysistemplate-sample"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
           "kind": "AppProject",
           "metadata": {
             "name": "example"
@@ -27,6 +57,51 @@ metadata:
             "name": "example"
           },
           "spec": null
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "ArgoCD",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-argocd-manager",
+              "app.kubernetes.io/instance": "argocd-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "argocd",
+              "app.kubernetes.io/part-of": "argo-argocd-manager"
+            },
+            "name": "argocd-sample"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "ClusterAnalysisTemplate",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-clusteranalysistemplate-manager",
+              "app.kubernetes.io/instance": "clusteranalysistemplate-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "clusteranalysistemplate",
+              "app.kubernetes.io/part-of": "argo-clusteranalysistemplate-manager"
+            },
+            "name": "clusteranalysistemplate-sample"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Experiment",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-experiment-manager",
+              "app.kubernetes.io/instance": "experiment-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "experiment",
+              "app.kubernetes.io/part-of": "argo-experiment-manager"
+            },
+            "name": "experiment-sample"
+          },
+          "spec": {}
         },
         {
           "apiVersion": "argoproj.io/v1alpha1",
@@ -56,6 +131,36 @@ metadata:
               "trigger.on-sync-succeeded": "- description: Application syncing has succeeded\n  send:\n  - app-sync-succeeded\n  when: app.status.operationState.phase in ['Succeeded']"
             }
           }
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "Rollout",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-rollouts-manager",
+              "app.kubernetes.io/instance": "rollout-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "rollout",
+              "app.kubernetes.io/part-of": "argo-rollouts-manager"
+            },
+            "name": "rollout-sample"
+          },
+          "spec": {}
+        },
+        {
+          "apiVersion": "argoproj.io/v1alpha1",
+          "kind": "RolloutManager",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/created-by": "argo-rollouts-manager",
+              "app.kubernetes.io/instance": "rolloutmanager-sample",
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "rolloutmanagers",
+              "app.kubernetes.io/part-of": "argo-rollouts-manager"
+            },
+            "name": "rolloutmanager-sample"
+          },
+          "spec": {}
         },
         {
           "apiVersion": "argoproj.io/v1beta1",
@@ -164,7 +269,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2025-02-07T05:40:49Z"
+    createdAt: "2025-02-10T09:48:00Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"

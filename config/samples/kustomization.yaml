@@ -6,4 +6,11 @@ resources:
 - argoproj.io_v1alpha1_applicationset.yaml
 - argoproj.io_v1alpha1_appproject.yaml
 - argoproj.io_v1alpha1_notificationsconfiguration.yaml
+- argoproj.io_v1alpha1_rolloutmanager.yaml
+- argoproj.io_v1alpha1_rollout.yaml
+- argoproj.io_v1alpha1_analysisrun.yaml
+- argoproj.io_v1alpha1_analysistemplate.yaml
+- argoproj.io_v1alpha1_experiment.yaml
+- argoproj.io_v1alpha1_clusteranalysistemplate.yaml
+- argoproj.io_v1alpha1_aargocd.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

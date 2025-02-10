@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: analysistemplate
+    app.kubernetes.io/instance: analysistemplate-sample
+    app.kubernetes.io/part-of: argo-analysistemplate-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-analysistemplate-manager
+  name: analysistemplate-sample
+spec: {}

@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  labels:
+    app.kubernetes.io/name: experiment
+    app.kubernetes.io/instance: experiment-sample
+    app.kubernetes.io/part-of: argo-experiment-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-experiment-manager
+  name: experiment-sample
+spec: {}

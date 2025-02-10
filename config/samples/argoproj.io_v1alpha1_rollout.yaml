@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  labels:
+    app.kubernetes.io/name: rollout
+    app.kubernetes.io/instance: rollout-sample
+    app.kubernetes.io/part-of: argo-rollouts-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-rollouts-manager
+  name: rollout-sample
+spec: {}

@@ -1,6 +1,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
 metadata:
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/instance: argocd-sample
+    app.kubernetes.io/part-of: argo-argocd-manager
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: argo-argocd-manager
   name: argocd
 spec:
   server:
