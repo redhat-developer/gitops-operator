@@ -2,8 +2,20 @@ apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
 - script: |
+    
+    echo "routes:"
+    oc get routes -n openshift-gitops -o yaml
+
+    echo "route hosts:"
+    oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}"
+
+    echo "pods:"
+    oc get pods -n openshift-gitops -o yaml
+    
     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
+
+    echo "argocd login $api_server --username admin --insecure"
 
     output=$(argocd login $api_server --username admin --password $password --insecure)
 
