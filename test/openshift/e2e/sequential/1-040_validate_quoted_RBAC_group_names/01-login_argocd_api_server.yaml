@@ -29,7 +29,8 @@ commands:
     echo "Output:"
     echo $output
 
-    kubectl logs deployment/openshift-gitops-server -n openshift-gitops
+    kubectl logs deployment/openshift-gitops-server -n openshift-gitops || true
+    kubectl logs deployment/openshift-gitops-dex-server -n openshift-gitops || true
 
     if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
       exit 1
