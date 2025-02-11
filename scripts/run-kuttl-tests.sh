@@ -11,6 +11,12 @@ set -x
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source $DIR/e2e-common.sh
 
+
+curl -sSL -o $DIR/argocd https://github.com/argoproj/argo-cd/releases/download/v2.13.1/argocd-linux-amd64 && \
+chmod +x $DIR/argocd
+export PATH=$DIR:$PATH
+
+
 testsuite="$1"
 report=${report:-"json"}
 current_time=${current_time:-$(date "+%Y.%m.%d-%H.%M.%S")}
