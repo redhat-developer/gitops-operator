@@ -39,8 +39,3 @@ oc get pods -n test-argocd
 oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
 
 echo ">> Running tests on ${CI}"
-
-curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v2.13.1/argocd-linux-amd64 && \
-     chmod +x /usr/local/bin/argocd
-
-
