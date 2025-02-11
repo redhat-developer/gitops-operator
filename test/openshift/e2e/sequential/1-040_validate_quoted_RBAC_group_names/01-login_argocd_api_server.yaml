@@ -24,7 +24,9 @@ commands:
 
     echo "argocd login $api_server --username admin --insecure"
 
-    output=$(argocd login $api_server  --skip-test-tls --username admin --password $password --insecure)
+    output=$(argocd login $api_server  --username admin --password $password --insecure)
+
+    # This worked: output=$(argocd login $api_server  --skip-test-tls --username admin --password $password --insecure)
 
     echo "Output:"
     echo $output
