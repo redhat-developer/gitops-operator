@@ -15,6 +15,8 @@ commands:
     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
 
+    argocd version || true
+
     echo "argocd login $api_server --username admin --insecure"
 
     output=$(argocd login $api_server --username admin --password $password --insecure)
