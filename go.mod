@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.5
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250108152600-b4635b5b8dd1
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250212035559-38faac6d4127
 	github.com/argoproj-labs/argocd-operator v0.13.0-rc1.0.20250108102230-dd067457c82b
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
@@ -72,7 +72,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.17.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
