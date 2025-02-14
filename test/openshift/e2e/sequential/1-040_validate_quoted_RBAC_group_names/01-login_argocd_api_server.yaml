@@ -5,7 +5,10 @@ commands:
     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
 
-    output=$(argocd login $api_server --username admin --password $password --insecure)
+    # '--skip-test-tls' parameter was added in Feb 2025, to work around OpenShift Routes not supporting HTTP2 by default, along with Argo CD upstream bugs https://github.com/argoproj/argo-cd/issues/21764, and https://github.com/argoproj/argo-cd/issues/20121
+    # '--skip-test-tls' should be removed once we have resolved these issues.
+    
+    output=$(argocd login $api_server --username admin --password $password --insecure --skip-test-tls)
 
     if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
       exit 1
