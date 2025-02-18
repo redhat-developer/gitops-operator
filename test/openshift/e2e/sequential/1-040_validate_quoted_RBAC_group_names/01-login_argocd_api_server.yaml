@@ -5,8 +5,9 @@ commands:
     api_server=$(oc get routes -n openshift-gitops --field-selector metadata.name=openshift-gitops-server -o jsonpath="{.items[*]['spec.host']}")
     password=$(oc get secret openshift-gitops-cluster -n openshift-gitops -o jsonpath='{.data.admin\.password}' | base64 -d)
 
-    output=$(argocd login $api_server --username admin --password $password --insecure)
-
+    # --skip-test-tls is added as a temporary fix to "context deadline exceeded" failure
+    output=$(argocd login $api_server --username admin --password $password --insecure --skip-test-tls)
+    
     if ! [[ "${output}" =~ "'admin:login' logged in successfully" ]]; then
       exit 1
     fi
