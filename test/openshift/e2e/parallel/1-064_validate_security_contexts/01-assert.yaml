@@ -62,7 +62,8 @@ spec:
             allowPrivilegeEscalation: false
             # readOnlyRootFilesystem: true
             runAsNonRoot: true
-            runAsUser: 999
+            # random runAsUser in openshift
+            #runAsUser: 999
 ---
 apiVersion: apps/v1
 kind: Deployment
