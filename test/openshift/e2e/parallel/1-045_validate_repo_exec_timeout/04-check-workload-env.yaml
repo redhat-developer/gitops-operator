@@ -1,11 +1,29 @@
 apiVersion: kuttl.dev/v1beta1
 kind: TestStep
 commands:
-- script: sleep 10
-- script: |
-    timeout=$(oc get -n $NAMESPACE deployment argocd-repo-server -o json \
-      | jq -r '.spec.template.spec.containers[0].env[]|select(.name=="ARGOCD_EXEC_TIMEOUT").value')
-    if test "$timeout" != "300s"; then
-      echo "Assertion failed. Timeout should be 300s, is '$timeout'"
+  - script: |
+      function check_timeout() {
+        timeout=$(oc get -n $NAMESPACE deployment argocd-repo-server -o json \
+          | jq -r '.spec.template.spec.containers[0].env[]|select(.name=="ARGOCD_EXEC_TIMEOUT").value')
+        if test "$timeout" != "300s"; then
+          echo "Waiting for timeout to be 300s, is '$timeout'"
+          return 1
+        fi
+        return 0
+      }
+
+      echo -n "Waiting until timeout has expected value"
+      for i in {1..150}; do # timeout after 5 minutes
+
+        if check_timeout; then
+          # success
+          echo ".spec.template.spec.containers[0].env had expected env var"
+          exit 0
+        else
+          echo "Still waiting for 'spec.template.spec.containers[0].env' to have expected env var"
+        fi
+        sleep 2
+      done
+
+      echo ".spec.template.spec.containers[0].env never had expected env var"
       exit 1
-    fi
