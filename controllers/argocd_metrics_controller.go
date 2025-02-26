@@ -109,14 +109,23 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 	}
 
 	const clusterMonitoringLabel = "openshift.io/cluster-monitoring"
-	labelVal, exists := namespace.Labels[clusterMonitoringLabel]
+	const userDefinedMonitoringLabel = "openshift.io/user-monitoring"
+	var labelVal, monitoringLabel string
+	var exists bool
+	if strings.HasPrefix(namespace.Name, "openshift-") {
+		labelVal, exists = namespace.Labels[clusterMonitoringLabel]
+		monitoringLabel = clusterMonitoringLabel
+	} else {
+		labelVal, exists = namespace.Labels[userDefinedMonitoringLabel]
+		monitoringLabel = userDefinedMonitoringLabel
+	}
 
 	if argocd.Spec.Monitoring.DisableMetrics == nil || !*argocd.Spec.Monitoring.DisableMetrics {
 		if !exists || labelVal != "true" {
 			if namespace.Labels == nil {
 				namespace.Labels = make(map[string]string)
 			}
-			namespace.Labels[clusterMonitoringLabel] = "true"
+			namespace.Labels[monitoringLabel] = "true"
 			err = r.Client.Update(ctx, &namespace)
 			if err != nil {
 				reqLogger.Error(err, "Error updating namespace",
@@ -178,7 +187,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 		}
 	} else {
 		if exists {
-			namespace.Labels[clusterMonitoringLabel] = "false"
+			namespace.Labels[monitoringLabel] = "false"
 			err = r.Client.Update(ctx, &namespace)
 			if err != nil {
 				reqLogger.Error(err, "Error updating namespace",
