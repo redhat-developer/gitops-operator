@@ -15,7 +15,7 @@ require (
 	github.com/onsi/gomega v1.34.0
 	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
 	github.com/operator-framework/api v0.17.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.22.0
 	gotest.tools v2.2.0+incompatible
