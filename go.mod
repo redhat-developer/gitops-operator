@@ -9,7 +9,7 @@ require (
 	github.com/argoproj-labs/argocd-operator v0.13.0-rc1.0.20250220070432-0ffa69ea6872
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.34.0
