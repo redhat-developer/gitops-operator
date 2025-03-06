@@ -4,7 +4,7 @@ go 1.21.0
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241019174305-df262fe66d25
-	github.com/argoproj-labs/argocd-operator v0.12.2
+	github.com/argoproj-labs/argocd-operator v0.12.3-0.20250305133557-19591b9a8c8e
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
@@ -13,7 +13,7 @@ require (
 	github.com/onsi/gomega v1.34.0
 	github.com/openshift/api v3.9.1-0.20190916204813-cdbe64fb0c91+incompatible
 	github.com/operator-framework/api v0.17.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.20.0
 	gotest.tools v2.2.0+incompatible
@@ -27,7 +27,7 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.12.7 // indirect
+	github.com/argoproj/argo-cd/v2 v2.12.10 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cert-manager/cert-manager v1.14.4 // indirect
@@ -68,13 +68,13 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.17.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
