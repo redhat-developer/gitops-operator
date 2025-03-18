@@ -3,6 +3,7 @@
 # The goal of this script is to run the Argo Rollouts operator tests from the argo-rollouts-manager repo against gitops-operator:
 # - Runs the cluster-scoped/namespace-scoped E2E tests of the Argo Rollouts operator
 # - Runs the upstream E2E tests from the argo-rollouts repo
+# - Run the OpenShift Routes plugin
 
 set -ex
 
@@ -102,6 +103,58 @@ function enable_rollouts_cluster_scoped_namespaces() {
 
 }
 
+function enable_rollouts_namespace_scoped_namespaces() {
+  
+  if ! [ -z $NON_OLM ]; then
+    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=""
+    
+    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator NAMESPACE_SCOPED_ARGO_ROLLOUTS="true"
+
+  elif [ -z $CI ]; then 
+
+    oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": ""}]}}}'
+
+    oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "NAMESPACE_SCOPED_ARGO_ROLLOUTS", "value": "true"}]}}}'
+
+
+  else
+
+    oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": ""}]}}}'
+
+    oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "NAMESPACE_SCOPED_ARGO_ROLLOUTS", "value": "true"}]}}}'
+
+  fi
+
+  # Loop to wait until NAMESPACE_SCOPED_ARGO_ROLLOUTS is added to the OpenShift GitOps Operator Deployment
+  for i in {1..30}; do
+    if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"NAMESPACE_SCOPED_ARGO_ROLLOUTS","value":"true"}'; then
+      echo "NAMESPACE_SCOPED_ARGO_ROLLOUTS is now set"
+      break
+    else
+      echo "Waiting for NAMESPACE_SCOPED_ARGO_ROLLOUTS to be set"
+      sleep 5      
+    fi
+  done
+
+  # Verify the variable is set
+  if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"NAMESPACE_SCOPED_ARGO_ROLLOUTS","value":"true"}'; then
+    echo "NAMESPACE_SCOPED_ARGO_ROLLOUTS is set."
+  else 
+    echo "ERROR: NAMESPACE_SCOPED_ARGO_ROLLOUTS was never set."
+    exit 1    
+  fi
+
+  # Deployment is correct, now wait for Pods to start
+  wait_until_pods_running "openshift-gitops-operator"
+
+}
+
+
+
 function disable_rollouts_cluster_scope_namespaces() {
 
   # Remove the env var we previously added to operator
@@ -109,17 +162,20 @@ function disable_rollouts_cluster_scope_namespaces() {
   if ! [ -z $NON_OLM ]; then
 
     oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=null
-      
+
+    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator NAMESPACE_SCOPED_ARGO_ROLLOUTS=null
+
   elif [ -z $CI ]; then 
 
     oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
       --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
+
   else
 
     oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
       --type json --patch '[{"op": "remove", "path": "/spec/config"}]'
-  fi
 
+  fi
 
   # Loop to wait until CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES is removed from the OpenShift GitOps Operator Deplyoment
   for i in {1..30}; do
@@ -171,7 +227,19 @@ git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 
 # 1) Run E2E tests from argo-rollouts-manager repo
 
-make test-e2e
+make test-e2e-cluster-scoped
+
+# Clean up old namespaces created by test
+# NOTE: remove this once this is handled by 'make test-e2e' in argo-rollouts-manager repo
+kubectl delete rolloutmanagers --all -n test-rom-ns-1 || true
+
+enable_rollouts_namespace_scoped_namespaces
+
+make test-e2e-namespace-scoped
+
+# Enable cluster scoped again, so we can run upstream Rollouts E2E tests
+
+enable_rollouts_cluster_scoped_namespaces
 
 # Clean up old namespaces created by test
 # NOTE: remove this once this is handled by 'make test-e2e' in argo-rollouts-manager repo
