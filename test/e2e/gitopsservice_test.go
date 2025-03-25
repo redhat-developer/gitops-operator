@@ -129,8 +129,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
 
-			cmd := exec.Command(ocPath, "apply", "-f", imageYAML)
-			err = cmd.Run()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", imageYAML)
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -191,8 +190,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			nonDefaultAppCR := filepath.Join("..", "appcrs", "non_default_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", nonDefaultAppCR)
-			_, err = cmd.CombinedOutput()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", nonDefaultAppCR)
 			if err != nil {
 				Expect(err).NotTo(HaveOccurred())
 			}
@@ -321,8 +319,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
 			schedulerYAML := filepath.Join("..", "appcrs", "scheduler_appcr.yaml")
-			cmd := exec.Command(ocPath, "apply", "-f", schedulerYAML)
-			_, err = cmd.CombinedOutput()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", schedulerYAML)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
@@ -420,8 +417,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			nginxAppCr := filepath.Join("..", "appcrs", "nginx_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
-			err = cmd.Run()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", nginxAppCr)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
@@ -487,8 +483,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			nginxAppCr := filepath.Join("..", "appcrs", "nginx_default_ns_appcr.yaml")
 			ocPath, err := exec.LookPath("oc")
 			Expect(err).NotTo(HaveOccurred())
-			cmd := exec.Command(ocPath, "apply", "-f", nginxAppCr)
-			err = cmd.Run()
+			_, _, err = runCommandWithOutput(ocPath, "apply", "-f", nginxAppCr)
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() error {
