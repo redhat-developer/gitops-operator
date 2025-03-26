@@ -161,7 +161,7 @@ cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in go.mod of gitops-operator (which will usually be the most recent argo-rollouts-manager commit)
-TARGET_ROLLOUT_MANAGER_COMMIT=38faac6d4127850207da231d153526a3777fa3bf
+TARGET_ROLLOUT_MANAGER_COMMIT=bb5580b286c595f91dfc21382df494e5fb8f9a46
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in the version of argo-rollouts-manager that is in go.mod
@@ -170,8 +170,11 @@ TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT=8b4125a7f9ecffb0247df91a4c890f88c0c
 git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 
 # 1) Run E2E tests from argo-rollouts-manager repo
+# We use 'DISABLE_METRICS=true' since metrics gathering only works when run directly via Rollouts E2E tests
 
-make test-e2e
+DISABLE_METRICS=true make test-e2e
+
+
 
 # Clean up old namespaces created by test
 # NOTE: remove this once this is handled by 'make test-e2e' in argo-rollouts-manager repo
@@ -212,6 +215,7 @@ cd "$ROLLOUTS_TMP_DIR/rollouts-plugin-trafficrouter-openshift"
 git checkout $TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT
 
 make test-e2e
+
 
 
 
