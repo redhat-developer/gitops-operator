@@ -161,7 +161,7 @@ cd "$ROLLOUTS_TMP_DIR/argo-rollouts-manager"
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in go.mod of gitops-operator (which will usually be the most recent argo-rollouts-manager commit)
-TARGET_ROLLOUT_MANAGER_COMMIT=bb5580b286c595f91dfc21382df494e5fb8f9a46
+TARGET_ROLLOUT_MANAGER_COMMIT=836ab677ea4d20a39a16c9f7c8162827cd259ee8
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in the version of argo-rollouts-manager that is in go.mod
