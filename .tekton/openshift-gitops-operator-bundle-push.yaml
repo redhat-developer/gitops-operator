@@ -6,8 +6,14 @@ metadata:
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch
-      == "master"
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "push" && 
+      target_branch == "master" &&
+      (
+        files.all.exists(x, x.matches('bundle/')) ||
+        files.all.exists(x, x.matches('bundle.Dockerfile')) ||
+        files.all.exists(x, x.matches('.tekton/openshift-gitops-operator-bundle-push-request.yaml'))
+      )
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: openshift-gitops-operator
@@ -24,7 +30,15 @@ spec:
   - name: output-image
     value: quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/openshift-gitops-operator/openshift-gitops-operator-bundle:{{revision}}
   - name: dockerfile
-    value: bundle/bundle.Dockerfile
+    value: bundle.Dockerfile
+  - name: hermetic
+    value: true
+  - name: build-platforms
+    value:
+      - linux/x86_64
+      - linux/arm64
+      - linux/ppc64le
+      - linux/s390x
   pipelineSpec:
     description: |
       This pipeline is ideal for building multi-arch container images from a Containerfile while maintaining trust after pipeline customization.
