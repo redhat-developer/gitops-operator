@@ -12,7 +12,7 @@ metadata:
       (
         files.all.exists(x, x.matches('bundle/')) ||
         files.all.exists(x, x.matches('bundle.Dockerfile')) ||
-        files.all.exists(x, x.matches('.tekton/openshift-gitops-operator-bundle-push-request.yaml'))
+        files.all.exists(x, x.matches('.tekton/openshift-gitops-operator-bundle-push.yaml'))
       )
   creationTimestamp: null
   labels:
