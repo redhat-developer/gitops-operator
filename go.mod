@@ -1,8 +1,8 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.22.5
+toolchain go1.23.8
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250314083117-bb5580b286c5
@@ -17,7 +17,7 @@ require (
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.22.0
+	golang.org/x/mod v0.24.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.6
 	k8s.io/apiextensions-apiserver v0.29.6
