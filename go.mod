@@ -60,7 +60,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/openshift/client-go v0.0.0-20240215090359-b71f6f2731f5 // indirect
+	github.com/openshift/client-go b3bad3b645f2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.21.0 // indirect
@@ -98,7 +98,7 @@ replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
-	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb
+	github.com/openshift/client-go => github.com/openshift/client-go b3bad3b645f2
 	k8s.io/api => k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.3
 	k8s.io/apimachinery => k8s.io/apimachinery v0.28.3
