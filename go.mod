@@ -1,8 +1,8 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.22.5
+toolchain go1.23.8
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250314083117-bb5580b286c5
@@ -17,7 +17,7 @@ require (
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.22.0
+	golang.org/x/mod v0.24.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.6
 	k8s.io/apiextensions-apiserver v0.29.6
@@ -72,7 +72,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
+	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
