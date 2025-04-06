@@ -1,23 +1,23 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.22.5
+toolchain go1.23.8
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250314083117-bb5580b286c5
 	github.com/argoproj-labs/argocd-operator v0.14.0-rc4
 	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.34.0
+	github.com/onsi/gomega v1.37.0
 	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
 	github.com/operator-framework/api v0.17.5
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/mod v0.22.0
+	golang.org/x/mod v0.23.0
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.29.6
 	k8s.io/apiextensions-apiserver v0.29.6
@@ -71,16 +71,16 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/protobuf v1.36.1 // indirect
+	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -97,7 +97,7 @@ require (
 replace (
 	cloud.google.com/go => cloud.google.com/go v0.100.2
 	github.com/onsi/ginkgo => github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega => github.com/onsi/gomega v1.14.0
+	github.com/onsi/gomega => github.com/onsi/gomega v1.37.0
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb
 	k8s.io/api => k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.28.3
