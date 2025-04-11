@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that specifying a ConfigMap to ArgoCD CR .spec.applicationSet.SCMRootCAConfigMap will cause that ConfigMap to be mounted into applicationset controller Deployment", func() {
+		It("verifies that specifying a ConfigMap to ArgoCD CR .spec.applicationSet.SCMRootCAConfigMap will cause that ConfigMap to be mounted into applicationset controller Deployment, and that applicationset controller has expected volumes and mounts", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
@@ -145,9 +145,14 @@ XWyb96wrUlv+E8I=
 			}
 			Expect(volumeMatch).To(BeTrue())
 
-			By("verifying volumemounts and volumes of Argo CD Repo server")
+			By("verifying volumemounts and volumes of Argo CD ApplicationSet controller")
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appsetDepl), appsetDepl)).To(Succeed())
+
+			Expect(appsetDepl.ObjectMeta.Labels["app.kubernetes.io/component"]).To(Equal("controller"))
+			Expect(appsetDepl.ObjectMeta.Labels["app.kubernetes.io/managed-by"]).To(Equal("argocd"))
+			Expect(appsetDepl.ObjectMeta.Labels["app.kubernetes.io/name"]).To(Equal("argocd-applicationset-controller"))
+			Expect(appsetDepl.ObjectMeta.Labels["app.kubernetes.io/part-of"]).To(Equal("argocd"))
 
 			Expect(appsetDepl.Spec.Template.Spec.Containers[0].VolumeMounts).To(Equal([]corev1.VolumeMount{
 				{Name: "ssh-known-hosts", MountPath: "/app/config/ssh"},
