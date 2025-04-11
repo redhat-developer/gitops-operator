@@ -154,15 +154,29 @@ test-gitopsservice-nondefault:
 test: manifests generate fmt vet ## Run unit tests.
 	go test `go list ./... | grep -v test` -coverprofile cover.out
 
+
+.PHONY: e2e-tests-ginkgo
+e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs kuttl e2e sequential and parallel tests
+
+.PHONY: e2e-tests-sequential-ginkgo
+e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
+	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
+	$(GINKGO_CLI) -v --trace -r ./test/openshift/e2e/ginkgo/sequential
+
+.PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-tests-parallel-ginkgo: ginkgo
+	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
+	$(GINKGO_CLI) -p --trace -procs=5 --slow-spec-threshold=5m  -v  -r ./test/openshift/e2e/ginkgo/parallel 
+
 .PHONY: e2e-tests-sequential
-e2e-tests-sequential: ## Runs kuttl e2e sequentail tests
-	@echo "Running GitOps Operator sequential E2E tests..."
-	. ./scripts/run-kuttl-tests.sh  sequential
+e2e-tests-sequential: e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
+#	@echo "Running GitOps Operator sequential E2E tests..."
+#	. ./scripts/run-kuttl-tests.sh  sequential
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-tests-parallel:
-	@echo "Running GitOps Operator parallel E2E tests..."
-	. ./scripts/run-kuttl-tests.sh  parallel
+e2e-tests-parallel: e2e-tests-parallel-ginkgo
+	# @echo "Running GitOps Operator parallel E2E tests..."
+	# . ./scripts/run-kuttl-tests.sh  parallel
 
 .PHONY: e2e-non-olm-tests-sequential
 e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
@@ -257,6 +271,12 @@ KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.2)
+
+GINKGO_CLI = $(shell pwd)/bin/ginkgo
+.PHONY: ginkgo
+ginkgo: ## Download ginkgo locally if necessary.
+	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.1.5)
+
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
