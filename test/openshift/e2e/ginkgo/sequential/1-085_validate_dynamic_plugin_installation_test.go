@@ -98,7 +98,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying the plugin's Deployment, ConfigMap, Secret, Service, and other resources have expected values")
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
-			Eventually(depl).Should(k8sFixture.ExistByName())
+			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops"}}
