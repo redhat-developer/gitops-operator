@@ -14,7 +14,7 @@ import (
 
 	"os/exec"
 
-	"github.com/google/go-github/v58/github"
+	"github.com/google/go-github/v71/github"
 )
 
 // These can be set while debugging
