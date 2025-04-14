@@ -169,12 +169,14 @@ e2e-tests-parallel-ginkgo: ginkgo
 	$(GINKGO_CLI) -p --trace -procs=5 --slow-spec-threshold=5m  -v  -r ./test/openshift/e2e/ginkgo/parallel 
 
 .PHONY: e2e-tests-sequential
-e2e-tests-sequential: e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
+e2e-tests-sequential: 
+	CI=prow make e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
 #	@echo "Running GitOps Operator sequential E2E tests..."
 #	. ./scripts/run-kuttl-tests.sh  sequential
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-tests-parallel: e2e-tests-parallel-ginkgo
+e2e-tests-parallel: 
+	CI=prow make e2e-tests-parallel-ginkgo
 	# @echo "Running GitOps Operator parallel E2E tests..."
 	# . ./scripts/run-kuttl-tests.sh  parallel
 
