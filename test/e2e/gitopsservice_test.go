@@ -20,7 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -702,7 +702,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			defer response.Body.Close()
 
 			By("verify reponse")
-			b, err := ioutil.ReadAll(response.Body)
+			b, err := io.ReadAll(response.Body)
 			Expect(err).NotTo(HaveOccurred())
 
 			m := make(map[string]interface{})
@@ -745,10 +745,14 @@ var _ = Describe("GitOpsServiceController", func() {
 		namespace := argoCDNamespace
 		argocd := &argoapp.ArgoCD{}
 		It("Remove SSO field from Argo CD CR", func() {
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
 
-			argocd.Spec.SSO = nil
-			err = k8sClient.Update(context.TODO(), argocd)
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
+				Expect(err).ToNot(HaveOccurred())
+
+				argocd.Spec.SSO = nil
+				return k8sClient.Update(context.TODO(), argocd)
+			})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -844,29 +848,38 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Remove runOnInfra spec from gitopsService CR", func() {
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
-			Expect(err).NotTo(HaveOccurred())
-			gitopsService.Spec.RunOnInfra = false
-			err = k8sClient.Update(context.TODO(), gitopsService)
-			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func() error {
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
+				Expect(err).ToNot(HaveOccurred())
+
+				gitopsService.Spec.RunOnInfra = false
+				return k8sClient.Update(context.TODO(), gitopsService)
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(func() bool {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
-				Expect(err).NotTo(HaveOccurred())
+				if err != nil {
+					GinkgoWriter.Println("Unable to get Deployment", err)
+					return false
+				}
+
 				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
-					return fmt.Errorf("expected one nodeSelector in deployment")
+					GinkgoWriter.Println("expected one nodeSelector in deployment")
+					return false
 				}
 
 				argocd := &argoapp.ArgoCD{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
-				Expect(err).NotTo(HaveOccurred())
-				if argocd.Spec.NodePlacement != nil {
-					return fmt.Errorf("expected no NodePlacement in argocd ")
+				if err != nil {
+					GinkgoWriter.Println("Unable to get ArgoCD", err)
+					return false
 				}
 
-				return nil
-			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+				return argocd.Spec.NodePlacement == nil
+			}, "3m", "5s").Should(BeTrue())
 
 		})
 	})
@@ -910,7 +923,7 @@ func getAccessToken(user, pass, accessURL string) (string, error) {
 	}
 
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
 	}
