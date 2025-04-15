@@ -159,7 +159,7 @@ var _ = BeforeSuite(func() {
 		Expect(err).NotTo(HaveOccurred())
 	}()
 
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("remove the GitOpsService Instance")
