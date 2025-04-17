@@ -591,13 +591,6 @@ func newServiceMonitor(namespace, name, matchLabel string) *monitoringv1.Service
 }
 
 func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
-	// The namespace used in the alert rule is not the namespace of the
-	// running application, it is the namespace that the corresponding
-	// ArgoCD application metadata was created in.  This is needed to
-	// scope this alert rule to only fire for applications managed
-	// by the ArgoCD instance installed in this namespace.
-	expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", namespace)
-
 	objectMeta := metav1.ObjectMeta{
 		Name:      alertRuleName,
 		Namespace: namespace,
@@ -611,13 +604,84 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 						Alert: "ArgoCDSyncAlert",
 						Annotations: map[string]string{
 							"summary":     "Argo CD application is out of sync",
-							"description": "Argo CD application {{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is out of sync. Check ArgoCDSyncAlert status, this alert is designed to notify that an application managed by Argo CD is out of sync.",
+						},
+						Expr: intstr.IntOrString{
+							Type: intstr.String,
+							// The namespace used in the alert rule is not the namespace of the
+							// running application, it is the namespace that the corresponding
+							// ArgoCD application metadata was created in.  This is needed to
+							// scope this alert rule to only fire for applications managed
+							// by the ArgoCD instance installed in this namespace.
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", namespace),
+						},
+						For: "5m",
+						Labels: map[string]string{
+							"severity": "warning",
+						},
+					},
+					{
+						Alert: "ArgoCDUnknownSyncAlert",
+						Annotations: map[string]string{
+							"summary":     "Argo CD application sync state is unknown",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is in an unknown sync state. Check ArgoCDUnknownSyncAlert status, this often occurs when the Application is misconfigured.",
 						},
 						Expr: intstr.IntOrString{
 							Type:   intstr.String,
-							StrVal: expr,
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"Unknown\"} > 0", namespace),
 						},
 						For: "5m",
+						Labels: map[string]string{
+							"severity": "critical",
+						},
+					},
+					{
+						Alert: "ArgoCDHealthAlert",
+						Annotations: map[string]string{
+							"summary":     "Argo CD application is not healthy",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is not healthy. Check ArgoCDHealthAlert status, this alert is designed to notify that an application managed by Argo CD is not in a healthy, suspended, progressing or degraded state.",
+						},
+						Expr: intstr.IntOrString{
+							Type: intstr.String,
+							// General warning of not healthy, this ignores the status of Healthy and
+							// Suspended which are expected statuses. Degraded and Progressing are
+							// handled by other rules below
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\", health_status!~\"Healthy|Suspended|Progressing|Degraded\"} > 0", namespace),
+						},
+						For: "5m",
+						Labels: map[string]string{
+							"severity": "warning",
+						},
+					},
+					{
+						Alert: "ArgoCDDegradedAlert",
+						Annotations: map[string]string{
+							"summary":     "Argo CD application is degraded",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} is degraded. Check ArgoCDDegradedAlert status, this alert is designed to notify that an application managed by Argo CD is degraded.",
+						},
+						Expr: intstr.IntOrString{
+							Type: intstr.String,
+							// Specific warning of degraded state
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\", health_status=\"Degraded\"} > 0", namespace),
+						},
+						For: "5m",
+						Labels: map[string]string{
+							"severity": "critical",
+						},
+					},
+					{
+						Alert: "ArgoCDProgressingAlert",
+						Annotations: map[string]string{
+							"summary":     "Argo CD application has been progressing for more than 10 minutes",
+							"description": "Argo CD application {{ $labels.namespace }}/{{ $labels.name }} has been progressing for more than 10 minutes. Check ArgoCDProgressingAlert status, this alert is designed to notify when an application is taking a long time to exit the Progressing state.",
+						},
+						Expr: intstr.IntOrString{
+							Type: intstr.String,
+							// This rule is used to notify when an application is stuck in the progressing
+							// state for more then 10m.
+							StrVal: fmt.Sprintf("argocd_app_info{namespace=\"%s\", health_status=\"Progressing\"} > 0", namespace),
+						},
+						For: "10m",
 						Labels: map[string]string{
 							"severity": "warning",
 						},
