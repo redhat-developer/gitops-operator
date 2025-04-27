@@ -29,7 +29,7 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/v2 v2.12.3 // indirect
+	github.com/argoproj/argo-cd/v2 v2.14.11 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cert-manager/cert-manager v1.14.4 // indirect
