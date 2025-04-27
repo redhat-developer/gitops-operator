@@ -32,7 +32,7 @@ require (
 	github.com/argoproj/argo-cd/v2 v2.12.3 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/cert-manager/cert-manager v1.14.4 // indirect
+	github.com/cert-manager/cert-manager v1.17.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.2 // indirect
