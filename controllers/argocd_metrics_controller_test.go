@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -334,7 +334,7 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["summary"] != "")
 		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Annotations["description"] != "")
 		assert.Assert(t, rule.Spec.Groups[0].Rules[0].Labels["severity"] != "")
-		assert.Equal(t, rule.Spec.Groups[0].Rules[0].For, "5m")
+		assert.Equal(t, string(*rule.Spec.Groups[0].Rules[0].For), "5m")
 		expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", tc.namespace)
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Expr.StrVal, expr)
 	}

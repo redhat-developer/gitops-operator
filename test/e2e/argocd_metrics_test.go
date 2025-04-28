@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"time"
 
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
 	"k8s.io/apimachinery/pkg/types"
