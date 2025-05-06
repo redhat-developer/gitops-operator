@@ -1,35 +1,20 @@
-package namespace
+package role
 
 import (
 	"context"
+	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	matcher "github.com/onsi/gomega/types"
-
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
-	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func HavePhase(expectedPhase corev1.NamespacePhase) matcher.GomegaMatcher {
-	return fetchNamespace(func(ns *corev1.Namespace) bool {
-		GinkgoWriter.Println("Namespace - HavePhase: Expected:", expectedPhase, "/ Actual:", ns.Status.Phase)
-		return ns.Status.Phase == expectedPhase
-	})
-}
-
-func HaveLabel(key string, value string) matcher.GomegaMatcher {
-	return fetchNamespace(func(ns *corev1.Namespace) bool {
-		GinkgoWriter.Println("Namespace - HaveLabel: Key:", key, "Expected:", value, "/ Actual:", ns.ObjectMeta.Labels[key])
-		return ns.ObjectMeta.Labels[key] == value
-	})
-}
-
 // Update will keep trying to update object until it succeeds, or times out.
-func Update(obj *corev1.Namespace, modify func(*corev1.Namespace)) {
+func Update(obj *rbacv1.Role, modify func(*rbacv1.Role)) {
 	k8sClient, _ := utils.GetE2ETestKubeClient()
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -45,12 +30,20 @@ func Update(obj *corev1.Namespace, modify func(*corev1.Namespace)) {
 		return k8sClient.Update(context.Background(), obj)
 	})
 	Expect(err).ToNot(HaveOccurred())
+
+}
+
+func HaveRules(expectedRules []rbacv1.PolicyRule) matcher.GomegaMatcher {
+	return fetchRole(func(role *rbacv1.Role) bool {
+		GinkgoWriter.Println("HaveRules -  Expected:", expectedRules, "/ Actual:", role.Rules)
+		return reflect.DeepEqual(expectedRules, role.Rules)
+	})
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
-func fetchNamespace(f func(*corev1.Namespace) bool) matcher.GomegaMatcher {
+func fetchRole(f func(*rbacv1.Role) bool) matcher.GomegaMatcher {
 
-	return WithTransform(func(depl *corev1.Namespace) bool {
+	return WithTransform(func(role *rbacv1.Role) bool {
 
 		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 		if err != nil {
@@ -58,13 +51,13 @@ func fetchNamespace(f func(*corev1.Namespace) bool) matcher.GomegaMatcher {
 			return false
 		}
 
-		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(depl), depl)
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(role), role)
 		if err != nil {
 			GinkgoWriter.Println(err)
 			return false
 		}
 
-		return f(depl)
+		return f(role)
 
 	}, BeTrue())
 

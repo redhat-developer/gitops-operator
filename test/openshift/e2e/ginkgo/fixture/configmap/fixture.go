@@ -33,6 +33,16 @@ func Update(obj *corev1.ConfigMap, modify func(*corev1.ConfigMap)) {
 }
 
 // HaveStringDataKeyValue returns true if ConfigMap has 'key' field under .data map, and the value of that field is equal to 'value'
+// e.g.
+//
+// kind: ConfigMap
+// metadata:
+//
+//	(...)
+//
+// data:
+//
+//	"key": "value"
 func HaveStringDataKeyValue(key string, value string) matcher.GomegaMatcher {
 	return fetchConfigMap(func(cm *corev1.ConfigMap) bool {
 		a, exists := cm.Data[key]
@@ -69,6 +79,34 @@ func HaveNonEmptyDataKey(key string) matcher.GomegaMatcher {
 			return false
 		}
 		return len(strings.TrimSpace(a)) > 0
+	})
+
+}
+
+// HaveStringDataKeyValue returns true if ConfigMap has 'key' field under .data map, and the value of that field contains a specific substring
+func HaveStringDataKeyValueContainsSubstring(key string, substring string) matcher.GomegaMatcher {
+	return fetchConfigMap(func(cm *corev1.ConfigMap) bool {
+		a, exists := cm.Data[key]
+		if !exists {
+			GinkgoWriter.Println("HaveStringDataKeyValueContainsSubstring: ConfigMap key", key, "does not exist.")
+			return false
+		}
+
+		// Remove leading and trailing whitespace
+		a = strings.TrimSpace(a)
+		substring = strings.TrimSpace(substring)
+
+		if strings.Contains(substring, "\n") {
+			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key)
+			GinkgoWriter.Println("Value:")
+			GinkgoWriter.Println("|" + a + "|")
+			GinkgoWriter.Println("Expected:")
+			GinkgoWriter.Println("|" + substring + "|")
+		} else {
+			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key, "Value:", a, "Expected:", substring)
+		}
+
+		return strings.Contains(string(a), substring)
 	})
 
 }

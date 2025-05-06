@@ -55,6 +55,33 @@ func HaveTLS(termination routev1.TLSTerminationType, insecureEdgeTerminationPoli
 	})
 }
 
+// Whether the Route ingress status has been admitted:
+// status:
+//
+//	ingress:
+//	- conditions:
+//	  - status: "True"
+//	    type: Admitted
+func HaveAdmittedIngress() matcher.GomegaMatcher {
+	return fetchRoute(func(r *routev1.Route) bool {
+
+		match := false
+		for _, routeIngress := range r.Status.Ingress {
+
+			for _, c := range routeIngress.Conditions {
+
+				if c.Status == corev1.ConditionTrue && c.Type == routev1.RouteAdmitted {
+					match = true
+				}
+			}
+		}
+
+		GinkgoWriter.Println("HaveAdmittedIngress - value:", match)
+
+		return match
+	})
+}
+
 func HaveTo(routeTR routev1.RouteTargetReference) matcher.GomegaMatcher {
 	return fetchRoute(func(r *routev1.Route) bool {
 		GinkgoWriter.Println("HaveTo - expected:", routeTR, "actual:", r.Spec.To)

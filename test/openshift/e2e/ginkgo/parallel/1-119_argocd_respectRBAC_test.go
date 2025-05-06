@@ -25,16 +25,16 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-032_validate_resource_inclusions", func() {
+	Context("1-119_argocd_respectRBAC", func() {
 
 		var (
 			k8sClient client.Client
@@ -43,46 +43,39 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
+
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+
 		})
 
-		It("verifies setting resource inclusion on the ArgoCD CR will cause it to be set on Argo CD ConfigMap", func() {
+		It("ensures that setting .spec.controller.respectRBAC will cause that value to be set in Argo CD's argocd-cm ConfigMap", func() {
 
-			By("creating namespace-scoped Argo CD instance")
-
+			By("creating basic Argo CD instance with respect RBAC set to strict")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec:       argov1beta1api.ArgoCDSpec{},
+				Spec: argov1beta1api.ArgoCDSpec{
+					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
+						RespectRBAC: "strict",
+					},
+				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			By("verifying strict respectRBAC is set in argocd-cm ConfigMap")
+			argocdCMConfigMap := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: ns.Name,
+				},
+			}
+			Eventually(argocdCMConfigMap).Should(k8sFixture.ExistByName())
 
-			By("adding resource inclusion to ArgoCD CR")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ResourceInclusions = `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`
-			})
-
-			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
-
-			By("verifying ConfigMap has same resource inclusion value as specified in ArgoCD CR")
-			Eventually(argocdCM).Should(configmapFixture.HaveStringDataKeyValue("resource.inclusions", `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`),
-			)
+			Eventually(argocdCMConfigMap).Should(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
 
 		})
 

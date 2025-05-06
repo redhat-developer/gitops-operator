@@ -9,7 +9,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -28,6 +27,7 @@ import (
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,17 +38,18 @@ import (
 )
 
 const (
-	LabelsKey   = "app"
-	LabelsValue = "test-argo-app"
+	// E2ETestLabelsKey and E2ETestLabelsValue are added to cluster-scoped resources (e.g. Namespaces) created by E2E tests (where possible). On startup (and before each test for sequential tests), any resources with this label will be deleted.
+	E2ETestLabelsKey   = "app"
+	E2ETestLabelsValue = "test-argo-app"
 )
 
-var NamespaceLabels = map[string]string{LabelsKey: LabelsValue}
+var NamespaceLabels = map[string]string{E2ETestLabelsKey: E2ETestLabelsValue}
 
 func EnsureParallelCleanSlate() {
 
 	// Increase the maximum length of debug output, for when tests fail
-	format.MaxLength = 16 * 1024
-	SetDefaultEventuallyTimeout(time.Second * 30)
+	format.MaxLength = 64 * 1024
+	SetDefaultEventuallyTimeout(time.Second * 60)
 	SetDefaultEventuallyPollingInterval(time.Second * 3)
 	SetDefaultConsistentlyDuration(time.Second * 10)
 	SetDefaultConsistentlyPollingInterval(time.Second * 1)
@@ -82,8 +83,8 @@ func EnsureSequentialCleanSlateWithError() error {
 	// With sequential tests, we are always safe to assume that there is no other test running. That allows us to clean up old test artifacts before new test starts.
 
 	// Increase the maximum length of debug output, for when tests fail
-	format.MaxLength = 16 * 1024
-	SetDefaultEventuallyTimeout(time.Second * 30)
+	format.MaxLength = 64 * 1024
+	SetDefaultEventuallyTimeout(time.Second * 60)
 	SetDefaultEventuallyPollingInterval(time.Second * 3)
 	SetDefaultConsistentlyDuration(time.Second * 10)
 	SetDefaultConsistentlyPollingInterval(time.Second * 1)
@@ -106,12 +107,12 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
+	// wait for openshift-gitops ArgoCD to exist, if it doesn't already
 	defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
 	}
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(defaultOpenShiftGitOpsArgoCD), defaultOpenShiftGitOpsArgoCD); err != nil {
-		return err
-	}
+	Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8s.ExistByName())
+
 	// Ensure that default state of ArgoCD CR in openshift-gitops is restored
 	if err := updateWithoutConflict(defaultOpenShiftGitOpsArgoCD, func(obj client.Object) {
 		argocdObj, ok := obj.(*argov1beta1api.ArgoCD)
@@ -126,11 +127,22 @@ func EnsureSequentialCleanSlateWithError() error {
 		// Ensure that api server route has not been disabled, nor exposed via different settings
 		argocdObj.Spec.Server.Route = argov1beta1api.ArgoCDRouteSpec{
 			Enabled: true,
-			TLS: &routev1.TLSConfig{
-				Termination:                   routev1.TLSTerminationReencrypt,
-				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-			},
+			TLS:     nil,
+			// TLS: &routev1.TLSConfig{
+			// 	Termination:                   routev1.TLSTerminationReencrypt,
+			// 	InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+			// },
 		}
+
+		// Reset app controller processors to default
+		argocdObj.Spec.Controller.Processors = argov1beta1api.ArgoCDApplicationControllerProcessorsSpec{}
+
+		// Reset repo server replicas to default
+		argocdObj.Spec.Repo.Replicas = nil
+
+		// Reset source namespaces
+		argocdObj.Spec.SourceNamespaces = nil
+		argocdObj.Spec.ApplicationSet.SourceNamespaces = nil
 
 	}); err != nil {
 		return err
@@ -207,7 +219,7 @@ func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) er
 			break
 		}
 	}
-	Expect(csv).ToNot(BeNil())
+	Expect(csv).ToNot(BeNil(), "if you see this, it likely means, either: A) the operator is not installed via OLM (and you meant to install it), OR B) you are running the operator locally via 'make run', and thus should specify LOCAL_RUN=true env var when calling the test")
 
 	if err := updateWithoutConflict(csv, func(obj client.Object) {
 
@@ -295,7 +307,7 @@ func CreateManagedNamespace(name string, managedByNamespace string) corev1.Names
 	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: name,
 		Labels: map[string]string{
-			LabelsKey:                       LabelsValue,
+			E2ETestLabelsKey:                E2ETestLabelsValue,
 			"argocd.argoproj.io/managed-by": managedByNamespace,
 		},
 	}}
@@ -391,7 +403,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 
 }
 
-// SetEnvInOperatorSubscriptionOrDeployment will set the value of an environment variable, in either operator Subscription or operator Deployment, depending on which mode the test is running in.
+// SetEnvInOperatorSubscriptionOrDeployment will set the value of an environment variable, in either operator Subscription (under .spec.config.env) or operator Deployment (under template spec), depending on which mode the test is running in.
 func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 	k8sClient, _ := utils.GetE2ETestKubeClient()
@@ -738,7 +750,7 @@ func listE2ETestNamespaces(ctx context.Context, k8sClient client.Client) (corev1
 	nsList := corev1.NamespaceList{}
 
 	// set e2e label
-	req, err := labels.NewRequirement(LabelsKey, selection.Equals, []string{LabelsValue})
+	req, err := labels.NewRequirement(E2ETestLabelsKey, selection.Equals, []string{E2ETestLabelsValue})
 	if err != nil {
 		return nsList, fmt.Errorf("unable to set labels while fetching list of test namespace: %w", err)
 	}

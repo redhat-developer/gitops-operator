@@ -92,6 +92,62 @@ func HaveTemplateSpecNodeSelector(nodeSelector map[string]string) matcher.Gomega
 
 }
 
+func HaveTemplateLabelWithValue(key string, value string) matcher.GomegaMatcher {
+
+	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
+		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+		if err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ss), ss)
+		if err != nil {
+			GinkgoWriter.Println("HaveTemplateLabelWithValue:", err)
+			return false
+		}
+
+		labels := ss.Spec.Template.Labels
+		if labels == nil {
+			GinkgoWriter.Println("HaveTemplateLabelWithValue - labels are nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateLabelWithValue - Key", key, "Expect:", value, "/ Have:", labels[key])
+
+		return labels[key] == value
+
+	})
+}
+
+func HaveTemplateAnnotationWithValue(key string, value string) matcher.GomegaMatcher {
+
+	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
+		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+		if err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ss), ss)
+		if err != nil {
+			GinkgoWriter.Println("HaveTemplateAnnotationWithValue:", err)
+			return false
+		}
+
+		annotations := ss.Spec.Template.Annotations
+		if annotations == nil {
+			GinkgoWriter.Println("HaveTemplateAnnotationWithValue - labels are nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateAnnotationWithValue - Key", key, "Expect:", value, "/ Have:", annotations[key])
+
+		return annotations[key] == value
+
+	})
+}
+
 func HaveTolerations(tolerations []corev1.Toleration) matcher.GomegaMatcher {
 	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
 
