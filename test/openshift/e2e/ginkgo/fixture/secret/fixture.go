@@ -57,8 +57,12 @@ func HaveStringDataKeyValue(key string, value string) matcher.GomegaMatcher {
 	return fetchSecret(func(sec *corev1.Secret) bool {
 		a, exists := sec.Data[key]
 		if !exists {
+			GinkgoWriter.Println("HaveStringDataKeyValue - Key:", key, "does not exist")
 			return false
 		}
+
+		GinkgoWriter.Println("HaveStringDataKeyValue - Key:", key, "Expected:", value, "/ Have:", string(a))
+
 		return string(a) == value
 	})
 

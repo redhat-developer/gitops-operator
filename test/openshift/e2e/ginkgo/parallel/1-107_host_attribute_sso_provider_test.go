@@ -22,19 +22,19 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-032_validate_resource_inclusions", func() {
+	Context("1-107_host_attribute_sso_provider", func() {
 
 		var (
 			k8sClient client.Client
@@ -43,46 +43,47 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
+
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+
 		})
 
-		It("verifies setting resource inclusion on the ArgoCD CR will cause it to be set on Argo CD ConfigMap", func() {
-
-			By("creating namespace-scoped Argo CD instance")
+		It("verifies that keycloak SSO host can be customized", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			By("creating an ArgoCD CR with keycloak enabled and with a custom hsot")
 			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec:       argov1beta1api.ArgoCDSpec{},
+				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-keycloak", Namespace: ns.Name},
+				Spec: argov1beta1api.ArgoCDSpec{
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeKeycloak,
+						Keycloak: &argov1beta1api.ArgoCDKeycloakSpec{
+							VerifyTLS: ptr.To(false),
+							Host:      "sso.test.example.com",
+						},
+					},
+					Server: argov1beta1api.ArgoCDServerSpec{
+						Ingress: argov1beta1api.ArgoCDIngressSpec{
+							Enabled: true,
+						},
+					},
+				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
-
-			By("adding resource inclusion to ArgoCD CR")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ResourceInclusions = `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`
-			})
-
-			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
-
-			By("verifying ConfigMap has same resource inclusion value as specified in ArgoCD CR")
-			Eventually(argocdCM).Should(configmapFixture.HaveStringDataKeyValue("resource.inclusions", `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`),
-			)
+			By("verifying keycloak route has expected host specified in ArgoCD CR")
+			keycloakRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "keycloak",
+					Namespace: ns.Name,
+				},
+			}
+			Eventually(keycloakRoute).Should(k8sFixture.ExistByName())
+			Eventually(keycloakRoute.Spec.Host).Should(Equal("sso.test.example.com"))
 
 		})
 

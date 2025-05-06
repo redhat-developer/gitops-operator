@@ -165,6 +165,62 @@ func HaveTemplateSpecNodeSelector(nodeSelector map[string]string) matcher.Gomega
 
 }
 
+func HaveTemplateLabelWithValue(key string, value string) matcher.GomegaMatcher {
+
+	return WithTransform(func(depl *appsv1.Deployment) bool {
+		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+		if err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(depl), depl)
+		if err != nil {
+			GinkgoWriter.Println("HaveTemplateLabelWithValue:", err)
+			return false
+		}
+
+		labels := depl.Spec.Template.Labels
+		if labels == nil {
+			GinkgoWriter.Println("HaveTemplateLabelWithValue - labels are nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateLabelWithValue - Key", key, "Expect:", value, "/ Have:", labels[key])
+
+		return labels[key] == value
+
+	}, BeTrue())
+}
+
+func HaveTemplateAnnotationWithValue(key string, value string) matcher.GomegaMatcher {
+
+	return WithTransform(func(depl *appsv1.Deployment) bool {
+		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+		if err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(depl), depl)
+		if err != nil {
+			GinkgoWriter.Println("HaveTemplateAnnotationWithValue:", err)
+			return false
+		}
+
+		annotations := depl.Spec.Template.Annotations
+		if annotations == nil {
+			GinkgoWriter.Println("HaveTemplateAnnotationWithValue - labels are nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateAnnotationWithValue - Key", key, "Expect:", value, "/ Have:", annotations[key])
+
+		return annotations[key] == value
+
+	}, BeTrue())
+}
+
 func HaveTolerations(tolerations []corev1.Toleration) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 
@@ -253,6 +309,7 @@ func HaveContainerCommandSubstring(expectedCommandSubstring string, containerInd
 	})
 }
 
+// HaveContainerWithEnvVar matchs when a container exists under .spec.template.spec.containers, at position 'containerIndex' in the container array, with env var key/value
 func HaveContainerWithEnvVar(envKey string, envValue string, containerIndex int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 
@@ -290,6 +347,18 @@ func HaveConditionTypeStatus(expectedConditionType appsv1.DeploymentConditionTyp
 		}
 
 		return false
+	})
+}
+
+func HaveServiceAccountName(expectedServiceAccountName string) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+
+		GinkgoWriter.Println("HaveServiceAccountName - Expected:", expectedServiceAccountName, "Actual:", depl.Spec.Template.Spec.ServiceAccountName, "/", depl.Spec.Template.Spec.DeprecatedServiceAccount)
+
+		// We check both the deprecated and non-deprecated names, as these can POTENTIALLY be different values.
+		// - They should both have the same value 'expectedServiceAccountName'
+
+		return depl.Spec.Template.Spec.ServiceAccountName == expectedServiceAccountName && depl.Spec.Template.Spec.DeprecatedServiceAccount == expectedServiceAccountName
 	})
 }
 

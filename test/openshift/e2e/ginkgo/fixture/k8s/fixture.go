@@ -15,24 +15,53 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+func HaveAnnotationWithValue(key string, value string) matcher.GomegaMatcher {
+
+	return WithTransform(func(k8sObject client.Object) bool {
+		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+		if err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObject), k8sObject)
+		if err != nil {
+			GinkgoWriter.Println("HasAnnotationWithValue:", err)
+			return false
+		}
+
+		annotations := k8sObject.GetAnnotations()
+		if annotations == nil {
+			return false
+		}
+
+		return annotations[key] == value
+
+	}, BeTrue())
+}
+
 func HaveLabelWithValue(key string, value string) matcher.GomegaMatcher {
 
 	return WithTransform(func(k8sObject client.Object) bool {
 		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 		if err != nil {
 			GinkgoWriter.Println(err)
+			return false
 		}
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(k8sObject), k8sObject)
 		if err != nil {
-			GinkgoWriter.Println("HasLabelWithValue:", err)
+			GinkgoWriter.Println("HaveLabelWithValue:", err)
 			return false
 		}
 
 		labels := k8sObject.GetLabels()
 		if labels == nil {
+			GinkgoWriter.Println("HaveLabelWithValue - labels are nil")
 			return false
 		}
+
+		GinkgoWriter.Println("HaveLabelWithValue - Key", key, "Expect:", value, "/ Have:", labels[key])
 
 		return labels[key] == value
 

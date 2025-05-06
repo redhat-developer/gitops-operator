@@ -24,17 +24,15 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
-	corev1 "k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-032_validate_resource_inclusions", func() {
+	Context("1-091_argocd_app_validate-applicationset-status", func() {
 
 		var (
 			k8sClient client.Client
@@ -47,42 +45,47 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies setting resource inclusion on the ArgoCD CR will cause it to be set on Argo CD ConfigMap", func() {
-
-			By("creating namespace-scoped Argo CD instance")
+		It("ensures that ArgoCD CR .status.applicationset field correctly reflects the status of applicationset controller workload", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			By("creating simple, namespace-scoped ArgoCD CR")
 			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
 				Spec:       argov1beta1api.ArgoCDSpec{},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			By("waiting for ArgoCD to have unknown status for appset controller")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveApplicationSetControllerStatus("Unknown"))
 
-			By("adding resource inclusion to ArgoCD CR")
+			By("enabling appset controller via ArgoCD CR")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ResourceInclusions = `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`
+				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{}
 			})
 
-			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
+			By("ensuring appset controller becomes available")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveApplicationSetControllerStatus("Running"))
 
-			By("verifying ConfigMap has same resource inclusion value as specified in ArgoCD CR")
-			Eventually(argocdCM).Should(configmapFixture.HaveStringDataKeyValue("resource.inclusions", `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`),
-			)
+			By("modifying appset controller image")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.ApplicationSet.Image = "quay.io/argoproj/argocd@sha256:8576d347f30fa4c56a0129d1c0a0f5ed1e75662f0499f1ed7e917c405fd909dc"
+			})
+
+			// The kuttl test upon which this is based doesn't actually check if the image change was made in the Deployment
+
+			By("deleting appset controller Deployment")
+			depl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-argocd-applicationset-controller",
+					Namespace: ns.Name,
+				},
+			}
+			Expect(k8sClient.Delete(ctx, depl)).To(Succeed())
+
+			By("ArgoCD CR .status field for appset controller should go back to 'Pending'")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveApplicationSetControllerStatus("Pending"))
 
 		})
 

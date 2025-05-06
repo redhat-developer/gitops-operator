@@ -24,17 +24,18 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-032_validate_resource_inclusions", func() {
+	Context("1-088_validate_applicationset_add_env_vars", func() {
 
 		var (
 			k8sClient client.Client
@@ -47,42 +48,42 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies setting resource inclusion on the ArgoCD CR will cause it to be set on Argo CD ConfigMap", func() {
-
-			By("creating namespace-scoped Argo CD instance")
+		It("ensures that you can add env vars to applicationset container via .spec.applicationset.env field", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			By("creating ArgoCD CR with appset controller enabled")
 			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec:       argov1beta1api.ArgoCDSpec{},
+				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
+				Spec: argov1beta1api.ArgoCDSpec{
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
+						Enabled: ptr.To(true),
+					},
+				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("adding resource inclusion to ArgoCD CR")
+			appsetDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-argocd-applicationset-controller",
+					Namespace: ns.Name,
+				},
+			}
+			Eventually(appsetDepl).Should(deploymentFixture.HaveReadyReplicas(1))
+
+			By("adding an env to applicationset via ArgoCD CR")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ResourceInclusions = `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`
+				ac.Spec.ApplicationSet.Env = []corev1.EnvVar{{Name: "foo", Value: "bar"}}
 			})
 
-			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
+			By("verifying env var is added to Deployment, and that other env vars are still present")
+			Eventually(appsetDepl).Should(deploymentFixture.HaveContainerWithEnvVar("foo", "bar", 0))
 
-			By("verifying ConfigMap has same resource inclusion value as specified in ArgoCD CR")
-			Eventually(argocdCM).Should(configmapFixture.HaveStringDataKeyValue("resource.inclusions", `- apiGroups:
-    - tekton.dev
-  clusters:
-    - '*'
-  kinds:
-    -  DaemonSet`),
-			)
+			Expect(len(appsetDepl.Spec.Template.Spec.Containers[0].Env)).To(BeNumerically(">", 1))
 
 		})
 

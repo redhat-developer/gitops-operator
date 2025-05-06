@@ -16,13 +16,23 @@ func HaveSubject(subjectParam rbacv1.Subject) matcher.GomegaMatcher {
 	return fetchRoleBinding(func(r *rbacv1.RoleBinding) bool {
 		for _, subject := range r.Subjects {
 
-			GinkgoWriter.Printf("HaveSubject - ", subject, subjectParam)
+			GinkgoWriter.Println("HaveSubject - ", subject, subjectParam)
 			if reflect.DeepEqual(subjectParam, subject) {
 				return true
 			}
 
 		}
 		return false
+	})
+}
+
+func HaveRoleRef(subjectParam rbacv1.RoleRef) matcher.GomegaMatcher {
+	return fetchRoleBinding(func(r *rbacv1.RoleBinding) bool {
+
+		GinkgoWriter.Println("HaveRoleRef - Expected: ", subjectParam, "/ Actual:", r.RoleRef)
+
+		return reflect.DeepEqual(subjectParam, r.RoleRef)
+
 	})
 }
 

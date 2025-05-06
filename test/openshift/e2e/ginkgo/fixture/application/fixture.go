@@ -62,7 +62,7 @@ func HaveHealthStatusCode(expectedHealth health.HealthStatusCode) matcher.Gomega
 
 	return expectedCondition(func(app *appv1alpha1.Application) bool {
 
-		GinkgoWriter.Println("HaveHealthStatusCode - current health:", app.Status.Health.Status, " / expected health:", expectedHealth)
+		GinkgoWriter.Println("HaveHealthStatusCode - current health:", app.Status.Health.Status, "/ expected health:", expectedHealth)
 
 		return app.Status.Health.Status == expectedHealth
 

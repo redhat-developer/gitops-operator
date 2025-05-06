@@ -40,7 +40,7 @@ func Update(obj *argov1beta1api.ArgoCD, modify func(*argov1beta1api.ArgoCD)) {
 	// After we update ArgoCD CR, we should wait a few moments for the operator to reconcile the change.
 	// - Ideally, the ArgoCD CR would have a .status field that we could read, that would indicate which resource version/generation had been reconciled.
 	// - Sadly, this does not exist, so we instead must use time.Sleep() (for now)
-	time.Sleep(5 * time.Second)
+	time.Sleep(7 * time.Second)
 }
 
 func GetOpenShiftGitOpsNSArgoCD() (*argov1beta1api.ArgoCD, error) {
@@ -84,50 +84,71 @@ func BeAvailableWithCustomSleepTime(sleepTime time.Duration) matcher.GomegaMatch
 
 func HavePhase(phase string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HavePhase:", "expected:", phase, "actual:", argocd.Status.Phase)
+		GinkgoWriter.Println("HavePhase:", "expected:", phase, "/ actual:", argocd.Status.Phase)
 		return argocd.Status.Phase == phase
 	})
 }
 
 func HaveRedisStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveRedisStatus:", "expected:", status, "actual:", argocd.Status.Redis)
+		GinkgoWriter.Println("HaveRedisStatus:", "expected:", status, "/ actual:", argocd.Status.Redis)
 		return argocd.Status.Redis == status
+	})
+}
+
+func HaveRepoStatus(status string) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		GinkgoWriter.Println("HaveRepoStatus:", "expected:", status, "/ actual:", argocd.Status.Repo)
+		return argocd.Status.Repo == status
 	})
 }
 
 func HaveServerStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveServerStatus:", "expected:", status, "actual:", argocd.Status.Server)
+		GinkgoWriter.Println("HaveServerStatus:", "expected:", status, "/ actual:", argocd.Status.Server)
 		return argocd.Status.Server == status
+	})
+}
+
+func HaveApplicationControllerStatus(status string) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		GinkgoWriter.Println("HaveApplicationControllerStatus:", "expected:", status, "/ actual:", argocd.Status.ApplicationController)
+		return argocd.Status.ApplicationController == status
 	})
 }
 
 func HaveApplicationSetControllerStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveApplicationSetControllerStatus:", "expected:", status, "actual:", argocd.Status.ApplicationSetController)
+		GinkgoWriter.Println("HaveApplicationSetControllerStatus:", "expected:", status, "/ actual:", argocd.Status.ApplicationSetController)
 		return argocd.Status.ApplicationSetController == status
 	})
 }
 
 func HaveNotificationControllerStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveNotificationControllerStatus:", "expected:", status, "actual:", argocd.Status.NotificationsController)
+		GinkgoWriter.Println("HaveNotificationControllerStatus:", "expected:", status, "/ actual:", argocd.Status.NotificationsController)
 		return argocd.Status.NotificationsController == status
 	})
 }
 
 func HaveSSOStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveSSOStatus:", "expected:", status, "actual:", argocd.Status.SSO)
+		GinkgoWriter.Println("HaveSSOStatus:", "expected:", status, "/ actual:", argocd.Status.SSO)
 		return argocd.Status.SSO == status
 	})
 }
 
 func HaveHost(host string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveHost:", "expected:", host, "actual:", argocd.Status.Host)
+		GinkgoWriter.Println("HaveHost:", "expected:", host, "/ actual:", argocd.Status.Host)
 		return argocd.Status.Host == host
+	})
+}
+
+func HaveApplicationControllerOperationProcessors(operationProcessors int) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		GinkgoWriter.Println("HaveApplicationControllerOperationProcessors:", "Expected:", operationProcessors, "/ actual:", argocd.Spec.Controller.Processors.Operation)
+		return argocd.Spec.Controller.Processors.Operation == int32(operationProcessors)
 	})
 }
 
