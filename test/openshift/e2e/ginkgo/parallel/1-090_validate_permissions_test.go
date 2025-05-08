@@ -49,6 +49,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("ensure the GitOps Operator CSV has the correct cluster permissions and gitopsservices CRD has expected properties", func() {
 
+			if fixture.EnvCI() {
+				Skip("AFAICT CSV does not exist when running E2E tests from gitops-operator repo")
+				return
+			}
+
 			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
 				Skip("CSV does not exist in the local run or non-OLM case, so we skip")
 				return
@@ -711,7 +716,7 @@ spec:
 				}
 			}
 			By("if more than one possible CSV is found, we will fail.")
-			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("multiple CSVs were found: %v", gitopsCSVsFound))
+			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("Exactly one CSV should found: %v", gitopsCSVsFound))
 
 			actualCsv := &olmv1alpha1.ClusterServiceVersion{
 				ObjectMeta: metav1.ObjectMeta{
