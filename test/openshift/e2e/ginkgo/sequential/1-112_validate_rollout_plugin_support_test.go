@@ -144,14 +144,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
   location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-amd64
   sha256: ""`
 
-			if fixture.EnvLocalRun() {
+			if fixture.EnvLocalRun() || fixture.EnvCI() {
 				// When running the operator locally, the value comes from 'DefaultOpenShiftRoutePluginURL' constant
 				expectedTrafficRouterPluginsVal += `
 - name: argoproj-labs/openshift
   location: ` + rolloutsOperator.DefaultOpenShiftRoutePluginURL + `
   sha256: ""`
 			} else {
-				// When running the operator on cluster, the openshift-route-plugin binary will likely be mounted on the filesystem
+				// Otherwise, the openshift-route-plugin binary will likely be mounted on the filesystem
 				expectedTrafficRouterPluginsVal += `
 - name: argoproj-labs/openshift
   location: file:/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin

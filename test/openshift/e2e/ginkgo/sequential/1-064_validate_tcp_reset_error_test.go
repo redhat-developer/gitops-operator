@@ -52,7 +52,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that argocd cli app manifests command will succesfully retrieve app manifets, and tcp reset error will not occur", func() {
+		It("verifies that argocd cli app manifests command will succesfully retrieve app manifests, and tcp reset error will not occur", func() {
 
 			// This test is VERY similar to 1-027.
 

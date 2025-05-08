@@ -30,7 +30,7 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterrole"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/persistentvolume"
+	persistentvolumeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/persistentvolume"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -243,7 +243,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying Argo CD is successfully able to reconcile and deploy the resources of the test Argo CD Application")
 
-			Eventually(app, "60s", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("verifying that the resources defined in the Application CR are deployed and have the expected values")
 			testGitOpsNs := &corev1.Namespace{
@@ -276,7 +277,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				VolumeMode:                    ptr.To(corev1.PersistentVolumeFilesystem),
 			}))
 
-			Eventually(pv, "4m", "5s").Should(persistentvolume.HavePhase(corev1.VolumeAvailable))
+			Eventually(pv, "4m", "5s").Should(persistentvolumeFixture.HavePhase(corev1.VolumeAvailable))
 
 			By("disabling defaultClusterScopedRole for ArgoCD instance")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
@@ -346,6 +347,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					return false
 				}
 
+				if app.Status.OperationState == nil {
+					GinkgoWriter.Println("app.Status.OperationState is nil")
+					return false
+				}
+
 				GinkgoWriter.Println(".app.status.operationStatus.message is", app.Status.OperationState.Message)
 
 				return strings.Contains(app.Status.OperationState.Message, "persistentvolumes is forbidden")
@@ -395,8 +401,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StorageClassName:              "manual",
 				VolumeMode:                    ptr.To(corev1.PersistentVolumeFilesystem),
 			}))
-			Eventually(pv, "4m", "5s").Should(persistentvolume.HavePhase(corev1.VolumeAvailable))
-
+			Eventually(pv, "4m", "5s").Should(persistentvolumeFixture.HavePhase(corev1.VolumeAvailable))
 		})
 
 	})

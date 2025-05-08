@@ -107,7 +107,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Delete(ctx, argoCDalpha1)).To(Succeed())
 
 			By("verifying ArgoCD CR no longer exists via v1beta1 API")
-			Expect(argoCDbeta1).To(k8sFixture.NotExistByName())
+			Eventually(argoCDbeta1).Should(k8sFixture.NotExistByName())
 
 		})
 

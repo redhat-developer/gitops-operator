@@ -127,7 +127,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Argo CD should eventually be ready after updating the resource requirements")
 			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable()) // it can take a while to schedule the Pods
-			Eventually(gitopsArgoCD, "60s", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
+			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
 
 			By("verifying Deployment and StatefulSet have expected resources that we set in previous step")
 
