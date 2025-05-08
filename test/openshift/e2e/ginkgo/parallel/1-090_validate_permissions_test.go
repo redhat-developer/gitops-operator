@@ -19,6 +19,7 @@ package parallel
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -699,10 +700,23 @@ spec:
 
 			Expect(yaml.UnmarshalStrict([]byte(csvString), expectedCsv)).To(Succeed())
 
+			By("looking for a ClusterServiceVersion for openshift-gitops across all namespaces")
+			gitopsCSVsFound := []olmv1alpha1.ClusterServiceVersion{}
+			var csvList olmv1alpha1.ClusterServiceVersionList
+			Expect(k8sClient.List(ctx, &csvList)).To(Succeed())
+			for index := range csvList.Items {
+				csv := csvList.Items[index]
+				if strings.Contains(csv.Name, "openshift-gitops-operator") {
+					gitopsCSVsFound = append(gitopsCSVsFound, csv)
+				}
+			}
+			By("if more than one possible CSV is found, we will fail.")
+			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("multiple CSVs were found: %v", gitopsCSVsFound))
+
 			actualCsv := &olmv1alpha1.ClusterServiceVersion{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-operator.v1.16.0",
-					Namespace: "openshift-operators",
+					Name:      gitopsCSVsFound[0].Name,
+					Namespace: gitopsCSVsFound[0].Namespace,
 				},
 			}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(actualCsv), actualCsv)).To(Succeed())
