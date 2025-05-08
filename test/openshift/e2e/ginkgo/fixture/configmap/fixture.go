@@ -57,12 +57,12 @@ func HaveStringDataKeyValue(key string, value string) matcher.GomegaMatcher {
 
 		if strings.Contains(value, "\n") {
 			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key)
-			GinkgoWriter.Println("Value:")
+			GinkgoWriter.Println("Have:")
 			GinkgoWriter.Println("|" + a + "|")
 			GinkgoWriter.Println("Expected:")
 			GinkgoWriter.Println("|" + value + "|")
 		} else {
-			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key, "Value:", a, "Expected:", value)
+			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key, "Have:", a, "Expected:", value)
 		}
 
 		return string(a) == value

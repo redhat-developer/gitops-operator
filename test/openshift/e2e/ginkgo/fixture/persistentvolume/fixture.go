@@ -13,7 +13,7 @@ import (
 
 func HavePhase(phase corev1.PersistentVolumePhase) matcher.GomegaMatcher {
 	return fetchPersistentVolume(func(pv *corev1.PersistentVolume) bool {
-		GinkgoWriter.Println("Pod HavePhase:", "expected: ", phase, "actual: ", pv.Status.Phase)
+		GinkgoWriter.Println("PersistentVolume HavePhase:", "expected: ", phase, "actual: ", pv.Status.Phase)
 		return pv.Status.Phase == phase
 	})
 }
