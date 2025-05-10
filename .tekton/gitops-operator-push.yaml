@@ -19,10 +19,10 @@ spec:
   params:
   - name: build-platforms
     value:
-      - linux/x86_64
-      - linux/arm64
-      - linux/ppc64le
-      - linux/s390x
+    - linux/x86_64
+    - linux/arm64
+    - linux/ppc64le
+    - linux/s390x
   - name: git-url
     value: '{{source_url}}'
   - name: revision
@@ -32,7 +32,7 @@ spec:
   - name: dockerfile
     value: Containerfile.plugin
   - name: hermetic
-    value: true
+    value: "true"
   - name: prefetch-input
     value: '{"type": "gomod", "path": "."}'
   pipelineSpec:
@@ -468,7 +468,8 @@ spec:
       optional: true
     - name: netrc
       optional: true
-  taskRunTemplate: {}
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-gitops-operator
   workspaces:
   - name: workspace
     volumeClaimTemplate:
