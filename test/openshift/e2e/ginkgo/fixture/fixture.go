@@ -28,6 +28,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -784,4 +785,62 @@ func updateWithoutConflict(obj client.Object, modify func(client.Object)) error 
 	})
 
 	return err
+}
+
+// DebugOutputOperatorLogs can be used to debug a failing test: it will output the operator logs
+func DebugOutputOperatorLogs() {
+
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	if err != nil {
+		GinkgoWriter.Println(err)
+		return
+	}
+
+	// List all pods on the cluster
+	var podList corev1.PodList
+	if err := k8sClient.List(context.Background(), &podList); err != nil {
+		GinkgoWriter.Println(err)
+		return
+	}
+
+	// Look specifically for operator pod
+	matchingPods := []corev1.Pod{}
+	for idx := range podList.Items {
+		pod := podList.Items[idx]
+		if strings.Contains(pod.Name, "openshift-gitops-operator-controller-manager") {
+			matchingPods = append(matchingPods, pod)
+		}
+	}
+
+	if len(matchingPods) == 0 {
+		// This can happen when the operator is not running on the cluster
+		GinkgoWriter.Println("DebugOutputOperatorLogs was called, but no pods were found.")
+		return
+	}
+
+	if len(matchingPods) != 1 {
+		GinkgoWriter.Println("unexpected number of operator pods", matchingPods)
+		return
+	}
+
+	// Extract operator logs
+	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
+	if err != nil {
+		GinkgoWriter.Println("unable to extract operator logs", err)
+		return
+	}
+
+	// Output only the last 1000 lines
+	lines := strings.Split(kubectlLogOutput, "\n")
+
+	count := 0
+	output := []string{}
+	for x := len(lines) - 1; x >= 0 && count < 1000; x-- {
+		output = append(lines[x:x+1], output...)
+		count++
+	}
+
+	GinkgoWriter.Println("Log output from operator pod:")
+	GinkgoWriter.Println(output)
+
 }

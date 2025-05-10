@@ -33,6 +33,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			if CurrentSpecReport().Failed() {
+				fixture.DebugOutputOperatorLogs()
+			}
+		})
+
 		It("verifies that ArgoCD CR '.spec.sourceNamespaces' field wildcard-matching matches and manages only namespaces which match the wildcard", func() {
 
 			By("creating test NS")

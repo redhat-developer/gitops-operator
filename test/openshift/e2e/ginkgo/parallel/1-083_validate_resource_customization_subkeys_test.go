@@ -165,8 +165,8 @@ spec:
   help.chatUrl: ""
   kustomize.buildOptions: ""
   oidc.config: ""
-  repositories: ""
-  repository.credentials: ""
+# repositories: ""
+# repository.credentials: ""
   resource.customizations.actions.apps_Deployment: |
     discovery.lua: |
     actions = {}
