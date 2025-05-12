@@ -6,7 +6,7 @@ toolchain go1.22.5
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250429111039-a07ef1782da6
-	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250429204654-10dafdb867f4
+	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250509074044-5234798de2ca
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-version v1.6.0
