@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -601,197 +602,71 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 }
 
 func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
-	tests := []struct {
-		name       string
-		containers []corev1.Container
-	}{
-		{
-			name: "default containers",
-			containers: []corev1.Container{
-				{
-					Name:            gitopsPluginName,
-					Image:           "fake-image-repo-rul",
-					ImagePullPolicy: corev1.PullAlways,
-					Ports: []corev1.ContainerPort{
-						{
-							Name:          "http",
-							Protocol:      corev1.ProtocolTCP,
-							ContainerPort: servicePort,
-						},
-					},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      pluginServingCertName,
-							ReadOnly:  true,
-							MountPath: "/etc/httpd-ssl/certs/tls.crt",
-							SubPath:   "tls.crt",
-						},
-						{
-							Name:      pluginServingCertName,
-							ReadOnly:  true,
-							MountPath: "/etc/httpd-ssl/private/tls.key",
-							SubPath:   "tls.key",
-						},
-						{
-							Name:      httpdConfigMapName,
-							ReadOnly:  true,
-							MountPath: "/etc/httpd-cfg/httpd.conf",
-							SubPath:   "httpd.conf",
-						},
-					},
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
-							corev1.ResourceCPU:    resourcev1.MustParse("250m"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
-							corev1.ResourceCPU:    resourcev1.MustParse("500m"),
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "changed containers",
-			containers: []corev1.Container{
-				{
-					Name:            "wrong name",
-					Image:           "wrong image",
-					ImagePullPolicy: corev1.PullIfNotPresent,
-					Ports: []corev1.ContainerPort{
-						{
-							Name:          "wrong http",
-							Protocol:      corev1.ProtocolSCTP,
-							ContainerPort: int32(9002),
-						},
-					},
-					VolumeMounts: []corev1.VolumeMount{
-						{
-							Name:      "wrong name",
-							ReadOnly:  false,
-							MountPath: "/wrong-cert",
-						},
-						{
-							Name:      "wrong name",
-							ReadOnly:  false,
-							MountPath: "/wrong-httpd.conf",
-							SubPath:   "wrong/httpd.conf",
-						},
-					},
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resourcev1.MustParse("250Mi"),
-							corev1.ResourceCPU:    resourcev1.MustParse("128m"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resourcev1.MustParse("500Mi"),
-							corev1.ResourceCPU:    resourcev1.MustParse("256m"),
-						},
-					},
-				},
-			},
-		},
-	}
-
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
-	var replicas int32 = 1
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			d := &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      gitopsPluginName,
-					Namespace: serviceNamespace,
-					Labels: map[string]string{
-						kubeAppLabelApp:              gitopsPluginName,
-						kubeAppLabelComponent:        gitopsPluginName,
-						kubeAppLabelInstance:         gitopsPluginName,
-						kubeAppLabelPartOf:           gitopsPluginName,
-						kubeAppLabelRuntimeNamespace: serviceNamespace,
-					},
-				},
-				Spec: appsv1.DeploymentSpec{
-					Replicas: &replicas,
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							kubeAppLabelName: gitopsPluginName,
-						},
-					},
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								kubeAppLabelApp:              gitopsPluginName,
-								kubeAppLabelComponent:        gitopsPluginName,
-								kubeAppLabelInstance:         gitopsPluginName,
-								kubeAppLabelPartOf:           gitopsPluginName,
-								kubeAppLabelRuntimeNamespace: serviceNamespace,
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: test.containers,
-							Volumes: []corev1.Volume{
-								{
-									Name: pluginServingCertName,
-									VolumeSource: corev1.VolumeSource{
-										Secret: &corev1.SecretVolumeSource{
-											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
-										},
-									},
-								},
-								{
-									Name: pluginServingCertName,
-									VolumeSource: corev1.VolumeSource{
-										ConfigMap: &corev1.ConfigMapVolumeSource{
-											LocalObjectReference: corev1.LocalObjectReference{
-												Name: httpdConfigMapName,
-											},
-											DefaultMode: pointer.Int32Ptr(420),
-										},
-									},
-								},
-							},
-							RestartPolicy: corev1.RestartPolicyNever,
-							DNSPolicy:     corev1.DNSClusterFirst,
-						},
-					},
-				},
-			}
-			reconciler.Client.Create(context.TODO(), d)
+	assertPluginDeploymentSpec := func(t *testing.T, deployment *appsv1.Deployment) {
+		t.Helper()
 
-			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
-			assertNoError(t, err)
-
-			deployment := &appsv1.Deployment{}
-			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
-			assertNoError(t, err)
-
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Name, "gitops-plugin")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Image, "fake-image-repo-rul")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullAlways)
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Name, "http")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Protocol, corev1.ProtocolTCP)
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort, int32(9001))
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name, "console-serving-cert")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].ReadOnly, true)
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath, "/etc/httpd-ssl/certs/tls.crt")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath, "/etc/httpd-ssl/private/tls.key")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, "httpd-cfg")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[1].ReadOnly, true)
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath, "/etc/httpd-cfg/httpd.conf")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].SubPath, "httpd.conf")
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
-			assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
-		})
+		consoleImage := common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Name, "gitops-plugin")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Image, consoleImage)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullAlways)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Name, "http")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Protocol, corev1.ProtocolTCP)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort, int32(9001))
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].Name, "console-serving-cert")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].ReadOnly, true)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[0].MountPath, "/etc/httpd-ssl/certs/tls.crt")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[1].MountPath, "/etc/httpd-ssl/private/tls.key")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].Name, "httpd-cfg")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[1].ReadOnly, true)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].MountPath, "/etc/httpd-cfg/httpd.conf")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].VolumeMounts[2].SubPath, "httpd.conf")
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+		assert.DeepEqual(t, deployment.Spec.Template.Spec.Containers[0].SecurityContext, securityContextForPlugin())
 	}
+
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// There should be a new console plugin deployment created
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	assertPluginDeploymentSpec(t, deployment)
+
+	// Update the deployment with new containers
+	deployment.Spec.Template.Spec.Containers = []corev1.Container{
+		{
+			Name:  "wrong name",
+			Image: "wrong image",
+			SecurityContext: &corev1.SecurityContext{
+				Privileged: ptr.To(true),
+			},
+		},
+	}
+
+	err = fakeClient.Update(context.TODO(), deployment)
+	assertNoError(t, err)
+
+	// Verify if the containers are reconciled back to the default values
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment = &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	assertPluginDeploymentSpec(t, deployment)
 }
 
 func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
