@@ -40,9 +40,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating custom Argo CD Namespace test-1-034-custom")
 			test1NS := fixture.CreateNamespace("test-1-034-custom")
+			defer func() {
+				Expect(k8sClient.Delete(ctx, &test1NS)).To(Succeed())
+			}()
 
 			By("creating a test namespace with managed-by label, managed by test1 ns")
 			customRoleNS := fixture.CreateManagedNamespace("custom-role-namespace", test1NS.Name)
+			defer func() {
+				Expect(k8sClient.Delete(ctx, &customRoleNS)).To(Succeed())
+			}()
 
 			By("creating a sample cluster role for application-controller and server")
 			clusterRole := &rbacv1.ClusterRole{
@@ -58,12 +64,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, clusterRole)).To(Succeed())
+			defer func() {
+				Expect(k8sClient.Delete(ctx, clusterRole)).To(Succeed())
+				Eventually(clusterRole).Should(k8sFixture.NotExistByName())
+			}()
 
 			By("creating an Argo CD instance in the new namespace")
 			argoCDInTest1NS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test1NS.Name},
 			}
 			Expect(k8sClient.Create(ctx, argoCDInTest1NS)).To(Succeed())
+			defer func() {
+				Expect(k8sClient.Delete(ctx, argoCDInTest1NS)).To(Succeed()) // clean up on exit
+			}()
 
 			Eventually(argoCDInTest1NS, "3m", "5s").Should(argocdFixture.BeAvailable())
 
@@ -176,13 +189,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Name:      "argocd-argocd-application-controller",
 				Namespace: test1NS.Name,
 			}}))
-
-			By("deleting namespaces created by the test")
-
-			Expect(k8sClient.Delete(ctx, argoCDInTest1NS)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, &test1NS)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, &customRoleNS)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "custom-argocd-role"}})).To(Succeed())
 
 		})
 	})

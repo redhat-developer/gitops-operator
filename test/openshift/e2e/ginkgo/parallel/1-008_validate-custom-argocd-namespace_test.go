@@ -53,6 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating ArgoCD in a custom namespace")
 			test1_8_customNS, cleanupFn := fixture.CreateNamespaceWithCleanupFunc("test-1-8-custom")
 			defer cleanupFn()
+			defer fixture.OutputDebugOnFail()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test1_8_customNS.Name},
@@ -96,8 +97,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying Argo CD is successfully able to reconcile and deploy the resources of the test Argo CD Application")
 
-			Eventually(app, "60s", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 		})
 

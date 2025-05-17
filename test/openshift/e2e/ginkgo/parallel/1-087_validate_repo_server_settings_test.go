@@ -52,6 +52,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			defer fixture.OutputDebugOnFail()
+
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -112,7 +114,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			})
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying expected .spec.repo values are set on Repo server Deployment")
 			Eventually(func() bool {

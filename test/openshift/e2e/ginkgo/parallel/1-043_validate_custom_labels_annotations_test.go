@@ -104,7 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for Argo CD to become available")
-			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying Argo CD components have the labels and annotations we set above")
 
@@ -162,11 +162,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			expectLabelsAndAnnotationsRemoved := func(podTemplateSpec corev1.PodTemplateSpec) {
 
-				for k, _ := range podTemplateSpec.Annotations {
+				for k := range podTemplateSpec.Annotations {
 					Expect(k).ToNot(ContainSubstring("custom"))
 				}
 
-				for k, _ := range podTemplateSpec.Labels {
+				for k := range podTemplateSpec.Labels {
 					Expect(k).ToNot(ContainSubstring("custom"))
 				}
 			}

@@ -221,7 +221,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(findLineInOutput("rootca", oidcConfigContents)).Should(Equal("'---BEGIN---END---'"))
 
 			By("extracting the access token for keycloak, to allow us to issue API commands")
-			output, err := osFixture.ExecCommandWithOutputParam(false, "curl", "-d", "client_id=admin-cli", "-d", "username="+string(keycloakSecret.Data["SSO_USERNAME"]), "-d", "password="+string(keycloakSecret.Data["SSO_PASSWORD"]), "-d", "grant_type=password", "https://"+keycloakRouteHost+"/auth/realms/master/protocol/openid-connect/token", "-k")
+
+			ssoUsername, exists := keycloakSecret.Data["SSO_USERNAME"]
+			Expect(exists).To(BeTrue())
+			Expect(ssoUsername).ToNot(BeNil())
+
+			ssoPassword, exists := keycloakSecret.Data["SSO_PASSWORD"]
+			Expect(exists).To(BeTrue())
+			Expect(ssoPassword).ToNot(BeNil())
+
+			output, err := osFixture.ExecCommandWithOutputParam(false, "curl", "-d", "client_id=admin-cli", "-d", "username="+string(ssoUsername), "-d", "password="+string(ssoPassword), "-d", "grant_type=password", "https://"+keycloakRouteHost+"/auth/realms/master/protocol/openid-connect/token", "-k")
 			Expect(err).ToNot(HaveOccurred())
 
 			// Extract the JSON part of the output
@@ -230,7 +239,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			var jsonData map[string]any
 			Expect(json.Unmarshal([]byte(output), &jsonData)).ToNot(HaveOccurred())
 
-			accessToken := jsonData["access_token"].(string)
+			accessToken, success := jsonData["access_token"].(string)
+			Expect(success).To(BeTrue())
 
 			By("executing the CURL command to verify the realm and client creation")
 

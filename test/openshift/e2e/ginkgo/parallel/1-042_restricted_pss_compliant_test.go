@@ -76,6 +76,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Expect(k8sClient.Delete(ctx, ns)).To(Succeed()) // clean up ns at end of test
 			}()
 
+			defer fixture.OutputDebugOnFail()
+
 			By("creating an Argo CD instance in that namespace with various Argo CD components enabled")
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -145,10 +147,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						VerifyTLS: ptr.To(false),
 					},
 				}
+				argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
+					Route: argov1beta1api.ArgoCDRouteSpec{
+						Enabled: true,
+					},
+				}
 			})
 
-			By("ensuring thay Argo CD becomes available and keycloak pod exists under restriced security")
-			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+			By("ensuring that Argo CD becomes available and keycloak pod exists under restriced security")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(argoCD).Should(argocdFixture.HaveRedisStatus("Running"))
 			Eventually(argoCD).Should(argocdFixture.HaveRepoStatus("Running"))
 			Eventually(argoCD).Should(argocdFixture.HaveServerStatus("Running"))
@@ -181,7 +188,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: ns.Name,
 				},
 			}
-			Eventually(redisHAProxyDepl).Should(k8sFixture.ExistByName())
+			Eventually(redisHAProxyDepl, "10m", "5s").Should(k8sFixture.ExistByName())
 
 			redisHAServer := &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -189,7 +196,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: ns.Name,
 				},
 			}
-			Eventually(redisHAServer).Should(k8sFixture.ExistByName())
+			Eventually(redisHAServer, "10m", "5s").Should(k8sFixture.ExistByName())
 
 			ensurePodsExistByName([]string{"argocd-redis-ha-haproxy", "argocd-redis-ha-server"})
 

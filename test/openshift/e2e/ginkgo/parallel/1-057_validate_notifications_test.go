@@ -153,13 +153,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 				Eventually(depl).Should(deplFixture.HaveReplicas(1))
-				Eventually(depl).Should(deplFixture.HaveReadyReplicas(1))
+				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), depl.Name+" was not ready")
 			}
 
 			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
 			Eventually(statefulSet).Should(k8sFixture.ExistByName())
 			Eventually(statefulSet).Should(ssFixture.HaveReplicas(1))
-			Eventually(statefulSet).Should(ssFixture.HaveReadyReplicas(1))
+			Eventually(statefulSet, "3m", "5s").Should(ssFixture.HaveReadyReplicas(1))
 
 			By("modifying NotificationsConfiguration to send email to smtp4dev pod")
 

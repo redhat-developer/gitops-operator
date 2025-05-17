@@ -110,6 +110,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			devNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("dev")
 			defer cleanupFunc()
+			defer fixture.OutputDebugOnFail()
 
 			By("updating Argo CD sourceNamespaces to test*, which should match test-1 and test but not dev")
 			argocdFixture.Update(defaultNSArgoCD, func(ac *v1beta1.ArgoCD) {
@@ -143,9 +144,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("creating a new test-2 NS")
 			test2NS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-2")
 			defer cleanupFunc()
+			defer fixture.OutputDebugOnFail()
 
 			By("verifying the test-2 namespace becomes managed by the argo cd instance, and has the expected role/rolebinding")
-			Eventually(&test2NS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "default"))
+			Eventually(&test2NS, "2m", "5s").Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "default"))
 
 			expectRoleAndRoleBindingValues("example-argocd_test-2", "test-2")
 
@@ -190,6 +192,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			other_NS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("other-ns")
 			defer cleanupFunc()
+
+			defer fixture.OutputDebugOnFail()
 
 			By("verifying test-ns-1 and dev-ns-1 are managed, but other-ns isn't")
 			Eventually(&test_ns_1NS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "default"))

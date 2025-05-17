@@ -54,6 +54,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			defer fixture.OutputDebugOnFail()
+
 			By("creating an ArgoCD CR with keycloak enabled and with a custom hsot")
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-keycloak", Namespace: ns.Name},

@@ -77,7 +77,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			defer fixture.RestoreSubcriptionToDefault() // revert Subscription at end of test
 
-			By("verifying ClusteRoler/Binding were created for argocd-e2e-cluster-config server/app controller components, now that the namespace is specified in the CLUSTER_CONFIG env var")
+			By("verifying ClusterRole/Binding were created for argocd-e2e-cluster-config server/app controller components, now that the namespace is specified in the CLUSTER_CONFIG env var")
 			appControllerCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-application-controller"}}
 			Eventually(appControllerCR, "2m", "5s").Should(k8sFixture.ExistByName())
 
@@ -90,7 +90,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			serverCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-server"}}
 			Eventually(serverCRB).Should(k8sFixture.ExistByName())
 
-			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(argoCD).Should(argocdFixture.HaveServerStatus("Running"))
 
 			By("verifying that the initialSSHKnownHosts value was set in the ConfigMap")

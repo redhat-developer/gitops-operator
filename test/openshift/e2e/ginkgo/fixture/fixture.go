@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,6 +29,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -784,4 +786,112 @@ func updateWithoutConflict(obj client.Object, modify func(client.Object)) error 
 	})
 
 	return err
+}
+
+type testReportEntry struct {
+	isOutputted bool
+}
+
+var testReportLock sync.Mutex
+var testReportMap = map[string]testReportEntry{} // acquire testReportLock before reading/writing to this map, or any values within this map
+
+// OutputDebugOnFail can be used to debug a failing test: it will output the operator logs and namespace info
+func OutputDebugOnFail(namespaces ...string) {
+
+	csr := CurrentSpecReport()
+
+	if !csr.Failed() || os.Getenv("SKIP_DEBUG_OUTPUT") == "true" {
+		return
+	}
+
+	testName := strings.Join(csr.ContainerHierarchyTexts, " ")
+	testReportLock.Lock()
+	defer testReportLock.Unlock()
+	debugOutput, exists := testReportMap[testName]
+
+	if exists && debugOutput.isOutputted {
+		// Skip output if we have already outputted once for this test
+		return
+	}
+
+	testReportMap[testName] = testReportEntry{
+		isOutputted: true,
+	}
+
+	for _, namespace := range namespaces {
+
+		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "all", "-n", namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to extract operator logs for namespace", namespace, err, kubectlOutput)
+			return
+		}
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get all -n", namespace+"' output:")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+
+	}
+
+	outputPodLog("openshift-gitops-operator-controller-manager")
+}
+
+func outputPodLog(podSubstring string) {
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	if err != nil {
+		GinkgoWriter.Println(err)
+		return
+	}
+
+	// List all pods on the cluster
+	var podList corev1.PodList
+	if err := k8sClient.List(context.Background(), &podList); err != nil {
+		GinkgoWriter.Println(err)
+		return
+	}
+
+	// Look specifically for operator pod
+	matchingPods := []corev1.Pod{}
+	for idx := range podList.Items {
+		pod := podList.Items[idx]
+		if strings.Contains(pod.Name, podSubstring) {
+			matchingPods = append(matchingPods, pod)
+		}
+	}
+
+	if len(matchingPods) == 0 {
+		// This can happen when the operator is not running on the cluster
+		GinkgoWriter.Println("DebugOutputOperatorLogs was called, but no pods were found.")
+		return
+	}
+
+	if len(matchingPods) != 1 {
+		GinkgoWriter.Println("unexpected number of operator pods", matchingPods)
+		return
+	}
+
+	// Extract operator logs
+	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
+	if err != nil {
+		GinkgoWriter.Println("unable to extract operator logs", err)
+		return
+	}
+
+	// Output only the last 1000 lines
+	lines := strings.Split(kubectlLogOutput, "\n")
+
+	startIndex := len(lines) - 1000
+	if startIndex < 0 {
+		startIndex = 0
+	}
+
+	GinkgoWriter.Println("")
+	GinkgoWriter.Println("----------------------------------------------------------------")
+	GinkgoWriter.Println("Log output from operator pod:")
+	for _, line := range lines[startIndex:] {
+		GinkgoWriter.Println(">", line)
+	}
+	GinkgoWriter.Println("----------------------------------------------------------------")
+
 }

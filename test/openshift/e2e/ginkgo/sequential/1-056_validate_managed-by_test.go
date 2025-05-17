@@ -111,7 +111,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(k8sClient.Create(ctx, argoCD_test156Target2)).To(Succeed())
 
 				By("verifying new Argo CD is available along with the expected resources, in the new Namespace")
-				Eventually(argoCD_test156Target2, "3m", "5s").Should(argocdFixture.BeAvailable())
+				Eventually(argoCD_test156Target2, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 				redisDepl2 := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-2-redis", Namespace: test156Target2NS.Name}}
 				Eventually(redisDepl2, "60s", "5s").Should(

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -31,13 +31,12 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-105_validate_default_argocd_route", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
-
+			fixture.EnsureSequentialCleanSlate()
 		})
 
 		It("ensure that openshift-gitops Argo CD has correct default settings, and those settings can be changed which will affect the server Route", func() {

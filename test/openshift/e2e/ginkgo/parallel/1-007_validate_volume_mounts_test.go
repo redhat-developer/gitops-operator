@@ -56,6 +56,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			randomNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
+			defer fixture.OutputDebugOnFail()
+
 			argoCDRandomNS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -123,7 +125,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
-
 				{
 					Name: "empty-dir-volume", VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},

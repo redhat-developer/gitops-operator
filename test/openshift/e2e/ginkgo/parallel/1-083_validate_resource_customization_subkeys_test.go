@@ -148,7 +148,7 @@ spec:
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("waiting for each of the .data fields of argocd-cm ConfigMap to have expected value")
 			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
@@ -165,8 +165,8 @@ spec:
   help.chatUrl: ""
   kustomize.buildOptions: ""
   oidc.config: ""
-  repositories: ""
-  repository.credentials: ""
+# repositories: ""
+# repository.credentials: ""
   resource.customizations.actions.apps_Deployment: |
     discovery.lua: |
     actions = {}

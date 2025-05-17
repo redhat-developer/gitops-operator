@@ -489,9 +489,11 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			Eventually(func() error {
 				if err := helper.ApplicationHealthStatus("nginx", argoCDNamespace); err != nil {
+					GinkgoWriter.Println(err)
 					return err
 				}
 				if err := helper.ApplicationSyncStatus("nginx", argoCDNamespace); err != nil {
+					GinkgoWriter.Println(err)
 					return err
 				}
 				return nil

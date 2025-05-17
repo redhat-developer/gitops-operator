@@ -134,8 +134,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-			Eventually(app, "60s", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app, "60s", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 		})
 

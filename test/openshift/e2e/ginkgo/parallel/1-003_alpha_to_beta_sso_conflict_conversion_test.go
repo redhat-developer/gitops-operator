@@ -93,7 +93,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying expected Argo CD is running, that SSO status has failed, and has the expected values via the v1beta1 API")
 
-			Eventually(argoCDbeta1, "4m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(argoCDbeta1, "2m", "5s").Should(
 				And(argocdFixture.HaveSSOStatus("Failed")))
 

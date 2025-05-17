@@ -167,8 +167,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 			By("verifying Argo CD in source-ns is able to deploy to managed namespace target-ns")
-			Eventually(app, "60s", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app, "60s", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 		})
 

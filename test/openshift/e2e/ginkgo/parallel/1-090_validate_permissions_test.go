@@ -19,6 +19,7 @@ package parallel
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,6 +48,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensure the GitOps Operator CSV has the correct cluster permissions and gitopsservices CRD has expected properties", func() {
+
+			if fixture.EnvCI() {
+				Skip("AFAICT CSV does not exist when running E2E tests from gitops-operator repo")
+				return
+			}
 
 			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
 				Skip("CSV does not exist in the local run or non-OLM case, so we skip")
@@ -699,10 +705,23 @@ spec:
 
 			Expect(yaml.UnmarshalStrict([]byte(csvString), expectedCsv)).To(Succeed())
 
+			By("looking for a ClusterServiceVersion for openshift-gitops across all namespaces")
+			gitopsCSVsFound := []olmv1alpha1.ClusterServiceVersion{}
+			var csvList olmv1alpha1.ClusterServiceVersionList
+			Expect(k8sClient.List(ctx, &csvList)).To(Succeed())
+			for index := range csvList.Items {
+				csv := csvList.Items[index]
+				if strings.Contains(csv.Name, "openshift-gitops-operator") {
+					gitopsCSVsFound = append(gitopsCSVsFound, csv)
+				}
+			}
+			By("if more than one possible CSV is found, we will fail.")
+			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("Exactly one CSV should found: %v", gitopsCSVsFound))
+
 			actualCsv := &olmv1alpha1.ClusterServiceVersion{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-operator.v1.16.0",
-					Namespace: "openshift-operators",
+					Name:      gitopsCSVsFound[0].Name,
+					Namespace: gitopsCSVsFound[0].Namespace,
 				},
 			}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(actualCsv), actualCsv)).To(Succeed())

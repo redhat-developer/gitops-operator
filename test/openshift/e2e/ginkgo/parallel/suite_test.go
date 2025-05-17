@@ -34,7 +34,7 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-func TestSequentialSuite(t *testing.T) {
+func TestParallelSuite(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Parallel Test Suite")
@@ -43,8 +43,8 @@ func TestSequentialSuite(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
-	// Before the test starts, ensure that operator is restored to default state, and all previous sequential/parallel test resources are deleted
-	fixture.EnsureSequentialCleanSlate()
+	// Before the test suite starts, ensure that operator is restored to default state, and all previous sequential/parallel test resources are deleted
+	fixture.EnsureSequentialCleanSlate() // (don't change this to parallel)
 })
 
 var _ = AfterSuite(func() {

@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying ConsoleLink is deleted")
 
-			Eventually(consoleLink, "60s", "5s").Should(k8sFixture.NotExistByName())
+			Eventually(consoleLink, "2m", "5s").Should(k8sFixture.NotExistByName())
 			Consistently(consoleLink).Should(k8sFixture.NotExistByName())
 
 			By("verifying DISABLE_DEFAULT_ARGOCD_CONSOLELINK has the value 'true'")

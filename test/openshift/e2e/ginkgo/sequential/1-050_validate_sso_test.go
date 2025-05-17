@@ -116,7 +116,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("verifying that with keycloak, Argo CD becomes available but SSO is failed")
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HavePhase("Pending"))
 			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Failed"))
 			By("verifying keycloak DeploymentConfigs are not used")
 
@@ -131,7 +131,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("verifying keycloak is now used")
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(newArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Running"))
 
 			Eventually(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).

@@ -16,10 +16,16 @@ func ExecCommandWithOutputParam(printOutput bool, cmdArgs ...string) (string, er
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 
-	output, err := cmd.CombinedOutput()
-	if printOutput {
-		GinkgoWriter.Println(string(output))
+	outputBytes, err := cmd.CombinedOutput()
+
+	var output string
+	if outputBytes != nil {
+		output = string(outputBytes)
 	}
 
-	return string(output), err
+	if printOutput {
+		GinkgoWriter.Println(output)
+	}
+
+	return output, err
 }
