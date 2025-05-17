@@ -29,7 +29,7 @@ import (
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -159,7 +159,7 @@ var _ = BeforeSuite(func() {
 		Expect(err).NotTo(HaveOccurred())
 	}()
 
-}, 60)
+})
 
 var _ = AfterSuite(func() {
 	By("remove the GitOpsService Instance")
