@@ -17,10 +17,11 @@ limitations under the License.
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -35,7 +36,7 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	osappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -489,9 +490,11 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			Eventually(func() error {
 				if err := helper.ApplicationHealthStatus("nginx", argoCDNamespace); err != nil {
+					GinkgoWriter.Println(err)
 					return err
 				}
 				if err := helper.ApplicationSyncStatus("nginx", argoCDNamespace); err != nil {
+					GinkgoWriter.Println(err)
 					return err
 				}
 				return nil
@@ -702,7 +705,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			defer response.Body.Close()
 
 			By("verify reponse")
-			b, err := ioutil.ReadAll(response.Body)
+			b, err := io.ReadAll(response.Body)
 			Expect(err).NotTo(HaveOccurred())
 
 			m := make(map[string]interface{})
@@ -745,10 +748,14 @@ var _ = Describe("GitOpsServiceController", func() {
 		namespace := argoCDNamespace
 		argocd := &argoapp.ArgoCD{}
 		It("Remove SSO field from Argo CD CR", func() {
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
 
-			argocd.Spec.SSO = nil
-			err = k8sClient.Update(context.TODO(), argocd)
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: namespace}, argocd)
+				Expect(err).ToNot(HaveOccurred())
+
+				argocd.Spec.SSO = nil
+				return k8sClient.Update(context.TODO(), argocd)
+			})
 			Expect(err).NotTo(HaveOccurred())
 		})
 
@@ -844,29 +851,38 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Remove runOnInfra spec from gitopsService CR", func() {
-			err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
-			Expect(err).NotTo(HaveOccurred())
-			gitopsService.Spec.RunOnInfra = false
-			err = k8sClient.Update(context.TODO(), gitopsService)
-			Expect(err).NotTo(HaveOccurred())
 
-			Eventually(func() error {
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, gitopsService)
+				Expect(err).ToNot(HaveOccurred())
+
+				gitopsService.Spec.RunOnInfra = false
+				return k8sClient.Update(context.TODO(), gitopsService)
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(func() bool {
 				deployment := &appsv1.Deployment{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
-				Expect(err).NotTo(HaveOccurred())
+				if err != nil {
+					GinkgoWriter.Println("Unable to get Deployment", err)
+					return false
+				}
+
 				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
-					return fmt.Errorf("expected one nodeSelector in deployment")
+					GinkgoWriter.Println("expected one nodeSelector in deployment")
+					return false
 				}
 
 				argocd := &argoapp.ArgoCD{}
 				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
-				Expect(err).NotTo(HaveOccurred())
-				if argocd.Spec.NodePlacement != nil {
-					return fmt.Errorf("expected no NodePlacement in argocd ")
+				if err != nil {
+					GinkgoWriter.Println("Unable to get ArgoCD", err)
+					return false
 				}
 
-				return nil
-			}, time.Second*180, interval).ShouldNot(HaveOccurred())
+				return argocd.Spec.NodePlacement == nil
+			}, "3m", "5s").Should(BeTrue())
 
 		})
 	})
@@ -910,7 +926,7 @@ func getAccessToken(user, pass, accessURL string) (string, error) {
 	}
 
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", err
 	}
@@ -991,4 +1007,26 @@ func applyMissingPermissions(name, namespace string) error {
 	}
 
 	return nil
+}
+
+func runCommandWithOutput(cmdList ...string) (string, string, error) {
+
+	// Output the commands to be run, so that if the test fails we can determine why
+	fmt.Println(cmdList)
+
+	cmd := exec.Command(cmdList[0], cmdList[1:]...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+
+	// Output the stdout/sterr text, so that if the test fails we can determine why
+	fmt.Println(stdoutStr, stderrStr)
+
+	return stdoutStr, stderrStr, err
+
 }

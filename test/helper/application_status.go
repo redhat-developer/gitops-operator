@@ -26,7 +26,7 @@ import (
 	"time"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -163,6 +163,8 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 
 	err = wait.Poll(1*time.Second, 5*time.Minute, func() (bool, error) {
 
+		defer GinkgoRecover()
+
 		// Patch all the ArgoCDs in the NS, to remove the finalizer (so the namespace can be deleted)
 		var list argoapp.ArgoCDList
 
@@ -173,7 +175,8 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 			GinkgoT().Errorf("Unable to list ArgoCDs %v", err)
 			// Report failure, but still continue
 		}
-		for _, item := range list.Items {
+		for idx := range list.Items {
+			item := list.Items[idx]
 
 			if len(item.Finalizers) == 0 {
 				continue
