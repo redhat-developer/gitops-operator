@@ -849,6 +849,17 @@ func OutputDebugOnFail(namespaces ...string) {
 
 	}
 
+	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "argocds", "-A", "-o", "yaml")
+	if err != nil {
+		GinkgoWriter.Println("unable to output all argo cd statuses", err, kubectlOutput)
+	} else {
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get argocds -A -o yaml':")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+	}
+
 }
 
 func outputPodLog(podSubstring string) {
