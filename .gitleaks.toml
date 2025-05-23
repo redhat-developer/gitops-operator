@@ -1,0 +1,8 @@
+[allowlist]
+  description = "Global Allowlist"
+
+  paths = [
+    '''test/openshift/e2e/ginkgo/parallel/1-005_validate_route_tls_test\.go$''',
+    '''test/openshift/e2e/ginkgo/parallel/1-034_validate_webhook_notifications_test\.go$''',
+  ]
+
