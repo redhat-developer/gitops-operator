@@ -81,16 +81,19 @@ func newMetricsReconciler(t *testing.T, namespace, name string, disableMetrics *
 
 func TestReconcile_add_namespace_label(t *testing.T) {
 	testCases := []struct {
-		instanceName string
-		namespace    string
+		instanceName  string
+		namespace     string
+		expectedLabel string
 	}{
 		{
-			instanceName: argoCDInstanceName,
-			namespace:    "openshift-gitops",
+			instanceName:  argoCDInstanceName,
+			namespace:     "openshift-gitops",
+			expectedLabel: "openshift.io/cluster-monitoring",
 		},
 		{
-			instanceName: "instance-two",
-			namespace:    "namespace-two",
+			instanceName:  "instance-two",
+			namespace:     "namespace-two",
+			expectedLabel: "openshift.io/user-monitoring",
 		},
 	}
 	for _, tc := range testCases {
@@ -101,7 +104,7 @@ func TestReconcile_add_namespace_label(t *testing.T) {
 		ns := corev1.Namespace{}
 		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, &ns)
 		assert.NilError(t, err)
-		value := ns.Labels["openshift.io/cluster-monitoring"]
+		value := ns.Labels[tc.expectedLabel]
 		assert.Equal(t, value, "true")
 	}
 }
