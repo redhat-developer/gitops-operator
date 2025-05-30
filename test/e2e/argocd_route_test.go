@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
