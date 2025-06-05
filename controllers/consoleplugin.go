@@ -20,7 +20,7 @@ import (
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -96,6 +96,7 @@ func getPluginPodSpec() corev1.PodSpec {
 						corev1.ResourceCPU:    resourcev1.MustParse("500m"),
 					},
 				},
+				SecurityContext: securityContextForPlugin(),
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -104,7 +105,7 @@ func getPluginPodSpec() corev1.PodSpec {
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName:  pluginServingCertName,
-						DefaultMode: pointer.Int32Ptr(420),
+						DefaultMode: ptr.To(int32(420)),
 					},
 				},
 			},
@@ -115,13 +116,18 @@ func getPluginPodSpec() corev1.PodSpec {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: httpdConfigMapName,
 						},
-						DefaultMode: pointer.Int32Ptr(420),
+						DefaultMode: ptr.To(int32(420)),
 					},
 				},
 			},
 		},
 		RestartPolicy: corev1.RestartPolicyAlways,
 		DNSPolicy:     corev1.DNSClusterFirst,
+		SecurityContext: &corev1.PodSecurityContext{
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		},
 	}
 
 	return podSpec
@@ -217,6 +223,21 @@ func pluginService() *corev1.Service {
 	return svc
 }
 
+func securityContextForPlugin() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{
+				"ALL",
+			},
+		},
+		RunAsNonRoot:             ptr.To(true),
+		AllowPrivilegeEscalation: ptr.To(false),
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+	}
+}
+
 var httpdConfig = fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
@@ -291,7 +312,8 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!reflect.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
 			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations)
+			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
+			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
@@ -299,6 +321,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
 			existingPluginDeployment.Spec.Selector = newPluginDeployment.Spec.Selector
 			existingSpecTemplate.Labels = newSpecTemplate.Labels
+			existingSpecTemplate.Spec.SecurityContext = newSpecTemplate.Spec.SecurityContext
 			existingSpecTemplate.Spec.Containers = newSpecTemplate.Spec.Containers
 			existingSpecTemplate.Spec.Volumes = newSpecTemplate.Spec.Volumes
 			existingSpecTemplate.Spec.RestartPolicy = newSpecTemplate.Spec.RestartPolicy
