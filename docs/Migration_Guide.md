@@ -28,7 +28,7 @@ Please refer to the below table to understand the correct version of GitOps oper
 | v1.4.z | v0.2.z | v2.2.z |
 | v1.3.z | v0.1.z | v2.1.z |
 
-**Note**: If you are running <= `v0.16.0` version of Argo CD operator, Please upgrade to `v0.1.0` or above before you consider migrating to GitOps operator.
+**Note**: If you are running < `v0.1.0` version of Argo CD operator, Please upgrade to `v0.1.0` or above before you consider migrating to GitOps operator.
 
 ## Migration
 
