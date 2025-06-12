@@ -108,15 +108,18 @@ These tests are written with the [Ginkgo/Gomega test frameworks](https://github.
         - It modifies cluster-scoped resources, such as `ClusterRoles`/`ClusterRoleBindings`, or `Namespaces` that are shared between tests
         - More generally, if it writes to a K8s resource that is used by another test.
 - `parallel`: Tests that are safe to run in parallel with other tests
-    - A test is safe to run in paralel if it does not have any of the above problematic behaviours. 
+    - A test is safe to run in parallel if it does not have any of the above problematic behaviours. 
     - It is fine for a parallel test to read cluster-scoped resources (such as resources in openshift-gitops namespace)
-    - A parallel test should NEVER write to resources that may be shared with other tests (Subscriptions, some cluster-scoped resources, etc.)
+    - A parallel test should NEVER write to resources that may be shared with other tests (`Subscriptions`, some cluster-scoped resources, etc.)
 
 
 
 ### Test fixture:
 - Utility functions for writing tests can be found within the `fixture/` folder.
 - `fixture/fixture.go` contains utility functions that are generally useful to writing tests.
+    - Most important are:
+    - `EnsureParallelCleanSlate`: Should be called at the beginning of every parallel test.
+    - `EnsureSequentialCleanSlate`: Should be called at the beginning of every sequential test.
 - `fixture/(name of resource)` contains functions that are specific to working with a particular resource.
     - For example, if you wanted to wait for an `Application` CR to be Synced/Healthy, you would use the functions defined in `fixture/application`.
     - Likewise, if you want to check a `Deployment`, see `fixture/deployment`.
