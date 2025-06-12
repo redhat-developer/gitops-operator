@@ -152,7 +152,12 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
-	go test `go list ./... | grep -v test` -coverprofile cover.out
+	go test `go list ./... | grep -v test` -coverprofile coverage.out
+
+.PHONY: coverage
+coverage: test ## run coverage tests
+	go tool cover -html=coverage.out -o coverage.html
+	open coverage.html
 
 
 .PHONY: e2e-tests-ginkgo
