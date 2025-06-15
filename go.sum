@@ -639,8 +639,8 @@ github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250522132021-d72738feaa
 github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250522132021-d72738feaad2/go.mod h1:uypkOLu9XKFJMtohSRI6LWONz3D4dX/43Cie+wCC0Jk=
 github.com/argoproj/argo-cd/v2 v2.12.10 h1:Qe5cBSnGy0wXAVdMKH69gWZYZ1CwHHxSOdavE4t+sAg=
 github.com/argoproj/argo-cd/v2 v2.12.10/go.mod h1:5kppi19e6lVQxlKSd1Cs7LorEZ6rID4nc06YWNHM+rg=
-github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d h1:LrHPuKm4rFfaVzNOqXhuoLNqe7DnhZ3d5pZA+k431Bo=
-github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d/go.mod h1:xMIbuLg9Qj2e0egTy+8NcukbhRaVmWwK9vm3aAQZoi4=
+github.com/argoproj/gitops-engine v0.7.3 h1:0ZlRTReAJG5Y1PviQ8ZIJq/+VowxWe2uFwoXqYcbtXU=
+github.com/argoproj/gitops-engine v0.7.3/go.mod h1:pRgVpLW7pZqf7n3COJ7UcDepk4cI61LAcJd64Q3Jq/c=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1/go.mod h1:CZHlkyAD1/+FbEn6cB2DQTj48IoLGvEYsWEvtzP3238=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
