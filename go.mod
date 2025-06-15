@@ -170,7 +170,7 @@ require (
 
 replace (
 	// https://github.com/golang/go/issues/33546#issuecomment-519656923
-	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+	github.com/go-check/check => github.com/go-check/check v0.0.0-20201130134442-10cb98267c6c
 
 	k8s.io/api => k8s.io/api v0.29.6
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.29.6
