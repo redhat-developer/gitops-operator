@@ -11,7 +11,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
-	github.com/hashicorp/go-version v1.6.0
+	github.com/hashicorp/go-version v1.7.0
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
 	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
