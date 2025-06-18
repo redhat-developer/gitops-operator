@@ -101,7 +101,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				}))
 
-			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(3))
 
 			By("verifying non-HA resources no longer exist, since HA is enabled")
 
@@ -132,7 +132,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying Deployment and StatefulSet have expected resources that we set in previous step")
 
 			depl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}
-			Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+			Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(3))
 
 			haProxyContainer := deploymentFixture.GetTemplateSpecContainerByName("haproxy", *depl)
 

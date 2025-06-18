@@ -77,12 +77,24 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 				Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-				deploymentsShouldExist := []string{"argocd-redis-ha-haproxy", "argocd-server", "argocd-repo-server"}
+				// 1 replica
+				deploymentsShouldExist := []string{"argocd-repo-server", "argocd-server"}
 				for _, depl := range deploymentsShouldExist {
+					By("checking " + depl)
 					depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
 					Eventually(depl).Should(k8sFixture.ExistByName())
 					Eventually(depl).Should(deplFixture.HaveReplicas(1))
 					Eventually(depl).Should(deplFixture.HaveReadyReplicas(1))
+				}
+
+				// 3 replicas
+				deploymentsShouldExist = []string{"argocd-redis-ha-haproxy"}
+				for _, depl := range deploymentsShouldExist {
+					By("checking " + depl)
+					depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
+					Eventually(depl).Should(k8sFixture.ExistByName())
+					Eventually(depl).Should(deplFixture.HaveReplicas(3))
+					Eventually(depl).Should(deplFixture.HaveReadyReplicas(3))
 				}
 
 				statefulsetsShouldExist := []string{"argocd-redis-ha-server", "argocd-application-controller"}
@@ -92,6 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					if ss == "argocd-redis-ha-server" {
 						replicas = 3
 					}
+					By("checking " + ss)
 
 					statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: ss, Namespace: ns.Name}}
 					Eventually(statefulSet).Should(k8sFixture.ExistByName())
