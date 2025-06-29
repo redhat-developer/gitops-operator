@@ -6,7 +6,7 @@ toolchain go1.22.5
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1
-	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250522132021-d72738feaad2
+	github.com/argoproj-labs/argocd-operator v0.14.0
 	github.com/argoproj/argo-cd/v2 v2.12.10
 	github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d
 	github.com/go-logr/logr v1.4.2
@@ -48,6 +48,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
+	github.com/coreos/prometheus-operator v0.40.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.3.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
