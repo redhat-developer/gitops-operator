@@ -22,11 +22,13 @@ kuttl-test.json
 
 !vendor/**/zz_generated.*
 
-# editor and IDE paraphernalia
+# editor and IDE paraphernalia (inc MacOs)
 .idea
 *.swp
 *.swo
 *~
+.DS_Store  
+
 
 # ignore vendor
 vendor/

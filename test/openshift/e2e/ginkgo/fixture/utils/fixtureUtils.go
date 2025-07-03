@@ -3,7 +3,8 @@ package utils
 import (
 	"os"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -12,6 +13,7 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	osappsv1 "github.com/openshift/api/apps/v1"
+	olmv1 "github.com/operator-framework/api/pkg/operators/v1"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -32,7 +34,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func GetE2ETestKubeClient() (client.Client, *runtime.Scheme) {
+func GetE2ETestKubeClient() (client.Client, *k8sruntime.Scheme) {
 	config, err := getSystemKubeConfig()
 	Expect(err).ToNot(HaveOccurred())
 
@@ -42,7 +44,7 @@ func GetE2ETestKubeClient() (client.Client, *runtime.Scheme) {
 	return k8sClient, scheme
 }
 
-func GetE2ETestKubeClientWithError() (client.Client, *runtime.Scheme, error) {
+func GetE2ETestKubeClientWithError() (client.Client, *k8sruntime.Scheme, error) {
 	config, err := getSystemKubeConfig()
 	if err != nil {
 		return nil, nil, err
@@ -57,9 +59,9 @@ func GetE2ETestKubeClientWithError() (client.Client, *runtime.Scheme, error) {
 }
 
 // getKubeClient returns a controller-runtime Client for accessing K8s API resources used by the controller.
-func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) {
+func getKubeClient(config *rest.Config) (client.Client, *k8sruntime.Scheme, error) {
 
-	scheme := runtime.NewScheme()
+	scheme := k8sruntime.NewScheme()
 
 	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
@@ -97,6 +99,10 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := olmv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+	// THIS IS THE CRUCIAL LINE: Add OperatorGroup (olmv1) to the scheme
+	if err := olmv1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
