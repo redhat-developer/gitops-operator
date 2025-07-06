@@ -1,8 +1,8 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.22.5
+toolchain go1.23.9
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1
@@ -14,16 +14,16 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/onsi/ginkgo/v2 v2.22.2
 	github.com/onsi/gomega v1.36.2
-	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
+	github.com/openshift/api v0.0.0-20250704153732-ad766c4e6d8e
 	github.com/operator-framework/api v0.17.5
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.73.2
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.22.0
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.29.6
+	k8s.io/api v0.32.1
 	k8s.io/apiextensions-apiserver v0.29.6
-	k8s.io/apimachinery v0.29.6
+	k8s.io/apimachinery v0.32.1
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738
 	sigs.k8s.io/controller-runtime v0.17.2
@@ -155,17 +155,17 @@ require (
 	k8s.io/cli-runtime v0.29.6 // indirect
 	k8s.io/component-base v0.29.6 // indirect
 	k8s.io/component-helpers v0.29.6 // indirect
-	k8s.io/klog/v2 v2.120.1 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-aggregator v0.29.6 // indirect
-	k8s.io/kube-openapi v0.0.0-20240322212309-b815d8309940 // indirect
+	k8s.io/kube-openapi v0.0.0-20241105132330-32ad38e42d3f // indirect
 	k8s.io/kubectl v0.29.6 // indirect
 	k8s.io/kubernetes v1.29.6 // indirect
 	oras.land/oras-go/v2 v2.3.0 // indirect
 	sigs.k8s.io/gateway-api v1.0.0 // indirect
-	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
+	sigs.k8s.io/json v0.0.0-20241010143419-9aa6b5e7a4b3 // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 )
 
 replace (
