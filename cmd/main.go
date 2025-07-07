@@ -221,6 +221,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
@@ -267,8 +269,6 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
-	argocdprovisioner.Register(openshift.ReconcilerHook)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
