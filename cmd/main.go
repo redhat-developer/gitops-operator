@@ -34,6 +34,7 @@ import (
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -55,8 +56,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -211,6 +210,8 @@ func main() {
 	}
 	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
 
+	argocd.Register(openshift.ReconcilerHook, openshift.BuilderHook)
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
@@ -256,8 +257,6 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
-	argocd.Register(openshift.ReconcilerHook)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
