@@ -69,16 +69,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying ConfigMap picks up admin.enabled setting from ArgoCD CR")
 			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("admin.enabled", "true"))
+			Consistently(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("server.rbac.disableApplicationFineGrainedRBACInheritance", "false"))
 
 			By("disabling admin via CR spec, but enabling via extra config")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.DisableAdmin = true
-				ac.Spec.ExtraConfig = map[string]string{"admin.enabled": "true"} // override admin user through extraConfig
+				ac.Spec.ExtraConfig = map[string]string{
+					"admin.enabled": "true", // override admin user through extraConfig
+					"server.rbac.disableApplicationFineGrainedRBACInheritance": "true"}
 			})
 
 			By("verifying that extraConfig setting overrides CR field")
 			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("admin.enabled", "true"))
 			Consistently(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("admin.enabled", "true"))
+			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("server.rbac.disableApplicationFineGrainedRBACInheritance", "true"))
+			Consistently(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("server.rbac.disableApplicationFineGrainedRBACInheritance", "true"))
 
 			By("simulating the user manually modifying the ConfigMap without doing so via the ArgoCD CR")
 			configmapFixture.Update(argocdConfigMap, func(cm *corev1.ConfigMap) {
