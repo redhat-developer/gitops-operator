@@ -20,7 +20,7 @@ import (
 	"context"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	. "github.com/onsi/ginkgo/v2"
