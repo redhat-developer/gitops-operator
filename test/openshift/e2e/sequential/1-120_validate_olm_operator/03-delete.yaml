@@ -1,0 +1,121 @@
+# 03-delete.yaml
+apiVersion: kuttl.dev/v1beta1
+kind: TestStep
+commands:
+  - script: |
+      #!/usr/bin/env bash
+
+
+      operator_namespace=$(oc get deployment helloworld-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.metadata.namespace}' --ignore-not-found)
+      operator_namespace=${operator_namespace:-"openshift-operators"}
+      echo "operator_namespace: $operator_namespace"
+
+
+      #DELETE Roles, RoleBindings and Subscriptions 
+      delete_clusterroles() {
+          cluster_roles=$(oc get clusterroles --no-headers=true | awk '/(helloworld)/{print $1}')
+          cluster_roles=($(echo "$cluster_roles")) #make array
+          echo "Deleting ${#cluster_roles[@]} clusterrole(s)"
+          for cr in "${cluster_roles[@]}"
+          do
+            oc delete clusterroles $cr --wait=true || true
+          done
+      }
+
+      echo " ******************************************************** "
+      delete_clusterroles
+      delete_clusterroles
+
+      roles=$(oc get roles --no-headers=true | awk '/(helloworld)/{print $1}')
+      roles=($(echo "$roles")) #make array
+      echo "Deleting ${#roles[@]} role(s)"
+      for r in "${roles[@]}"
+      do
+          oc delete roles $r --wait=true || true
+      done
+
+      cluster_role_bindings=$(oc get clusterrolebindings --no-headers=true | awk '/(helloworld)/{print $1}')
+      cluster_role_bindings=($(echo "$cluster_role_bindings")) #make array
+      echo "Deleting ${#cluster_role_bindings[@]} clusterbinding(s)"
+      for crb in "${cluster_role_bindings[@]}"
+      do
+          oc delete clusterrolebindings $crb --wait=true || true
+      done
+
+      role_bindings=$(oc get rolebindings --no-headers=true | awk '/(helloworld)/{print $1}')
+      role_bindings=($(echo "$role_bindings")) #make array
+      echo "Deleting ${#role_bindings[@]} rolebinding(s)" 
+      for rb in "${role_bindings[@]}"
+      do
+          oc delete rolebindings $rb --wait=true || true
+      done
+
+      echo "Delete subscription"
+      oc delete subscription helloworld-operator -n $operator_namespace --ignore-not-found
+
+      #DELETE CSVs (Logic for multiple CVS)
+      echo " ******************************************************** "
+      echo "Delete CSVs".
+      CSVS=$(oc get csv -n $operator_namespace -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' --ignore-not-found | grep helloworld)
+      CSVS=($(echo "$CSVS")) #make array
+      echo "Delete ${#CSVS[@]} CSV(s): ${CSVS[@]}"
+
+      for csv in "${CSVS[@]}"
+      do
+          echo "csv_name $c"
+          oc delete csv -n $operator_namespace $csv --ignore-not-found || true
+      done
+      
+      #DELETE CRDs
+      echo " ******************************************************** "
+      CRDS=$(oc get crd --no-headers=true | awk '/helloworld/ {print $1}')
+      CRDS=($(echo "$CRDS")) #make array
+      echo "Delete ${#CRDS[@]} CRDs"
+
+      for c in "${CRDS[@]}"
+      do
+          echo "Delete CRD $c"
+          timeout 5 oc delete crd $c || true 
+
+          FINALIZER=$(oc get crd $c -o jsonpath='{.metadata.finalizers}' 2>&1 || true )
+          if [[ ! -z "$FINALIZER" && ! "$FINALIZER" =~ "not found" ]]; 
+          then
+              echo "Patching to remove finalizer .."
+              oc patch crd $c --type json -p '[{"op":"remove", "path":"/metadata/finalizers"}]' || true
+              echo -e "Patched \n"
+          else
+              echo -e "No Finalizer found (No patching required) \n"
+          fi
+      done
+
+
+      #DELETE Namespaces
+      echo " ******************************************************** "
+      echo "Delete Namespaces"
+      namespaces=$(oc get ns --no-headers=true | awk '/helloworld/ {print $1}')
+      namespaces=($(echo "$namespaces")) #make array
+
+      for n in "${namespaces[@]}"
+      do
+          echo "Delete namespace $n"
+          timeout 15 oc delete ns $n || true 
+          ns_finalizer=$(oc get ns $n -o jsonpath='{.spec.finalizers}' 2>&1 || true )
+
+          if [[ ! -z "$ns_finalizer" && ! "$ns_finalizer" =~ "not found" ]]; 
+          then
+              echo "Patching namespace: $n"
+              kubectl get namespace $n -o json > temp-ns.json
+              #edit json to remove finalizer
+              jq '.spec.finalizers = []' temp-ns.json > temp-ns.tmp && mv temp-ns.tmp temp-ns.json
+
+              # Patch Finalizer
+              echo "Patching .."
+              kubectl replace --raw "/api/v1/namespaces/$n/finalize" -f temp-ns.json
+              
+              # Cleanup temporary files
+              rm temp-ns.json || true
+              echo "Finalizers cleared for namespace '$n' "
+          fi
+      done
+
+      echo -e "\nCleanup Complete"
