@@ -210,16 +210,115 @@ defer cleanupFunc()
 
 
 
-
-
-
-
 ### General Tips
 - DON'T ADD SLEEP STATEMENTS TO TESTS (unless it's absolutely necessary, but it rarely is!)
 	- Use `Eventually`/`Consistently` with a condition, instead.
 - Use `By("")` to document each step for what the test is doing.
 	- This is very helpful for other team members that need to maintain your test after you wrote it.
 	- Also all `By("")`s are included in test output as `Step: (...)`, which makes it easy to tell what the test is doing when the test is running.
+
+
+
+## Translating from Kuttl to Ginkgo
+
+### `01-create-or-update-resource.yaml`
+
+Example:
+In kuttl, this would create (or modify an existing) `ArgoCD` CR to have dex sso provider using openShiftOAuth.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+```
+
+Equivalent in Ginkgo - to create:
+```go
+argocdObj := &argov1beta1api.ArgoCD{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "argocd",
+		Namespace: "(namespace)",
+	},
+	Spec: argov1beta1api.ArgoCDSpec{
+		SSO: &argov1beta1api.ArgoCDSSOSpec{
+			Provider: argov1beta1api.SSOProviderTypeDex,
+			Dex: &argov1beta1api.ArgoCDDexSpec{
+				OpenShiftOAuth: true,
+			},
+		},
+	},
+}
+Expect(k8sClient.Create(ctx, argocdObj)).To(Succeed())
+```
+
+Equivalent in Ginkgo - to update:
+```go
+argocdObj := &argov1beta1api.ArgoCD{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "argocd",
+		Namespace: "(namespace)",
+	},
+}
+argocdFixture.Update(argocdObj, func(ac *argov1beta1api.ArgoCD) {
+	ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+		Provider: argov1beta1api.SSOProviderTypeDex,
+		Dex: &argov1beta1api.ArgoCDDexSpec{
+			OpenShiftOAuth: true,
+		},
+	}
+})
+```	
+
+### `01-assert.yaml`
+
+Example:
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+  sso: Running
+```
+
+The equivalent here is `Eventually`.
+
+Equivalent in Ginkgo:
+```go
+Eventually(argoCDObject).Should(argocdFixture.BeAvailable())
+Eventually(argoCDObject).Should(argocdFixture.HaveSSOStatus("Running"))
+```
+
+### `02-errors.yaml`
+
+The close equivalent to an `errors.yaml` is Eventually with a Not, then a Consistently with a Not
+
+Example:
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Pending
+  sso: Failed
+```
+
+Equivalent in Ginkgo:
+```go
+Eventually(argoCDObject).ShouldNot(argocdFixture.HavePhase("Pending"))
+Consistently(argoCDObject).ShouldNot(argocdFixture.HavePhase("Pending"))
+
+Eventually(argoCDObject).ShouldNot(argocdFixture.HaveSSOStatus("Failed"))
+Consistently(argoCDObject).ShouldNot(argocdFixture.HaveSSOStatus("Failed"))
+```
+
 
 
 
