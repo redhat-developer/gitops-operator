@@ -1,8 +1,6 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.22.0
-
-toolchain go1.22.5
+go 1.23.0
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1
@@ -136,7 +134,7 @@ require (
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/oauth2 v0.24.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
