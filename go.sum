@@ -635,8 +635,8 @@ github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4x
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1 h1:TjX3ZHPA3YOmoHZutzfvOQVKRO2Jt4JvDCPvI4VhWoA=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1/go.mod h1:yTwzKUV79YyI764hkXdVojGYBA9yKJk3qXx5mRuQ2Xc=
-github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250522132021-d72738feaad2 h1:uK35oxwOViSqTLd+OrRPeeyEsCrJbrXU1ahXkBzIO2Q=
-github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250522132021-d72738feaad2/go.mod h1:uypkOLu9XKFJMtohSRI6LWONz3D4dX/43Cie+wCC0Jk=
+github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250702192408-a08a04018197 h1:o9bXln3bp05i8K8+omf0kleju/poQ15/4QY+jyTJlWc=
+github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250702192408-a08a04018197/go.mod h1:uJHk/pFnSjqnPq9qMWu45QBBUEJHmUqxmKQK5rJ8W1A=
 github.com/argoproj/argo-cd/v2 v2.12.10 h1:Qe5cBSnGy0wXAVdMKH69gWZYZ1CwHHxSOdavE4t+sAg=
 github.com/argoproj/argo-cd/v2 v2.12.10/go.mod h1:5kppi19e6lVQxlKSd1Cs7LorEZ6rID4nc06YWNHM+rg=
 github.com/argoproj/gitops-engine v0.7.1-0.20250129155113-faf5a4e5c37d h1:LrHPuKm4rFfaVzNOqXhuoLNqe7DnhZ3d5pZA+k431Bo=
@@ -792,8 +792,8 @@ github.com/go-logr/logr v1.2.0/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbV
 github.com/go-logr/logr v1.2.3/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.2.4/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.3.0/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
-github.com/go-logr/logr v1.4.2 h1:6pFjapn8bFcIbiKo3XT4j/BhANplGihG6tvd+8rYgrY=
-github.com/go-logr/logr v1.4.2/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
+github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
+github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/zapr v1.3.0 h1:XGdV8XW8zdwFiwOA2Dryh1gj2KRQyOOoNmBy4EplIcQ=
 github.com/go-logr/zapr v1.3.0/go.mod h1:YKepepNBd1u/oyhd/yQmtjVXmm9uML4IXUgMOwR8/Gg=
 github.com/go-openapi/jsonpointer v0.19.6/go.mod h1:osyAmYz/mB/C3I+WsTTSgw1ONzaLJoLCyoi6/zppojs=
