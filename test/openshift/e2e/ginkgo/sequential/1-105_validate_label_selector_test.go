@@ -44,7 +44,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_LABEL_SELECTOR", "foo=bar")
 
 			defer func() { // Restore subscription to default after test
-				Expect(fixture.RestoreSubcriptionToDefault()).To(Succeed())
+				fixture.RestoreSubcriptionToDefault()
 			}()
 
 			By("creating new namespace-scoped ArgoCD instance in test-argocd")

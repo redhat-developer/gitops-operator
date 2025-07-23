@@ -155,7 +155,7 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 		})
 
 		It("Clean up test resources", func() {
-			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace))
+			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace)).To(Succeed())
 		})
 	})
 })

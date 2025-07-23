@@ -10,7 +10,8 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 )
 
 func GetEnv(s *olmv1alpha1.Subscription, key string) (*string, error) {

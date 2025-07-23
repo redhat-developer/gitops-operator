@@ -101,7 +101,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("cleaning up operator and ensuring ConsoleLink exists")
 
-			Expect(fixture.RestoreSubcriptionToDefault()).To(Succeed())
+			fixture.RestoreSubcriptionToDefault()
 
 			Eventually(consoleLink).Should(k8sFixture.ExistByName())
 			Consistently(consoleLink).Should(k8sFixture.ExistByName())

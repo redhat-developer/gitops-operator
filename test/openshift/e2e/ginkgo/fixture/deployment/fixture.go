@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 
 	matcher "github.com/onsi/gomega/types"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -30,7 +32,7 @@ func GetEnv(d *appsv1.Deployment, key string) (*string, error) {
 
 	containers := d.Spec.Template.Spec.Containers
 
-	Expect(len(containers)).Should(BeNumerically("==", 1))
+	Expect(containers).Should(HaveLen(1))
 
 	for idx := range containers[0].Env {
 
@@ -50,7 +52,7 @@ func SetEnv(depl *appsv1.Deployment, key string, value string) {
 	Update(depl, func(d *appsv1.Deployment) {
 		containers := d.Spec.Template.Spec.Containers
 
-		Expect(len(containers)).Should(BeNumerically("==", 1))
+		Expect(containers).Should(HaveLen(1))
 
 		newEnvVars := []corev1.EnvVar{}
 
@@ -83,7 +85,7 @@ func RemoveEnv(depl *appsv1.Deployment, key string) {
 	Update(depl, func(d *appsv1.Deployment) {
 		containers := d.Spec.Template.Spec.Containers
 
-		Expect(len(containers)).Should(BeNumerically("==", 1))
+		Expect(containers).Should(HaveLen(1))
 
 		newEnvVars := []corev1.EnvVar{}
 
@@ -243,28 +245,28 @@ func HaveObservedGeneration(observedGeneration int) matcher.GomegaMatcher {
 func HaveReplicas(replicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment", depl.Name, "- HaveReplicas:", "expected: ", replicas, "actual: ", depl.Status.Replicas)
-		return depl.Status.Replicas == int32(replicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.Replicas) == replicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment ", depl.Name, "- HaveReadyReplicas:", "expected: ", readyReplicas, "actual: ", depl.Status.ReadyReplicas)
-		return depl.Status.ReadyReplicas == int32(readyReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.ReadyReplicas) == readyReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveUpdatedReplicas(updatedReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment HaveUpdatedReplicas:", "expected: ", updatedReplicas, "actual: ", depl.Status.UpdatedReplicas)
-		return depl.Status.UpdatedReplicas == int32(updatedReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.UpdatedReplicas) == updatedReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveAvailableReplicas(availableReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment HaveAvailableReplicas:", "expected: ", availableReplicas, "actual: ", depl.Status.AvailableReplicas)
-		return depl.Status.AvailableReplicas == int32(availableReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.AvailableReplicas) == availableReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 

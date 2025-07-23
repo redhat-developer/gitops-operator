@@ -72,7 +72,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("modifying the labels of another namespace to add the argocd managed-by label")
 			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
-				n.ObjectMeta.Labels["argocd.argoproj.io/managed-by"] = argoCDInRandomNS.Namespace
+				n.Labels["argocd.argoproj.io/managed-by"] = argoCDInRandomNS.Namespace
 			})
 
 			By("verifying that Argo CD eventually includes this other namespace in its Secret list of managed namespaces")
@@ -114,7 +114,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("removing managed-by label from that other Namespace")
 			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
-				delete(n.ObjectMeta.Labels, "argocd.argoproj.io/managed-by")
+				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 
 			By("verifying label is removed from Argo CD Secret")

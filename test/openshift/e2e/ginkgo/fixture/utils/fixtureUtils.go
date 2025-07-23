@@ -29,7 +29,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 )
 
 func GetE2ETestKubeClient() (client.Client, *runtime.Scheme) {

@@ -51,7 +51,7 @@ var _ = Describe("Argo CD ConsoleLink controller", func() {
 				if err != nil {
 					return err
 				}
-				clLink := strings.TrimLeft(consoleLink.Spec.Href, "https://")
+				clLink := strings.TrimPrefix(consoleLink.Spec.Href, "https://")
 				routeLink := route.Spec.Host
 				if clLink != routeLink {
 					return fmt.Errorf("URL mismatch, route: %s, consoleLink: %s", routeLink, clLink)

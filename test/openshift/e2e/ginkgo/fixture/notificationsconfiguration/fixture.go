@@ -3,8 +3,10 @@ package notificationsconfiguration
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 
 	matcher "github.com/onsi/gomega/types"
 
@@ -34,6 +36,8 @@ func Update(obj *argov1alpha1api.NotificationsConfiguration, modify func(*argov1
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+//
+//nolint:unused
 func fetchNotificationsConfiguration(f func(*argov1alpha1api.NotificationsConfiguration) bool) matcher.GomegaMatcher {
 
 	return WithTransform(func(depl *argov1alpha1api.NotificationsConfiguration) bool {

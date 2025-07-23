@@ -197,12 +197,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying that the resources in openshift-gitops no longer have run on infra tolerations/label set")
 
 			clusterDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
-			Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
+			Eventually(clusterDepl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
 				"node-role.kubernetes.io/infra": "",
 				"kubernetes.io/os":              "linux",
 			}))
 
-			Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+			Eventually(clusterDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
 			)
 

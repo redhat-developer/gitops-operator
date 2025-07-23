@@ -79,7 +79,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// At the end of the test, ensure the ConfigMap finalizer is removed so that the namespace is cleaned up
 			defer func() {
 				configmapFixture.Update(&configMapJaneNs, func(cm *corev1.ConfigMap) {
-					cm.ObjectMeta.Finalizers = nil
+					cm.Finalizers = nil
 				})
 			}()
 

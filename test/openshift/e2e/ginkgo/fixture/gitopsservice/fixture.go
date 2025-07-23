@@ -3,7 +3,8 @@ package gitopsservice
 import (
 	"context"
 
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	"k8s.io/client-go/util/retry"

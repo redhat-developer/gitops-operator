@@ -61,7 +61,6 @@ var logs = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                            int32  = 8080
-	portTLS                         int32  = 8443
 	backendImage                    string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName                    = "BACKEND_IMAGE"
 	serviceName                            = "cluster"
@@ -468,8 +467,10 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if existingArgoCD.Spec.Grafana.Resources == nil {
-			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources
+		//lint:ignore SA1019 known to be deprecated
+		if existingArgoCD.Spec.Grafana.Resources == nil { //nolint:staticcheck // SA1019: We must test deprecated fields.
+			//lint:ignore SA1019 known to be deprecated
+			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources //nolint:staticcheck // SA1019: We must test deprecated fields.
 			changed = true
 		}
 

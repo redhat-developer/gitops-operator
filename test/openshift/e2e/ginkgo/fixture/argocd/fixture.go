@@ -8,8 +8,11 @@ import (
 	"time"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
+
 	matcher "github.com/onsi/gomega/types"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -148,7 +151,7 @@ func HaveHost(host string) matcher.GomegaMatcher {
 func HaveApplicationControllerOperationProcessors(operationProcessors int) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 		GinkgoWriter.Println("HaveApplicationControllerOperationProcessors:", "Expected:", operationProcessors, "/ actual:", argocd.Spec.Controller.Processors.Operation)
-		return argocd.Spec.Controller.Processors.Operation == int32(operationProcessors)
+		return int(argocd.Spec.Controller.Processors.Operation) == operationProcessors
 	})
 }
 
@@ -221,6 +224,7 @@ func RunArgoCDCLI(args ...string) (string, error) {
 
 	GinkgoWriter.Println("executing command", cmdArgs)
 
+	// #nosec G204
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 
 	output, err := cmd.CombinedOutput()

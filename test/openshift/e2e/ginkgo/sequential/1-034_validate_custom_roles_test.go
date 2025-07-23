@@ -119,7 +119,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			defer func() {
 				By("cleaning up changes to the Subscription or operator Deployment")
-				Expect(fixture.RestoreSubcriptionToDefault()).To(Succeed())
+				fixture.RestoreSubcriptionToDefault()
 			}()
 
 			By("checking if the default roles are removed from the namespace")
