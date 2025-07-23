@@ -248,8 +248,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{
 					Name: "argocd-cmd-params-cm", VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							DefaultMode:          ptr.To(int32(420)),
-							Items:                []corev1.KeyToPath{{Key: "controller.profile.enabled", Path: "profiler.enabled"}},
+							DefaultMode: ptr.To(int32(420)),
+							Items: []corev1.KeyToPath{
+								{Key: "controller.profile.enabled", Path: "profiler.enabled"},
+								{Key: "controller.resource.health.persist", Path: "controller.resource.health.persist"},
+							},
 							LocalObjectReference: corev1.LocalObjectReference{Name: "argocd-cmd-params-cm"},
 							Optional:             ptr.To(true)},
 					},
