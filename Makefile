@@ -116,8 +116,8 @@ test-all: manifests generate fmt vet ## Run all tests.
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
+	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
 
 .PHONY: test-metrics
 test-metrics:
@@ -152,7 +152,7 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
-	go test `go list ./... | grep -v test` -coverprofile cover.out
+	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
 
 
 .PHONY: e2e-tests-ginkgo
