@@ -1,0 +1,60 @@
+name: PR checks
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  GO111MODULE: on
+  SDK_VERSION: "1.17.0"
+  MINIKUBE_WANTUPDATENOTIFICATION: false
+  MINIKUBE_WANTREPORTERRORPROMPT: false
+  K8S_VERSION: "1.21.3"
+  MINIKUBE_VERSION: "1.26.0"
+  OLM_VERSION: "0.22.0"
+  TEST_ACCEPTANCE_CLI: "kubectl"
+  TEST_RESULTS: "out/acceptance-tests"
+
+jobs:
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.18"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: "x64"
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+  unit:
+    name: Unit Tests with Code coverage
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "^1.18"
+
+      - name: Checkout Git Repository
+        uses: actions/checkout@v4
+
+      - name: Unit Tests with Code Coverage
+        run: ./scripts/openshiftci-presubmit-unittests.sh
+
+      - name: Upload Code Coverage Report
+        uses: codecov/codecov-action@v3
+        with:
+          file: coverage.out
+          verbose: true
+          fail_ci_if_error: true
