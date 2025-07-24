@@ -81,10 +81,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				deploymentsShouldExist := []string{"argocd-redis-ha-haproxy", "argocd-server", "argocd-repo-server"}
 				for _, depl := range deploymentsShouldExist {
+					replicas := 1
+					if depl == "argocd-redis-ha-haproxy" {
+						replicas = 3
+					}
+
 					depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
 					Eventually(depl).Should(k8sFixture.ExistByName())
-					Eventually(depl).Should(deplFixture.HaveReplicas(1))
-					Eventually(depl).Should(deplFixture.HaveReadyReplicas(1))
+					Eventually(depl).Should(deplFixture.HaveReadyReplicas(replicas))
 				}
 
 				statefulsetsShouldExist := []string{"argocd-redis-ha-server", "argocd-application-controller"}
