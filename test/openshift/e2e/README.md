@@ -103,7 +103,7 @@ These tests are written with the [Ginkgo/Gomega test frameworks](https://github.
 ### Tests are currently grouped as follows:
 - `sequential`: Tests that are not safe to run in parallel with other tests.
     - A test is NOT safe to run in parallel with other tests if:
-        - It modifies resources in `openshift-gitops`
+        - It modifies resources in `openshift-gitops` or `openshift-gitops-operators` (or similar)
         - It modifies the GitOps operator `Subscription`
         - It modifies cluster-scoped resources, such as `ClusterRoles`/`ClusterRoleBindings`, or `Namespaces` that are shared between tests
         - More generally, if it writes to a K8s resource that is used by another test.
@@ -112,6 +112,7 @@ These tests are written with the [Ginkgo/Gomega test frameworks](https://github.
     - It is fine for a parallel test to read cluster-scoped resources (such as resources in openshift-gitops namespace)
     - A parallel test should NEVER write to resources that may be shared with other tests (`Subscriptions`, some cluster-scoped resources, etc.)
 
+*Guidance*: Look at the list of restrictions for sequential. If your test is doing any of those things, it needs to run sequential. Otherwise parallel is fine.
 
 
 ### Test fixture:
@@ -126,6 +127,201 @@ These tests are written with the [Ginkgo/Gomega test frameworks](https://github.
     - Fixtures exist for nearly all interesting resources
 - The goal of this test fixture is to make it easy to write tests, and to ensure it is easy to understand and maintain existing tests.
 - See existing k8s tests for usage examples.
+
+
+## Writing new tests
+
+Ginkgo tests are read from left to right. For example:
+- `Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())`
+    - Can be read as: Expect create of argo cd CR to suceeed.
+- `Eventually(appControllerPod, "3m", "5s").Should(k8sFixture.ExistByName())`
+    - Can be read as: Eventually the `(argo cd application controller pod)` should exist (within 3 minute, chekcing every 5 seconds.)
+- `fixture.Update(argoCD, func(){ (...)})`
+    - Can be reas ad: Update Argo CD CR using the given function
+
+
+The E2E tests we use within this repo uses the standard controller-runtime k8s go API to interact with kubernetes (controller-runtime). This API is very familiar to anyone  already writing go operator/controller code (such as developers of this project).
+
+The best way to learn how to write a new test (or matcher/fixture), is just to copy an existing one!
+- There are 150+ existing tests you can 'steal' from, which provide examples of nearly anything you could want.
+
+### Standard patterns you can use
+
+#### To verify a K8s resource has an expected status/spec:
+- `fixture` packages
+	- Fixture packages contain utility functions which exists for (nearly) all resources (described in detail elsewhere)
+    - Most often, a function in a `fixture` will already exist for what you are looking for. 
+        - For example, use `argocdFixture` to check if Argo CD is available:
+            - `Eventually(argoCDbeta1, "5m", "5s").Should(argocdFixture.BeAvailable())`
+    - Consider adding new functions to fixtures, so that tests can use them as well.
+- If no fixture package function exists, just use a function that returns bool
+	- Example: `1-005_validate_route_tls_test.go`
+
+#### To create an object:
+- `Expect(k8sClient.Create(ctx, (object))).Should(Succeed())`
+
+#### To update an object, use `fixture.Update`
+- `fixture.Update(object, func(){})` function
+	- Test will automatically retry the update if update fails.
+		- This avoids a common issue in k8s tests, where update fails which causes the test to fail.
+
+#### To delete a k8s object
+- `Expect(k8sClient.Delete(ctx, (object))).Should(Succeed())`
+    - Where `(object)` is any k8s resource 
+
+
+### Parallel vs Sequential
+
+When to include a test in 'parallel' package, vs when to include a test in 'sequential' package? See elsewhere in this document for the exact criteria for when to include a test in parallel, and when to include it in sequential.
+
+*General Guidance*: Look at the list of restrictions for sequential/parallel above. 
+- If your test is performing any restricted behaviours, it needs to run sequential. Otherwise parallel is fine.
+- For example: if your test modifies ANYTHING in `openshift-gitops` Namespace, it's not safe to run in parallel. Include it in the `sequential` tests package.
+
+
+#### When writing sequential tests, ensure you:
+
+A) Call EnsureSequentialCleanSlate before each test:
+```go
+	BeforeEach(func() {
+		fixture.EnsureSequentialCleanSlate()
+	}
+```
+
+Unlike with parallel tests, you don't need to clean up namespace after each test. Sequential will automatically cleanup namespaces created via the `fixture.Create(...)Namespace` API. (But if you want to delete it using `defer`, it doesn't hurt).
+
+
+#### When writing parallel tests, ensure you:
+
+A) Call EnsureParallelCleanSlate before each test
+```go
+	BeforeEach(func() {
+		fixture.EnsureParallelCleanSlate()
+	})
+```
+
+B) Clean up any namespaces (or any cluster-scoped resources you created) using `defer`:
+```go
+// Create a namespace to use for the duration of the test, and then automatically clean it up after.
+ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+defer cleanupFunc()
+```
+
+
+
+
+### General Tips
+- DON'T ADD SLEEP STATEMENTS TO TESTS (unless it's absolutely necessary, but it rarely is!)
+	- Use `Eventually`/`Consistently` with a condition, instead.
+- Use `By("")` to document each step for what the test is doing.
+	- This is very helpful for other team members that need to maintain your test after you wrote it.
+	- Also all `By("")`s are included in test output as `Step: (...)`, which makes it easy to tell what the test is doing when the test is running.
+
+
+
+## Translating from Kuttl to Ginkgo
+
+### `01-create-or-update-resource.yaml`
+
+Example:
+In kuttl, this would create (or modify an existing) `ArgoCD` CR to have dex sso provider using openShiftOAuth.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+```
+
+Equivalent in Ginkgo - to create:
+```go
+argocdObj := &argov1beta1api.ArgoCD{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "argocd",
+		Namespace: "(namespace)",
+	},
+	Spec: argov1beta1api.ArgoCDSpec{
+		SSO: &argov1beta1api.ArgoCDSSOSpec{
+			Provider: argov1beta1api.SSOProviderTypeDex,
+			Dex: &argov1beta1api.ArgoCDDexSpec{
+				OpenShiftOAuth: true,
+			},
+		},
+	},
+}
+Expect(k8sClient.Create(ctx, argocdObj)).To(Succeed())
+```
+
+Equivalent in Ginkgo - to update:
+```go
+argocdObj := &argov1beta1api.ArgoCD{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "argocd",
+		Namespace: "(namespace)",
+	},
+}
+argocdFixture.Update(argocdObj, func(ac *argov1beta1api.ArgoCD) {
+	ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+		Provider: argov1beta1api.SSOProviderTypeDex,
+		Dex: &argov1beta1api.ArgoCDDexSpec{
+			OpenShiftOAuth: true,
+		},
+	}
+})
+```	
+
+### `01-assert.yaml`
+
+Example:
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Available
+  sso: Running
+```
+
+The equivalent here is `Eventually`.
+
+Equivalent in Ginkgo:
+```go
+Eventually(argoCDObject).Should(argocdFixture.BeAvailable())
+Eventually(argoCDObject).Should(argocdFixture.HaveSSOStatus("Running"))
+```
+
+### `02-errors.yaml`
+
+The close equivalent to an `errors.yaml` is Eventually with a Not, then a Consistently with a Not
+
+Example:
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+status:
+  phase: Pending
+  sso: Failed
+```
+
+Equivalent in Ginkgo:
+```go
+Eventually(argoCDObject).ShouldNot(argocdFixture.HavePhase("Pending"))
+Consistently(argoCDObject).ShouldNot(argocdFixture.HavePhase("Pending"))
+
+Eventually(argoCDObject).ShouldNot(argocdFixture.HaveSSOStatus("Failed"))
+Consistently(argoCDObject).ShouldNot(argocdFixture.HaveSSOStatus("Failed"))
+```
+
+
+
+
 
 ## Tips for debugging tests
 
@@ -147,3 +343,12 @@ Example:
 ```bash
 E2E_DEBUG_SKIP_CLEANUP=true ./bin/ginkgo -v -focus "1-099_validate_server_autoscale"  -r ./test/openshift/e2e/ginkgo/parallel
 ```
+
+
+## External Documentation
+
+[**Ginkgo/Gomega docs**](https://onsi.github.io/gomega/): The Ginkgo/Gomega docs are great! they are very detailed, with lots of good examples. There are also plenty of other examples of Ginkgo/Gomega you can find via searching.
+
+**Ask an LLM (Gemini/Cursor/etc)**: Ginkgo/gomega are popular enough that LLMs are able to answer questions and write code for them.
+- For example, I performed the following Gemini Pro query, and got an excellent answer:
+    - `With Ginkgo/Gomega (https://onsi.github.io/gomega) and Go lang, how do I create a matcher which checks whether a Kubernetes Deployment (via Deployment go object) has ready replicas of 1`
