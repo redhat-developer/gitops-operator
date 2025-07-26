@@ -144,7 +144,7 @@ spec:
 			// We unmarshal YAML into ArgoCD CR, so that we don't have to convert it into Go structs (it would be painful)
 			argoCD := &argov1beta1api.ArgoCD{}
 			Expect(yaml.UnmarshalStrict([]byte(argoCDYAML), &argoCD)).To(Succeed())
-			argoCD.ObjectMeta.Namespace = ns.Name
+			argoCD.Namespace = ns.Name
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")

@@ -8,8 +8,10 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 	securityv1 "github.com/openshift/api/security/v1"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -99,9 +101,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
-	if err := RestoreSubcriptionToDefault(); err != nil {
-		return err
-	}
+	RestoreSubcriptionToDefault()
 
 	// ensure namespaces created during test are deleted
 	err := ensureTestNamespacesDeleted(ctx, k8sClient)
@@ -504,12 +504,10 @@ func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Su
 }
 
 // RestoreSubcriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
-func RestoreSubcriptionToDefault() error {
+func RestoreSubcriptionToDefault() {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
-	if err != nil {
-		return err
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	// optionalEnvVarsToRemove is a non-exhaustive list of environment variables that are known to be added to Subscription or operator Deployment by tests
 	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR"}
@@ -522,50 +520,42 @@ func RestoreSubcriptionToDefault() error {
 			deploymentFixture.RemoveEnv(depl, envKey)
 		}
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		err := waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient)
+		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(depl, "3m", "1s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 	} else if EnvCI() {
 
 		sub, err := GetSubscriptionInEnvCIEnvironment(k8sClient)
-		if err != nil {
-			return err
-		}
+		Expect(err).ToNot(HaveOccurred())
 
 		if sub != nil {
 			subscriptionFixture.RemoveSpecConfig(sub)
 		}
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
+		Expect(err).ToNot(HaveOccurred())
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
 	} else if EnvLocalRun() {
 		// When running locally, there are no cluster resources to clean up
-		return nil
 
 	} else {
 
 		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
-		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
-			return err
-		}
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub)
+		Expect(err).ToNot(HaveOccurred())
 
 		subscriptionFixture.RemoveSpecConfig(sub)
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
+		Expect(err).ToNot(HaveOccurred())
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
-	}
 
-	return nil
+	}
 
 }
 

@@ -118,7 +118,8 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
-			fakeClient.Create(context.TODO(), consoleLink)
+			err := fakeClient.Create(context.TODO(), consoleLink)
+			assert.NilError(t, err)
 
 			if test.setEnvVarFunc != nil {
 				test.setEnvVarFunc(t, test.envVar)

@@ -303,7 +303,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	} else {
 		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
-		changed := !reflect.DeepEqual(existingPluginDeployment.ObjectMeta.Labels, newPluginDeployment.ObjectMeta.Labels) ||
+		changed := !reflect.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
 			!reflect.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
@@ -317,7 +317,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
-			existingPluginDeployment.ObjectMeta.Labels = newPluginDeployment.ObjectMeta.Labels
+			existingPluginDeployment.Labels = newPluginDeployment.Labels
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
 			existingPluginDeployment.Spec.Selector = newPluginDeployment.Spec.Selector
 			existingSpecTemplate.Labels = newSpecTemplate.Labels
@@ -357,15 +357,15 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := !reflect.DeepEqual(existingServiceRef.ObjectMeta.Annotations, pluginServiceRef.ObjectMeta.Annotations) ||
-			!reflect.DeepEqual(existingServiceRef.ObjectMeta.Labels, pluginServiceRef.ObjectMeta.Labels) ||
+		changed := !reflect.DeepEqual(existingServiceRef.Annotations, pluginServiceRef.Annotations) ||
+			!reflect.DeepEqual(existingServiceRef.Labels, pluginServiceRef.Labels) ||
 			!reflect.DeepEqual(existingServiceRef.Spec.Selector, pluginServiceRef.Spec.Selector) ||
 			!reflect.DeepEqual(existingServiceRef.Spec.Ports, pluginServiceRef.Spec.Ports)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin service", "Namespace", existingServiceRef.Namespace, "Name", existingServiceRef.Name)
-			existingServiceRef.ObjectMeta.Annotations = pluginServiceRef.ObjectMeta.Annotations
-			existingServiceRef.ObjectMeta.Labels = pluginServiceRef.ObjectMeta.Labels
+			existingServiceRef.Annotations = pluginServiceRef.Annotations
+			existingServiceRef.Labels = pluginServiceRef.Labels
 			existingServiceRef.Spec.Selector = pluginServiceRef.Spec.Selector
 			existingServiceRef.Spec.Ports = pluginServiceRef.Spec.Ports
 			return reconcile.Result{}, r.Client.Update(context.TODO(), pluginServiceRef)
@@ -434,11 +434,11 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 		}
 	} else {
 		changed := !reflect.DeepEqual(existingPluginConfigMap.Data, newPluginConfigMap.Data) ||
-			!reflect.DeepEqual(existingPluginConfigMap.ObjectMeta.Labels, newPluginConfigMap.ObjectMeta.Labels)
+			!reflect.DeepEqual(existingPluginConfigMap.Labels, newPluginConfigMap.Labels)
 		if changed {
 			reqLogger.Info("Reconciling plugin configMap", "Namespace", existingPluginConfigMap.Namespace, "Name", existingPluginConfigMap.Name)
 			existingPluginConfigMap.Data = newPluginConfigMap.Data
-			existingPluginConfigMap.ObjectMeta.Labels = newPluginConfigMap.ObjectMeta.Labels
+			existingPluginConfigMap.Labels = newPluginConfigMap.Labels
 			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginConfigMap)
 		}
 	}

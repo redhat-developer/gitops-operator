@@ -112,18 +112,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("generating a test certificate to use with redis, using openssl")
 
 			redis_crt_File, err := os.CreateTemp("", "redis.crt")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			redis_key_File, err := os.CreateTemp("", "redis.key")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			openssl_test_File, err := os.CreateTemp("", "openssl_test.cnf")
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			opensslTestCNFContents := "\n[SAN]\nsubjectAltName=DNS:argocd-redis." + ns.Name + ".svc.cluster.local\n[req]\ndistinguished_name=req"
 
 			err = os.WriteFile(openssl_test_File.Name(), ([]byte)(opensslTestCNFContents), 0666)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 
 			_, err = osFixture.ExecCommandWithOutputParam(false, "openssl", "req", "-new", "-x509", "-sha256",
 				"-subj", "/C=XX/ST=XX/O=Testing/CN=redis",

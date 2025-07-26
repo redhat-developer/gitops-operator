@@ -123,7 +123,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("removing managed-by label from the other namespace")
 			namespace.Update(nsTest_1_10_custom, func(n *corev1.Namespace) {
-				delete(n.ObjectMeta.Labels, "argocd.argoproj.io/managed-by")
+				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 
 			By("verifying Argo CD managed-by roles and rolebindings are removed from other namespace")

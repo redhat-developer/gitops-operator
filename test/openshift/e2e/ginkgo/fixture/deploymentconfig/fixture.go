@@ -3,8 +3,11 @@ package deploymentconfig
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 
 	matcher "github.com/onsi/gomega/types"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -16,14 +19,14 @@ import (
 func HaveReplicas(replicas int) matcher.GomegaMatcher {
 	return fetchDeploymentConfig(func(depl *openshiftappsv1.DeploymentConfig) bool {
 		GinkgoWriter.Println("DeploymentConfig - HaveReplicas:", "expected: ", replicas, "actual: ", depl.Status.Replicas)
-		return depl.Status.Replicas == int32(replicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.Replicas) == replicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	return fetchDeploymentConfig(func(depl *openshiftappsv1.DeploymentConfig) bool {
 		GinkgoWriter.Println("DeploymentConfig - HaveReadyReplicas:", "expected: ", readyReplicas, "actual: ", depl.Status.ReadyReplicas)
-		return depl.Status.ReadyReplicas == int32(readyReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.ReadyReplicas) == readyReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 

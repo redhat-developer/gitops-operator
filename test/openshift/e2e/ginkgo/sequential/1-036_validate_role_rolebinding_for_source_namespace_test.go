@@ -85,9 +85,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				}
 				Eventually(roleTestNamespace).Should(k8sFixture.ExistByName())
-				Expect(roleTestNamespace.ObjectMeta.Labels["app.kubernetes.io/managed-by"], "example-argocd")
-				Expect(roleTestNamespace.ObjectMeta.Labels["app.kubernetes.io/name"], "example-argocd")
-				Expect(roleTestNamespace.ObjectMeta.Labels["app.kubernetes.io/part-of"], "argocd")
+				Expect(roleTestNamespace.Labels["app.kubernetes.io/managed-by"]).To(Equal("example-argocd"))
+				Expect(roleTestNamespace.Labels["app.kubernetes.io/name"]).To(Equal("example-argocd"))
+				Expect(roleTestNamespace.Labels["app.kubernetes.io/part-of"]).To(Equal("argocd"))
 
 				rbTestNamespace := &rbacv1.RoleBinding{
 					ObjectMeta: metav1.ObjectMeta{

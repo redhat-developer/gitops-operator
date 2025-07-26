@@ -3,8 +3,10 @@ package namespace
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 
 	matcher "github.com/onsi/gomega/types"
 
@@ -23,8 +25,8 @@ func HavePhase(expectedPhase corev1.NamespacePhase) matcher.GomegaMatcher {
 
 func HaveLabel(key string, value string) matcher.GomegaMatcher {
 	return fetchNamespace(func(ns *corev1.Namespace) bool {
-		GinkgoWriter.Println("Namespace - HaveLabel: Key:", key, "Expected:", value, "/ Actual:", ns.ObjectMeta.Labels[key])
-		return ns.ObjectMeta.Labels[key] == value
+		GinkgoWriter.Println("Namespace - HaveLabel: Key:", key, "Expected:", value, "/ Actual:", ns.Labels[key])
+		return ns.Labels[key] == value
 	})
 }
 

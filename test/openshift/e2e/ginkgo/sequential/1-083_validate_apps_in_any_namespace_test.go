@@ -300,7 +300,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("7) Remove managed-by from test-1-24-custom and verify the roles exist again")
 			namespaceFixture.Update(test_1_24_customNS, func(n *corev1.Namespace) {
-				delete(n.ObjectMeta.Labels, "argocd.argoproj.io/managed-by")
+				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 
 			By("restarts the server and app controller workloads. I presume this is because their startup is too slow to pick up the RBAC changes we have made (removing the label)")

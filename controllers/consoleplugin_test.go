@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -75,7 +74,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 	instance := &pipelinesv1alpha1.GitopsService{}
 	var replicas int32 = 1
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -147,7 +146,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -158,7 +157,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -169,7 +168,11 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assert.NilError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -178,11 +181,11 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 			assertNoError(t, err)
 
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelComponent], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelInstance], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelRuntimeNamespace], "openshift-gitops")
+			assert.Equal(t, deployment.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelComponent], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelInstance], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelRuntimeNamespace], "openshift-gitops")
 		})
 	}
 }
@@ -211,7 +214,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -289,7 +292,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -300,7 +303,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -311,7 +314,10 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -351,7 +357,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -427,7 +433,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -438,7 +444,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -449,7 +455,11 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -563,7 +573,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -574,7 +584,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -596,7 +606,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 			assertNoError(t, err)
 
-			assert.Equal(t, deployment.Spec.Template.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, deployment.Spec.Template.Labels[kubeAppLabelApp], "gitops-plugin")
 		})
 	}
 }
@@ -692,7 +702,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -770,7 +780,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -781,7 +791,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -792,7 +802,11 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -828,7 +842,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -906,7 +920,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -917,7 +931,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -928,7 +942,11 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1029,7 +1047,7 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1057,7 +1075,11 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1066,7 +1088,7 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, service)
 			assertNoError(t, err)
 
-			assert.Equal(t, service.ObjectMeta.Annotations["service.beta.openshift.io/serving-cert-secret-name"], "console-serving-cert")
+			assert.Equal(t, service.Annotations["service.beta.openshift.io/serving-cert-secret-name"], "console-serving-cert")
 		})
 	}
 }
@@ -1103,7 +1125,7 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1126,7 +1148,10 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1135,10 +1160,10 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, service)
 			assertNoError(t, err)
 
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelComponent], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelInstance], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelComponent], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelInstance], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelPartOf], "gitops-plugin")
 		})
 	}
 }
@@ -1169,7 +1194,7 @@ func TestPlugin_reconcileService_changedSelector(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1195,7 +1220,10 @@ func TestPlugin_reconcileService_changedSelector(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1241,7 +1269,7 @@ func TestPlugin_reconcileService_changedPorts(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1269,7 +1297,10 @@ func TestPlugin_reconcileService_changedPorts(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1325,7 +1356,7 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1344,7 +1375,10 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cp)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cp)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1389,7 +1423,7 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1403,7 +1437,10 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cp)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cp)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1464,7 +1501,7 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cm := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1476,7 +1513,10 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 					"httpd.conf": httpdConfig,
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cm)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cm)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1485,8 +1525,8 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, configMap)
 			assertNoError(t, err)
 
-			assert.Equal(t, configMap.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, configMap.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, configMap.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, configMap.Labels[kubeAppLabelPartOf], "gitops-plugin")
 		})
 	}
 }

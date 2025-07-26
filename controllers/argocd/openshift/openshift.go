@@ -31,15 +31,16 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 	logv := log.WithValues("ArgoCD Namespace", cr.Namespace, "ArgoCD Name", cr.Name)
 	switch o := v.(type) {
 	case *rbacv1.ClusterRole:
-		if o.ObjectMeta.Name == argocd.GenerateUniqueResourceName("argocd-application-controller", cr) {
+		if o.Name == argocd.GenerateUniqueResourceName("argocd-application-controller", cr) {
 			logv.Info("configuring openshift cluster config policy rules")
 			o.Rules = policyRulesForClusterConfig()
 		}
 	case *appsv1.Deployment:
-		if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis" {
+		switch o.Name {
+		case cr.Name + "-redis":
 			logv.Info("configuring openshift redis")
 			o.Spec.Template.Spec.Containers[0].Args = append(getArgsForRedhatRedis(), o.Spec.Template.Spec.Containers[0].Args...)
-		} else if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-haproxy" {
+		case cr.Name + "-redis-ha-haproxy":
 			logv.Info("configuring openshift redis haproxy")
 			o.Spec.Template.Spec.Containers[0].Command = append(getCommandForRedhatRedisHaProxy(), o.Spec.Template.Spec.Containers[0].Command...)
 			version := hint
@@ -55,13 +56,14 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 			}
 		}
 	case *appsv1.StatefulSet:
-		if o.ObjectMeta.Name == cr.ObjectMeta.Name+"-redis-ha-server" {
+		if o.Name == cr.Name+"-redis-ha-server" {
 			logv.Info("configuring openshift redis-ha-server stateful set")
 			for index := range o.Spec.Template.Spec.Containers {
-				if o.Spec.Template.Spec.Containers[index].Name == "redis" {
+				switch o.Spec.Template.Spec.Containers[index].Name {
+				case "redis":
 					o.Spec.Template.Spec.Containers[index].Args = getArgsForRedhatHaRedisServer()
 					o.Spec.Template.Spec.Containers[index].Command = []string{}
-				} else if o.Spec.Template.Spec.Containers[index].Name == "sentinel" {
+				case "sentinel":
 					o.Spec.Template.Spec.Containers[index].Args = getArgsForRedhatHaRedisSentinel()
 					o.Spec.Template.Spec.Containers[index].Command = []string{}
 				}
@@ -70,12 +72,12 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 			o.Spec.Template.Spec.InitContainers[0].Command = []string{}
 		}
 	case *corev1.Secret:
-		if allowedNamespace(cr.ObjectMeta.Namespace, os.Getenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES")) {
+		if allowedNamespace(cr.Namespace, os.Getenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES")) {
 			logv.Info("configuring cluster secret with empty namespaces to allow cluster resources")
 			delete(o.Data, "namespaces")
 		}
 	case *rbacv1.Role:
-		if o.ObjectMeta.Name == cr.Name+"-"+"argocd-application-controller" {
+		if o.Name == cr.Name+"-"+"argocd-application-controller" {
 			logv.Info("configuring policy rule for Application Controller")
 
 			// can move this to somewhere common eventually, maybe init()

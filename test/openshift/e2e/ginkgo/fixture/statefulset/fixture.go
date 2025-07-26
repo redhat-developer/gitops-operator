@@ -5,8 +5,10 @@ import (
 	"reflect"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 
 	matcher "github.com/onsi/gomega/types"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -39,14 +41,14 @@ func Update(obj *appsv1.StatefulSet, modify func(*appsv1.StatefulSet)) {
 func HaveReplicas(replicas int) matcher.GomegaMatcher {
 	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
 		GinkgoWriter.Println("StatefulSet HaveReplicas:", "expected: ", replicas, "actual: ", ss.Status.Replicas)
-		return ss.Status.Replicas == int32(replicas) && ss.Generation == ss.Status.ObservedGeneration
+		return int(ss.Status.Replicas) == replicas && ss.Generation == ss.Status.ObservedGeneration
 	})
 }
 
 func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
 		GinkgoWriter.Println("StatefulSet HaveReadyReplicas:", "expected: ", readyReplicas, "actual: ", ss.Status.ReadyReplicas)
-		return ss.Status.ReadyReplicas == int32(readyReplicas) && ss.Generation == ss.Status.ObservedGeneration
+		return int(ss.Status.ReadyReplicas) == readyReplicas && ss.Generation == ss.Status.ObservedGeneration
 	})
 }
 

@@ -95,7 +95,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Expect(rb.RoleRef.APIGroup).To(Equal("rbac.authorization.k8s.io"))
 				Expect(rb.RoleRef.Kind).To(Equal("Role"))
 				Expect(rb.RoleRef.Name).To(Equal("argocd-argocd-server"))
-				Expect(len(rb.Subjects)).To(Equal(1))
+				Expect(rb.Subjects).To(HaveLen(1))
 				Expect(rb.Subjects[0]).To(Equal(rbacv1.Subject{Kind: "ServiceAccount", Name: "argocd-argocd-server", Namespace: argoCDRandomNS.Namespace}))
 			}
 			expectRoleAndRoleBindingAreValidForManagedNamespace(nsTest_1_12_custom.Name)

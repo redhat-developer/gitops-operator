@@ -86,7 +86,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Eventually(depl, "4m", "5s").Should(k8sFixture.ExistByName())
 
-			Expect(len(depl.Spec.Template.Spec.InitContainers)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.InitContainers).To(HaveLen(1))
 
 			Expect(depl.Spec.Template.Spec.InitContainers[0].Name).To(Equal("argocd-init"))
 			Expect(depl.Spec.Template.Spec.InitContainers[0].Image).To(Equal("quay.io/nginx/nginx-unprivileged:latest"))
@@ -104,7 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					},
 				}))
 
-			Expect(len(depl.Spec.Template.Spec.Containers)).To(Equal(1))
+			Expect(depl.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 			Expect(depl.Spec.Template.Spec.Containers[0].Name).To(Equal("argocd-server"))
 

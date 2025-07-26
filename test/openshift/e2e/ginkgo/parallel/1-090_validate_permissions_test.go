@@ -727,10 +727,10 @@ spec:
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(actualCsv), actualCsv)).To(Succeed())
 
 			// We don't need to compare the .serviceAccountName field so set it to empty
-			Expect(len(actualCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions)).To(Equal(1))
+			Expect(actualCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions).To(HaveLen(1))
 			actualCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions[0].ServiceAccountName = ""
 
-			Expect(len(expectedCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions)).To(Equal(1))
+			Expect(expectedCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions).To(HaveLen(1))
 
 			Expect(actualCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions).To(Equal(expectedCsv.Spec.InstallStrategy.StrategySpec.ClusterPermissions))
 

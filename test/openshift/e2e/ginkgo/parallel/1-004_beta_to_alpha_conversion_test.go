@@ -103,8 +103,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}, "4m", "5s").Should(BeTrue())
 
 			Expect(argoCDAlpha1.Spec.SSO.Provider).To(Equal(argov1alpha1api.SSOProviderTypeDex))
-			Expect(argoCDAlpha1.Spec.SSO.Dex.OpenShiftOAuth).To(Equal(true))
-			Expect(argoCDAlpha1.Spec.Server.Route.Enabled).To(Equal(true))
+			Expect(argoCDAlpha1.Spec.SSO.Dex.OpenShiftOAuth).To(BeTrue())
+			Expect(argoCDAlpha1.Spec.Server.Route.Enabled).To(BeTrue())
 
 			dexDeployment := &corev1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{

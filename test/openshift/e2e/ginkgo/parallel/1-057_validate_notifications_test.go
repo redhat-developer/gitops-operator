@@ -213,7 +213,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("waiting for Argo CD to send an email to smtp4dev Pod indicating that the Application was created")
 
 			podList := &corev1.PodList{}
-			Expect(k8sClient.List(ctx, podList, &client.ListOptions{Namespace: ns.Name}))
+			Expect(k8sClient.List(ctx, podList, &client.ListOptions{Namespace: ns.Name})).To(Succeed())
 			var smtp4DevPod *corev1.Pod
 			for idx := range podList.Items {
 				item := podList.Items[idx]
