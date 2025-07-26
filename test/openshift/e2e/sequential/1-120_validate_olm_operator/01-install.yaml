@@ -1,0 +1,19 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: helloworld-operator-subscription 
+  namespace: openshift-operators
+spec:
+  channel: stable 
+  name: helloworld-operator 
+  source: redhat-operators 
+  sourceNamespace: openshift-marketplace 
+  installPlanApproval: Automatic 
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: global-operators
+  namespace: openshift-operators
+spec:
+  targetNamespaces: [] # all namespaces

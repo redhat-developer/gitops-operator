@@ -29,7 +29,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os" // Corrected import path
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,16 +40,18 @@ import (
 )
 
 const (
-	// E2ETestLabelsKey and E2ETestLabelsValue are added to cluster-scoped resources (e.g. Namespaces) created by E2E tests (where possible). On startup (and before each test for sequential tests), any resources with this label will be deleted.
-	E2ETestLabelsKey   = "app"
-	E2ETestLabelsValue = "test-argo-app"
+	E2ETestLabelsKey               = "app"
+	E2ETestLabelsValue             = "test-argo-app"
+	GitOpsOperatorNamespace        = "openshift-gitops-operator"
+	GitOpsOperatorDeploymentName   = "openshift-gitops-operator-controller-manager"
+	GitOpsOperatorSubscriptionName = "openshift-gitops-operator"
+	HelloWorldPattern              = "helloworld-operator"
 )
 
 var NamespaceLabels = map[string]string{E2ETestLabelsKey: E2ETestLabelsValue}
 
 func EnsureParallelCleanSlate() {
 
-	// Increase the maximum length of debug output, for when tests fail
 	format.MaxLength = 64 * 1024
 	SetDefaultEventuallyTimeout(time.Second * 60)
 	SetDefaultEventuallyPollingInterval(time.Second * 3)
@@ -71,20 +73,12 @@ func EnsureParallelCleanSlate() {
 	// Unlike sequential clean slate, parallel clean slate cannot assume that there are no other tests running. This limits our ability to clean up old test artifacts.
 }
 
-// EnsureSequentialCleanSlate will clean up resources that were created during previous sequential tests
-// - Deletes namespaces that were created by previous tests
-// - Deletes other cluster-scoped resources that were created
-// - Reverts changes made to Subscription CR
-// - etc
 func EnsureSequentialCleanSlate() {
 	Expect(EnsureSequentialCleanSlateWithError()).To(Succeed())
 }
 
 func EnsureSequentialCleanSlateWithError() error {
 
-	// With sequential tests, we are always safe to assume that there is no other test running. That allows us to clean up old test artifacts before new test starts.
-
-	// Increase the maximum length of debug output, for when tests fail
 	format.MaxLength = 64 * 1024
 	SetDefaultEventuallyTimeout(time.Second * 60)
 	SetDefaultEventuallyPollingInterval(time.Second * 3)
@@ -131,8 +125,8 @@ func EnsureSequentialCleanSlateWithError() error {
 			Enabled: true,
 			TLS:     nil,
 			// TLS: &routev1.TLSConfig{
-			// 	Termination:                   routev1.TLSTerminationReencrypt,
-			// 	InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+			//  Termination:                   routev1.TLSTerminationReencrypt,
+			//  InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
 			// },
 		}
 
@@ -206,13 +200,12 @@ func EnsureSequentialCleanSlateWithError() error {
 func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) error {
 
 	if EnvNonOLM() || EnvLocalRun() {
-		// Skipping as CSV does exist when not using OLM, nor does it exist when running locally
 		return nil
 	}
 
 	var csv *olmv1alpha1.ClusterServiceVersion
 	var csvList olmv1alpha1.ClusterServiceVersionList
-	Expect(k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator"))).To(Succeed())
+	Expect(k8sClient.List(ctx, &csvList, client.InNamespace(GitOpsOperatorNamespace))).To(Succeed())
 
 	for idx := range csvList.Items {
 		idxCSV := csvList.Items[idx]
@@ -221,7 +214,7 @@ func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) er
 			break
 		}
 	}
-	Expect(csv).ToNot(BeNil(), "if you see this, it likely means, either: A) the operator is not installed via OLM (and you meant to install it), OR B) you are running the operator locally via 'make run', and thus should specify LOCAL_RUN=true env var when calling the test")
+	Expect(csv).ToNot(BeNil(), "if you see this, it likely means, either: A) the operator is not installed via OLM (and you meant to install it), OR B) you are running the operator locally via 'make run', and thus should not specify LOCAL_RUN=true env var when calling the test")
 
 	if err := updateWithoutConflict(csv, func(obj client.Object) {
 
@@ -374,7 +367,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 	}
 
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorDeploymentName, Namespace: GitOpsOperatorNamespace}}
 
 		return deploymentFixture.GetEnv(depl, key)
 
@@ -394,7 +387,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorSubscriptionName, Namespace: GitOpsOperatorNamespace}}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return nil, err
 		}
@@ -411,11 +404,11 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 	k8sClient, _ := utils.GetE2ETestKubeClient()
 
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorDeploymentName, Namespace: GitOpsOperatorNamespace}}
 
 		deploymentFixture.SetEnv(depl, key, value)
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(GitOpsOperatorNamespace, k8sClient)
 
 	} else if EnvCI() {
 
@@ -429,7 +422,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorSubscriptionName, Namespace: GitOpsOperatorNamespace}}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub)).To(Succeed())
 
 		subscriptionFixture.SetEnv(sub, key, value)
@@ -448,11 +441,11 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 	}
 
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorDeploymentName, Namespace: GitOpsOperatorNamespace}}
 
 		deploymentFixture.RemoveEnv(depl, key)
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(GitOpsOperatorNamespace, k8sClient)
 
 	} else if EnvCI() {
 
@@ -470,7 +463,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorSubscriptionName, Namespace: GitOpsOperatorNamespace}}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return err
 		}
@@ -485,9 +478,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 
 func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Subscription, error) {
 	subscriptionList := olmv1alpha1.SubscriptionList{}
-	if err := k8sClient.List(context.Background(), &subscriptionList, client.InNamespace("openshift-gitops-operator")); err != nil {
-		return nil, err
-	}
+	Expect(k8sClient.List(context.Background(), &subscriptionList, client.InNamespace(GitOpsOperatorNamespace))).To(Succeed())
 
 	var sub *olmv1alpha1.Subscription
 
@@ -516,7 +507,7 @@ func RestoreSubcriptionToDefault() error {
 
 	if EnvNonOLM() {
 
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorDeploymentName, Namespace: GitOpsOperatorNamespace}}
 
 		for _, envKey := range optionalEnvVarsToRemove {
 			deploymentFixture.RemoveEnv(depl, envKey)
@@ -539,30 +530,26 @@ func RestoreSubcriptionToDefault() error {
 			subscriptionFixture.RemoveSpecConfig(sub)
 		}
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
+		if err := waitForAllEnvVarsToBeRemovedFromDeployments(GitOpsOperatorNamespace, optionalEnvVarsToRemove, k8sClient); err != nil {
 			return err
 		}
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
-
-	} else if EnvLocalRun() {
-		// When running locally, there are no cluster resources to clean up
-		return nil
+		WaitForAllDeploymentsInTheNamespaceToBeReady(GitOpsOperatorNamespace, k8sClient)
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: GitOpsOperatorSubscriptionName, Namespace: GitOpsOperatorNamespace}}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return err
 		}
 
 		subscriptionFixture.RemoveSpecConfig(sub)
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
+		if err := waitForAllEnvVarsToBeRemovedFromDeployments(GitOpsOperatorNamespace, optionalEnvVarsToRemove, k8sClient); err != nil {
 			return err
 		}
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(GitOpsOperatorNamespace, k8sClient)
 	}
 
 	return nil
@@ -848,7 +835,6 @@ func OutputDebugOnFail(namespaceParams ...any) {
 	debugOutput, exists := testReportMap[testName]
 
 	if exists && debugOutput.isOutputted {
-		// Skip output if we have already outputted once for this test
 		return
 	}
 
@@ -856,7 +842,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		isOutputted: true,
 	}
 
-	outputPodLog("openshift-gitops-operator-controller-manager")
+	outputPodLog(GitOpsOperatorDeploymentName)
 
 	for _, namespace := range namespaces {
 
@@ -911,7 +897,6 @@ func outputPodLog(podSubstring string) {
 	}
 
 	if len(matchingPods) == 0 {
-		// This can happen when the operator is not running on the cluster
 		GinkgoWriter.Println("DebugOutputOperatorLogs was called, but no pods were found.")
 		return
 	}
@@ -922,7 +907,7 @@ func outputPodLog(podSubstring string) {
 	}
 
 	// Extract operator logs
-	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
+	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", GitOpsOperatorNamespace)
 	if err != nil {
 		GinkgoWriter.Println("unable to extract operator logs", err)
 		return
