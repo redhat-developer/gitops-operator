@@ -30,7 +30,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			openshiftArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(openshiftArgoCD.Spec.Server.Route.Enabled).To(Equal(true))
+			Expect(openshiftArgoCD.Spec.Server.Route.Enabled).To(BeTrue())
 			Eventually(openshiftArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			serverRoute := &routev1.Route{

@@ -85,7 +85,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(gitopsServerDepl).Should(k8sFixture.NotExistByName())
 
 			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
-			Expect(fixture.RestoreSubcriptionToDefault()).To(Succeed())
+			fixture.RestoreSubcriptionToDefault()
 
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())

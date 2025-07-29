@@ -74,7 +74,9 @@ func TestArgoCD(t *testing.T) {
 			v1.ResourceCPU:    resourcev1.MustParse("500m"),
 		},
 	}
-	assert.DeepEqual(t, testArgoCD.Spec.Grafana.Resources, testGrafanaResources)
+
+	//lint:ignore SA1019 known to be deprecated
+	assert.DeepEqual(t, testArgoCD.Spec.Grafana.Resources, testGrafanaResources) //nolint:staticcheck // SA1019: We must test deprecated fields.
 
 	testHAResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{

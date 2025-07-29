@@ -107,13 +107,13 @@ func TestReconcileArgoCD_reconcileRedisDeployment(t *testing.T) {
 	a := makeTestArgoCD()
 	testDeployment := makeTestDeployment()
 
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "redis"
+	testDeployment.Name = a.Name + "-" + "redis"
 	want := append(getArgsForRedhatRedis(), testDeployment.Spec.Template.Spec.Containers[0].Args...)
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
 	assert.Equal(t, testDeployment.Spec.Template.Spec.Containers[0].Args, want)
 
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "not-redis"
+	testDeployment.Name = a.Name + "-" + "not-redis"
 	want = testDeployment.Spec.Template.Spec.Containers[0].Args
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
@@ -124,7 +124,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	a := makeTestArgoCD()
 	testDeployment := makeTestDeployment()
 
-	testDeployment.ObjectMeta.Name = a.Name + "-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-redis-ha-haproxy"
 	testDeployment.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{},
 	}
@@ -141,7 +141,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	assert.Equal(t, wantc, *testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
 
 	testDeployment = makeTestDeployment()
-	testDeployment.ObjectMeta.Name = a.Name + "-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-redis-ha-haproxy"
 	testDeployment.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{},
 	}
@@ -150,7 +150,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	assert.Nil(t, testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
 
 	testDeployment = makeTestDeployment()
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "not-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-" + "not-redis-ha-haproxy"
 	want = testDeployment.Spec.Template.Spec.Containers[0].Command
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))

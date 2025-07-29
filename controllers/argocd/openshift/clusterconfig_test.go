@@ -97,29 +97,18 @@ func makeTestDeployment() *appsv1.Deployment {
 	}
 }
 
-func makeTestRoleBinding() *rbacv1.RoleBinding {
-	return &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      testArgoCDName,
-			Namespace: testNamespace,
-		},
-		Subjects: []rbacv1.Subject{},
-		RoleRef:  rbacv1.RoleRef{},
-	}
-}
-
 func newStatefulSetWithSuffix(suffix string, component string, cr *argoapp.ArgoCD) *appsv1.StatefulSet {
 	return newStatefulSetWithName(fmt.Sprintf("%s-%s", cr.Name, suffix), component, cr)
 }
 
 func newStatefulSetWithName(name string, component string, cr *argoapp.ArgoCD) *appsv1.StatefulSet {
 	ss := newStatefulSet(cr)
-	ss.ObjectMeta.Name = name
+	ss.Name = name
 
-	lbls := ss.ObjectMeta.Labels
+	lbls := ss.Labels
 	lbls[common.ArgoCDKeyName] = name
 	lbls[common.ArgoCDKeyComponent] = component
-	ss.ObjectMeta.Labels = lbls
+	ss.Labels = lbls
 
 	return ss
 }

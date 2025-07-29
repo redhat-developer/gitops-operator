@@ -218,12 +218,14 @@ func copyCRDsFromRolloutsManagerRepo(pathToRolloutsManagerGitRepo string, pathTo
 	destinationPath := filepath.Join(pathToGitRepo, "config/crd/bases")
 	for _, crdYAML := range crdYAMLs {
 
+		// #nosec G304
 		destFile, err := os.Create(filepath.Join(destinationPath, crdYAML))
 		if err != nil {
 			return fmt.Errorf("unable to create file for '%s': %w", crdYAML, err)
 		}
 		defer destFile.Close()
 
+		// #nosec G304
 		srcFile, err := os.Open(filepath.Join(rolloutManagerCRDPath, crdYAML))
 		if err != nil {
 			return fmt.Errorf("unable to open source file for '%s': %w", crdYAML, err)
@@ -248,6 +250,7 @@ func regenerateE2ETestScript(commitID string, pathToGitRepo string) error {
 
 	path := filepath.Join(pathToGitRepo, "scripts/run-rollouts-e2e-tests.sh")
 
+	// #nosec G304
 	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -299,6 +302,7 @@ func extractCurrentRolloutsManagerGitCommitFromGoMod(pathToGitOpsOperatorGitRepo
 
 	path := filepath.Join(pathToGitOpsOperatorGitRepo, "go.mod")
 
+	// #nosec G304
 	fileBytes, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -346,6 +350,7 @@ func runCommandWithWorkDir(workingDir string, cmdList ...string) (string, string
 
 	fmt.Println(cmdList)
 
+	// #nosec G204
 	cmd := exec.Command(cmdList[0], cmdList[1:]...)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

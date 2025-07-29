@@ -85,7 +85,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Eventually(pod, "4m", "5s").Should(k8sFixture.ExistByName())
 
-			Expect(len(pod.Spec.Template.Spec.Containers)).To(Equal(2))
+			Expect(pod.Spec.Template.Spec.Containers).To(HaveLen(2))
 
 			Expect(pod.Spec.Template.Spec.Containers[1].Name).To(Equal("sidecar"))
 			Expect(pod.Spec.Template.Spec.Containers[1].Image).To(Equal("quay.io/fedora/fedora:latest"))

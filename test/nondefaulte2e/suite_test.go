@@ -45,11 +45,9 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/helper"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
@@ -62,7 +60,6 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var skipControllerNameValidation = true
@@ -182,27 +179,3 @@ var _ = AfterSuite(func() {
 	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
-
-// checks if a given resource is present in the cluster
-// continouslly polls until it returns nil or a timeout occurs
-func checkIfPresent(ns types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.TODO(), ns, obj)
-		if err != nil {
-			return err
-		}
-		return nil
-	}, timeout, interval).ShouldNot(HaveOccurred())
-}
-
-// checks if a given resource is deleted
-// continouslly polls until the object is deleted or a timeout occurs
-func checkIfDeleted(ns types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.TODO(), ns, obj)
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}, timeout, interval).ShouldNot(HaveOccurred())
-}

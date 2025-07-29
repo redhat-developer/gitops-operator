@@ -3,8 +3,10 @@ package clusterrole
 import (
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 	matcher "github.com/onsi/gomega/types"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -33,6 +35,8 @@ func Update(obj *rbacv1.ClusterRole, modify func(*rbacv1.ClusterRole)) {
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+//
+//nolint:unused
 func fetchRole(f func(*rbacv1.ClusterRole) bool) matcher.GomegaMatcher {
 
 	return WithTransform(func(cr *rbacv1.ClusterRole) bool {

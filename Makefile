@@ -329,7 +329,6 @@ endif
 endif
 
 
-
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
@@ -353,3 +352,37 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+
+.PHONY: gosec
+gosec: go_sec
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./... 
+
+.PHONY: lint
+lint: golangci_lint
+	$(GOLANGCI_LINT) --version
+	GOMAXPROCS=2 $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+
+
+GO_SEC = $(shell pwd)/bin/gosec
+go_sec: ## Download gosec locally if necessary.
+	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
+
+GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+golangci_lint: ## Download golangci-lint locally if necessary.
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)
+
+
+# go-get-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

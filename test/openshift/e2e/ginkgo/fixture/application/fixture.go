@@ -1,7 +1,8 @@
 package application
 
 import (
-	. "github.com/onsi/gomega"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/gomega" //nolint:all
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	"k8s.io/client-go/util/retry"
 
@@ -10,7 +11,8 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	matcher "github.com/onsi/gomega/types"
 
-	. "github.com/onsi/ginkgo/v2"
+	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
+	. "github.com/onsi/ginkgo/v2" //nolint:all
 
 	"context"
 

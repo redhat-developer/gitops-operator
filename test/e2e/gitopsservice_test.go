@@ -176,6 +176,8 @@ var _ = Describe("GitOpsServiceController", func() {
 
 			By("create a new Argo CD instance in test ns")
 			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
+			Expect(err).NotTo(HaveOccurred())
+
 			err = k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceInstance)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -210,7 +212,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Clean up test resources", func() {
-			Expect(helper.DeleteNamespace(k8sClient, argocdNonDefaultNamespace))
+			Expect(helper.DeleteNamespace(k8sClient, argocdNonDefaultNamespace)).To(Succeed())
 		})
 	})
 
@@ -297,7 +299,7 @@ var _ = Describe("GitOpsServiceController", func() {
 		})
 
 		It("Clean up test resources", func() {
-			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace))
+			Expect(helper.DeleteNamespace(k8sClient, helper.StandaloneArgoCDNamespace)).To(Succeed())
 		})
 
 	})
@@ -640,17 +642,15 @@ var _ = Describe("GitOpsServiceController", func() {
 
 		It("Keycloak deployment is created", func() {
 			Eventually(func() error {
-				dc := &osappsv1.DeploymentConfig{}
-				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, dc)
+				dc := osappsv1.DeploymentConfig{}
+				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: defaultKeycloakIdentifier, Namespace: namespace}, &dc)
 				if err != nil {
 					return err
 				}
-				if dc != nil {
-					got := dc.Status.AvailableReplicas
-					want := int32(1)
-					if got != want {
-						return fmt.Errorf("expected %d, got %d", want, got)
-					}
+				got := dc.Status.AvailableReplicas
+				want := int32(1)
+				if got != want {
+					return fmt.Errorf("expected %d, got %d", want, got)
 				}
 				return nil
 			}, timeout, interval).ShouldNot(HaveOccurred())
@@ -723,7 +723,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			idp := idps[0].(map[string]interface{})
 
 			Expect(idp["alias"]).To(Equal("openshift-v4"))
-			Expect(idp["displayName"] == "Login with OpenShift")
+			Expect(idp["displayName"]).To(Equal("Login with OpenShift"))
 			Expect(idp["providerId"]).To(Equal("openshift-v4"))
 			Expect(idp["firstBrokerLoginFlowAlias"]).To(Equal("first broker login"))
 		})
@@ -942,71 +942,6 @@ func getAccessToken(user, pass, accessURL string) (string, error) {
 	}
 
 	return tokenRes.AccessToken, nil
-}
-
-func applyMissingPermissions(name, namespace string) error {
-	// Check the role was created. If not, create a new role
-	roleName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleName,
-			Namespace: namespace,
-		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				Verbs:     []string{"*"},
-				APIGroups: []string{"*"},
-				Resources: []string{"*"},
-			},
-		},
-	}
-	err := k8sClient.Get(context.TODO(),
-		types.NamespacedName{Name: roleName, Namespace: namespace}, role)
-	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			err := k8sClient.Create(context.TODO(), role)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	// Check the role binding was created. If not, create a new role binding
-	roleBindingName := fmt.Sprintf("%s-openshift-gitops-argocd-application-controller", namespace)
-	roleBinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleBindingName,
-			Namespace: namespace,
-		},
-		RoleRef: rbacv1.RoleRef{
-			Name:     roleName,
-			Kind:     "Role",
-			APIGroup: "rbac.authorization.k8s.io",
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Name: fmt.Sprintf("%s-argocd-application-controller", name),
-				Kind: "ServiceAccount",
-			},
-		},
-	}
-	err = k8sClient.Get(context.TODO(),
-		types.NamespacedName{Name: roleBindingName, Namespace: namespace},
-		roleBinding)
-	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			err := k8sClient.Create(context.TODO(), roleBinding)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func runCommandWithOutput(cmdList ...string) (string, string, error) {

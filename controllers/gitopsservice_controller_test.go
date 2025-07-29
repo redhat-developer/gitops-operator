@@ -524,7 +524,8 @@ func TestReconcile_testArgoCDForOperatorUpgrade(t *testing.T) {
 	assert.Check(t, updateArgoCD.Spec.ApplicationSet.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Controller.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.SSO.Dex.Resources != nil)
-	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil)
+	//lint:ignore SA1019 known to be deprecated
+	assert.Check(t, updateArgoCD.Spec.Grafana.Resources != nil) //nolint:staticcheck // SA1019: We must test deprecated fields.
 	assert.Check(t, updateArgoCD.Spec.HA.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Redis.Resources != nil)
 	assert.Check(t, updateArgoCD.Spec.Repo.Resources != nil)
@@ -546,7 +547,8 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 			Namespace: serviceNamespace,
 		},
 	}
-	fakeClient.Create(context.TODO(), defaultArgoNS)
+	err := fakeClient.Create(context.TODO(), defaultArgoNS)
+	assertNoError(t, err)
 
 	dummyResourceObj := &corev1.ResourceQuota{
 		ObjectMeta: v1.ObjectMeta{
@@ -554,9 +556,10 @@ func TestReconcile_VerifyResourceQuotaDeletionForUpgrade(t *testing.T) {
 			Namespace: serviceNamespace,
 		},
 	}
-	fakeClient.Create(context.TODO(), dummyResourceObj)
+	err = fakeClient.Create(context.TODO(), dummyResourceObj)
+	assertNoError(t, err)
 
-	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
 	// Verify that resource quota object is deleted after reconciliation.
@@ -707,7 +710,7 @@ func TestReconcile_PSSLabels(t *testing.T) {
 		reconciled_ns)
 	assertNoError(t, err)
 
-	for label, _ := range reconciled_ns.ObjectMeta.Labels {
+	for label := range reconciled_ns.Labels {
 		_, found := expected_labels[label]
 		// Fail if label is found
 		assert.Check(t, found != true)
@@ -718,18 +721,19 @@ func TestReconcile_PSSLabels(t *testing.T) {
 		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
 
 		// Assign new values, confirm the assignment and update the PSS labels
-		existing_ns.ObjectMeta.Labels = tc.labels
-		fakeClient.Update(context.TODO(), existing_ns)
+		existing_ns.Labels = tc.labels
+		err := fakeClient.Update(context.TODO(), existing_ns)
+		assert.NilError(t, err)
 		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
-		assert.DeepEqual(t, existing_ns.ObjectMeta.Labels, tc.labels)
+		assert.DeepEqual(t, existing_ns.Labels, tc.labels)
 
-		_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+		_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 		assertNoError(t, err)
 
 		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, reconciled_ns), err)
 
 		for key, value := range expected_labels {
-			label, found := reconciled_ns.ObjectMeta.Labels[key]
+			label, found := reconciled_ns.Labels[key]
 			// Fail if label is not found, comapre the values with the expected values if found
 			assert.Check(t, found)
 			assert.Equal(t, label, value)
