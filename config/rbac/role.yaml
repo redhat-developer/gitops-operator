@@ -222,6 +222,7 @@ rules:
   - config.openshift.io
   resources:
   - clusterversions
+  - ingresses
   verbs:
   - get
   - list
