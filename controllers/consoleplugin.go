@@ -250,7 +250,7 @@ ServerRoot "/etc/httpd"
 </VirtualHost>`, servicePort, servicePort)
 
 func pluginConfigMap() *corev1.ConfigMap {
-	return &corev1.ConfigMap{
+	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      httpdConfigMapName,
 			Namespace: serviceNamespace,
@@ -263,6 +263,8 @@ func pluginConfigMap() *corev1.ConfigMap {
 			"httpd.conf": httpdConfig,
 		},
 	}
+	argocdutil.AddTrackedByOperatorLabel(&cm.ObjectMeta)
+	return cm
 }
 
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
