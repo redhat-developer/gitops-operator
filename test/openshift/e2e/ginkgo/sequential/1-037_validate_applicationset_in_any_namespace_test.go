@@ -90,6 +90,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				By(fmt.Sprintf("verifying that expected Role/Rolebindings %v exist in %s", names, namespaceName))
 				for _, roleAndRoleBindingName := range names {
 
+					By("verifying '" + roleAndRoleBindingName + "'")
+
 					role := &rbacv1.Role{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      roleAndRoleBindingName,

@@ -40,6 +40,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-099_validate_server_autoscale", func() {
 
+		// This test supersedes '1-032_validate_server_hpa'
+
 		var (
 			k8sClient client.Client
 			ctx       context.Context
@@ -52,7 +54,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("varies that setting ArgoCD CR Server replicas and autoscaling affect the corresponding Deployment and HPA values", func() {
+		It("verifies that setting ArgoCD CR Server replicas and autoscaling affect the corresponding Deployment and HPA values", func() {
 
 			By("creating simple Argo CD instance with 2 server replicas")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

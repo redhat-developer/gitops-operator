@@ -90,6 +90,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argoCDbeta1, "2m", "5s").Should(
 				And(argocdFixture.HavePhase("Available")))
 
+			Expect(argoCDbeta1.Spec.SSO).ToNot(BeNil())
 			Expect(argoCDbeta1.Spec.SSO.Provider).To(Equal(argov1beta1api.SSOProviderTypeKeycloak))
 			Expect(*argoCDbeta1.Spec.SSO.Keycloak.VerifyTLS).To(BeFalse())
 			Expect(argoCDbeta1.Spec.ExtraConfig["oidc.tls.insecure.skip.verify"]).To(Equal("true"))
