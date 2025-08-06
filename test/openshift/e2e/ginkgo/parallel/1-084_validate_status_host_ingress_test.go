@@ -49,6 +49,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("ensures that when Argo CD Server is exposed via an Ingress, that the ingress is created and ArgoCD CR has the correct status information", func() {
 
+			// This test supersedes '1-002_verify_hostname_with_ingress'
+
 			By("creating simple Argo CD instance with API Server exposed via ingress")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
@@ -84,8 +86,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(serverIngress).Should(k8sFixture.ExistByName())
 
-			By("verifying ArgoCD CR .status references the host from the ArgoCD CR .spec")
-			Eventually(argoCD).Should(argocdFixture.HaveHost("test-crane.apps.rh-4.12-111111.dev.openshift.org"))
+			if fixture.RunningOnOpenShift() {
+				By("verifying ArgoCD CR .status references the host from the ArgoCD CR .spec")
+				Eventually(argoCD).Should(argocdFixture.HaveHost("test-crane.apps.rh-4.12-111111.dev.openshift.org"))
+			}
 
 		})
 

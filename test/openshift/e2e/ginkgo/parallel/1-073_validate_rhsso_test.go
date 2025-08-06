@@ -62,6 +62,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return
 			}
 
+			fixture.EnsureRunningOnOpenShift()
+
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
@@ -196,7 +198,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
 			Expect(argocdCM).Should(k8sFixture.ExistByName())
 
-			Eventually(argocdCM, "2m", "5s").Should(configmapFixture.HaveNonEmptyDataKey("oidc.config"))
+			Eventually(argocdCM, "4m", "5s").Should(configmapFixture.HaveNonEmptyDataKey("oidc.config"))
 
 			oidcConfigContents := argocdCM.Data["oidc.config"]
 

@@ -155,6 +155,45 @@ func HaveApplicationControllerOperationProcessors(operationProcessors int) match
 	})
 }
 
+func HaveCondition(condition metav1.Condition) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+
+		if len(argocd.Status.Conditions) != 1 {
+			GinkgoWriter.Println("HaveCondition: length is zero")
+			return false
+		}
+
+		instanceCondition := argocd.Status.Conditions[0]
+
+		GinkgoWriter.Println("HaveCondition - Message:", instanceCondition.Message, condition.Message)
+		if instanceCondition.Message != condition.Message {
+			GinkgoWriter.Println("HaveCondition: message does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Reason:", instanceCondition.Reason, condition.Reason)
+		if instanceCondition.Reason != condition.Reason {
+			GinkgoWriter.Println("HaveCondition: reason does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Status:", instanceCondition.Status, condition.Status)
+		if instanceCondition.Status != condition.Status {
+			GinkgoWriter.Println("HaveCondition: status does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Type:", instanceCondition.Type, condition.Type)
+		if instanceCondition.Type != condition.Type {
+			GinkgoWriter.Println("HaveCondition: type does not match")
+			return false
+		}
+
+		return true
+
+	})
+}
+
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
 func fetchArgoCD(f func(*argov1beta1api.ArgoCD) bool) matcher.GomegaMatcher {
 
