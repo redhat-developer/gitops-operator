@@ -21,9 +21,7 @@ then
 fi
 
 # without vendoring upgrade-rollouts-manager, make manifests runs into an error
-cd hack/upgrade-rollouts-manager
-go mod vendor
-cd ../..
+rm -rf hack/upgrade-rollouts-manager
 
 # Run unit
 make test
