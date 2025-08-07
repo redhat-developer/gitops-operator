@@ -204,7 +204,7 @@ func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, w
 	t.Helper()
 	assertNoError(t, r.err)
 
-	if r.result.Requeue {
+	if r.result.RequeueAfter > 0 {
 		t.Fatalf("Expected ConsoleLink to be deleted without requeuing")
 	}
 
@@ -219,7 +219,7 @@ func assertConsoleLinkDeletion(t *testing.T, c client.Client, r reconcileResult)
 	t.Helper()
 	assertNoError(t, r.err)
 
-	if r.result.Requeue {
+	if r.result.RequeueAfter > 0 {
 		t.Fatalf("Expected ConsoleLink to be created without requeuing")
 	}
 
