@@ -288,6 +288,10 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 		newPluginDeployment.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}
 
+	if cr.Spec.Resources != nil {
+		newPluginDeployment.Spec.Template.Spec.Resources = cr.Spec.Resources
+	}
+
 	// Check if this Deployment already exists
 	existingPluginDeployment := &appsv1.Deployment{}
 
