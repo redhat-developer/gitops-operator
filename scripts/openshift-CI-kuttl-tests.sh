@@ -44,7 +44,11 @@ echo WTF4
 
 pod=openshift-gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-gitops-operator -o yaml
 
-oc logs -n openshift-gitops-operator  pod/$pod 
+pod=openshift-gitops-operator-controller-manager && oc logs -n openshift-gitops-operator pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-gitops-operator -o yaml
+
+
+
+# oc logs -n openshift-gitops-operator  pod/$pod 
 
 
 
