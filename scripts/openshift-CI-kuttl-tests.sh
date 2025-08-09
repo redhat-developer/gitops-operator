@@ -32,7 +32,11 @@ metadata:
   namespace: test-argocd
 EOF
 
-sleep 60s
+sleep 120s
+
+pod=openshift-gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-gitops-operator -o yaml
+
+oc logs pod/$pod 
 
 oc get pods -n test-argocd
 
