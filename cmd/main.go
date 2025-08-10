@@ -27,6 +27,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"go.uber.org/zap/zapcore"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -47,10 +48,10 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -214,10 +215,17 @@ func main() {
 	}
 	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
 
+	k8sClient, err := initK8sClient()
+	if err != nil {
+		setupLog.Error(err, "Failed to initialize Kubernetes client")
+		os.Exit(1)
+	}
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:        mgr.GetClient(),
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
+		K8sClient:     k8sClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
@@ -299,4 +307,20 @@ func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) err
 		os.Exit(1)
 	}
 	setupLog.Info(fmt.Sprintf("Component registered: %v", reflect.ValueOf(f)))
+}
+
+func initK8sClient() (*kubernetes.Clientset, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		setupLog.Error(err, "unable to get k8s config")
+		return nil, err
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client")
+		return nil, err
+	}
+
+	return k8sClient, nil
 }
