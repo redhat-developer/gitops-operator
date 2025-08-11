@@ -14,7 +14,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -119,7 +118,7 @@ func BuilderHook(_ *argoapp.ArgoCD, v interface{}, _ string) error {
 	logv.Info("updating the Argo CD controller to watch for changes to the admin ClusterRole")
 
 	clusterResourceHandler := handler.EnqueueRequestsFromMapFunc(adminClusterRoleMapper(bldr.Client))
-	bldr.Builder.Watches(&v1.ClusterRole{}, clusterResourceHandler,
+	bldr.Builder.Watches(&rbacv1.ClusterRole{}, clusterResourceHandler,
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(o client.Object) bool {
 			return o.GetName() == "admin"
 		})))
