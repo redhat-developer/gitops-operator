@@ -27,7 +27,7 @@ import (
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
-	corev1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -106,7 +106,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(argoCDAlpha1.Spec.SSO.Dex.OpenShiftOAuth).To(BeTrue())
 			Expect(argoCDAlpha1.Spec.Server.Route.Enabled).To(BeTrue())
 
-			dexDeployment := &corev1.Deployment{
+			dexDeployment := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argocd-dex-server",
 					Namespace: ns.Name,

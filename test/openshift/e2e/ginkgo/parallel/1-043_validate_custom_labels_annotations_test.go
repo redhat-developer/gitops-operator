@@ -18,6 +18,7 @@ package parallel
 
 import (
 	"context"
+	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -29,7 +30,6 @@ import (
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -160,25 +160,51 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying labels and annotations have been removed from template specs of Argo CD components")
 
-			expectLabelsAndAnnotationsRemoved := func(podTemplateSpec corev1.PodTemplateSpec) {
-
-				for k := range podTemplateSpec.Annotations {
-					Expect(k).ToNot(ContainSubstring("custom"))
-				}
-
-				for k := range podTemplateSpec.Labels {
-					Expect(k).ToNot(ContainSubstring("custom"))
-				}
-			}
-			Eventually(serverDepl).Should(k8sFixture.ExistByName())
 			Eventually(controllerSS).Should(k8sFixture.ExistByName())
 			Eventually(appsetDepl).Should(k8sFixture.ExistByName())
 			Eventually(repoDepl).Should(k8sFixture.ExistByName())
 
-			expectLabelsAndAnnotationsRemoved(serverDepl.Spec.Template)
-			expectLabelsAndAnnotationsRemoved(appsetDepl.Spec.Template)
-			expectLabelsAndAnnotationsRemoved(repoDepl.Spec.Template)
-			expectLabelsAndAnnotationsRemoved(controllerSS.Spec.Template)
+			expectLabelsAndAnnotationsRemovedFromDepl := func(depl *appsv1.Deployment) {
+
+				By("checking labels and annotations are removed from " + depl.Name)
+
+				Eventually(func() bool {
+					if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(depl), depl); err != nil {
+						GinkgoWriter.Println(err)
+						return false
+					}
+
+					for k := range depl.Spec.Template.Annotations {
+						if strings.Contains(k, "custom") {
+							return false
+						}
+					}
+
+					for k := range depl.Spec.Template.Labels {
+						if strings.Contains(k, "custom") {
+							return false
+						}
+					}
+
+					return true
+				}).Should(BeTrue())
+
+			}
+
+			expectLabelsAndAnnotationsRemovedFromDepl(appsetDepl)
+			expectLabelsAndAnnotationsRemovedFromDepl(serverDepl)
+			expectLabelsAndAnnotationsRemovedFromDepl(repoDepl)
+
+			// Evaluate the controller statefulset on its own, since it's a StatefulSet not a Deployment
+			Eventually(controllerSS).Should(k8sFixture.ExistByName())
+
+			for k := range controllerSS.Spec.Template.Annotations {
+				Expect(k).ToNot(ContainSubstring("custom"))
+			}
+
+			for k := range controllerSS.Spec.Template.Labels {
+				Expect(k).ToNot(ContainSubstring("custom"))
+			}
 
 		})
 
