@@ -180,7 +180,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2025-07-10T04:40:01Z"
+    createdAt: "2025-08-10T13:07:26Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -306,6 +306,9 @@ spec:
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
+    - kind: NamespaceManagement
+      name: namespacemanagements.argoproj.io
+      version: v1beta1
     - description: NotificationsConfigurations contains the notification template
         used to generate notifications that notify users about important changes in
         the application state.
@@ -490,6 +493,7 @@ spec:
           - clusteranalysistemplates
           - experiments
           - experiments/finalizers
+          - namespacemanagements
           - rollouts
           - rollouts/finalizers
           - rollouts/scale

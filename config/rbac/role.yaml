@@ -142,6 +142,7 @@ rules:
   - clusteranalysistemplates
   - experiments
   - experiments/finalizers
+  - namespacemanagements
   - rollouts
   - rollouts/finalizers
   - rollouts/scale
