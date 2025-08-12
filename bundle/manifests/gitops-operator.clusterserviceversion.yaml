@@ -180,7 +180,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2025-03-07T13:13:07Z"
+    createdAt: "2025-08-12T03:58:46Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -359,25 +359,6 @@ spec:
           - endpoints
           - events
           - namespaces
-          - pods
-          - secrets
-          - serviceaccounts
-          - services
-          - services/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - endpoints
-          - events
           - persistentvolumeclaims
           - pods
           - secrets
@@ -396,21 +377,10 @@ spec:
           - ""
           resources:
           - deployments
+          - podtemplates
           verbs:
           - get
           - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          - resourcequotas
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
           - watch
         - apiGroups:
           - ""
@@ -427,10 +397,13 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - podtemplates
+          - resourcequotas
           verbs:
+          - create
+          - delete
           - get
           - list
+          - update
           - watch
         - apiGroups:
           - apiextensions.k8s.io
@@ -471,22 +444,9 @@ spec:
           resources:
           - daemonsets
           - deployments
-          - replicasets
-          - statefulsets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
           - podtemplates
           - replicasets
+          - statefulsets
           verbs:
           - create
           - delete
@@ -526,21 +486,14 @@ spec:
           resources:
           - analysisruns
           - analysisruns/finalizers
+          - analysistemplates
+          - clusteranalysistemplates
           - experiments
           - experiments/finalizers
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - analysistemplates
+          - rollouts
+          - rollouts/finalizers
+          - rollouts/scale
+          - rollouts/status
           verbs:
           - create
           - delete
@@ -558,22 +511,10 @@ spec:
           - argocds
           - argocds/finalizers
           - argocds/status
+          - rolloutmanagers
           verbs:
           - create
           - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - clusteranalysistemplates
-          verbs:
-          - create
-          - delete
-          - deletecollection
           - get
           - list
           - patch
@@ -589,18 +530,6 @@ spec:
         - apiGroups:
           - argoproj.io
           resources:
-          - rolloutmanagers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
           - rolloutmanagers/finalizers
           verbs:
           - update
@@ -612,22 +541,6 @@ spec:
           - get
           - patch
           - update
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - rollouts
-          - rollouts/finalizers
-          - rollouts/scale
-          - rollouts/status
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - autoscaling
           resources:
@@ -644,18 +557,6 @@ spec:
           - batch
           resources:
           - cronjobs
-          - jobs
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - batch
-          resources:
           - jobs
           verbs:
           - create
@@ -688,17 +589,6 @@ spec:
           - console.openshift.io
           resources:
           - consolelinks
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - console.openshift.io
-          resources:
           - consoleplugins
           verbs:
           - create
@@ -735,6 +625,7 @@ spec:
           - watch
         - apiGroups:
           - getambassador.io
+          - x.getambassador.io
           resources:
           - ambassadormappings
           - mappings
@@ -765,17 +656,6 @@ spec:
           - destinationrules
           - virtualservices
           verbs:
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - ingresses
-          verbs:
-          - create
           - get
           - list
           - patch
@@ -821,17 +701,6 @@ spec:
           - pipelines.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - pipelines.openshift.io
-          resources:
           - gitopsservices
           verbs:
           - create
@@ -859,20 +728,6 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - '*'
-          verbs:
-          - bind
-          - create
-          - delete
-          - deletecollection
-          - escalate
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
           - clusterrolebindings
           - clusterroles
           verbs:
@@ -903,17 +758,6 @@ spec:
           - route.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
           - routes
           - routes/custom-host
           verbs:
@@ -954,18 +798,6 @@ spec:
           - traefikservices
           verbs:
           - get
-          - update
-          - watch
-        - apiGroups:
-          - x.getambassador.io
-          resources:
-          - ambassadormappings
-          - mappings
-          verbs:
-          - create
-          - delete
-          - get
-          - list
           - update
           - watch
         - apiGroups:
