@@ -50,7 +50,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensures that certificates can be confirmed on server and webhook  Routes", func() {
+		It("ensures that certificates can be confirmed on server and webhook Routes", func() {
+
+			fixture.EnsureRunningOnOpenShift()
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	openshiftappsv1 "github.com/openshift/api/apps/v1"
@@ -54,12 +55,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-
-			fixture.OutputDebugOnFail("test-1-042-restricted-pss-compliant")
-
 			Expect(ns).ToNot(BeNil())
-			Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
 
+			fixture.OutputDebugOnFail(ns.Name)
+			fixture.DeleteNamespace(ns)
 		})
 
 		It("verifies that all Argo CD components can run with pod-security enforce, warn, and audit of 'restricted'", func() {
@@ -69,7 +68,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating a namespace with pod-security enforce set to restricted")
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-1-042-restricted-pss-compliant",
+					Name: "gitops-e2e-test-" + uuid.NewString()[0:13],
 					Labels: map[string]string{
 						"pod-security.kubernetes.io/enforce":         "restricted",
 						"pod-security.kubernetes.io/enforce-version": "latest",
@@ -101,6 +100,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					},
 				},
 			}
+
+			if !fixture.RunningOnOpenShift() {
+				argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
+					Ingress: argov1beta1api.ArgoCDIngressSpec{Enabled: true},
+				}
+			}
+
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("verifying all Argo CD components start as expected under restricted pod security")
@@ -145,32 +151,65 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ensurePodsExistByName(podsToEnsureExist)
 
 			By("enabling Keycloak SSO")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
-					Provider: argov1beta1api.SSOProviderTypeKeycloak,
-					Keycloak: &argov1beta1api.ArgoCDKeycloakSpec{
-						VerifyTLS: ptr.To(false),
-					},
-				}
-				argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
-					Route: argov1beta1api.ArgoCDRouteSpec{
-						Enabled: true,
-					},
-				}
-			})
+			if fixture.RunningOnOpenShift() {
+				// Use Route on OpenShift
+
+				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+					argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeKeycloak,
+						Keycloak: &argov1beta1api.ArgoCDKeycloakSpec{
+							VerifyTLS: ptr.To(false),
+						},
+					}
+					argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
+						Route: argov1beta1api.ArgoCDRouteSpec{
+							Enabled: true,
+						},
+					}
+				})
+
+			} else {
+				// Use Ingress on non-OpenShift
+
+				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+					argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeKeycloak,
+						Keycloak: &argov1beta1api.ArgoCDKeycloakSpec{
+							VerifyTLS: ptr.To(false),
+						},
+					}
+					argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
+						Ingress: argov1beta1api.ArgoCDIngressSpec{Enabled: true},
+					}
+				})
+			}
 
 			By("ensuring that Argo CD becomes available and keycloak pod exists under restriced security")
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(argoCD).Should(argocdFixture.HaveRedisStatus("Running"))
 			Eventually(argoCD).Should(argocdFixture.HaveRepoStatus("Running"))
 			Eventually(argoCD).Should(argocdFixture.HaveServerStatus("Running"))
-			// due to bug in keycloak service code, status remains as Pending
-			// Eventually(argoCD).Should(argocdFixture.HaveSSOStatus("Running"))
-
-			deplConfig := &openshiftappsv1.DeploymentConfig{
-				ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name},
+			if fixture.RunningOnOpenShift() {
+				// due to bug in keycloak service code, status remains as Pending
+				// Eventually(argoCD).Should(argocdFixture.HaveSSOStatus("Running"))
+			} else {
+				Eventually(argoCD).Should(argocdFixture.HaveSSOStatus("Running"))
 			}
-			Eventually(deplConfig).Should(k8sFixture.ExistByName())
+
+			if fixture.RunningOnOpenShift() {
+				deplConfig := &openshiftappsv1.DeploymentConfig{
+					ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name},
+				}
+				Eventually(deplConfig).Should(k8sFixture.ExistByName())
+
+			} else {
+
+				keycloakDepl := &appsv1.Deployment{
+					ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name},
+				}
+				Eventually(keycloakDepl).Should(k8sFixture.ExistByName())
+
+			}
 
 			ensurePodsExistByName([]string{"keycloak"})
 
@@ -180,6 +219,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Enabled: true,
 				}
 			})
+
+			if !fixture.RunningOnOpenShift() {
+				By("removing SSO")
+				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+					argoCD.Spec.SSO = nil
+				})
+
+			}
 
 			By("ensuring that various Argo CD components become available under restricted security")
 			Eventually(argoCD).Should(argocdFixture.HaveApplicationControllerStatus("Running"))

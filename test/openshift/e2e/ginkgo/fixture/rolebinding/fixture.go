@@ -16,9 +16,11 @@ import (
 
 func HaveSubject(subjectParam rbacv1.Subject) matcher.GomegaMatcher {
 	return fetchRoleBinding(func(r *rbacv1.RoleBinding) bool {
-		for _, subject := range r.Subjects {
 
-			GinkgoWriter.Println("HaveSubject - ", subject, subjectParam)
+		GinkgoWriter.Println("HaveSubject - Want:", subjectParam)
+		for idx, subject := range r.Subjects {
+
+			GinkgoWriter.Printf("%d) HaveSubject - Have: %s\n", idx+1, subject)
 			if reflect.DeepEqual(subjectParam, subject) {
 				return true
 			}

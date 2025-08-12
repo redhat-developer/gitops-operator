@@ -51,6 +51,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies that HA pods have expected SSC", func() {
 
+			fixture.EnsureRunningOnOpenShift() // SSC requires OpenShift
+
 			// This test enables HA redis and thus requires at least 3 nodes
 			node.ExpectHasAtLeastXNodes(3)
 

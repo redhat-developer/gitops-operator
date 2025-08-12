@@ -34,6 +34,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-091_argocd_app_validate-applicationset-status", func() {
 
+		// This test supersedes '1-027_validate_applicationset_status'
+
 		var (
 			k8sClient client.Client
 			ctx       context.Context
