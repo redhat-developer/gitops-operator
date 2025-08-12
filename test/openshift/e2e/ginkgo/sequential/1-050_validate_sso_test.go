@@ -6,7 +6,6 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	osappsv1 "github.com/openshift/api/apps/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -115,37 +114,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(service).Should(k8sFixture.NotExistByName())
 			Consistently(service).Should(k8sFixture.NotExistByName())
 
-			By("switching ArgoCD to SSO enabled via keycloak")
-			argocdFixture.Update(newArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
-					Provider: "keycloak",
-					Dex: &argov1beta1api.ArgoCDDexSpec{
-						Config: "test",
-					},
-				}
-			})
-
-			By("verifying that with keycloak, Argo CD becomes available but SSO is failed")
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HavePhase("Pending"))
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Failed"))
-			By("verifying keycloak DeploymentConfigs are not used")
-
-			Eventually(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.NotExistByName())
-			Consistently(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.NotExistByName())
-
-			By("patching the CR to remove dex entry from .spec.sso")
-			argocdFixture.Update(newArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.SSO.Dex = nil
-			})
-
-			By("verifying keycloak is now used")
-			Eventually(newArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Running"))
-
-			Eventually(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.ExistByName())
 		})
 
 	})

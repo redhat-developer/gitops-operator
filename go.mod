@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250731075119-a100fc1d88b8
-	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250808153852-5135028d6978
+	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250812131727-80f37522108a
 	github.com/argoproj/argo-cd/v3 v3.1.0-rc2
 	github.com/argoproj/gitops-engine v0.7.1-0.20250617174952-093aef0dad58
 	github.com/go-logr/logr v1.4.3
@@ -111,7 +111,6 @@ require (
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb // indirect
 	github.com/patrickmn/go-cache v2.1.1-0.20191004192108-46f407853014+incompatible // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.3.2 // indirect

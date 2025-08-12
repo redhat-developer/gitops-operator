@@ -23,7 +23,6 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	openshiftappsv1 "github.com/openshift/api/apps/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -143,36 +142,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			ensurePodsExistByName(podsToEnsureExist)
-
-			By("enabling Keycloak SSO")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
-					Provider: argov1beta1api.SSOProviderTypeKeycloak,
-					Keycloak: &argov1beta1api.ArgoCDKeycloakSpec{
-						VerifyTLS: ptr.To(false),
-					},
-				}
-				argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
-					Route: argov1beta1api.ArgoCDRouteSpec{
-						Enabled: true,
-					},
-				}
-			})
-
-			By("ensuring that Argo CD becomes available and keycloak pod exists under restriced security")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(argoCD).Should(argocdFixture.HaveRedisStatus("Running"))
-			Eventually(argoCD).Should(argocdFixture.HaveRepoStatus("Running"))
-			Eventually(argoCD).Should(argocdFixture.HaveServerStatus("Running"))
-			// due to bug in keycloak service code, status remains as Pending
-			// Eventually(argoCD).Should(argocdFixture.HaveSSOStatus("Running"))
-
-			deplConfig := &openshiftappsv1.DeploymentConfig{
-				ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name},
-			}
-			Eventually(deplConfig).Should(k8sFixture.ExistByName())
-
-			ensurePodsExistByName([]string{"keycloak"})
 
 			By("enabling Redis HA")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
