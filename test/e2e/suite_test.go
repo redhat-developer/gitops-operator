@@ -80,10 +80,7 @@ const (
 	consoleLinkName                     = "argocd"
 	argoCDInstanceName                  = "openshift-gitops"
 	gitopsInstanceName                  = "cluster"
-	defaultKeycloakIdentifier           = "keycloak"
-	defaultTemplateIdentifier           = "rhsso"
 	realmURL                            = "/auth/admin/realms/argocd"
-	rhssosecret                         = "keycloak-secret"
 	clusterConfigEnv                    = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
 	argocdManagedByLabel                = "argocd.argoproj.io/managed-by"
 	timeout                             = time.Minute * 5
