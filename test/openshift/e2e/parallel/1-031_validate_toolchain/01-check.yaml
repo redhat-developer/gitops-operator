@@ -8,7 +8,7 @@ commands:
       # These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
       expected_kustomizeVersion='v5.4.3'
       expected_helmVersion='v3.16.3'
-      expected_argocdVersion='v2.14.4'
+      expected_argocdVersion='v2.14.15'
       
       if CI="prow"; then
       # when running against openshift-ci

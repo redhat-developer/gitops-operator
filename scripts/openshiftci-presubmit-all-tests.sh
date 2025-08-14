@@ -21,6 +21,11 @@ cp $KUBECONFIG $TMP_DIR/kubeconfig
 chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
 
+# without vendoring upgrade-rollouts-manager, make manifests runs into an error
+cd hack/upgrade-rollouts-manager
+go mod vendor
+cd ../..
+
 # Run e2e test
 make test-e2e
 

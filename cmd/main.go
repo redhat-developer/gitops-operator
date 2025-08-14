@@ -36,7 +36,6 @@ import (
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -45,12 +44,14 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -86,6 +87,7 @@ func main() {
 	var probeAddr string
 
 	var enableHTTP2 = false
+	var skipControllerNameValidation = true
 
 	var labelSelectorFlag string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -152,6 +154,12 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2b63967d.openshift.io",
+		// With controller-runtime v0.19.0, unique controller name validation is
+		// enforced. The operator may fail to start due to this as we don't have unique
+		// names. Use SkipNameValidation to ingnore the uniquness check and prevent panic.
+		Controller: controllerconfig.Controller{
+			SkipNameValidation: &skipControllerNameValidation,
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
