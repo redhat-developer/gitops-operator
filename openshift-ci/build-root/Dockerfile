@@ -25,3 +25,7 @@ RUN wget https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack
 # Install operator-sdk
 RUN curl -L -o /usr/local/bin/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64 && \
     chmod +x /usr/local/bin/operator-sdk
+
+# Install jq
+RUN curl -L -o /usr/local/bin/jq https://github.com/jqlang/jq/releases/latest/download/jq-linux-amd64 && \
+    chmod +x /usr/local/bin/jq
