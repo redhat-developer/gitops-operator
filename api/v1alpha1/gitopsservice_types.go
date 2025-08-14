@@ -32,6 +32,9 @@ type GitopsServiceSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// NodeSelector is a map of key value pairs used for node selection in the default workloads
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Resources defines the Compute Resources required by the console-plugin and gitops-backend pods.
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService
