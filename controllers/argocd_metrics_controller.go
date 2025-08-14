@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -509,6 +510,7 @@ func newDashboardConfigMap(filename string, namespace string) (*corev1.ConfigMap
 			"console.openshift.io/dashboard": "true",
 		},
 	}
+	argocdutil.AddTrackedByOperatorLabel(&objectMeta)
 
 	content, err := dashboards.ReadFile(dashboardFolder + "/" + filename)
 	if err != nil {
