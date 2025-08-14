@@ -46,10 +46,12 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/helper"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -149,9 +151,13 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	k8sClient, err := initK8sClient()
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&argocdprovisioner.ReconcileArgoCD{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		K8sClient: k8sClient,
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -179,3 +185,19 @@ var _ = AfterSuite(func() {
 	err = testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
 })
+
+func initK8sClient() (*kubernetes.Clientset, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		Fail("unable to get k8s config")
+		return nil, err
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		Fail("unable to get k8s config")
+		return nil, err
+	}
+
+	return k8sClient, nil
+}

@@ -16,8 +16,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var log = logf.Log.WithName("openshift_controller_argocd")
@@ -98,6 +103,26 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 			o.Rules = policyRules
 		}
 	}
+	return nil
+}
+
+// BuilderHook updates the Argo CD controller builder to watch for changes to the "admin" ClusterRole
+func BuilderHook(_ *argoapp.ArgoCD, v interface{}, _ string) error {
+	logv := log.WithValues("module", "builder-hook")
+
+	bldr, ok := v.(*argocd.BuilderHook)
+	if !ok {
+		return nil
+	}
+
+	logv.Info("updating the Argo CD controller to watch for changes to the admin ClusterRole")
+
+	clusterResourceHandler := handler.EnqueueRequestsFromMapFunc(adminClusterRoleMapper(bldr.Client))
+	bldr.Builder.Watches(&rbacv1.ClusterRole{}, clusterResourceHandler,
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(o client.Object) bool {
+			return o.GetName() == "admin"
+		})))
+
 	return nil
 }
 
@@ -386,4 +411,34 @@ func initK8sClient() (*kubernetes.Clientset, error) {
 	}
 
 	return kClient, nil
+}
+
+// adminClusterRoleMapper maps changes to the "admin" ClusterRole to all Argo CD instances in the cluster
+func adminClusterRoleMapper(k8sClient client.Client) handler.MapFunc {
+	return func(ctx context.Context, o client.Object) []reconcile.Request {
+		var result = []reconcile.Request{}
+
+		// Only process the "admin" ClusterRole
+		if o.GetName() != "admin" {
+			return result
+		}
+
+		// Get all Argo CD instances in all namespaces
+		argocds := &argoapp.ArgoCDList{}
+		if err := k8sClient.List(ctx, argocds, &client.ListOptions{}); err != nil {
+			log.Error(err, "failed to list Argo CD instances for admin ClusterRole mapping")
+			return result
+		}
+
+		// Create reconcile requests for all Argo CD instances
+		for _, argocd := range argocds.Items {
+			namespacedName := client.ObjectKey{
+				Name:      argocd.Name,
+				Namespace: argocd.Namespace,
+			}
+			result = append(result, reconcile.Request{NamespacedName: namespacedName})
+		}
+
+		return result
+	}
 }
