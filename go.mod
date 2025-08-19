@@ -32,7 +32,6 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cert-manager/cert-manager v1.14.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/coreos/prometheus-operator v0.40.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.3 // indirect
@@ -94,6 +93,8 @@ require (
 )
 
 replace (
+
+	github.com/argoproj-labs/argo-rollouts-manager => github.com/svghadi/argo-rollouts-manager v0.0.0-20250819154048-1affb8c950ee
 	k8s.io/api => k8s.io/api v0.32.2
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.32.2
 	k8s.io/apimachinery => k8s.io/apimachinery v0.32.2
