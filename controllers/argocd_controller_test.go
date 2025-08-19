@@ -83,6 +83,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		name                   string
 		setEnvVarFunc          func(*testing.T, string)
 		envVar                 string
+		consoleLinkPrevExist   bool
 		consoleLinkShouldExist bool
 		wantErr                bool
 		Err                    error
@@ -92,6 +93,17 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 			setEnvVarFunc: func(t *testing.T, envVar string) {
 				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
+			consoleLinkPrevExist:   true,
+			consoleLinkShouldExist: false,
+			envVar:                 "true",
+			wantErr:                false,
+		},
+		{
+			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to true and consoleLink doesn't exist previously",
+			setEnvVarFunc: func(t *testing.T, envVar string) {
+				t.Setenv(disableArgoCDConsoleLink, envVar)
+			},
+			consoleLinkPrevExist:   false,
 			consoleLinkShouldExist: false,
 			envVar:                 "true",
 			wantErr:                false,
@@ -102,6 +114,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
 			envVar:                 "false",
+			consoleLinkPrevExist:   true,
 			consoleLinkShouldExist: true,
 			wantErr:                false,
 		},
@@ -109,6 +122,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 			name:                   "DISABLE_DEFAULT_ARGOCD_CONSOLELINK isn't set and consoleLink doesn't get deleted",
 			setEnvVarFunc:          nil,
 			envVar:                 "",
+			consoleLinkPrevExist:   true,
 			consoleLinkShouldExist: true,
 			wantErr:                false,
 		},
@@ -118,8 +132,10 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
-			err := fakeClient.Create(context.TODO(), consoleLink)
-			assert.NilError(t, err)
+			if test.consoleLinkPrevExist {
+				err := fakeClient.Create(context.TODO(), consoleLink)
+				assert.NilError(t, err)
+			}
 
 			if test.setEnvVarFunc != nil {
 				test.setEnvVarFunc(t, test.envVar)

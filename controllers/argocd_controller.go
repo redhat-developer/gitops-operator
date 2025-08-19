@@ -151,9 +151,10 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 				reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
 				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
 			}
+		} else {
+			reqLogger.Error(err, "Error getting ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+			return reconcile.Result{}, err
 		}
-		reqLogger.Error(err, "ConsoleLink not found", "ConsoleLink.Name", consoleLink.Name)
-		return reconcile.Result{}, err
 	}
 	if isConsoleLinkDisabled() {
 		return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
