@@ -35,6 +35,7 @@ import (
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -228,6 +229,9 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
 		K8sClient:     k8sClient,
+		LocalUsers: &argocd.LocalUsersInfo{
+			TokenRenewalTimers: map[string]*argocd.TokenRenewalTimer{},
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
