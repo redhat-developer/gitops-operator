@@ -228,6 +228,9 @@ func main() {
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
 		K8sClient:     k8sClient,
+		LocalUsers: &argocdprovisioner.LocalUsersInfo{
+			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
