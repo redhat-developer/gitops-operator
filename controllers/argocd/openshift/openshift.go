@@ -118,7 +118,7 @@ func BuilderHook(_ *argoapp.ArgoCD, v interface{}, _ string) error {
 	logv.Info("updating the Argo CD controller to watch for changes to the admin ClusterRole")
 
 	clusterResourceHandler := handler.EnqueueRequestsFromMapFunc(adminClusterRoleMapper(bldr.Client))
-	bldr.Builder.Watches(&rbacv1.ClusterRole{}, clusterResourceHandler,
+	bldr.Watches(&rbacv1.ClusterRole{}, clusterResourceHandler,
 		builder.WithPredicates(predicate.NewPredicateFuncs(func(o client.Object) bool {
 			return o.GetName() == "admin"
 		})))
