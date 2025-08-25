@@ -28,12 +28,24 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx       context.Context
 			k8sClient client.Client
 			nmName    string = "nm-test"
+
+			randomNS          *corev1.Namespace
+			nsTest_1_9_custom *corev1.Namespace
+			cleanupFunc1      func()
+			cleanupFunc2      func()
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
+		})
+
+		AfterEach(func() {
+			defer cleanupFunc1()
+			defer cleanupFunc2()
+
+			fixture.OutputDebugOnFail(randomNS.Name, nsTest_1_9_custom.Name)
 
 		})
 
@@ -50,11 +62,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Enabling namespaceManagement via env var")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
 
-			nsTest_1_9_custom, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("test-1-9-custom")
-			defer cleanupFunc1()
+			nsTest_1_9_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc("test-1-9-custom")
 
-			randomNS, cleanupFunc2 := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc2()
+			randomNS, cleanupFunc2 = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating simple namespace-scoped Argo CD")
 			argoCDInRandomNS := &argov1beta1api.ArgoCD{
@@ -134,9 +144,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { // cleanup on test exit
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}()
 
 			By("verifying that Argo CD is able to deploy to that other namespace")
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
