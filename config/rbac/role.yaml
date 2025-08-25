@@ -143,6 +143,7 @@ rules:
   - experiments
   - experiments/finalizers
   - namespacemanagements
+  - namespacemanagements/status
   - rollouts
   - rollouts/finalizers
   - rollouts/scale
