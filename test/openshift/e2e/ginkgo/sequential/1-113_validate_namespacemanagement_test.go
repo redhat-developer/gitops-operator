@@ -59,16 +59,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return
 			}
 
-			By("Enabling namespaceManagement via env var")
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
-
 			nsTest_1_9_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc("test-1-9-custom")
-
 			randomNS, cleanupFunc2 = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating simple namespace-scoped Argo CD")
 			argoCDInRandomNS := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd",
+					Namespace: randomNS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					NamespaceManagement: []argov1beta1api.ManagedNamespaces{
 						{
@@ -83,6 +81,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("waiting for Argo CD to be available")
 			Eventually(argoCDInRandomNS, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("Enabling namespaceManagement via env var")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
 
 			By("Create namespaceManagement CR with the namespace which needs to be managed")
 			nm := argov1beta1api.NamespaceManagement{
