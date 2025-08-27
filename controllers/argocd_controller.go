@@ -142,26 +142,26 @@ func (r *ReconcileArgoCDRoute) Reconcile(ctx context.Context, request reconcile.
 
 	consoleLink := newConsoleLink(argoCDRouteURL, "Cluster Argo CD")
 
-	found := &console.ConsoleLink{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
-
-	if err != nil {
-		if errors.IsNotFound(err) {
-			if !isConsoleLinkDisabled() {
-				reqLogger.Info("Creating a new ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
-			}
-		} else {
-			reqLogger.Error(err, "Error getting ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-			return reconcile.Result{}, err
-		}
-	}
 	if isConsoleLinkDisabled() {
 		return reconcile.Result{}, r.deleteConsoleLinkIfPresent(ctx, reqLogger)
-	} else if found.Spec.Href != argoCDRouteURL {
-		reqLogger.Info("Updating the existing ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
-		found.Spec.Href = argoCDRouteURL
-		return reconcile.Result{}, r.Client.Update(ctx, found)
+	} else {
+		found := &console.ConsoleLink{}
+		err = r.Client.Get(ctx, types.NamespacedName{Name: consoleLink.Name}, found)
+
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new ConsoleLink ", "ConsoleLink.Name", consoleLink.Name)
+				return reconcile.Result{}, r.Client.Create(ctx, consoleLink)
+			} else {
+				reqLogger.Error(err, "Failed to get ConsoleLink", "ConsoleLink.Name", consoleLink.Name)
+				return reconcile.Result{}, err
+			}
+		}
+		if found.Spec.Href != argoCDRouteURL {
+			reqLogger.Info("Updating the existing ConsoleLink ", "ConsoleLink.Name", consoleLink.Name)
+			found.Spec.Href = argoCDRouteURL
+			return reconcile.Result{}, r.Client.Update(ctx, found)
+		}
 	}
 
 	reqLogger.Info("Skip reconcile: ConsoleLink already exists", "ConsoleLink.Name", consoleLink.Name)
