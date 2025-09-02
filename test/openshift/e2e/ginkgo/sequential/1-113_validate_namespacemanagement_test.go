@@ -85,7 +85,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				if shouldExist {
 					Eventually(role, "90s", "5s").Should(k8sFixture.ExistByName())
 				} else {
-					Eventually(role, "3m", "5s").ShouldNot(k8sFixture.ExistByName())
+					Eventually(role, "3m", "5s").Should(k8sFixture.NotExistByName())
+					Consistently(role).Should(k8sFixture.NotExistByName())
 				}
 			}
 
@@ -93,7 +94,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			if shouldExist {
 				Eventually(rb, "90s", "5s").Should(k8sFixture.ExistByName())
 			} else {
-				Eventually(rb, "3m", "5s").ShouldNot(k8sFixture.ExistByName())
+				Eventually(rb, "3m", "5s").Should(k8sFixture.NotExistByName())
+				Consistently(rb).Should(k8sFixture.NotExistByName())
 			}
 		}
 
@@ -115,8 +117,20 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						strings.Join(expectedNamespaces, ","),
 					),
 				)
+				Consistently(defaultClusterConfigSecret).Should(
+					secretFixture.HaveStringDataKeyValue(
+						"namespaces",
+						strings.Join(expectedNamespaces, ","),
+					),
+				)
 			} else {
 				Eventually(defaultClusterConfigSecret, "90s", "5s").Should(
+					secretFixture.HaveStringDataKeyValue(
+						"namespaces",
+						argoCD.Namespace,
+					),
+				)
+				Consistently(defaultClusterConfigSecret).Should(
 					secretFixture.HaveStringDataKeyValue(
 						"namespaces",
 						argoCD.Namespace,
@@ -162,6 +176,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			} else {
 				By("verifying that Argo CD is NOT able to deploy to that other namespace")
 				Eventually(app, "4m", "5s").ShouldNot(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+				Consistently(app, "1m", "5s").ShouldNot(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 			}
 		}
 
