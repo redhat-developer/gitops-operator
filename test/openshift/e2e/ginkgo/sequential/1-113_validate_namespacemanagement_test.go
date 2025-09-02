@@ -208,7 +208,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, true, []string{argoCD.Namespace, nsCustom.Name})
 		})
 
-		It("should not create roles when namespaceManagement env var is not set", func() {
+		It("should not create Roles/RoleBindings when namespaceManagement env var is not set", func() {
 			if fixture.EnvLocalRun() {
 				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
 				return
@@ -218,9 +218,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD := deployArgoCD(randomNS.Name, []argov1beta1api.ManagedNamespaces{
 				{Name: nsCustom.Name, AllowManagedBy: true},
 			})
-
-			By("Enabling namespaceManagement via env var")
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "false")
 
 			By("Create namespaceManagement CR with the namespace which needs to be managed")
 			nm := argov1beta1api.NamespaceManagement{
@@ -236,7 +233,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, false, []string{})
 		})
 
-		It("should delete Roles/RoleBindings when namespace management is disabled from ArgoCD NamespaceManagement field", func() {
+		It("Should not create Roles/RoleBindings when namespaceManagement is disabled via the ArgoCD NamespaceManagement.AllowManagedBy field.", func() {
 			if fixture.EnvLocalRun() {
 				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
 				return
@@ -257,7 +254,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, &nsm)).To(Succeed())
 
-			By("Verify Roles/RoleBindings are deleted from managed namespace")
+			By("Verify Roles/RoleBindings are not created for managed namespace")
 			checkRolesBindings(nsCustom.Name, false)
 
 			By("Verify Application and Secret of managed namespace")
@@ -303,6 +300,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify Application and Secret of managed namespace test-second-nms")
 			verifyNamespaceManagementSecretAndApplication(argoCD, targetNs, true, []string{argoCD.Namespace, nsCustom.Name, targetNs.Name})
+
+			By("Create a namespace that does NOT match glob pattern")
+			unmanagedNs, cleanupFunc4 := fixture.CreateNamespaceWithCleanupFunc("unmanaged-ns")
+			defer cleanupFunc4()
+
+			By("Create namespaceManagement CR in unmanaged namespace (no match expected)")
+			nsm2 := argov1beta1api.NamespaceManagement{
+				ObjectMeta: metav1.ObjectMeta{Name: "nm-unmanaged", Namespace: unmanagedNs.Name},
+				Spec:       argov1beta1api.NamespaceManagementSpec{ManagedBy: randomNS.Name},
+			}
+			Expect(k8sClient.Create(ctx, &nsm2)).To(Succeed())
+
+			By("Verify Roles/RoleBindings are NOT created for unmanaged namespace")
+			checkRolesBindings(unmanagedNs.Name, false) // should NOT match pattern
+
 		})
 
 		It("should clean up Roles/Rolebindings when NamespaceManagement is removed from ArgoCD", func() {
@@ -326,25 +338,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, &nsm)).To(Succeed())
 
-			By("Role/Rolebindings should be created for managed namespace if namespaceManagement CR is present")
+			By("Roles/Rolebindings should be created for managed namespace if namespaceManagement CR is present")
 			checkRolesBindings(nsCustom.Name, true)
 
-			By("Remove NamespaceManagement to check cleanup of Roles/Rolebindings")
+			By("Remove NamespaceManagement from ArgoCD to check cleanup of Roles/Rolebindings")
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.NamespaceManagement = nil
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			k8sFixture.Update(argoCD, func(obj client.Object) {
+				argoCDObj, ok := obj.(*argov1beta1api.ArgoCD)
+				Expect(ok).To(BeTrue())
+				argoCDObj.Spec.NamespaceManagement = nil
+			})
 
 			By("Verify Roles/RoleBindings are deleted from managed namespace")
-			Eventually(func() bool {
-				checkRolesBindings(nsCustom.Name, false)
-				return true
-			}, "2m", "5s").Should(BeTrue())
+			checkRolesBindings(nsCustom.Name, false)
 
 			By("Verify Application and Secret of managed namespace when nm is disabled")
 			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, false, []string{argoCD.Namespace, nsCustom.Name})
 		})
 
-		It("should not create roles when ArgoCD CR has no managedBy entry", func() {
+		It("should not create Roles/RoleBindings when ArgoCD CR has no namespaceManagement field", func() {
 			if fixture.EnvLocalRun() {
 				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
 				return
@@ -356,7 +368,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("enabling namespace management via env var")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
 
-			By("Verify Roles/RoleBindings are deleted from managed namespace")
+			By("Verify Roles/RoleBindings are not created from managed namespace")
 			checkRolesBindings(nsCustom.Name, false)
 
 			By("Verify Application and Secret of managed namespace when nm is not present in ArgoCD")
@@ -410,6 +422,50 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			checkRolesBindings(nsCustom.Name, false)
 
 			By("Verify Application should not be able to sync to managed namespace when env var is false")
+			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, false, []string{argoCD.Namespace, nsCustom.Name})
+		})
+
+		It("should create Roles/RoleBindings when AllowManagedBy is true and remove them when false", func() {
+			if fixture.EnvLocalRun() {
+				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
+				return
+			}
+
+			By("Enabling namespaceManagement via env var")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
+
+			By("Create ArgoCD with namespaceManagement field set and AllowManagedBy field is true")
+			argoCD := deployArgoCD(randomNS.Name, []argov1beta1api.ManagedNamespaces{
+				{Name: nsCustom.Name, AllowManagedBy: true},
+			})
+
+			By("Create namespaceManagement CR with the namespace to be managed")
+			nm := argov1beta1api.NamespaceManagement{
+				ObjectMeta: metav1.ObjectMeta{Name: nmName, Namespace: nsCustom.Name},
+				Spec:       argov1beta1api.NamespaceManagementSpec{ManagedBy: randomNS.Name},
+			}
+			Expect(k8sClient.Create(ctx, &nm)).To(Succeed())
+
+			By("Verify Roles/RoleBindings are created for managed namespace")
+			checkRolesBindings(nsCustom.Name, true)
+
+			By("Verify Application and Secret of managed namespace")
+			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, true, []string{argoCD.Namespace, nsCustom.Name})
+
+			By("Update ArgoCD to set AllowManagedBy to false")
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
+			k8sFixture.Update(argoCD, func(obj client.Object) {
+				argoCDObj, ok := obj.(*argov1beta1api.ArgoCD)
+				Expect(ok).To(BeTrue())
+				argoCDObj.Spec.NamespaceManagement = []argov1beta1api.ManagedNamespaces{
+					{Name: nsCustom.Name, AllowManagedBy: false},
+				}
+			})
+
+			By("Verify Roles/RoleBindings are NOT created for managed namespace")
+			checkRolesBindings(nsCustom.Name, false)
+
+			By("Verify Application and Secret of managed namespace when AllowManagedBy field is false")
 			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, false, []string{argoCD.Namespace, nsCustom.Name})
 		})
 	})
