@@ -1,6 +1,6 @@
 # Dockerfile to bootstrap build and test in openshift-ci
 
-FROM registry.ci.openshift.org/ocp/builder:rhel-9-golang-1.24-openshift-4.20
+FROM registry.access.redhat.com/ubi8/go-toolset:latest
 USER root
 
 ARG KUBECTL_KUTTL_VERSION=0.12.1
