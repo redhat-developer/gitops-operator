@@ -1,4 +1,4 @@
 build_root_image:
-  name: builder
-  namespace: ocp
+  name: ubi-8-go-toolset
+  namespace: ci
   tag: latest
