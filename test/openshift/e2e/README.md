@@ -39,8 +39,8 @@ LOCAL_RUN=true  make e2e-tests-parallel-ginkgo
 ```bash
 # 'make ginkgo' to download ginkgo, if needed
 # Examples:
-./bin/ginkgo -v -focus "1-106_validate_argocd_metrics_controller"  -r ./test/openshift/e2e/ginkgo/sequential
-./bin/ginkgo -v -focus "1-099_validate_server_autoscale"  -r ./test/openshift/e2e/ginkgo/parallel
+./bin/ginkgo -v --focus-file "1-106_validate_argocd_metrics_controller"  -r ./test/openshift/e2e/ginkgo/sequential
+./bin/ginkgo -v --focus-file "1-099_validate_server_autoscale"  -r ./test/openshift/e2e/ginkgo/parallel
 ```
 
 ## Configuring which tests run
@@ -341,7 +341,7 @@ Consistently(argoCDObject).ShouldNot(argocdFixture.HaveSSOStatus("Failed"))
 
 Example:
 ```bash
-E2E_DEBUG_SKIP_CLEANUP=true ./bin/ginkgo -v -focus "1-099_validate_server_autoscale"  -r ./test/openshift/e2e/ginkgo/parallel
+E2E_DEBUG_SKIP_CLEANUP=true ./bin/ginkgo -v --focus-file "1-099_validate_server_autoscale"  -r ./test/openshift/e2e/ginkgo/parallel
 ```
 
 
