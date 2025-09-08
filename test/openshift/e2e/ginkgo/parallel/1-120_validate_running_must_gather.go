@@ -28,7 +28,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
-	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -38,9 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// MustGatherImage is a good place to insert development image
-// Known to be buggy in 1.17.0
-const MustGatherImage = "registry.redhat.io/openshift-gitops-1/must-gather-rhel8:v1.16.0" // TODO, use tag name with SUT version
+// default used when E2E_MUST_GATHER_IMAGE is not set.
+// CI images:
+// - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:on-pr-<GIT_COMMIT_SHA>
+// - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:<GIT_COMMIT_SHA>
+const defaultMustGatherImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:latest"
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
@@ -58,7 +59,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("verified the files collected for must gather are valid", func() {
-
 			By("creating namespace-scoped Argo CD instance")
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
@@ -114,7 +114,7 @@ func gather() string {
 
 	stdout, err := osFixture.ExecCommandWithOutputParam(
 		true,
-		"oc", "adm", "must-gather", "--image", MustGatherImage, "--dest-dir", destDir,
+		"oc", "adm", "must-gather", "--image", mustGatherImage(), "--dest-dir", destDir,
 	)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -144,17 +144,12 @@ func resourcesDir(destDir string) string {
 	return path.Join(destDir, subdirs[0])
 }
 
-func isCSVInstalled(ctx context.Context, k8sClient client.Client, subscription *operatorsv1alpha1.Subscription) bool {
-	key := client.ObjectKey{
-		Name:      subscription.Name,
-		Namespace: subscription.Namespace,
+func mustGatherImage() string {
+	injected := os.Getenv("E2E_MUST_GATHER_IMAGE")
+	if injected == "" {
+		return defaultMustGatherImage
 	}
-
-	if err := k8sClient.Get(ctx, key, subscription); err != nil {
-		return false
-	}
-
-	return subscription.Status.InstalledCSV != ""
+	return injected
 }
 
 // BeValidResourceFile checks if the file exists and if it is a valid YAML file.
