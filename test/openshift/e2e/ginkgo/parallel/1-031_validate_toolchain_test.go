@@ -95,7 +95,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			if os.Getenv("CI") == "prow" {
 				// when running against openshift-ci
 				expected_dexVersion = "v2.30.3-dirty"
-				expected_redisVersion = "6.2.4"
+				expected_redisVersion = "7.2.7"
 
 			} else {
 				// when running against RC/ released version of gitops
