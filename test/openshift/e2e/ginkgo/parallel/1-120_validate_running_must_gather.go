@@ -43,6 +43,7 @@ import (
 // CI images:
 // - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:on-pr-<GIT_COMMIT_SHA>
 // - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:<GIT_COMMIT_SHA>
+// - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:latest # For main branch.
 const defaultMustGatherImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:latest"
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -142,7 +143,7 @@ func resourcesDir(destDir string) string {
 		}
 	}
 
-	Expect(len(subdirs)).To(Equal(1), "Expected exactly one subdirectory, found: %v", subdirs)
+	Expect(subdirs).To(HaveLen(1), "Expected exactly one subdirectory, found: %v", subdirs)
 	return path.Join(destDir, subdirs[0])
 }
 
