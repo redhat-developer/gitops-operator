@@ -85,12 +85,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			destDir := gather()
 			defer os.RemoveAll(destDir)
 
-			Expect(path.Join(destDir, "must-gather.logs")).To(BeARegularFile())
+			// TODO: Not before 4.16: https://github.com/openshift/oc/commit/7d23cbb68dfed274b2821d91038f45c8ce12a249
+			// Expect(path.Join(destDir, "must-gather.logs")).To(BeARegularFile())
+
 			Expect(path.Join(destDir, "event-filter.html")).To(BeARegularFile())
 			Expect(path.Join(destDir, "timestamp")).To(BeARegularFile())
 
 			resources := resourcesDir(destDir)
-			Expect(path.Join(resources, "gather.logs")).To(BeARegularFile())
+			// TODO: Not before 4.16: https://github.com/openshift/oc/commit/6348e4a0484fce9b4151dbf39ca17bdd8a450053
+			// Expect(path.Join(resources, "gather.logs")).To(BeARegularFile())
 			csr := path.Join(resources, "cluster-scoped-resources")
 			Expect(csr).To(BeADirectory())
 			Expect(path.Join(csr, "apiextensions.k8s.io/customresourcedefinitions/applications.argoproj.io.yaml")).To(BeValidResourceFile())
