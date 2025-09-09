@@ -1,2 +1,2 @@
-FROM ci/ubi8-go-toolset:latest
+FROM ci/ubi-8-go-toolset:latest
 USER root
