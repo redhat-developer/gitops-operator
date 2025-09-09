@@ -1,4 +1,4 @@
-build_root:
+build_root_image:
   project_image:
     dockerfile_path: Dockerfile.custom-go-toolset
     context_dir: openshift-ci/build-root
