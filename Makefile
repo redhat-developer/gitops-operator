@@ -214,11 +214,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES=openshift-gitops  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
-docker-build: test ## Build $(CONTAINER_RUNTIME) image with the manager.
+docker-build: test ## Build container image with the manager.
 	$(CONTAINER_RUNTIME) build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push $(CONTAINER_RUNTIME) image with the manager.
+docker-push: ## Push container image with the manager.
 	$(CONTAINER_RUNTIME) push ${IMG}
 
 ##@ Build Dependencies
@@ -359,7 +359,7 @@ catalog-build: opm ## Build a catalog image.
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
-	$(MAKE) $(CONTAINER_RUNTIME)-push IMG=$(CATALOG_IMG)
+	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 
 .PHONY: gosec
