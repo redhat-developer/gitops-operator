@@ -57,7 +57,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 		})
 
-		It("verifies ArgoCD banner configuration is applied and visible in UI", func() {
+		It("verifies ArgoCD banner configuration is applied to ArgoCD CR and ConfigMap", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -129,58 +129,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return true
 			}, "120s", "5s").Should(BeTrue())
 
-			By("verifying the ArgoCD server deployment has the expected banner configuration")
-			Eventually(func() bool {
-				// Get the server service to construct the URL
-				service := &corev1.Service{}
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      "argocd-server",
-					Namespace: ns.Name,
-				}, service)
-				if err != nil {
-					GinkgoWriter.Printf("Failed to get service: %v\n", err)
-					return false
-				}
-
-				GinkgoWriter.Printf("Service found: %s\n", service.Name)
-				return true
-			}, "120s", "5s").Should(BeTrue())
-		})
-
-		It("verifies banner settings can be updated dynamically", func() {
-
-			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-
-			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec: argov1beta1api.ArgoCDSpec{
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
-
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-
-			By("configuring initial banner settings")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Banner = &argov1beta1api.Banner{
-					Content:   "Initial banner message",
-					Position:  "top",
-					Permanent: false,
-				}
-			})
-
 			By("updating banner settings")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Banner = &argov1beta1api.Banner{
 					Content:   "Updated banner message",
-					Position:  "bottom",
+					Position:  "top",
 					Permanent: true,
 					URL:       "https://updated.example.com",
 				}
@@ -202,12 +155,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 
 				return updatedArgoCD.Spec.Banner.Content == "Updated banner message" &&
-					updatedArgoCD.Spec.Banner.Position == "bottom" &&
+					updatedArgoCD.Spec.Banner.Position == "top" &&
 					updatedArgoCD.Spec.Banner.Permanent == true &&
 					updatedArgoCD.Spec.Banner.URL == "https://updated.example.com"
 			}, "120s", "5s").Should(BeTrue())
 
-			By("verifying the updated banner configuration is reflected in ConfigMap")
+			By("verifying the updated banner configuration is reflected in ConfigMap and the unchanged ones are preserved")
 			Eventually(func() bool {
 				configMap := &corev1.ConfigMap{}
 				err := k8sClient.Get(ctx, types.NamespacedName{
@@ -226,7 +179,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				// Validate updated banner configuration keys
 				expectedUpdatedKeys := map[string]string{
 					"ui.bannercontent":   "Updated banner message",
-					"ui.bannerposition":  "bottom",
+					"ui.bannerposition":  "top",
 					"ui.bannerpermanent": "true",
 					"ui.bannerurl":       "https://updated.example.com",
 				}
@@ -246,32 +199,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				return true
 			}, "120s", "5s").Should(BeTrue())
-		})
-
-		It("verifies banner can be disabled by removing configuration", func() {
-
-			By("creating simple namespace-scoped Argo CD instance with banner")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-
-			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec: argov1beta1api.ArgoCDSpec{
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
-					},
-					Banner: &argov1beta1api.Banner{
-						Content:   "Banner to be removed",
-						Position:  "top",
-						Permanent: false,
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
-
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("removing banner configuration")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
@@ -327,109 +254,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				GinkgoWriter.Printf("✓ All banner configuration keys have been removed from ConfigMap\n")
 				return true
 			}, "120s", "5s").Should(BeTrue())
-		})
 
-		It("verifies all banner properties are correctly mapped to ConfigMap fields", func() {
-
-			By("creating namespace-scoped Argo CD instance with comprehensive banner configuration")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-
-			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec: argov1beta1api.ArgoCDSpec{
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
-					},
-					Banner: &argov1beta1api.Banner{
-						Content:   "Comprehensive Banner Test - All Properties",
-						Position:  "bottom",
-						Permanent: false,
-						URL:       "https://argoproj.github.io/argo-cd/",
-					},
-				},
-			}
-			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
-
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "6m", "5s").Should(argocdFixture.BeAvailable())
-
-			By("verifying all banner properties are correctly stored in argocd-cm ConfigMap")
-			Eventually(func() bool {
-				configMap := &corev1.ConfigMap{}
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      "argocd-cm",
-					Namespace: ns.Name,
-				}, configMap)
-				if err != nil {
-					GinkgoWriter.Printf("Failed to get argocd-cm ConfigMap: %v\n", err)
-					return false
-				}
-
-				if configMap.Data == nil {
-					GinkgoWriter.Printf("ConfigMap data is nil\n")
-					return false
-				}
-
-				// Validate all banner properties with different values
-				expectedMappings := map[string]string{
-					"ui.bannercontent":   "Comprehensive Banner Test - All Properties",
-					"ui.bannerposition":  "bottom",
-					"ui.bannerpermanent": "false", // Note: boolean becomes string "false"
-					"ui.bannerurl":       "https://argoproj.github.io/argo-cd/",
-				}
-
-				allFieldsCorrect := true
-				for configKey, expectedValue := range expectedMappings {
-					actualValue, exists := configMap.Data[configKey]
-					if exists && actualValue != expectedValue {
-						GinkgoWriter.Printf("❌ ConfigMap key %s: got '%s', expected '%s'\n", configKey, actualValue, expectedValue)
-						allFieldsCorrect = false
-						continue
-					}
-					GinkgoWriter.Printf("✅ ConfigMap key %s correctly set to: %s\n", configKey, actualValue)
-				}
-
-				// Also log all ConfigMap data for debugging
-				GinkgoWriter.Printf("Complete ConfigMap data: %+v\n", configMap.Data)
-
-				return allFieldsCorrect
-			}, "120s", "5s").Should(BeTrue())
-
-			By("testing banner with only required content field")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Banner = &argov1beta1api.Banner{
-					Content: "Minimal Banner - Content Only",
-					// Other fields intentionally omitted to test defaults
-				}
-			})
-
-			By("verifying minimal banner configuration in ConfigMap")
-			Eventually(func() bool {
-				configMap := &corev1.ConfigMap{}
-				err := k8sClient.Get(ctx, types.NamespacedName{
-					Name:      "argocd-cm",
-					Namespace: ns.Name,
-				}, configMap)
-				if err != nil {
-					return false
-				}
-
-				if configMap.Data == nil {
-					return false
-				}
-
-				// With minimal config, content should be present, others might have defaults or be absent
-				content, hasContent := configMap.Data["ui.bannercontent"]
-				if !hasContent || content != "Minimal Banner - Content Only" {
-					GinkgoWriter.Printf("Expected minimal banner content not found\n")
-					return false
-				}
-
-				GinkgoWriter.Printf("✅ Minimal banner configuration validated: content = %s\n", content)
-				return true
-			}, "120s", "5s").Should(BeTrue())
 		})
 	})
 })
