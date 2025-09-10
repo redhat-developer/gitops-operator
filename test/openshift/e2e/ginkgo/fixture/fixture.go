@@ -483,7 +483,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 	installationNamespace := GetInstallationNamespace()
 
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: GetInstallationNamespace()}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: installationNamespace}}
 
 		deploymentFixture.RemoveEnv(depl, "manager", key)
 
@@ -521,9 +521,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Subscription, error) {
 	subscriptionList := olmv1alpha1.SubscriptionList{}
 
-	installationNamespace := GetInstallationNamespace()
-
-	if err := k8sClient.List(context.Background(), &subscriptionList, client.InNamespace(installationNamespace)); err != nil {
+	if err := k8sClient.List(context.Background(), &subscriptionList, client.InNamespace(GetInstallationNamespace())); err != nil {
 		return nil, err
 	}
 
