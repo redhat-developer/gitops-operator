@@ -49,6 +49,32 @@ const (
 
 var NamespaceLabels = map[string]string{E2ETestLabelsKey: E2ETestLabelsValue}
 
+// Retrieve installation namespace
+func GetInstallationNamespace() string {
+
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+	installationNamespace := "openshift-operators"
+
+	sub := &olmv1alpha1.Subscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "openshift-gitops-operator",
+			Namespace: installationNamespace,
+		},
+	}
+
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
+
+		installationNamespace = "openshift-gitops-operator"
+
+		sub = &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+
+		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
+			return ""
+		}
+	}
+	return installationNamespace
+}
+
 func EnsureParallelCleanSlate() {
 
 	// Increase the maximum length of debug output, for when tests fail
@@ -212,7 +238,9 @@ func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) er
 
 	var csv *olmv1alpha1.ClusterServiceVersion
 	var csvList olmv1alpha1.ClusterServiceVersionList
-	Expect(k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator"))).To(Succeed())
+	installationNamespace := GetInstallationNamespace()
+	Expect(installationNamespace).ToNot(BeNil(), "if you see this, it likely means, either: A) the operator is not installed via OLM (and you meant to install it), OR B) you are running the operator locally via 'make run', and thus should specify LOCAL_RUN=true env var when calling the test")
+	Expect(k8sClient.List(ctx, &csvList, client.InNamespace(installationNamespace))).To(Succeed())
 
 	for idx := range csvList.Items {
 		idxCSV := csvList.Items[idx]
@@ -374,8 +402,10 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 		return nil, nil
 	}
 
+	installationNamespace := GetInstallationNamespace()
+
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: installationNamespace}}
 
 		return deploymentFixture.GetEnv(depl, "manager", key)
 
@@ -395,7 +425,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace}}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return nil, err
 		}
@@ -411,12 +441,14 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 	k8sClient, _ := utils.GetE2ETestKubeClient()
 
+	installationNamespace := GetInstallationNamespace()
+
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: installationNamespace}}
 
 		deploymentFixture.SetEnv(depl, "manager", key, value)
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(installationNamespace, k8sClient)
 
 	} else if EnvCI() {
 
@@ -430,7 +462,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace}}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub)).To(Succeed())
 
 		subscriptionFixture.SetEnv(sub, key, value)
@@ -448,12 +480,14 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 		return err
 	}
 
+	installationNamespace := GetInstallationNamespace()
+
 	if EnvNonOLM() {
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: GetInstallationNamespace()}}
 
 		deploymentFixture.RemoveEnv(depl, "manager", key)
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(installationNamespace, k8sClient)
 
 	} else if EnvCI() {
 
@@ -471,7 +505,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace}}
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return err
 		}
@@ -486,7 +520,10 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 
 func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Subscription, error) {
 	subscriptionList := olmv1alpha1.SubscriptionList{}
-	if err := k8sClient.List(context.Background(), &subscriptionList, client.InNamespace("openshift-gitops-operator")); err != nil {
+
+	installationNamespace := GetInstallationNamespace()
+
+	if err := k8sClient.List(context.Background(), &subscriptionList, client.InNamespace(installationNamespace)); err != nil {
 		return nil, err
 	}
 
@@ -510,12 +547,14 @@ func RestoreSubcriptionToDefault() {
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	Expect(err).ToNot(HaveOccurred())
 
+	installationNamespace := GetInstallationNamespace()
+
 	// optionalEnvVarsToRemove is a non-exhaustive list of environment variables that are known to be added to Subscription or operator Deployment by tests
 	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "IMAGE_PULL_POLICY"}
 
 	if EnvNonOLM() {
 
-		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
+		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: installationNamespace}}
 
 		for _, envKey := range optionalEnvVarsToRemove {
 			deploymentFixture.RemoveEnv(depl, "manager", envKey)
@@ -535,26 +574,26 @@ func RestoreSubcriptionToDefault() {
 			subscriptionFixture.RemoveSpecConfig(sub)
 		}
 
-		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
+		err = waitForAllEnvVarsToBeRemovedFromDeployments(installationNamespace, optionalEnvVarsToRemove, k8sClient)
 		Expect(err).ToNot(HaveOccurred())
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(installationNamespace, k8sClient)
 
 	} else if EnvLocalRun() {
 		// When running locally, there are no cluster resources to clean up
 
 	} else {
 
-		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace}}
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub)
 		Expect(err).ToNot(HaveOccurred())
 
 		subscriptionFixture.RemoveSpecConfig(sub)
 
-		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
+		err = waitForAllEnvVarsToBeRemovedFromDeployments(installationNamespace, optionalEnvVarsToRemove, k8sClient)
 		Expect(err).ToNot(HaveOccurred())
 
-		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
+		WaitForAllDeploymentsInTheNamespaceToBeReady(installationNamespace, k8sClient)
 
 	}
 
