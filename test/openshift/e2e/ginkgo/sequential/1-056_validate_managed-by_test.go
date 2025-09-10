@@ -34,7 +34,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			fixture.OutputDebugOnFail("test-1-56-target", "test-1-56-custom", "test-1-56-target-2", "test-1-56-custom-2", "openshift-gitops-operator")
+			fixture.OutputDebugOnFail("test-1-56-target", "test-1-56-custom", "test-1-56-target-2", "test-1-56-custom-2", fixture.GetInstallationNamespace())
 		})
 
 		It("verifies that managed-by works as expected and that REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION will remove managed-by label when the related ArgoCD instance is deleted", func() {

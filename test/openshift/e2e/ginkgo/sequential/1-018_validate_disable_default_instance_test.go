@@ -118,7 +118,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			operatorControllerDepl := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops-operator-controller-manager",
-					Namespace: "openshift-gitops-operator", // The original kuttl test was 'openshift-operators'
+					Namespace: fixture.GetInstallationNamespace(), // The original kuttl test was 'openshift-operators'
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
@@ -151,7 +151,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("verifying deployment and statefulset have expected number of replicas, including the repo server which should have 2")
+			By("verifying deployment and statefulset have expected number of replicas")
 			deploymentsToVerify := []string{
 				"openshift-gitops-server",
 				"openshift-gitops-redis",
