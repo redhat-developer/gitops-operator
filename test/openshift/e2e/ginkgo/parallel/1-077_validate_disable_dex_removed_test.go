@@ -66,7 +66,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			} else {
 				subscription := &olmv1alpha1.Subscription{
-					ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"},
+					ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: fixture.GetInstallationNamespace()},
 				}
 				Expect(subscription).Should(k8sFixture.ExistByName())
 
@@ -80,7 +80,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			csv := &olmv1alpha1.ClusterServiceVersion{ObjectMeta: metav1.ObjectMeta{
 				Name:      operatorNameVersion,
-				Namespace: "openshift-gitops-operator",
+				Namespace: fixture.GetInstallationNamespace(),
 			}}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(csv), csv)).To(Succeed())
 

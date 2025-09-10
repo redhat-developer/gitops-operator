@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Find CSV
 			var csv *olmv1alpha1.ClusterServiceVersion
 			var csvList olmv1alpha1.ClusterServiceVersionList
-			Expect(k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator"))).To(Succeed())
+			Expect(k8sClient.List(ctx, &csvList, client.InNamespace(fixture.GetInstallationNamespace()))).To(Succeed())
 
 			for idx := range csvList.Items {
 				idxCSV := csvList.Items[idx]

@@ -19,7 +19,7 @@ import (
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-035-validate_argocd_secret_repopulate", func() {
+	Context("1-035_validate_argocd_secret_repopulate", func() {
 
 		var (
 			ctx       context.Context
@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				depl := &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "openshift-gitops-operator-controller-manager",
-						Namespace: "openshift-gitops-operator",
+						Namespace: fixture.GetInstallationNamespace(),
 					},
 				}
 				Eventually(depl, "1m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
