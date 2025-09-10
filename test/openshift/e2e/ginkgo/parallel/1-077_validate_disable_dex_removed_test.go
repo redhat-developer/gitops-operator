@@ -35,8 +35,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-077_validate_disable_dex_removed", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient             client.Client
+			ctx                   context.Context
+			installationNamespace = fixture.GetInstallationNamespace()
 		)
 
 		BeforeEach(func() {
@@ -66,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			} else {
 				subscription := &olmv1alpha1.Subscription{
-					ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: fixture.GetInstallationNamespace()},
+					ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace},
 				}
 				Expect(subscription).Should(k8sFixture.ExistByName())
 
@@ -80,7 +81,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			csv := &olmv1alpha1.ClusterServiceVersion{ObjectMeta: metav1.ObjectMeta{
 				Name:      operatorNameVersion,
-				Namespace: fixture.GetInstallationNamespace(),
+				Namespace: installationNamespace,
 			}}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(csv), csv)).To(Succeed())
 

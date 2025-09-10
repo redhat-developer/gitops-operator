@@ -25,10 +25,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return
 			}
 
+			var installationNamespace = fixture.GetInstallationNamespace()
+
 			sm := &monitoringv1.ServiceMonitor{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops-operator-metrics-monitor",
-					Namespace: fixture.GetInstallationNamespace(),
+					Namespace: installationNamespace,
 				},
 			}
 			Eventually(sm).Should(k8sFixture.ExistByName())
@@ -43,7 +45,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					SafeTLSConfig: monitoringv1.SafeTLSConfig{
 						CA:         monitoringv1.SecretOrConfigMap{},
 						Cert:       monitoringv1.SecretOrConfigMap{},
-						ServerName: "openshift-gitops-operator-metrics-service." + fixture.GetInstallationNamespace() + ".svc",
+						ServerName: "openshift-gitops-operator-metrics-service." + installationNamespace + ".svc",
 					},
 					CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
 				},
