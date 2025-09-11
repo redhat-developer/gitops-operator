@@ -171,6 +171,9 @@ var _ = BeforeSuite(func() {
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		K8sClient: k8sClient,
+		LocalUsers: &argocdprovisioner.LocalUsersInfo{
+			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
+		},
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
