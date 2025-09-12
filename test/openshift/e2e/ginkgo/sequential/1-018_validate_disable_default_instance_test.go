@@ -40,7 +40,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that ArgoCD instance can be manually deleted and resources are cleaned up", func() {
+		It("verifies that the default ArgoCD instance from openshift-gitops namespace is recreated when deleted manually", func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
