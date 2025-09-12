@@ -37,6 +37,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-088_validate_applicationset_add_env_vars", func() {
 
+		// This test supersecdes '1-030_validate_applciationset_add_env_vars'
+
 		var (
 			k8sClient client.Client
 			ctx       context.Context

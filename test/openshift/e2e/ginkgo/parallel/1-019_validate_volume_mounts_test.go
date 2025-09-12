@@ -24,6 +24,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -263,6 +265,196 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					},
 				},
 			}))
+
+			By("adding volume to applicationset controller, and verifying volumemounts and volumes are set on Deployment")
+
+			argocdFixture.Update(argoCDRandomNS, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
+					Volumes: []corev1.Volume{
+						{
+							Name: "empty-dir-volume",
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
+							},
+						},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "empty-dir-volume",
+							MountPath: "/etc/test",
+						},
+					},
+				}
+			})
+
+			Eventually(argoCDRandomNS, "2m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCDRandomNS, "2m", "5s").Should(argocdFixture.HaveApplicationSetControllerStatus("Running"))
+
+			appSetDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-applicationset-controller",
+					Namespace: argoCDRandomNS.Namespace,
+				},
+				Spec: appsv1.DeploymentSpec{},
+			}
+			Eventually(appSetDepl).Should(k8sFixture.ExistByName())
+
+			Expect(appSetDepl.Spec.Template.Spec.Containers[0].VolumeMounts).Should(Equal([]corev1.VolumeMount{
+				{
+					Name:      "ssh-known-hosts",
+					MountPath: "/app/config/ssh",
+				},
+				{
+					Name:      "tls-certs",
+					MountPath: "/app/config/tls",
+				},
+				{
+					Name:      "gpg-keys",
+					MountPath: "/app/config/gpg/source",
+				},
+				{
+					Name:      "gpg-keyring",
+					MountPath: "/app/config/gpg/keys",
+				},
+				{
+					Name:      "tmp",
+					MountPath: "/tmp",
+				},
+				{
+					Name:      "empty-dir-volume",
+					MountPath: "/etc/test",
+				},
+			}))
+
+			Expect(appSetDepl.Spec.Template.Spec.Volumes).Should(Equal([]corev1.Volume{
+				{
+					Name: "ssh-known-hosts",
+					VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "argocd-ssh-known-hosts-cm",
+						},
+						DefaultMode: ptr.To(int32(420)),
+					}},
+				},
+				{
+					Name: "tls-certs",
+					VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "argocd-tls-certs-cm",
+						},
+						DefaultMode: ptr.To(int32(420)),
+					}},
+				},
+				{
+					Name: "gpg-keys",
+					VolumeSource: corev1.VolumeSource{ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "argocd-gpg-keys-cm",
+						},
+						DefaultMode: ptr.To(int32(420)),
+					}},
+				},
+				{
+					Name: "gpg-keyring",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "tmp",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "empty-dir-volume",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			}))
+
+			By("adding emptydir volume to .spec.sso and verifying it is set on dex server Deployment")
+
+			argocdFixture.Update(argoCDRandomNS, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+					Provider: argov1beta1api.SSOProviderTypeDex,
+					Dex: &argov1beta1api.ArgoCDDexSpec{
+						Config: "test-config",
+						Volumes: []corev1.Volume{
+							{Name: "empty-dir-volume", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{Name: "empty-dir-volume", MountPath: "/etc/test"},
+						},
+					},
+				}
+			})
+
+			Eventually(argoCDRandomNS, "2m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCDRandomNS, "2m", "5s").Should(argocdFixture.HaveApplicationSetControllerStatus("Running"))
+
+			dexDeployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-dex-server",
+					Namespace: argoCDRandomNS.Namespace,
+				},
+			}
+			Eventually(dexDeployment).Should(k8sFixture.ExistByName())
+
+			Expect(dexDeployment.Spec.Template.Spec.InitContainers[0].VolumeMounts).To(Equal([]corev1.VolumeMount{
+				{
+					Name:      "static-files",
+					MountPath: "/shared",
+				},
+				{
+					Name:      "dexconfig",
+					MountPath: "/tmp",
+				},
+				{
+					Name:      "empty-dir-volume",
+					MountPath: "/etc/test",
+				},
+			}))
+
+			Expect(dexDeployment.Spec.Template.Spec.Containers[0].VolumeMounts).To(Equal([]corev1.VolumeMount{
+				{
+					Name:      "static-files",
+					MountPath: "/shared",
+				},
+				{
+					Name:      "dexconfig",
+					MountPath: "/tmp",
+				},
+				{
+					Name:      "empty-dir-volume",
+					MountPath: "/etc/test",
+				},
+			}))
+
+			Expect(dexDeployment.Spec.Template.Spec.Volumes).To(Equal([]corev1.Volume{
+				{
+					Name: "static-files",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "dexconfig",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+
+				{
+					Name: "empty-dir-volume",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			}))
+
+			Eventually(dexDeployment, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 		})
 
