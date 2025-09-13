@@ -112,7 +112,11 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 				return obj.GetName() == "openshift-gitops"
 			})),
-		).
+		).Watches(&argoapp.ArgoCD{},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+			return obj.GetName() == "openshift-gitops" && obj.GetNamespace() == "openshift-gitops"
+		}))).
 		Complete(r)
 }
 
