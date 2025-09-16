@@ -35,6 +35,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-089_validate_extra_repo_commands_args", func() {
 
+		// This test supersedes 1-028_validate_extra_repo_commands_args
+
 		var (
 			k8sClient client.Client
 			ctx       context.Context
