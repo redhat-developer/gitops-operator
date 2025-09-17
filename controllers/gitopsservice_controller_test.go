@@ -22,7 +22,9 @@ import (
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -596,6 +598,42 @@ func TestGetBackendNamespace(t *testing.T) {
 		namespace, err := GetBackendNamespace(fakeClient)
 		assertNamespace(t, err, namespace, serviceNamespace)
 	})
+}
+
+func TestReconcile_InfrastructureNode(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			RunOnInfra:  true,
+			Tolerations: deploymentDefaultTolerations(),
+		},
+	}
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	deployment := appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+	assertNoError(t, err)
+	nSelector := common.InfraNodeSelector()
+	argoutil.AppendStringMap(nSelector, argocommon.DefaultNodeSelector())
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
+
+	argoCD := &argoapp.ArgoCD{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		argoCD)
+	assertNoError(t, err)
+	assert.DeepEqual(t, argoCD.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
+	assert.DeepEqual(t, argoCD.Spec.NodePlacement.Tolerations, deploymentDefaultTolerations())
+
 }
 
 func TestReconcile_PSSLabels(t *testing.T) {
