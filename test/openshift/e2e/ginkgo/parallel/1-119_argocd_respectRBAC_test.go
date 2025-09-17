@@ -36,6 +36,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-119_argocd_respectRBAC", func() {
 
+		// This test supersedes 1-045_validate_controller_respect_rbac
+
 		var (
 			k8sClient client.Client
 			ctx       context.Context
@@ -49,17 +51,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("ensures that setting .spec.controller.respectRBAC will cause that value to be set in Argo CD's argocd-cm ConfigMap", func() {
+		It("ensures that setting .spec.controller.respectRBAC will cause that value to be set in Argo CD's argocd-cm ConfigMap, and that invalid values are ignored", func() {
 
-			By("creating basic Argo CD instance with respect RBAC set to strict")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
+
+			By("creating basic Argo CD instance with respect RBAC set to normal")
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-						RespectRBAC: "strict",
+						RespectRBAC: "normal",
 					},
 				},
 			}
@@ -75,7 +78,35 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(argocdCMConfigMap).Should(k8sFixture.ExistByName())
 
+			Eventually(argocdCMConfigMap).Should(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "normal"))
+
+			By("updating Argo CD instance to respect RBAC set to strict")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.RespectRBAC = "strict"
+			})
+
+			By("verifying strict respectRBAC is set in argocd-cm ConfigMap")
+			Eventually(argocdCMConfigMap).Should(k8sFixture.ExistByName())
 			Eventually(argocdCMConfigMap).Should(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
+
+			By("updating Argo CD instance to respect RBAC set to invalid valid")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.RespectRBAC = "somethibg"
+			})
+
+			Eventually(argocdCMConfigMap).ShouldNot(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
+			Consistently(argocdCMConfigMap).ShouldNot(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
+
+			By("updating Argo CD instance to respect RBAC set to empty value")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.RespectRBAC = ""
+			})
+
+			Eventually(argocdCMConfigMap).ShouldNot(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
+			Consistently(argocdCMConfigMap).ShouldNot(configmapFixture.HaveStringDataKeyValue("resource.respectRBAC", "strict"))
 
 		})
 

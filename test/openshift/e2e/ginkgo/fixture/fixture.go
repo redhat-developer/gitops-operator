@@ -37,6 +37,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -254,7 +255,7 @@ func CreateRandomE2ETestNamespace() *corev1.Namespace {
 
 	testNamespaceName := "gitops-e2e-test-" + randomVal
 
-	ns := CreateNamespace(string(testNamespaceName))
+	ns := CreateNamespace(testNamespaceName)
 	return ns
 }
 
@@ -329,23 +330,26 @@ func CreateManagedNamespaceWithCleanupFunc(name string, managedByNamespace strin
 func nsDeletionFunc(ns *corev1.Namespace) func() {
 
 	return func() {
-
-		// If you are debugging an E2E test and want to prevent its namespace from being deleted when the test ends (so that you can examine the state of resources in the namespace) you can set E2E_DEBUG_SKIP_CLEANUP env var.
-		if os.Getenv("E2E_DEBUG_SKIP_CLEANUP") != "" {
-			GinkgoWriter.Println("Skipping namespace cleanup as E2E_DEBUG_SKIP_CLEANUP is set")
-			return
-		}
-
-		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
-		Expect(err).ToNot(HaveOccurred())
-		err = k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{PropagationPolicy: ptr.To(metav1.DeletePropagationForeground)})
-
-		// Error shouldn't occur, UNLESS it's because the NS no longer exists
-		if err != nil && !apierr.IsNotFound(err) {
-			Expect(err).ToNot(HaveOccurred())
-		}
+		DeleteNamespace(ns)
 	}
 
+}
+
+func DeleteNamespace(ns *corev1.Namespace) {
+	// If you are debugging an E2E test and want to prevent its namespace from being deleted when the test ends (so that you can examine the state of resources in the namespace) you can set E2E_DEBUG_SKIP_CLEANUP env var.
+	if os.Getenv("E2E_DEBUG_SKIP_CLEANUP") != "" {
+		GinkgoWriter.Println("Skipping namespace cleanup as E2E_DEBUG_SKIP_CLEANUP is set")
+		return
+	}
+
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	Expect(err).ToNot(HaveOccurred())
+	err = k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{PropagationPolicy: ptr.To(metav1.DeletePropagationForeground)})
+
+	// Error shouldn't occur, UNLESS it's because the NS no longer exists
+	if err != nil && !apierr.IsNotFound(err) {
+		Expect(err).ToNot(HaveOccurred())
+	}
 }
 
 // EnvNonOLM checks if NON_OLM var is set; this variable is set when testing on GitOps operator that is not installed via OLM
@@ -804,7 +808,8 @@ var testReportMap = map[string]testReportEntry{} // acquire testReportLock befor
 // - Namespace parameter may be a string, *Namespace, or Namespace
 func OutputDebugOnFail(namespaceParams ...any) {
 
-	// Convert parameter to string of namespace name
+	// Convert parameter to string of namespace name:
+	// - You can specify Namespace, *Namespae, or string, and we will convert it to string namespace
 	namespaces := []string{}
 	for _, param := range namespaceParams {
 
@@ -852,13 +857,25 @@ func OutputDebugOnFail(namespaceParams ...any) {
 
 		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "all", "-n", namespace)
 		if err != nil {
-			GinkgoWriter.Println("unable to extract operator logs for namespace", namespace, err, kubectlOutput)
+			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
 		}
 
 		GinkgoWriter.Println("")
 		GinkgoWriter.Println("----------------------------------------------------------------")
 		GinkgoWriter.Println("'kubectl get all -n", namespace+"' output:")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "deployments", "-n", namespace, "-o", "yaml")
+		if err != nil {
+			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
+			continue
+		}
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 
@@ -877,6 +894,37 @@ func OutputDebugOnFail(namespaceParams ...any) {
 
 }
 
+// EnsureRunningOnOpenShift should be called if a test requires OpenShift (for example, it uses Route CR).
+func EnsureRunningOnOpenShift() {
+
+	runningOnOpenShift := RunningOnOpenShift()
+
+	if !runningOnOpenShift {
+		Skip("This test requires the cluster to be OpenShift")
+		return
+	}
+
+	Expect(runningOnOpenShift).To(BeTrueBecause("this test is marked as requiring an OpenShift cluster, and we have detected the cluster is OpenShift"))
+
+}
+
+// RunningOnOpenShift returns true if the cluster is an OpenShift cluster, false otherwise.
+func RunningOnOpenShift() bool {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	crdList := crdv1.CustomResourceDefinitionList{}
+	Expect(k8sClient.List(context.Background(), &crdList)).To(Succeed())
+
+	openshiftAPIsFound := 0
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Spec.Group, "openshift.io") {
+			openshiftAPIsFound++
+		}
+	}
+	return openshiftAPIsFound > 5 // I picked 5 as an arbitrary number, could also just be 1
+}
+
+//nolint:unused
 func outputPodLog(podSubstring string) {
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	if err != nil {
