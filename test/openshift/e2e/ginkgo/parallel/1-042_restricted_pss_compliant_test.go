@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -53,12 +54,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-
-			fixture.OutputDebugOnFail("test-1-042-restricted-pss-compliant")
-
 			Expect(ns).ToNot(BeNil())
-			Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
 
+			fixture.OutputDebugOnFail(ns.Name)
+			fixture.DeleteNamespace(ns)
 		})
 
 		It("verifies that all Argo CD components can run with pod-security enforce, warn, and audit of 'restricted'", func() {
@@ -68,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating a namespace with pod-security enforce set to restricted")
 			ns = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-1-042-restricted-pss-compliant",
+					Name: "gitops-e2e-test-" + uuid.NewString()[0:13],
 					Labels: map[string]string{
 						"pod-security.kubernetes.io/enforce":         "restricted",
 						"pod-security.kubernetes.io/enforce-version": "latest",
@@ -100,6 +99,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					},
 				},
 			}
+
+			if !fixture.RunningOnOpenShift() {
+				argoCD.Spec.Server = argov1beta1api.ArgoCDServerSpec{
+					Ingress: argov1beta1api.ArgoCDIngressSpec{Enabled: true},
+				}
+			}
+
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("verifying all Argo CD components start as expected under restricted pod security")
@@ -149,6 +155,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Enabled: true,
 				}
 			})
+
+			if !fixture.RunningOnOpenShift() {
+				By("removing SSO")
+				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+					argoCD.Spec.SSO = nil
+				})
+
+			}
 
 			By("ensuring that various Argo CD components become available under restricted security")
 			Eventually(argoCD).Should(argocdFixture.HaveApplicationControllerStatus("Running"))
