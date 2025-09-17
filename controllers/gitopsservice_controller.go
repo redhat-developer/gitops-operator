@@ -132,6 +132,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
+	// disableDefaultArgoCDConsoleLink, if true, will ensure that the default Console Plugin is not instantiated in the openshift-gitops namespace.
+	DisableDefaultArgoCDConsoleLink bool
 }
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
@@ -265,13 +267,15 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
 		// deleting it if necessary
-		if err := r.ensureDefaultArgoCDInstanceDoesntExist(instance, reqLogger); err != nil {
+		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
 	}
 
-	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
-		return result, err
+	if !r.DisableDefaultArgoCDConsoleLink {
+		if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+			return result, err
+		}
 	}
 
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
@@ -305,18 +309,42 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
 		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
 		return reconcile.Result{}, nil
-	} else {
+	} else if !r.DisableDefaultArgoCDConsoleLink {
 		return r.reconcilePlugin(instance, request)
 	}
+	if r.DisableDefaultArgoCDConsoleLink {
+		logs.Info("Skipping reconciliation of ArgoCD ConsoleLink as it is disabled by env variable")
+		if err := r.ensureConsoleLinkDoesntExist(); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of ArgoCD ConsoleLink: %v", err)
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
+func (r *ReconcileGitopsService) ensureConsoleLinkDoesntExist() error {
+	consoleLink := &pipelinesv1alpha1.GitopsService{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, consoleLink)
+	if err == nil {
+		// The Argo CD ConsoleLink exists, delete it.
+		if err := r.Client.Delete(context.TODO(), consoleLink); err != nil {
+			return err
+		}
+	} else {
+		if !errors.IsNotFound(err) {
+			// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
+			return nil
+		} else {
+			return err
+		}
+	}
+	return nil
+}
 
+func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
 	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
 	if err != nil {
 		return err
 	}
-
 	argocdNS := newRestrictedNamespace(defaultArgoCDInstance.Namespace)
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
 	if err != nil {
@@ -328,7 +356,6 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 			return err
 		}
 	}
-
 	// Delete the existing Argo CD instance, if it exists
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
@@ -337,12 +364,10 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 		if err := r.Client.Delete(context.TODO(), existingArgoCD); err != nil {
 			return err
 		}
-
 	} else if !errors.IsNotFound(err) {
 		// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
 		return err
 	}
-
 	return nil
 }
 

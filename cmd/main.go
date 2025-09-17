@@ -185,9 +185,10 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileGitopsService{
-		Client:                mgr.GetClient(),
-		Scheme:                mgr.GetScheme(),
-		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
+		Client:                          mgr.GetClient(),
+		Scheme:                          mgr.GetScheme(),
+		DisableDefaultInstall:           strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
+		DisableDefaultArgoCDConsoleLink: strings.ToLower(os.Getenv(common.DisableDefaultArgoCDConsoleLink)) == "true",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 		os.Exit(1)
