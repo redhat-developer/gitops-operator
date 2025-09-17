@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				})
 			}()
 
-			By("verifying the openshift-gitops resources have honoured the resource constraints")
+			By("verifying the openshift-gitops resources have honoured the resource  constraints")
 			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
 			Eventually(clusterDepl).Should(
 				And(

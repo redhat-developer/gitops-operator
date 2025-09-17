@@ -284,6 +284,10 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 		newPluginDeployment.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(newPluginDeployment.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
 	}
 
+	if cr.Spec.Resources != nil {
+		newPluginDeployment.Spec.Template.Spec.Containers[0].Resources = *cr.Spec.Resources
+	}
+
 	if len(cr.Spec.Tolerations) > 0 {
 		newPluginDeployment.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}
@@ -319,7 +323,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
 			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext)
+			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext) || !reflect.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
@@ -334,6 +338,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			existingSpecTemplate.Spec.DNSPolicy = newSpecTemplate.Spec.DNSPolicy
 			existingPluginDeployment.Spec.Template.Spec.NodeSelector = newPluginDeployment.Spec.Template.Spec.NodeSelector
 			existingPluginDeployment.Spec.Template.Spec.Tolerations = newPluginDeployment.Spec.Template.Spec.Tolerations
+			existingSpecTemplate.Spec.Containers[0].Resources = newSpecTemplate.Spec.Containers[0].Resources
 			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginDeployment)
 		}
 	}

@@ -40,6 +40,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -92,6 +93,16 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	gitopsServiceRef := newGitopsService()
+	gitopsServiceRef.Spec.Resources = &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			"cpu":    resource.MustParse("200m"),
+			"memory": resource.MustParse("256Mi"),
+		},
+		Limits: corev1.ResourceList{
+			"cpu":    resource.MustParse("500m"),
+			"memory": resource.MustParse("512Mi"),
+		},
+	}
 	err := r.Client.Create(context.TODO(), gitopsServiceRef)
 	if err != nil {
 		reqLogger.Error(err, "Failed to create GitOps service instance")
@@ -132,6 +143,9 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
+
+	// disableDefaultPluginInstall, if true, will ensure that the default Console Plugin is not instantiated in the openshift-gitops namespace.
+	DisableDefaultArgoCDConsoleLink bool
 }
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
@@ -213,6 +227,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	// Fetch the GitopsService instance
 	instance := &pipelinesv1alpha1.GitopsService{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)
+	reqLogger.Info("Fetched GitopsService instance", "instance", instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -270,8 +285,10 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		}
 	}
 
-	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
-		return result, err
+	if !r.DisableDefaultArgoCDConsoleLink {
+		if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+			return result, err
+		}
 	}
 
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
@@ -305,9 +322,16 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
 		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
 		return reconcile.Result{}, nil
-	} else {
+	} else if !r.DisableDefaultArgoCDConsoleLink {
 		return r.reconcilePlugin(instance, request)
 	}
+	if r.DisableDefaultArgoCDConsoleLink {
+		logs.Info("Skipping reconciliation of ArgoCD ConsoleLink as it is disabled by env variable")
+		if err := r.ensureConsoleLinkDoesntExist(); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of ArgoCD ConsoleLink: %v", err)
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
@@ -346,6 +370,24 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 	return nil
 }
 
+func (r *ReconcileGitopsService) ensureConsoleLinkDoesntExist() error {
+	consoleLink := &pipelinesv1alpha1.GitopsService{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, consoleLink)
+	if err == nil {
+		// The Argo CD ConsoleLink exists, delete it.
+		if err := r.Client.Delete(context.TODO(), consoleLink); err != nil {
+			return err
+		}
+	} else {
+		if !errors.IsNotFound(err) {
+			// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
+			return nil
+		} else {
+			return err
+		}
+	}
+	return nil
+}
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
 
 	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
@@ -623,14 +665,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if len(instance.Spec.NodeSelector) > 0 {
 			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
 		}
-		if len(instance.Spec.Tolerations) > 0 {
-			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
-		}
-
 		if instance.Spec.Resources != nil {
-			deploymentObj.Spec.Template.Spec.Resources = instance.Spec.Resources
+			deploymentObj.Spec.Template.Spec.Containers[0].Resources = *instance.Spec.Resources
 		}
-
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}
 		if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace},
@@ -654,6 +691,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
 				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
+				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {

@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= ""
+VERSION ?= "2.0.6"
 
 
 # Try to detect Docker or Podman
@@ -35,7 +35,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # IMAGE defines the base image to be used for operator, bundle and catalog.
-IMAGE ?= quay.io/redhat-developer/gitops-operator
+IMAGE ?= quay.io/nittalaakhil/openshift-gitops-operator
 
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.

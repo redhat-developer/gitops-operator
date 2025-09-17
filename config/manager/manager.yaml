@@ -38,6 +38,10 @@ spec:
           value: gitops-operator
         - name : LABEL_SELECTOR
           value: ""
+        - name: DISABLE_DEFAULT_ARGOCD_CONSOLELINK
+          value: "true"
+        - name: DISABLE_DEFAULT_ARGOCD_INSTANCE
+          value: "true"
         image: controller:latest
         livenessProbe:
           httpGet:
