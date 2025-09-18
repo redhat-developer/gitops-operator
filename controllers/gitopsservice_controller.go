@@ -623,6 +623,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if len(instance.Spec.NodeSelector) > 0 {
 			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
 		}
+		if len(instance.Spec.Tolerations) > 0 {
+			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
+		}
 		if instance.Spec.Resources != nil {
 			deploymentObj.Spec.Template.Spec.Containers[0].Resources = *instance.Spec.Resources
 		}
