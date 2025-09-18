@@ -58,6 +58,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
@@ -231,6 +232,7 @@ func main() {
 		LocalUsers: &argocdprovisioner.LocalUsersInfo{
 			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
 		},
+		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
