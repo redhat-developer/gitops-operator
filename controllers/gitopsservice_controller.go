@@ -30,6 +30,7 @@ import (
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
+	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -277,7 +278,6 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return result, err
 		}
 	}
-
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
 	if dynamicPluginStartOCPVersion == "" {
 		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
@@ -305,7 +305,6 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	startVersion := v2.Segments()
 	startMajorVersion := startVersion[0]
 	startMinorVersion := startVersion[1]
-
 	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
 		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
 		return reconcile.Result{}, nil
@@ -313,29 +312,129 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return r.reconcilePlugin(instance, request)
 	}
 	if r.DisableDefaultArgoCDConsoleLink {
-		logs.Info("Skipping reconciliation of ArgoCD ConsoleLink as it is disabled by env variable")
-		if err := r.ensureConsoleLinkDoesntExist(); err != nil {
-			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of ArgoCD ConsoleLink: %v", err)
+		log.Print("Deleting ConsoleLink resources")
+		if err := r.ensureConsoleLinkResourcesDoesntExist(gitopsserviceNamespacedName); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of ConsoleLink deployments: %v", err)
+		}
+		log.Print("Deleting ConsolePlugin resources")
+		if err := r.ensurePluginResourcesDontExist(); err != nil {
+			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of Console Plugin resources: %v", err)
 		}
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileGitopsService) ensureConsoleLinkDoesntExist() error {
-	consoleLink := &pipelinesv1alpha1.GitopsService{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: serviceName}, consoleLink)
+func (r *ReconcileGitopsService) ensurePluginResourcesDontExist() error {
+	// check service exist, then delete it
+	existingServiceRef := &corev1.Service{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: serviceNamespace, Name: gitopsPluginName}, existingServiceRef)
 	if err == nil {
-		// The Argo CD ConsoleLink exists, delete it.
-		if err := r.Client.Delete(context.TODO(), consoleLink); err != nil {
+		log.Print("Deleting Service for Console Plugin")
+		if err := r.Client.Delete(context.TODO(), existingServiceRef); err != nil {
+			log.Printf("Error deleting Service for Console Plugin: %v", err)
 			return err
 		}
-	} else {
-		if !errors.IsNotFound(err) {
-			// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
-			return nil
-		} else {
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting Service for Console Plugin: %v", err)
+		return err
+	}
+	// check deployemt exist, then delete it
+	existingDeployment := &appsv1.Deployment{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Namespace: serviceNamespace, Name: gitopsPluginName}, existingDeployment)
+	if err == nil {
+		log.Print("Deleting Deployment for Console Plugin")
+		if err := r.Client.Delete(context.TODO(), existingDeployment); err != nil {
+			log.Printf("Error deleting Deployment for Console Plugin: %v", err)
 			return err
 		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting Deployment for Console Plugin: %v", err)
+		return err
+	}
+	// check configmap exist, then delete it
+	existingConfigMap := &corev1.ConfigMap{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Namespace: serviceNamespace, Name: httpdConfigMapName}, existingConfigMap)
+	if err == nil {
+		log.Print("Deleting ConfigMap for Console Plugin")
+		if err := r.Client.Delete(context.TODO(), existingConfigMap); err != nil {
+			log.Printf("Error deleting ConfigMap for Console Plugin: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting ConfigMap for Console Plugin: %v", err)
+		return err
+	}
+	//check consoleplugin exist, then delete it
+	existingPlugin := &consolev1.ConsolePlugin{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, existingPlugin)
+	if err == nil {
+		log.Print("Deleting ConsolePlugin")
+		if err := r.Client.Delete(context.TODO(), existingPlugin); err != nil {
+			log.Printf("Error deleting ConsolePlugin: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting ConsolePlugin: %v", err)
+		return err
+	}
+	return nil
+}
+
+func (r *ReconcileGitopsService) ensureConsoleLinkResourcesDoesntExist(meta types.NamespacedName) error {
+	// service account exist, then delete it
+	existingServiceAccount := &corev1.ServiceAccount{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: meta.Namespace, Name: gitopsServicePrefix + meta.Name}, existingServiceAccount)
+	if err == nil {
+		log.Print("Deleting ServiceAccount for ConsoleLink")
+		if err := r.Client.Delete(context.TODO(), existingServiceAccount); err != nil {
+			log.Printf("Error deleting ServiceAccount for ConsoleLink: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting ServiceAccount for ConsoleLink: %v", err)
+		return err
+	}
+
+	//cluster role exist, then delete it
+	existingClusterRole := &rbacv1.ClusterRole{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + meta.Name}, existingClusterRole)
+	if err == nil {
+		log.Print("Deleting ClusterRole for ConsoleLink")
+		if err := r.Client.Delete(context.TODO(), existingClusterRole); err != nil {
+			log.Printf("Error deleting ClusterRole for ConsoleLink: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting ClusterRole for ConsoleLink: %v", err)
+		return err
+	}
+
+	//cluster role binding exist, then delete it
+	existingClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + meta.Name}, existingClusterRoleBinding)
+	if err == nil {
+		log.Print("Deleting ClusterRoleBinding for ConsoleLink")
+		if err := r.Client.Delete(context.TODO(), existingClusterRoleBinding); err != nil {
+			log.Printf("Error deleting ClusterRoleBinding for ConsoleLink: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting ClusterRoleBinding for ConsoleLink: %v", err)
+		return err
+	}
+
+	// deployment exist, then delete it
+	existingDeployment := &appsv1.Deployment{}
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Namespace: meta.Namespace, Name: meta.Name}, existingDeployment)
+	if err == nil {
+		log.Print("Deleting Deployment for ConsoleLink")
+		if err := r.Client.Delete(context.TODO(), existingDeployment); err != nil {
+			log.Printf("Error deleting Deployment for ConsoleLink: %v", err)
+			return err
+		}
+	} else if !errors.IsNotFound(err) {
+		log.Printf("Error getting Deployment for ConsoleLink: %v", err)
+		return err
 	}
 	return nil
 }
@@ -348,7 +447,6 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 	argocdNS := newRestrictedNamespace(defaultArgoCDInstance.Namespace)
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: argocdNS.Name}, &corev1.Namespace{})
 	if err != nil {
-
 		if errors.IsNotFound(err) {
 			// If the namespace doesn't exit, then the instance necessarily doesn't exist, so just return
 			return nil
@@ -372,12 +470,10 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 }
 
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
-
 	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
 	// The operator decides the namespace based on the version of the cluster it is installed in
 	// 4.6 Cluster: Backend in openshift-pipelines-app-delivery namespace and argocd in openshift-gitops namespace
 	// 4.7 Cluster: Both backend and argocd instance in openshift-gitops namespace
@@ -414,7 +510,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 				return reconcile.Result{}, err
 			}
 		}
-
 		needsUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
 		if needsUpdate {
 			err = r.Client.Update(context.TODO(), updateNameSpace)
