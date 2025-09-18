@@ -741,6 +741,105 @@ func TestReconcile_PSSLabels(t *testing.T) {
 	}
 }
 
+func TestReconcileBackend_ResourceRequestsAndLimits(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+				},
+			},
+		},
+	}
+	gitopsserviceNamespacedName := types.NamespacedName{
+		Name:      serviceName,
+		Namespace: serviceNamespace,
+	}
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+	_, err := reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	assertNoError(t, err)
+
+	// verify whether backend deployment is created with user defined resource requests and limits
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+}
+
+func TestReconcileBackend_ModifyExistingValuesOfResourceRequestsAndLimits(t *testing.T) {
+
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+				},
+			},
+		},
+	}
+	gitopsserviceNamespacedName := types.NamespacedName{
+		Name:      serviceName,
+		Namespace: serviceNamespace,
+	}
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+	_, err := reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	assertNoError(t, err)
+
+	// verify whether backend deployment is created with user defined resource requests and limits
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+
+	// Update resource requests and limits in GitopsService CR
+	instance.Spec.Resources = &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("250m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+		},
+	}
+	_, err = reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	assertNoError(t, err)
+
+	// verify whether backend deployment is updated with new resource requests and limits
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+}
+
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})

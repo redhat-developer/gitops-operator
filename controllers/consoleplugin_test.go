@@ -1005,6 +1005,96 @@ func TestPlugin_reconcileDeployment(t *testing.T) {
 	assertNoError(t, err)
 }
 
+func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+				},
+			},
+		},
+	}
+
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+}
+
+func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			Resources: &corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+				},
+			},
+		},
+	}
+
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+
+	// Update the resource values again
+	instance.Spec.Resources = &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("250m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+		},
+	}
+
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment = &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+
+}
+
 func TestPlugin_reconcileService(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
