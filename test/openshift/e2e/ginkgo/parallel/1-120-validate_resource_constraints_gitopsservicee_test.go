@@ -23,7 +23,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", func() {
-
+			fixture.EnsureRunningOnOpenShift()
 			By("enabling resource constraints on GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
