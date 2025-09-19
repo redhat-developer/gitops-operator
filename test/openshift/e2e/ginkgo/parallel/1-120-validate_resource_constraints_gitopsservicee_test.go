@@ -56,12 +56,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Spec: gitopsoperatorv1alpha1.GitopsServiceSpec{
 					Resources: &corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("200m"),
-							corev1.ResourceMemory: resource.MustParse("256Mi"),
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("200Mi"),
 						},
 						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("500m"),
-							corev1.ResourceMemory: resource.MustParse("512Mi"),
+							corev1.ResourceCPU:    resource.MustParse("300m"),
+							corev1.ResourceMemory: resource.MustParse("400Mi"),
 						},
 					},
 				},
@@ -95,12 +95,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return gitopsPluginDepl.Spec.Template.Spec.Containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("200m"),
-					corev1.ResourceMemory: resource.MustParse("256Mi"),
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("200Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("512Mi"),
+					corev1.ResourceCPU:    resource.MustParse("300m"),
+					corev1.ResourceMemory: resource.MustParse("400Mi"),
 				})),
 			))
 
@@ -110,12 +110,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return clusterDepl.Spec.Template.Spec.Containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("200m"),
-					corev1.ResourceMemory: resource.MustParse("256Mi"),
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("200Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("512Mi"),
+					corev1.ResourceCPU:    resource.MustParse("300m"),
+					corev1.ResourceMemory: resource.MustParse("400Mi"),
 				})),
 			))
 		})
@@ -134,12 +134,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
 				gs.Spec.Resources = &corev1.ResourceRequirements{
 					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("200m"),
-						corev1.ResourceMemory: resource.MustParse("256Mi"),
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("200Mi"),
 					},
 					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("500m"),
-						corev1.ResourceMemory: resource.MustParse("512Mi"),
+						corev1.ResourceCPU:    resource.MustParse("300m"),
+						corev1.ResourceMemory: resource.MustParse("400Mi"),
 					},
 				}
 			})
@@ -171,12 +171,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return gitopsPluginDepl.Spec.Template.Spec.Containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("200m"),
-					corev1.ResourceMemory: resource.MustParse("256Mi"),
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("200Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("512Mi"),
+					corev1.ResourceCPU:    resource.MustParse("300m"),
+					corev1.ResourceMemory: resource.MustParse("400Mi"),
 				})),
 			))
 			// Verify the resource constraints are honoured for cluster deployment
@@ -185,12 +185,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return clusterDepl.Spec.Template.Spec.Containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("200m"),
-					corev1.ResourceMemory: resource.MustParse("256Mi"),
+					corev1.ResourceCPU:    resource.MustParse("100m"),
+					corev1.ResourceMemory: resource.MustParse("200Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("512Mi"),
+					corev1.ResourceCPU:    resource.MustParse("300m"),
+					corev1.ResourceMemory: resource.MustParse("400Mi"),
 				})),
 			))
 

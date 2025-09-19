@@ -1070,7 +1070,7 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{
 			Resources: &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("123i"),
+					corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
 					corev1.ResourceCPU:    resourcev1.MustParse("234m"),
 				},
 				Limits: corev1.ResourceList{
