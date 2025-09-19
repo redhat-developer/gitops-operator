@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -88,6 +89,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
+			Eventually(clusterDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(gitopsPluginDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
@@ -164,6 +167,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
+			Eventually(clusterDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(gitopsPluginDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
