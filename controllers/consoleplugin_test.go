@@ -1005,6 +1005,7 @@ func TestPlugin_reconcileDeployment(t *testing.T) {
 	assertNoError(t, err)
 }
 
+// Test to verify if the resource values are updated when the resource values are changed in the CR
 func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
@@ -1015,12 +1016,12 @@ func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{
 			Resources: &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+					corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("234m"),
 				},
 				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+					corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("5"),
 				},
 			},
 		},
@@ -1032,12 +1033,33 @@ func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 	deployment := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assertNoError(t, err)
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("123Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("234m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("456Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("5"))
 }
 
+// Test to verify if the default resource values are set when no resource values are provided in the CR
+func TestPlugin_ReconcileDeployment_DefaultResourceValues(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{}
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+}
+
+// Test to verify if the resource values are updated when the resource values are changed in the CR
 func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
@@ -1048,12 +1070,12 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 		Spec: pipelinesv1alpha1.GitopsServiceSpec{
 			Resources: &corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+					corev1.ResourceMemory: resourcev1.MustParse("123i"),
+					corev1.ResourceCPU:    resourcev1.MustParse("234m"),
 				},
 				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("512Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("1"),
+					corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+					corev1.ResourceCPU:    resourcev1.MustParse("5"),
 				},
 			},
 		},
@@ -1065,20 +1087,20 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	deployment := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assertNoError(t, err)
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("256Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("500m"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("512Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("1"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("123Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("234m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("456Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("5"))
 
 	// Update the resource values again
 	instance.Spec.Resources = &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
-			corev1.ResourceMemory: resourcev1.MustParse("128Mi"),
-			corev1.ResourceCPU:    resourcev1.MustParse("250m"),
+			corev1.ResourceMemory: resourcev1.MustParse("100Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("200m"),
 		},
 		Limits: corev1.ResourceList{
-			corev1.ResourceMemory: resourcev1.MustParse("256Mi"),
-			corev1.ResourceCPU:    resourcev1.MustParse("500m"),
+			corev1.ResourceMemory: resourcev1.MustParse("300Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("400m"),
 		},
 	}
 
@@ -1088,10 +1110,10 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	deployment = &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assertNoError(t, err)
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
-	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("100Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("200m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("300Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("400m"))
 
 }
 
