@@ -19,7 +19,7 @@ import (
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-120-validate_resource_constraints_gitopsservice_test", func() {
+	Context("1-121-validate_resource_constraints_gitopsservice_test", func() {
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
 		})
