@@ -28,7 +28,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("ensuring the GitOpsService CR is created with Resource constraints set")
 			k8sClient, _ := utils.GetE2ETestKubeClient()
-			fixture.EnsureRunningOnOpenShift()
 			// Clean up the GitOpsService CR so we can test patching it next
 			Expect(k8sClient.Delete(context.Background(), &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{
