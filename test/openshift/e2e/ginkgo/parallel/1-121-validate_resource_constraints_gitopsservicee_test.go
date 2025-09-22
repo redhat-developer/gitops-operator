@@ -2,12 +2,13 @@ package parallel
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -70,6 +71,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(context.Background(), gitops)).To(Succeed())
 			Expect(gitops).To(k8sFixture.ExistByName())
 
+			time.Sleep(60 * time.Second) // Give some time for the operator to react to the new CR
 			// Ensure the change is reverted when the test exits
 			defer func() {
 				gitopsserviceFixture.Update(gitops, func(gs *gitopsoperatorv1alpha1.GitopsService) {
@@ -89,8 +91,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
-			Eventually(clusterDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(gitopsPluginDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(clusterDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
+			Eventually(gitopsPluginDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
+
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
@@ -167,8 +170,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
-			Eventually(clusterDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(gitopsPluginDepl, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(clusterDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
+			Eventually(gitopsPluginDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
