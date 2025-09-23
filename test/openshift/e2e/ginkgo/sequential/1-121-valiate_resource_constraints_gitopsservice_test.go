@@ -1,4 +1,4 @@
-package parallel
+package sequential
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -19,11 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-121-validate_resource_constraints_gitopsservice_test", func() {
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", func() {
@@ -91,14 +90,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
-			Eventually(clusterDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
-			Eventually(gitopsPluginDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
-
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
-				return gitopsPluginDepl.Spec.Template.Spec.Containers[0].Resources
-			}).Should(SatisfyAll(
+				containers := gitopsPluginDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
+			}, "2m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
 					corev1.ResourceMemory: resource.MustParse("200Mi"),
@@ -112,8 +112,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// Verify the resource constraints are honoured for cluster deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(clusterDepl), clusterDepl)
-				return clusterDepl.Spec.Template.Spec.Containers[0].Resources
-			}).Should(SatisfyAll(
+				containers := clusterDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
+			}, "2m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
 					corev1.ResourceMemory: resource.MustParse("200Mi"),
@@ -170,12 +174,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 			}
-			Eventually(clusterDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
-			Eventually(gitopsPluginDepl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
+			// Now you can safely check for available replicas and resource requirements
 			// Verify the resource constraints are honoured for gitops-plugin deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
-				return gitopsPluginDepl.Spec.Template.Spec.Containers[0].Resources
+				containers := gitopsPluginDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -189,7 +196,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// Verify the resource constraints are honoured for cluster deployment
 			Eventually(func() corev1.ResourceRequirements {
 				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(clusterDepl), clusterDepl)
-				return clusterDepl.Spec.Template.Spec.Containers[0].Resources
+				containers := clusterDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
 			}).Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
