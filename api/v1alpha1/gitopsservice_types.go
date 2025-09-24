@@ -36,6 +36,7 @@ type GitopsServiceSpec struct {
 	ConsolePlugin ConsolePluginResourceStruct `json:"consolePlugin,omitempty"`
 }
 
+// ConsolePluginResourceStruct defines the resource configuration for the Console Plugin components
 type ConsolePluginResourceStruct struct {
 	// Enable indicates whether to deploy the console plugin resources
 	Enable bool `json:"enable,omitempty"`
@@ -46,11 +47,13 @@ type ConsolePluginResourceStruct struct {
 	GitopsPlugin GitopsPluginResourceStruct `json:"gitopsPlugin,omitempty"`
 }
 
+// BackendResourceStruct defines the resource configuration for the Backend components
 type BackendResourceStruct struct {
 	// Resources defines the resource requests and limits for the backend service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
+// GitopsPluginResourceStruct defines the resource configuration for the Gitops Plugin components
 type GitopsPluginResourceStruct struct {
 	// Resources defines the resource requests and limits for the gitops plugin service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
