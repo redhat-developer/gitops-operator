@@ -284,8 +284,8 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 		newPluginDeployment.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(newPluginDeployment.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
 	}
 
-	if cr.Spec.Resources != nil {
-		newPluginDeployment.Spec.Template.Spec.Containers[0].Resources = *cr.Spec.Resources
+	if cr.Spec.ConsolePlugin.GitopsPlugin.Resources != nil {
+		newPluginDeployment.Spec.Template.Spec.Containers[0].Resources = *cr.Spec.ConsolePlugin.GitopsPlugin.Resources
 	}
 
 	if len(cr.Spec.Tolerations) > 0 {

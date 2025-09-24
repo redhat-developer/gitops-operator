@@ -1013,19 +1013,19 @@ func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{
-		Spec: pipelinesv1alpha1.GitopsServiceSpec{
-			Resources: &corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("234m"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("5"),
-				},
-			},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+	Resources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("234m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
+	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
 
 	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)
@@ -1067,20 +1067,19 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{
-		Spec: pipelinesv1alpha1.GitopsServiceSpec{
-			Resources: &corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("234m"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
-					corev1.ResourceCPU:    resourcev1.MustParse("5"),
-				},
-			},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+	Resources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("234m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
-
+	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
 	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)
 
@@ -1093,7 +1092,7 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("5"))
 
 	// Update the resource values again
-	instance.Spec.Resources = &corev1.ResourceRequirements{
+	updatedResources := &corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
 			corev1.ResourceMemory: resourcev1.MustParse("100Mi"),
 			corev1.ResourceCPU:    resourcev1.MustParse("200m"),
@@ -1103,6 +1102,7 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 			corev1.ResourceCPU:    resourcev1.MustParse("400m"),
 		},
 	}
+	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = updatedResources, updatedResources
 
 	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)

@@ -626,8 +626,8 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
 		}
-		if instance.Spec.Resources != nil {
-			deploymentObj.Spec.Template.Spec.Containers[0].Resources = *instance.Spec.Resources
+		if instance.Spec.ConsolePlugin.Backend.Resources != nil {
+			deploymentObj.Spec.Template.Spec.Containers[0].Resources = *instance.Spec.ConsolePlugin.Backend.Resources
 		}
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}

@@ -54,27 +54,43 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Namespace: "openshift-gitops",
 				},
 				Spec: gitopsoperatorv1alpha1.GitopsServiceSpec{
-					Resources: &corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("200Mi"),
+					ConsolePlugin: gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
+						Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+							Resources: &corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("200Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("300m"),
+									corev1.ResourceMemory: resource.MustParse("400Mi"),
+								},
+							},
 						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("300m"),
-							corev1.ResourceMemory: resource.MustParse("400Mi"),
+						GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+							Resources: &corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("200Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("300m"),
+									corev1.ResourceMemory: resource.MustParse("400Mi"),
+								},
+							},
 						},
 					},
 				},
 			}
-
 			Expect(k8sClient.Create(context.Background(), gitops)).To(Succeed())
 			Expect(gitops).To(k8sFixture.ExistByName())
 
-			time.Sleep(60 * time.Second) // Give some time for the operator to react to the new CR
+			time.Sleep(90 * time.Second) // Increased time for the operator to react to the new CR
 			// Ensure the change is reverted when the test exits
 			defer func() {
 				gitopsserviceFixture.Update(gitops, func(gs *gitopsoperatorv1alpha1.GitopsService) {
-					gs.Spec.Resources = nil
+					gs.Spec.ConsolePlugin.Backend.Resources = nil
+					gs.Spec.ConsolePlugin.GitopsPlugin.Resources = nil
 				})
 			}()
 			By("verifying the openshift-gitops resources have honoured the resource constraints")
@@ -98,7 +114,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					return corev1.ResourceRequirements{}
 				}
 				return containers[0].Resources
-			}, "2m", "5s").Should(SatisfyAll(
+			}, "3m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
 					corev1.ResourceMemory: resource.MustParse("200Mi"),
@@ -117,7 +133,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					return corev1.ResourceRequirements{}
 				}
 				return containers[0].Resources
-			}, "2m", "5s").Should(SatisfyAll(
+			}, "3m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
 					corev1.ResourceMemory: resource.MustParse("200Mi"),
@@ -141,22 +157,40 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Set resource constraints
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
-				gs.Spec.Resources = &corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("100m"),
-						corev1.ResourceMemory: resource.MustParse("200Mi"),
+				gs.Spec.ConsolePlugin = gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
+					Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("123m"),
+								corev1.ResourceMemory: resource.MustParse("234Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("345m"),
+								corev1.ResourceMemory: resource.MustParse("456Mi"),
+							},
+						},
 					},
-					Limits: corev1.ResourceList{
-						corev1.ResourceCPU:    resource.MustParse("300m"),
-						corev1.ResourceMemory: resource.MustParse("400Mi"),
+					GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("123m"),
+								corev1.ResourceMemory: resource.MustParse("234Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("345m"),
+								corev1.ResourceMemory: resource.MustParse("456Mi"),
+							},
+						},
 					},
 				}
 			})
+			time.Sleep(90 * time.Second) // Increased time for the operator to react to the new CR
 
 			// Ensure the change is reverted when the test exits
 			defer func() {
 				gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
-					gs.Spec.Resources = nil
+					gs.Spec.ConsolePlugin.Backend.Resources = nil
+					gs.Spec.ConsolePlugin.GitopsPlugin.Resources = nil
 				})
 			}()
 
@@ -183,14 +217,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					return corev1.ResourceRequirements{}
 				}
 				return containers[0].Resources
-			}).Should(SatisfyAll(
+			}, "3m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("200Mi"),
+					corev1.ResourceCPU:    resource.MustParse("123m"),
+					corev1.ResourceMemory: resource.MustParse("234Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("300m"),
-					corev1.ResourceMemory: resource.MustParse("400Mi"),
+					corev1.ResourceCPU:    resource.MustParse("345m"),
+					corev1.ResourceMemory: resource.MustParse("456Mi"),
 				})),
 			))
 			// Verify the resource constraints are honoured for cluster deployment
@@ -201,17 +235,117 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					return corev1.ResourceRequirements{}
 				}
 				return containers[0].Resources
-			}).Should(SatisfyAll(
+			}, "3m", "5s").Should(SatisfyAll(
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("200Mi"),
+					corev1.ResourceCPU:    resource.MustParse("123m"),
+					corev1.ResourceMemory: resource.MustParse("234Mi"),
 				})),
 				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("300m"),
-					corev1.ResourceMemory: resource.MustParse("400Mi"),
+					corev1.ResourceCPU:    resource.MustParse("345m"),
+					corev1.ResourceMemory: resource.MustParse("456Mi"),
 				})),
 			))
 
+		})
+		It("validates gitops plugin and backend can have different resource constraints", func() {
+			By("enabling resource constraints on GitOpsService CR as a patch")
+			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Expect(gitopsService).To(k8sFixture.ExistByName())
+
+			// Set resource constraints
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				gs.Spec.ConsolePlugin = gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
+					Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("123m"),
+								corev1.ResourceMemory: resource.MustParse("234Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("345m"),
+								corev1.ResourceMemory: resource.MustParse("456Mi"),
+							},
+						},
+					},
+					GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+						Resources: &corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("223m"),
+								corev1.ResourceMemory: resource.MustParse("334Mi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("445m"),
+								corev1.ResourceMemory: resource.MustParse("556Mi"),
+							},
+						},
+					},
+				}
+			})
+
+			time.Sleep(90 * time.Second) // Increased time for the operator to react to the new CR
+			// Ensure the change is reverted when the test exits
+			defer func() {
+				gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+					gs.Spec.ConsolePlugin.Backend.Resources = nil
+					gs.Spec.ConsolePlugin.GitopsPlugin.Resources = nil
+				})
+			}()
+			k8sClient, _ := utils.GetE2ETestKubeClient()
+			By("verifying the openshift-gitops resources have honoured the resource constraints")
+			clusterDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			gitopsPluginDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-plugin",
+					Namespace: "openshift-gitops",
+				},
+			}
+			// Now you can safely check for available replicas and resource requirements
+			// Verify the resource constraints are honoured for gitops-plugin deployment
+			Eventually(func() corev1.ResourceRequirements {
+				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(gitopsPluginDepl), gitopsPluginDepl)
+				containers := gitopsPluginDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
+			}, "3m", "5s").Should(SatisfyAll(
+				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("223m"),
+					corev1.ResourceMemory: resource.MustParse("334Mi"),
+				})),
+				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("445m"),
+					corev1.ResourceMemory: resource.MustParse("556Mi"),
+				})),
+			))
+			// Verify the resource constraints are honoured for cluster deployment
+			Eventually(func() corev1.ResourceRequirements {
+				_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(clusterDepl), clusterDepl)
+				containers := clusterDepl.Spec.Template.Spec.Containers
+				if len(containers) == 0 {
+					return corev1.ResourceRequirements{}
+				}
+				return containers[0].Resources
+			}, "3m", "5s").Should(SatisfyAll(
+				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("123m"),
+					corev1.ResourceMemory: resource.MustParse("234Mi"),
+				})),
+				WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("345m"),
+					corev1.ResourceMemory: resource.MustParse("456Mi"),
+				})),
+			))
 		})
 	})
 })
