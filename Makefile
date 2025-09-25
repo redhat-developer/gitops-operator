@@ -65,7 +65,8 @@ IMG ?= $(IMAGE):$(VERSION)
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.35.0
-
+# Set the path to Operator SDK - OPERATOR_SDK_VERSION will be ignored.
+OPERATOR_SDK ?= bin/operator-sdk
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -131,19 +132,6 @@ test-e2e: manifests generate fmt vet ## Run e2e tests.
 test-metrics:
 	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
 
-.PHONY: operator-sdk
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
-operator-sdk: ## Download operator-sdk locally if necessary.
-ifeq (,$(wildcard $(OPERATOR_SDK)))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
-	chmod +x $(OPERATOR_SDK) ;\
-	}
-endif
-
 .PHONY: test-route
 test-route:
 	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
@@ -174,16 +162,16 @@ e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
 .PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 30m -r ./test/openshift/e2e/ginkgo/parallel 
+	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 30m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
-e2e-tests-sequential: 
+e2e-tests-sequential:
 	CI=prow make e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
 #	@echo "Running GitOps Operator sequential E2E tests..."
 #	. ./scripts/run-kuttl-tests.sh  sequential
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-tests-parallel: 
+e2e-tests-parallel:
 	CI=prow make e2e-tests-parallel-ginkgo
 	# @echo "Running GitOps Operator parallel E2E tests..."
 	# . ./scripts/run-kuttl-tests.sh  parallel
@@ -196,12 +184,12 @@ e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
 .PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-parallel:
 	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel	
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel
 
 .PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-all:
 	@echo "Running Non-OLM GitOps Operator E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all		
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all
 
 ##@ Build
 
@@ -223,27 +211,17 @@ docker-push: ## Push container image with the manager.
 
 ##@ Build Dependencies
 
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
+# Do not use OPERATOR_SDK variable not to overwrite the user provided path
+bin/operator-sdk:
+	mkdir -p bin
+	curl -sSLo bin/operator-sdk \
+		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(shell go env GOOS)_$(shell go env GOARCH)
+	chmod +x bin/operator-sdk
 
+# Install to bin/operator-sdk unless already there or explicit OPERATOR_SDK provided
 .PHONY: operator-sdk
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
-operator-sdk: ## Download operator-sdk locally if necessary.
-ifeq (,$(wildcard $(OPERATOR_SDK)))
-ifeq (,$(shell which operator-sdk 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
-	chmod +x $(OPERATOR_SDK) ;\
-	}
-else
-OPERATOR_SDK = $(shell which operator-sdk)
-endif
-endif
+operator-sdk: $(OPERATOR_SDK)
+	@$(OPERATOR_SDK) version
 
 ifndef ignore-not-found
   ignore-not-found = false
