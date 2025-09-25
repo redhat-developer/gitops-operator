@@ -626,6 +626,11 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
 		}
+
+		if instance.Spec.Resources != nil {
+			deploymentObj.Spec.Template.Spec.Resources = instance.Spec.Resources
+		}
+
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}
 		if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: deploymentObj.Name, Namespace: deploymentObj.Namespace},
