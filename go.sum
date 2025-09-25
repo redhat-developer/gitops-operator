@@ -33,8 +33,8 @@ github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250731075119-a100fc1d8
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250731075119-a100fc1d88b8/go.mod h1:yTwzKUV79YyI764hkXdVojGYBA9yKJk3qXx5mRuQ2Xc=
 github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250825094300-73f08c092df7 h1:Y7UmKUW707B7xVLjfnBVkQgM00Dmi7JOCxB9WZ092zE=
 github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20250825094300-73f08c092df7/go.mod h1:7zgj/iHFq1r1OZmLX9yxUAarttxnklMbqZb/63euXA8=
-github.com/argoproj/argo-cd/v3 v3.1.0-rc2 h1:oT9whFw3tShGkW1WrHJReFkAJvmsgS2KGJkcRIFSnt8=
-github.com/argoproj/argo-cd/v3 v3.1.0-rc2/go.mod h1:vrxw1sapzdI3nnkwRKP84cMTzYjOKP7XsEy5fW1FQgg=
+github.com/argoproj/argo-cd/v3 v3.1.2 h1:jhemxIndKxLYvQ9bW5w8t+M4/EzUCcomdZwkgHMlXw4=
+github.com/argoproj/argo-cd/v3 v3.1.2/go.mod h1:hB039JFN8Hbxydl8YUmkwFDXBP8+UCqYcKWAzXipMcg=
 github.com/argoproj/gitops-engine v0.7.1-0.20250617174952-093aef0dad58 h1:9ESamu44v3dR9j/I4/4Aa1Fx3QSIE8ElK1CR8Z285uk=
 github.com/argoproj/gitops-engine v0.7.1-0.20250617174952-093aef0dad58/go.mod h1:aIBEG3ohgaC1gh/sw2On6knkSnXkqRLDoBj234Dqczw=
 github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5 h1:YBoLSjpoaJXaXAldVvBRKJuOPvIXz9UOv6S96gMJM/Q=
@@ -124,8 +124,8 @@ github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399 h1:eMj
 github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399/go.mod h1:1OCfN199q1Jm3HZlxleg+Dw/mwps2Wbk9frAWm+4FII=
 github.com/go-git/go-git/v5 v5.16.2 h1:fT6ZIOjE5iEnkzKyxTHK1W4HGAsPhqEqiSAssSO77hM=
 github.com/go-git/go-git/v5 v5.16.2/go.mod h1:4Ge4alE/5gPs30F2H1esi2gPd69R0C39lolkucHBOp8=
-github.com/go-jose/go-jose/v4 v4.1.0 h1:cYSYxd3pw5zd2FSXk2vGdn9igQU2PS8MuxrCOCl0FdY=
-github.com/go-jose/go-jose/v4 v4.1.0/go.mod h1:GG/vqmYm3Von2nYiB2vGTXzdoNKE5tix5tuc6iAd+sw=
+github.com/go-jose/go-jose/v4 v4.1.2 h1:TK/7NqRQZfgAh+Td8AlsrvtPoUyiHh0LqVvokh+1vHI=
+github.com/go-jose/go-jose/v4 v4.1.2/go.mod h1:22cg9HWM1pOlnRiY+9cQYJ9XHmya1bYW8OeDM6Ku6Oo=
 github.com/go-logr/logr v1.2.3/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
 github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
