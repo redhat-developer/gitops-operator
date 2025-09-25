@@ -128,6 +128,135 @@ func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
 	assert.DeepEqual(t, existingArgoCD.Spec.NodePlacement.NodeSelector, gitopsService.Spec.NodeSelector)
 }
 
+// If the DISABLE_DEFAULT_ARGOCD_CONSOLE_LINK is set, ensure that the default ArgoCD console link is not created.
+func TestDisableDefaultArgoCDConsoleLink(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	var err error
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.15.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reconciler.DisableDefaultArgoCDConsoleLink = true
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+	// backend resources should not be created
+
+	// verify backend resources are deleted
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend deployment should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster", Namespace: serviceNamespace}, &corev1.ServiceAccount{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend service account should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRole{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend cluster role should not exist, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRoleBinding{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend cluster role binding should not exist, error: %v", err)
+	}
+	// verify gitopsService exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, &pipelinesv1alpha1.GitopsService{})
+	assertNoError(t, err)
+	// verify plugin resources exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, &consolev1.ConsolePlugin{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("console plugin should not exist, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin deployment should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &corev1.Service{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin service should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, &corev1.ConfigMap{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin configmap should not exist in namespace, error: %v", err)
+	}
+}
+
+func TestDisableDefaultArgoCDConsoleLink_DeleteIfAlreadyExists(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	util.SetConsoleAPIFound(true)
+	var err error
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.15.1"), newGitopsService())
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reconciler.DisableDefaultArgoCDConsoleLink = false
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+	// verify backend resources are be created
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster", Namespace: serviceNamespace}, &corev1.ServiceAccount{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRole{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRoleBinding{})
+	assertNoError(t, err)
+	// verify gitopsService exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, &pipelinesv1alpha1.GitopsService{})
+	assertNoError(t, err)
+	// verify plugin resources exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, &consolev1.ConsolePlugin{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &corev1.Service{})
+	assertNoError(t, err)
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, &corev1.ConfigMap{})
+	assertNoError(t, err)
+	reconciler.DisableDefaultArgoCDConsoleLink = true
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// verify backend resources are deleted
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend deployment should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster", Namespace: serviceNamespace}, &corev1.ServiceAccount{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend service account should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRole{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend cluster role should not exist, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsServicePrefix + "cluster"}, &rbacv1.ClusterRoleBinding{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("backend cluster role binding should not exist, error: %v", err)
+	}
+	// verify gitopsService exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, &pipelinesv1alpha1.GitopsService{})
+	assertNoError(t, err)
+	// verify plugin resources exist
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName}, &consolev1.ConsolePlugin{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("console plugin should not exist, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin deployment should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, &corev1.Service{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin service should not exist in namespace, error: %v", err)
+	}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, &corev1.ConfigMap{})
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("plugin configmap should not exist in namespace, error: %v", err)
+	}
+}
+
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
 func TestReconcileDisableDefault(t *testing.T) {
 
