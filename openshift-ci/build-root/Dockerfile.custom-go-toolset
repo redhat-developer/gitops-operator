@@ -1,0 +1,2 @@
+FROM ci/ubi-8-go-toolset:latest
+USER root
