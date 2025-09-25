@@ -37,6 +37,8 @@ import (
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
+	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
+	wc "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -46,11 +48,14 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -156,11 +161,21 @@ func main() {
 		Controller: controllerconfig.Controller{
 			SkipNameValidation: &skipControllerNameValidation,
 		},
+		Cache: cache.Options{
+			Scheme: scheme,
+			ByObject: map[crclient.Object]cache.ByObject{
+				&corev1.Secret{}:    {Transform: cacheutils.StripSecretDataTranform()},
+				&corev1.ConfigMap{}: {Transform: cacheutils.StripConfigMapDataTransform()},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	liveClient, _ := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+	client := wc.NewClientWrapper(mgr.GetClient(), liveClient)
 
 	registerComponentOrExit(mgr, console.AddToScheme)
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
@@ -185,7 +200,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileGitopsService{
-		Client:                mgr.GetClient(),
+		Client:                client,
 		Scheme:                mgr.GetScheme(),
 		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr); err != nil {
@@ -194,7 +209,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileArgoCDRoute{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD route")
@@ -202,7 +217,7 @@ func main() {
 	}
 
 	if err = (&controllers.ArgoCDMetricsReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
@@ -224,7 +239,7 @@ func main() {
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:        mgr.GetClient(),
+		Client:        client,
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
 		K8sClient:     k8sClient,
@@ -245,7 +260,7 @@ func main() {
 	}
 
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client:                                mgr.GetClient(),
+		Client:                                client,
 		Scheme:                                mgr.GetScheme(),
 		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
 		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
@@ -255,7 +270,7 @@ func main() {
 	}
 
 	if err = (&notificationsprovisioner.NotificationsConfigurationReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notifications Configuration")
