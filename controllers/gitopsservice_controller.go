@@ -261,7 +261,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
 		// deleting it if necessary
-		if err := r.ensureDefaultArgoCDInstanceDoesntExist(instance, reqLogger); err != nil {
+		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
 	}
@@ -306,7 +306,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 }
 
-func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
+func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
 
 	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
 	if err != nil {
