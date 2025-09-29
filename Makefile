@@ -174,16 +174,16 @@ e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
 .PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 30m -r ./test/openshift/e2e/ginkgo/parallel 
+	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 30m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
-e2e-tests-sequential: 
+e2e-tests-sequential:
 	CI=prow make e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
 #	@echo "Running GitOps Operator sequential E2E tests..."
 #	. ./scripts/run-kuttl-tests.sh  sequential
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-tests-parallel: 
+e2e-tests-parallel:
 	CI=prow make e2e-tests-parallel-ginkgo
 	# @echo "Running GitOps Operator parallel E2E tests..."
 	# . ./scripts/run-kuttl-tests.sh  parallel
@@ -196,12 +196,12 @@ e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
 .PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-parallel:
 	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel	
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel
 
 .PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-all:
 	@echo "Running Non-OLM GitOps Operator E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all		
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all
 
 ##@ Build
 
@@ -354,7 +354,7 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool $(CONTAINER_RUNTIME) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(shell basename $(CONTAINER_RUNTIME)) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
@@ -364,7 +364,7 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: gosec
 gosec: go_sec
-	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./... 
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./...
 
 .PHONY: lint
 lint: golangci_lint
