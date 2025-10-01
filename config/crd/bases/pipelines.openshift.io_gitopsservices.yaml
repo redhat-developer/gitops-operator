@@ -108,10 +108,6 @@ spec:
                             type: object
                         type: object
                     type: object
-                  enable:
-                    description: Enable indicates whether to deploy the console plugin
-                      resources
-                    type: boolean
                   gitopsPlugin:
                     description: GitopsPlugin defines the resource requests and limits
                       for the gitops plugin service

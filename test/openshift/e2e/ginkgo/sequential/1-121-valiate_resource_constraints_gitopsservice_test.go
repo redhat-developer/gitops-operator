@@ -117,8 +117,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			gitops := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"},
 				Spec: gitopsoperatorv1alpha1.GitopsServiceSpec{
-					ConsolePlugin: gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
-						Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+					ConsolePlugin: &gitopsoperatorv1alpha1.ConsolePluginStruct{
+						Backend: &gitopsoperatorv1alpha1.BackendStruct{
 							Resources: &corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -130,7 +130,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								},
 							},
 						},
-						GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+						GitopsPlugin: &gitopsoperatorv1alpha1.GitopsPluginStruct{
 							Resources: &corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("100m"),
@@ -191,8 +191,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(gitopsService).To(k8sFixture.ExistByName())
 
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
-				gs.Spec.ConsolePlugin = gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
-					Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+				gs.Spec.ConsolePlugin = &gitopsoperatorv1alpha1.ConsolePluginStruct{
+					Backend: &gitopsoperatorv1alpha1.BackendStruct{
 						Resources: &corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("123m"),
@@ -204,7 +204,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							},
 						},
 					},
-					GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+					GitopsPlugin: &gitopsoperatorv1alpha1.GitopsPluginStruct{
 						Resources: &corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("123m"),
@@ -262,8 +262,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(gitopsService).To(k8sFixture.ExistByName())
 
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
-				gs.Spec.ConsolePlugin = gitopsoperatorv1alpha1.ConsolePluginResourceStruct{
-					Backend: gitopsoperatorv1alpha1.BackendResourceStruct{
+				gs.Spec.ConsolePlugin = &gitopsoperatorv1alpha1.ConsolePluginStruct{
+					Backend: &gitopsoperatorv1alpha1.BackendStruct{
 						Resources: &corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("123m"),
@@ -275,7 +275,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							},
 						},
 					},
-					GitopsPlugin: gitopsoperatorv1alpha1.GitopsPluginResourceStruct{
+					GitopsPlugin: &gitopsoperatorv1alpha1.GitopsPluginStruct{
 						Resources: &corev1.ResourceRequirements{
 							Requests: corev1.ResourceList{
 								corev1.ResourceCPU:    resource.MustParse("223m"),

@@ -33,28 +33,25 @@ type GitopsServiceSpec struct {
 	// NodeSelector is a map of key value pairs used for node selection in the default workloads
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// ConsolePlugin defines the Resource configuration for the Console Plugin components
-	ConsolePlugin ConsolePluginResourceStruct `json:"consolePlugin,omitempty"`
+	ConsolePlugin *ConsolePluginStruct `json:"consolePlugin,omitempty"`
 }
 
-// ConsolePluginResourceStruct defines the resource configuration for the Console Plugin components
-type ConsolePluginResourceStruct struct {
-	// Enable indicates whether to deploy the console plugin resources
-	Enable bool `json:"enable,omitempty"`
-
+// ConsolePluginStruct defines the resource configuration for the Console Plugin components
+type ConsolePluginStruct struct {
 	// Backend defines the resource requests and limits for the backend service
-	Backend BackendResourceStruct `json:"backend,omitempty"`
+	Backend *BackendStruct `json:"backend,omitempty"`
 	// GitopsPlugin defines the resource requests and limits for the gitops plugin service
-	GitopsPlugin GitopsPluginResourceStruct `json:"gitopsPlugin,omitempty"`
+	GitopsPlugin *GitopsPluginStruct `json:"gitopsPlugin,omitempty"`
 }
 
-// BackendResourceStruct defines the resource configuration for the Backend components
-type BackendResourceStruct struct {
+// BackendStruct defines the resource configuration for the Backend components
+type BackendStruct struct {
 	// Resources defines the resource requests and limits for the backend service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// GitopsPluginResourceStruct defines the resource configuration for the Gitops Plugin components
-type GitopsPluginResourceStruct struct {
+// GitopsPluginStruct defines the resource configuration for the Gitops Plugin components
+type GitopsPluginStruct struct {
 	// Resources defines the resource requests and limits for the gitops plugin service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
