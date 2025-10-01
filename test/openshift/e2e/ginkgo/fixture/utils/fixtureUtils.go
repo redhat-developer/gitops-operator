@@ -24,6 +24,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -129,6 +130,10 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := autoscalingv2.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := batchv1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 

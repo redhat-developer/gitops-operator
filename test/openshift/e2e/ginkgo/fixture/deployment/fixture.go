@@ -151,6 +151,22 @@ func GetTemplateSpecContainerByName(name string, depl appsv1.Deployment) *corev1
 	return nil
 }
 
+func HaveTemplateSpec(podTemplateSpec corev1.PodTemplateSpec) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+
+		templateSpec := depl.Spec.Template.Spec
+
+		if templateSpec.NodeSelector == nil {
+			GinkgoWriter.Println("HaveTemplateSpec - .spec.template.spec is nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateSpec - expected:", podTemplateSpec, "actual:", templateSpec)
+		return reflect.DeepEqual(podTemplateSpec, templateSpec)
+	})
+
+}
+
 func HaveTemplateSpecNodeSelector(nodeSelector map[string]string) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 
@@ -335,6 +351,23 @@ func HaveContainerWithEnvVar(envKey string, envValue string, containerIndex int)
 
 		return false
 	})
+}
+
+func HaveSpecTemplateSpecVolume(volumeParam corev1.Volume) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+
+		GinkgoWriter.Println("HaveSpecTemplateSpecVolume - Volumes:")
+		for _, volume := range depl.Spec.Template.Spec.Volumes {
+			GinkgoWriter.Println("-", volume)
+
+			if reflect.DeepEqual(volumeParam, volume) {
+				return true
+			}
+		}
+
+		return false
+	})
+
 }
 
 func HaveConditionTypeStatus(expectedConditionType appsv1.DeploymentConditionType, expectedConditionStatus corev1.ConditionStatus) matcher.GomegaMatcher {

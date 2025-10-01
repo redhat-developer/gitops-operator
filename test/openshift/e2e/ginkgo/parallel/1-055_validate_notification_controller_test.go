@@ -37,6 +37,7 @@ import (
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-055_validate_notification_controller", func() {
+		// This test supersedes 1-021_validate_notification_controller
 
 		var (
 			k8sClient client.Client
@@ -45,7 +46,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
-
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
