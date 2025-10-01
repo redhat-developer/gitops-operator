@@ -86,15 +86,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
 			expected_kustomizeVersion := "v5.7.0"
-			expected_helmVersion := "v3.18.3"
-			expected_argocdVersion := "v3.1.0"
+			expected_helmVersion := "v3.18.4"
+			expected_argocdVersion := "v3.1.1"
 
 			var expected_dexVersion string
 			var expected_redisVersion string
 
 			if os.Getenv("CI") == "prow" {
 				// when running against openshift-ci
-				expected_dexVersion = "v2.30.3-dirty"
+				expected_dexVersion = "v2.43.0"
 				expected_redisVersion = "7.2.7"
 
 			} else {
