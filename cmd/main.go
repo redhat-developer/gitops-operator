@@ -221,9 +221,9 @@ func main() {
 	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		LabelSelector: labelSelectorFlag,
+		Client:            mgr.GetClient(),
+		Scheme:            mgr.GetScheme(),
+		LabelSelector:     labelSelectorFlag,
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
