@@ -761,7 +761,15 @@ func TestReconcileBackend_ResourceRequestsAndLimits(t *testing.T) {
 			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
-	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
+
 	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: serviceNamespace,
@@ -801,7 +809,14 @@ func TestReconcileBackend_ModifyExistingValuesOfResourceRequestsAndLimits(t *tes
 			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
-	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
 	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: serviceNamespace,
@@ -830,7 +845,14 @@ func TestReconcileBackend_ModifyExistingValuesOfResourceRequestsAndLimits(t *tes
 			corev1.ResourceCPU:    resourcev1.MustParse("400m"),
 		},
 	}
-	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = updatedResource, updatedResource
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: updatedResource,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: updatedResource,
+		},
+	}
 	_, err = reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
 	assertNoError(t, err)
 

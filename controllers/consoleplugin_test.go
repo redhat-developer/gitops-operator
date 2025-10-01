@@ -1025,7 +1025,14 @@ func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
-	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
 
 	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)
@@ -1079,7 +1086,14 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 			corev1.ResourceCPU:    resourcev1.MustParse("5"),
 		},
 	}
-	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = Resources, Resources
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
 	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
 	assertNoError(t, err)
 
