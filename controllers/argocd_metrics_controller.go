@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	monitoringv1 "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/go-logr/logr"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -617,7 +618,7 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 							Type:   intstr.String,
 							StrVal: expr,
 						},
-						For: "5m",
+						For: ptr.To((monitoringv1.Duration)("5m")),
 						Labels: map[string]string{
 							"severity": "warning",
 						},

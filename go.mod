@@ -3,9 +3,8 @@ module github.com/redhat-developer/gitops-operator
 go 1.24.4
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.5-0.20241023053239-85db81b64541
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250930165405-32bff720ee88
 	github.com/argoproj-labs/argocd-operator v0.14.2-0.20250930051021-8043eca08b3f
-	github.com/coreos/prometheus-operator v0.40.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/go-cmp v0.6.0
 	github.com/hashicorp/go-version v1.6.0
@@ -13,6 +12,7 @@ require (
 	github.com/onsi/gomega v1.35.1
 	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
 	github.com/operator-framework/api v0.17.5
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.73.2
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.22.0
@@ -59,7 +59,6 @@ require (
 	github.com/openshift/client-go v0.0.0-20200325131901-f7baeb993edb // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.73.2 // indirect
 	github.com/prometheus/client_golang v1.21.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
