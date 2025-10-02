@@ -1,6 +1,6 @@
 # Dockerfile to bootstrap build and test in openshift-ci
 
-FROM registry.ci.openshift.org/openshift/release:rhel-9-release-golang-1.22-openshift-4.17
+FROM quay.io/devtools_gitops/go-toolset:1.24.6
 
 ARG KUBECTL_KUTTL_VERSION=0.12.1
 ARG OPERATOR_SDK_VERSION=1.35.0
@@ -24,3 +24,7 @@ RUN wget https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack
 # Install operator-sdk
 RUN curl -L -o /usr/local/bin/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64 && \
     chmod +x /usr/local/bin/operator-sdk
+
+# Install jq
+RUN curl -sSL -o /usr/local/bin/jq "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64" && \
+    chmod +x /usr/local/bin/jq
