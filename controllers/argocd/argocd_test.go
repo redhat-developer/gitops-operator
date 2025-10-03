@@ -17,6 +17,7 @@ limitations under the License.
 package argocd
 
 import (
+	"strings"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -126,6 +127,66 @@ func TestArgoCD(t *testing.T) {
 		},
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.Server.Resources, testServerResources)
+
+	// Test ResourceExclusions field
+	resourceExclusions := testArgoCD.Spec.ResourceExclusions
+	assert.Assert(t, len(resourceExclusions) > 0)
+
+	// Verify that the YAML contains expected resource types
+	expectedResources := []string{
+		"Endpoints",
+		"EndpointSlice",
+		"APIService",
+		"Lease",
+		"SelfSubjectReview",
+		"TokenReview",
+		"LocalSubjectAccessReview",
+		"SelfSubjectAccessReview",
+		"SelfSubjectRulesReview",
+		"SubjectAccessReview",
+		"CertificateSigningRequest",
+		"CertificateRequest",
+		"CiliumIdentity",
+		"CiliumEndpoint",
+		"CiliumEndpointSlice",
+		"PolicyReport",
+		"ClusterPolicyReport",
+		"EphemeralReport",
+		"ClusterEphemeralReport",
+		"AdmissionReport",
+		"ClusterAdmissionReport",
+		"BackgroundScanReport",
+		"ClusterBackgroundScanReport",
+		"UpdateRequest",
+		"TaskRun",
+		"PipelineRun",
+	}
+
+	for _, expectedResource := range expectedResources {
+		assert.Assert(t, strings.Contains(resourceExclusions, expectedResource),
+			"ResourceExclusions should contain %s", expectedResource)
+	}
+
+	// Verify that the YAML contains expected API groups
+	expectedAPIGroups := []string{
+		"discovery.k8s.io",
+		"apiregistration.k8s.io",
+		"coordination.k8s.io",
+		"authentication.k8s.io",
+		"authorization.k8s.io",
+		"certificates.k8s.io",
+		"cert-manager.io",
+		"cilium.io",
+		"kyverno.io",
+		"reports.kyverno.io",
+		"wgpolicyk8s.io",
+		"tekton.dev",
+	}
+
+	for _, expectedAPIGroup := range expectedAPIGroups {
+		assert.Assert(t, strings.Contains(resourceExclusions, expectedAPIGroup),
+			"ResourceExclusions should contain API group %s", expectedAPIGroup)
+	}
 }
 
 func TestDexConfiguration(t *testing.T) {
