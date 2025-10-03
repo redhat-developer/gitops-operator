@@ -319,7 +319,7 @@ func HaveContainerCommandSubstring(expectedCommandSubstring string, containerInd
 
 		GinkgoWriter.Println("HaveContainerCommandSubstring: Have:")
 		GinkgoWriter.Println(cmdLine)
-		GinkgoWriter.Println("HaveContainerCommandSubstring: Expect:")
+		GinkgoWriter.Println("HaveContainerCommandSubstring: Expect substring:")
 		GinkgoWriter.Println(expectedCommandSubstring)
 
 		return strings.Contains(cmdLine, expectedCommandSubstring)
