@@ -19,7 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -275,7 +274,7 @@ func CreateNamespace(name string) *corev1.Namespace {
 	// If the Namespace already exists, delete it first
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
 		// Namespace exists, so delete it first
-		Expect(deleteNamespace(context.Background(), ns.Name, k8sClient)).To(Succeed())
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
 	}
 
 	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
@@ -304,7 +303,7 @@ func CreateManagedNamespace(name string, managedByNamespace string) *corev1.Name
 	// If the Namespace already exists, delete it first
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
 		// Namespace exists, so delete it first
-		Expect(deleteNamespace(context.Background(), ns.Name, k8sClient)).To(Succeed())
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
 	}
 
 	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
@@ -344,12 +343,10 @@ func DeleteNamespace(ns *corev1.Namespace) {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	Expect(err).ToNot(HaveOccurred())
-	err = k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{PropagationPolicy: ptr.To(metav1.DeletePropagationForeground)})
 
-	// Error shouldn't occur, UNLESS it's because the NS no longer exists
-	if err != nil && !apierr.IsNotFound(err) {
-		Expect(err).ToNot(HaveOccurred())
-	}
+	err = deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)
+	Expect(err).ToNot(HaveOccurred())
+
 }
 
 // EnvNonOLM checks if NON_OLM var is set; this variable is set when testing on GitOps operator that is not installed via OLM
@@ -708,15 +705,15 @@ func ensureTestNamespacesDeleted(ctx context.Context, k8sClient client.Client) e
 
 	// delete selected namespaces
 	for _, namespace := range nsList.Items {
-		if err := deleteNamespace(ctx, namespace.Name, k8sClient); err != nil {
+		if err := deleteNamespaceAndVerify(ctx, namespace.Name, k8sClient); err != nil {
 			return fmt.Errorf("unable to delete namespace '%s': %w", namespace.Name, err)
 		}
 	}
 	return nil
 }
 
-// deleteNamespace deletes a namespace, and waits for it to be reported as deleted.
-func deleteNamespace(ctx context.Context, namespaceParam string, k8sClient client.Client) error {
+// deleteNamespaceAndVerify deletes a namespace, and waits for it to be reported as deleted.
+func deleteNamespaceAndVerify(ctx context.Context, namespaceParam string, k8sClient client.Client) error {
 
 	GinkgoWriter.Println("Deleting Namespace", namespaceParam)
 
@@ -979,4 +976,8 @@ func outputPodLog(podSubstring string) {
 	}
 	GinkgoWriter.Println("----------------------------------------------------------------")
 
+}
+
+func IsUpstreamOperatorTests() bool {
+	return false // This function should return true if running from argocd-operator repo, false if running from gitops-operator repo. This is to distinguish between tests in upstream argocd-operator and downstream gitops-operator repos.
 }
