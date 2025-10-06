@@ -42,8 +42,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-023_validate_repo_server_tls", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx                context.Context
+			k8sClient          client.Client
+			nsTest_1_23_custom *corev1.Namespace
+			cleanupFunc        func()
 		)
 
 		BeforeEach(func() {
@@ -52,12 +54,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			defer cleanupFunc()
+			fixture.OutputDebugOnFail(nsTest_1_23_custom)
+		})
+
 		It("verifying ArgoCD .spec.repo AutoTLS and verifyTLS work as expected", func() {
 
 			By("creating a namespace scoped Argo instance with AutoTLS set to 'openshift'")
 
-			nsTest_1_23_custom, cleanupFn1 := fixture.CreateNamespaceWithCleanupFunc("test-1-23-custom")
-			defer cleanupFn1()
+			nsTest_1_23_custom, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("test-1-23-custom")
 
 			argoCDTest_1_23_custom := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: nsTest_1_23_custom.Name},
