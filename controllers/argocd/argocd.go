@@ -179,9 +179,49 @@ func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 }
 
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
-// with Tekton
+// with comprehensive default resource exclusions
 func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{
+		{
+			APIGroups: []string{"", "discovery.k8s.io"},
+			Kinds:     []string{"Endpoints", "EndpointSlice"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Kinds:     []string{"APIService"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"coordination.k8s.io"},
+			Kinds:     []string{"Lease"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"authentication.k8s.io", "authorization.k8s.io"},
+			Kinds:     []string{"SelfSubjectReview", "TokenReview", "LocalSubjectAccessReview", "SelfSubjectAccessReview", "SelfSubjectRulesReview", "SubjectAccessReview"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"certificates.k8s.io"},
+			Kinds:     []string{"CertificateSigningRequest"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"cert-manager.io"},
+			Kinds:     []string{"CertificateRequest"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"cilium.io"},
+			Kinds:     []string{"CiliumIdentity", "CiliumEndpoint", "CiliumEndpointSlice"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"kyverno.io", "reports.kyverno.io", "wgpolicyk8s.io"},
+			Kinds:     []string{"PolicyReport", "ClusterPolicyReport", "EphemeralReport", "ClusterEphemeralReport", "AdmissionReport", "ClusterAdmissionReport", "BackgroundScanReport", "ClusterBackgroundScanReport", "UpdateRequest"},
+			Clusters:  []string{"*"},
+		},
 		{
 			APIGroups: []string{"tekton.dev"},
 			Kinds:     []string{"TaskRun", "PipelineRun"},
