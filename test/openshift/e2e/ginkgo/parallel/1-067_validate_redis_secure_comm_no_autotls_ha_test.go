@@ -32,6 +32,7 @@ import (
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -41,8 +42,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-067_validate_redis_secure_comm_no_autotls_ha", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient   client.Client
+			ctx         context.Context
+			ns          *corev1.Namespace
+			cleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -52,6 +55,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			defer cleanupFunc()
+			fixture.OutputDebugOnFail(ns)
+		})
+
 		It("ensures that redis HA can be enabled with tls with generated certificate", func() {
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
@@ -59,8 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// Note: Redis HA requires a cluster which contains multiple nodes
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -140,19 +147,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating argocd-operator-redis-tls secret from that cert")
 
-			_, err = osFixture.ExecCommand("oc", "create", "secret", "tls", "argocd-operator-redis-tls", "--key="+redis_key_File.Name(), "--cert="+redis_crt_File.Name(), "-n", ns.Name)
+			_, err = osFixture.ExecCommand("kubectl", "create", "secret", "tls", "argocd-operator-redis-tls", "--key="+redis_key_File.Name(), "--cert="+redis_crt_File.Name(), "-n", ns.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			expectComponentsAreRunning()
 
 			By("adding argo cd label to argocd-operator-redis-tls secret")
-			_, err = osFixture.ExecCommand("oc", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", ns.Name)
+			_, err = osFixture.ExecCommand("kubectl", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", ns.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			expectComponentsAreRunning()
 
 			By("extracting the contents of /data/conf/redis.conf and checking it contains expected values")
-			redisConf, err := osFixture.ExecCommandWithOutputParam(false, "oc", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/redis.conf")
+			redisConf, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/redis.conf")
 			Expect(err).ToNot(HaveOccurred())
 			expectedRedisConfig := []string{
 				"port 0",
@@ -168,7 +175,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			By("extracting the contents of /data/conf/sentinel.conf and checking it contains expected values")
-			sentinelConf, err := osFixture.ExecCommandWithOutputParam(false, "oc", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/sentinel.conf")
+			sentinelConf, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/sentinel.conf")
 			Expect(err).ToNot(HaveOccurred())
 			expectedSentinelConfig := []string{
 				"port 0",
