@@ -32,6 +32,7 @@ import (
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -41,8 +42,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-066_validate_redis_secure_comm_no_autotls_no_ha", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient   client.Client
+			ctx         context.Context
+			ns          *corev1.Namespace
+			cleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -51,11 +54,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			defer cleanupFunc()
+			fixture.OutputDebugOnFail(ns)
+		})
+
 		It("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			expectComponentsAreRunning := func() {
 
@@ -116,12 +123,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			)
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = osFixture.ExecCommand("oc", "create", "secret", "tls", "argocd-operator-redis-tls", "--key="+redis_key_File.Name(), "--cert="+redis_crt_File.Name(), "-n", ns.Name)
+			By("creating argocd-operator-redis-tls secret from that cert")
+
+			_, err = osFixture.ExecCommand("kubectl", "create", "secret", "tls", "argocd-operator-redis-tls", "--key="+redis_key_File.Name(), "--cert="+redis_crt_File.Name(), "-n", ns.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			expectComponentsAreRunning()
 
-			_, err = osFixture.ExecCommand("oc", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", ns.Name)
+			By("adding argo cd label to argocd-operator-redis-tls secret")
+			_, err = osFixture.ExecCommand("kubectl", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", ns.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verifying that all the components restart successfully once we define the argocd-operator-redis-tls Secret")
@@ -132,7 +142,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("expecting redis-server to have desired container process command/arguments")
 
-			Expect(redisDepl).To(deplFixture.HaveContainerCommandSubstring("redis-server --protected-mode no --save \"\" --appendonly no --requirepass "+"$(REDIS_PASSWORD)"+" --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no", 0),
+			expectedString := "--save \"\" --appendonly no --requirepass " + "$(REDIS_PASSWORD)" + " --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no"
+
+			if !fixture.IsUpstreamOperatorTests() {
+				// Downstream operator adds these arguments
+				expectedString = "redis-server --protected-mode no " + expectedString
+			}
+
+			Expect(redisDepl).To(deplFixture.HaveContainerCommandSubstring(expectedString, 0),
 				"TLS .spec.template.spec.containers.args for argocd-redis deployment are wrong")
 
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
