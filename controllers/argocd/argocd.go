@@ -17,8 +17,6 @@ limitations under the License.
 package argocd
 
 import (
-	"fmt"
-
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
@@ -233,7 +231,6 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Hello creating ArgoCD CR\n")
 	return &argoapp.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
