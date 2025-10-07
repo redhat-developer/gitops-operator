@@ -12,22 +12,28 @@ An operator that gets you an Argo CD for cluster configuration out-of-the-box on
 apiVersion: operators.coreos.com/v1alpha1
 kind: CatalogSource
 metadata:
-  name: gitops-service-source
+  name: devel-gitops-service-source
   namespace: openshift-marketplace
 spec:
-  displayName: 'Gitops Service by Red Hat'
-  image: 'quay.io/<quay-username>/gitops-operator-index:v0.0.1'
-  publisher: 'Red Hat Developer'
+  displayName: "!!! GITOPS DEVEL !!!"
+  image: quay.io/<QUAY_USERNAME>/gitops-operator-catalog:v<VERSION>
+  publisher: "!!! GITOPS DEVEL !!!"
   sourceType: grpc
 ```
+(Remember to replace the placeholders)
 
-2. Go to the OperatorHub on OpenShift Webconsole and look for the "OpenShift GitOps" operator.
+- This only works _after_ you have built and pushed the bundle and the catalog (see below).
+- To verify the source is correctly configured, `oc y CatalogSource gitops-service-source -n openshift-marketplace | yq '.status.connectionState.lastObservedState'` should report `READY`.
+  - If not, consult `oc get events -n openshift-marketplace`.
 
-
+2. Go to the OperatorHub on OpenShift Webconsole and look for the "OpenShift GitOps" operator from `!!! GITOPS DEVEL !!!` source.
 
 ![a relative link](docs/assets/operatorhub-listing.png)
 
-3. Install the operator in the `openshift-gitops-operator` namespace using the defaults in the wizard, and optionally, select the checkbox to enable cluster monitoring on the namespace. Wait for it to show up in the list of "Installed Operators". If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-gitops-operator` namespace.
+3. Install the operator in the `openshift-gitops-operator` namespace using the defaults in the wizard, and optionally, select the checkbox to enable cluster monitoring on the namespace. 
+  Wait for it to show up in the list of "Installed Operators". 
+  If it doesn't install properly, you can check on its status in the "Installed Operators" tab in the `openshift-gitops-operator` namespace, or `oc get jobs -n openshift-marketplace`.
+  To rerun the operator install, make sure to remove the Subscription and the InstallPlan (if exists).
 
 ![a relative link](docs/assets/installed-operator.png)
 
@@ -74,14 +80,16 @@ Set the base image and version for building operator, bundle and index images.
 export IMAGE=quay.io/<quay-username>/gitops-operator VERSION=1.8.0
 ```
 
+Note quey.io will auto-create the repositories if they do not exist.
+Make sure to change their visibility to public in Quay UI, so OpenShift can access them.  
+
 1. Build and push the operator image.
 
 ```
 make docker-build docker-push
 ```
 
-
-2. Build and push the Bundle image ( operator + OLM manifests )
+2. Build and push the Bundle image (operator + OLM manifests)
 
 ```
 make bundle
@@ -89,12 +97,6 @@ make bundle-build bundle-push
 ```
 
 3. Build and push the Index image
-
-Install `opm` binary which is required to build index images
-
-```
-make opm
-```
 
 ```
 make catalog-build catalog-push
