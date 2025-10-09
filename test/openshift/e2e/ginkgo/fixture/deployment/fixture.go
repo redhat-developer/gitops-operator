@@ -397,6 +397,14 @@ func HaveServiceAccountName(expectedServiceAccountName string) matcher.GomegaMat
 	})
 }
 
+// HaveResourceRequirements validates if the deployment object contains the given resource requirements.
+func HaveResourceRequirements(requirements *corev1.ResourceRequirements) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+		GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected: ", requirements.String(), "actual: ", depl.Spec.Template.Spec.Containers[0].Resources.String())
+		return reflect.DeepEqual(requirements, depl.Spec.Template.Spec.Containers[0].Resources)
+	})
+}
+
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
 func fetchDeployment(f func(*appsv1.Deployment) bool) matcher.GomegaMatcher {
 

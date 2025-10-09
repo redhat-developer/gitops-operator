@@ -32,6 +32,28 @@ type GitopsServiceSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 	// NodeSelector is a map of key value pairs used for node selection in the default workloads
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// ConsolePlugin defines the Resource configuration for the Console Plugin components
+	ConsolePlugin *ConsolePluginStruct `json:"consolePlugin,omitempty"`
+}
+
+// ConsolePluginStruct defines the resource configuration for the Console Plugin components
+type ConsolePluginStruct struct {
+	// Backend defines the resource requests and limits for the backend service
+	Backend *BackendStruct `json:"backend,omitempty"`
+	// GitopsPlugin defines the resource requests and limits for the gitops plugin service
+	GitopsPlugin *GitopsPluginStruct `json:"gitopsPlugin,omitempty"`
+}
+
+// BackendStruct defines the resource configuration for the Backend components
+type BackendStruct struct {
+	// Resources defines the resource requests and limits for the backend service
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// GitopsPluginStruct defines the resource configuration for the Gitops Plugin components
+type GitopsPluginStruct struct {
+	// Resources defines the resource requests and limits for the gitops plugin service
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService
