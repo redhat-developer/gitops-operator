@@ -191,12 +191,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &argoapp.ArgoCD{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ArgoCD",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: ns,
