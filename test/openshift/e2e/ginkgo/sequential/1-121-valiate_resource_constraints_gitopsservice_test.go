@@ -3,7 +3,6 @@ package sequential
 import (
 	"context"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -65,7 +64,7 @@ func verifyResourceConstraints(k8sClient client.Client, deplName string, expecte
 			return corev1.ResourceRequirements{}
 		}
 		return containers[0].Resources
-	}, "3m", "5s").Should(SatisfyAll(
+	}, "2m", "5s").Should(SatisfyAll(
 		WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Requests }, Equal(expectedReq)),
 		WithTransform(func(r corev1.ResourceRequirements) corev1.ResourceList { return r.Limits }, Equal(expectedLim)),
 	))
@@ -148,7 +147,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Create(context.Background(), gitops)).To(Succeed())
 			Expect(gitops).To(k8sFixture.ExistByName())
 
-			time.Sleep(90 * time.Second)
 			defer func() {
 				gitopsserviceFixture.Update(gitops, func(gs *gitopsoperatorv1alpha1.GitopsService) {
 					gs.Spec.ConsolePlugin.Backend.Resources = nil
@@ -218,7 +216,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				}
 			})
-			time.Sleep(90 * time.Second)
+
 			defer func() {
 				gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
 					gs.Spec.ConsolePlugin.Backend.Resources = nil
@@ -290,7 +288,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 			})
 
-			time.Sleep(90 * time.Second)
 			defer func() {
 				gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
 					gs.Spec.ConsolePlugin.Backend.Resources = nil
