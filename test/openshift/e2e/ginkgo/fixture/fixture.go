@@ -66,7 +66,7 @@ func GetInstallationNamespace() string {
 
 		installationNamespace = "openshift-gitops-operator"
 
-		sub = &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
+		sub = &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: installationNamespace}}
 
 		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
 			return ""
