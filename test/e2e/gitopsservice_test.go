@@ -492,7 +492,7 @@ var _ = Describe("GitOpsServiceController", func() {
 	Context("Validate revoking permissions by label", func() {
 		argocdNonDefaultNamespace := "argocd-non-default-source"
 		argocdTargetNamespace := "argocd-target"
-		argocdNonDefaultNamespaceInstanceName := "argocd-non-default-namespace-instance"
+		argocdNonDefaultNamespaceInstanceName := "argocd-non-default-instance"
 		resourceList := []helper.ResourceList{
 			{
 				Resource: &rbacv1.Role{},

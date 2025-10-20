@@ -69,18 +69,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("verifying ArgoCD CR defaults to resourceTrackingMethod: label")
+			By("verifying ArgoCD CR defaults to resourceTrackingMethod: annotation")
 			argocdConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
 			Eventually(argocdConfigMap).Should(k8sFixture.ExistByName())
 
-			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "label"))
+			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "annotation"))
 
-			By("verifying we can switch ArgoCD CR to resourceTrackingMethod: annotation, and the ConfigMap will be updated")
+			By("verifying we can switch ArgoCD CR to resourceTrackingMethod: label, and the ConfigMap will be updated")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				argoCD.Spec.ResourceTrackingMethod = "annotation"
+				argoCD.Spec.ResourceTrackingMethod = "label"
 			})
 
-			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "annotation"))
+			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "label"))
 
 			By("verifying we can switch ArgoCD CR to resourceTrackingMethod: annotation+label, and the ConfigMap will be updated")
 
@@ -95,7 +95,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				argoCD.Spec.ResourceTrackingMethod = "invalid_method"
 			})
 
-			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "label"))
+			Eventually(argocdConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "annotation"))
 
 		})
 
