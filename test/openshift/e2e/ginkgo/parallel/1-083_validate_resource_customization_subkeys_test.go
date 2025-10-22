@@ -157,7 +157,7 @@ spec:
 			expectedDataFieldYaml := `
   admin.enabled: "true"
   application.instanceLabelKey: app.kubernetes.io/instance
-  application.resourceTrackingMethod: label
+  application.resourceTrackingMethod: annotation
   ga.anonymizeusers: "false"
   ga.trackingid: ""
   help.chatText: ""
