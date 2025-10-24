@@ -16,7 +16,11 @@ limitations under the License.
 
 package common
 
-import "os"
+import (
+	"os"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 const (
 	// ArgoCDInstanceName is the default Argo CD instance name
@@ -33,6 +37,8 @@ const (
 	DefaultConsoleVersion = "v0.1.0"
 	// Default console plugin installation OCP version
 	DefaultDynamicPluginStartOCPVersion = "4.15.0"
+	// ImagePullPolicyEnvVar is the environment variable for configuring image pull policy
+	ImagePullPolicy = "IMAGE_PULL_POLICY"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes
@@ -47,4 +53,28 @@ func StringFromEnv(env string, defaultValue string) string {
 		return str
 	}
 	return defaultValue
+}
+
+// GetImagePullPolicy returns the image pull policy based on precedence:
+// 1. CR-level override (highest precedence)
+// 2. Environment variable (middle precedence)
+// 3. Default fallback (lowest precedence - IfNotPresent)
+func GetImagePullPolicy(crImagePullPolicy corev1.PullPolicy) corev1.PullPolicy {
+	// If CR specifies a policy, use it (highest precedence)
+	if crImagePullPolicy != "" {
+		return crImagePullPolicy
+	}
+
+	// Check environment variable (middle precedence)
+	envPolicy := os.Getenv(ImagePullPolicy)
+	switch envPolicy {
+	case "Always":
+		return corev1.PullAlways
+	case "IfNotPresent":
+		return corev1.PullIfNotPresent
+	case "Never":
+		return corev1.PullNever
+	default:
+		return corev1.PullPolicy("IfNotPresent")
+	}
 }

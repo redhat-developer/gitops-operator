@@ -54,7 +54,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns)
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -62,7 +62,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns)
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
