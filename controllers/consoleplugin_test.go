@@ -625,7 +625,7 @@ func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
 		consoleImage := common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Name, "gitops-plugin")
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Image, consoleImage)
-		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullAlways)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullIfNotPresent)
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Name, "http")
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Protocol, corev1.ProtocolTCP)
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort, int32(9001))
