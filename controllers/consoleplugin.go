@@ -44,7 +44,7 @@ const (
 	kubeAppLabelName             = "app.kubernetes.io/name"
 )
 
-func getPluginPodSpec() corev1.PodSpec {
+func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 	consolePluginImage := os.Getenv(pluginImageEnv)
 	if consolePluginImage == "" {
 		image := common.DefaultConsoleImage
@@ -58,7 +58,7 @@ func getPluginPodSpec() corev1.PodSpec {
 				Env:             util.ProxyEnvVars(),
 				Name:            gitopsPluginName,
 				Image:           consolePluginImage,
-				ImagePullPolicy: corev1.PullAlways,
+				ImagePullPolicy: common.GetImagePullPolicy(crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
@@ -133,8 +133,8 @@ func getPluginPodSpec() corev1.PodSpec {
 	return podSpec
 }
 
-func pluginDeployment() *appsv1.Deployment {
-	podSpec := getPluginPodSpec()
+func pluginDeployment(crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
+	podSpec := getPluginPodSpec(crImagePullPolicy)
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -269,7 +269,7 @@ func pluginConfigMap() *corev1.ConfigMap {
 
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginDeployment := pluginDeployment()
+	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy)
 
 	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
