@@ -191,3 +191,5 @@ replace (
 	// Avoid CVE-2022-28948
 	gopkg.in/yaml.v3 => gopkg.in/yaml.v3 v3.0.1
 )
+
+replace github.com/argoproj-labs/argocd-operator => github.com/olivergondza/argocd-operator v0.14.0-rc1.0.20250930152012-c0a9ad2ab6f3
