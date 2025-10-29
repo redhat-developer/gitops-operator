@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -48,10 +49,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("validates ImagePullPolicy propagation from GitOpsService CR to console plugin and backend deployments", func() {
+			By("verifying Argo CD in openshift-gitops exists and is available")
+			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("getting the cluster-scoped GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
-				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: argoCD.Namespace},
 			}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
 
@@ -61,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			})
 
 			By("verifying console plugin deployment has ImagePullPolicy set to Always")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
@@ -75,10 +81,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(pluginDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullAlways))
 
 			By("verifying backend deployment has ImagePullPolicy set to Always")
-			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
+			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: argoCD.Namespace}}
 			Eventually(clusterDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
@@ -92,7 +97,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(clusterDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullAlways))
 
 			By("setting ImagePullPolicy to Never in GitOpsService CR")
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
@@ -166,6 +170,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("validates default ImagePullPolicy when not set in CR", func() {
+			By("verifying Argo CD in openshift-gitops exists and is available")
+			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 			By("getting the GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
@@ -173,7 +182,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
 
 			By("verifying backend deployment defaults to IfNotPresent")
-			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
+			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: argoCD.Namespace}}
 			Eventually(clusterDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
@@ -191,8 +200,126 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			//deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullIfNotPresent))
 
 			By("verifying plugin deployment defaults to IfNotPresent")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range pluginDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullIfNotPresent {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+		})
+
+		It("validates ImagePullPolicy set as env variable in subscription", func() {
+			if fixture.EnvLocalRun() {
+				Skip("This test does not support local run, as when the controller is running locally there is no env var to modify")
+				return
+			}
+			By("adding image pull policy env variable to IMAGE_PULL_POLICY in Subscription")
+
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
+
+			By("verifying Argo CD in openshift-gitops exists and is available")
+			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("getting the GitOpsService CR")
+			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
+
+			By("verifying backend deployment has ImagePullPolicy set based on env variable")
+			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: argoCD.Namespace}}
+			Eventually(clusterDepl).Should(k8sFixture.ExistByName())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullAlways {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+
+			By("verifying plugin deployment has ImagePullPolicy set based on env variable")
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
+			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range pluginDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullAlways {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+
+			By("updating image pull policy env variable to Never")
+
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
+
+			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullNever {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+
+			By("verifying plugin deployment has ImagePullPolicy changed based on env variable")
+
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range pluginDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullNever {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
+
+			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
+				if err != nil {
+					return false
+				}
+				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
+					if container.ImagePullPolicy != corev1.PullIfNotPresent {
+						return false
+					}
+				}
+				return true
+			}, "3m", "5s").Should(BeTrue())
+
+			By("verifying plugin deployment has ImagePullPolicy changed based on env variable")
+
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
 				if err != nil {
