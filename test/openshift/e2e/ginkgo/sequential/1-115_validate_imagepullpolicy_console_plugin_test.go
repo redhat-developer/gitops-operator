@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -53,7 +53,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD).Should(k8sFixture.ExistByName())
+			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
 			By("getting the cluster-scoped GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
@@ -116,7 +117,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(pluginDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullNever))
 
 			By("verifying backend deployment has ImagePullPolicy set to Never")
 			Eventually(func() bool {
@@ -131,7 +131,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(clusterDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullNever))
 
 			By("setting ImagePullPolicy to IfNotPresent in GitOpsService CR")
 			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
@@ -151,7 +150,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(pluginDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullIfNotPresent))
 
 			By("verifying backend deployment has ImagePullPolicy set to IfNotPresent")
 			Eventually(func() bool {
@@ -166,7 +164,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(clusterDepl, "3m", "5s").Should(deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullIfNotPresent))
 		})
 
 		It("validates default ImagePullPolicy when not set in CR", func() {
@@ -174,7 +171,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD).Should(k8sFixture.ExistByName())
+			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+
 			By("getting the GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
@@ -196,8 +195,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
-			//Eventually(clusterDepl.Spec.Template.Spec.Containers[0].ImagePullPolicy == corev1.PullIfNotPresent, "60s", "3s").Should(BeTrue())
-			//deploymentFixture.HaveContainerImagePullPolicy(0, corev1.PullIfNotPresent))
 
 			By("verifying plugin deployment defaults to IfNotPresent")
 			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
@@ -229,7 +226,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD).Should(k8sFixture.ExistByName())
+			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
 			By("getting the GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
