@@ -361,7 +361,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"argocd-server",
 				"argocd-repo-server",
 				"argocd-redis",
-				"argocd-applicationset-controller",
 			}
 
 			By("verifying operator has restarted with IMAGE_PULL_POLICY environment variable set")
