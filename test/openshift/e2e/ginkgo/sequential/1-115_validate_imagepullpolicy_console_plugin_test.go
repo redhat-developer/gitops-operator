@@ -18,6 +18,8 @@ package sequential
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -50,11 +52,33 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("validates ImagePullPolicy propagation from GitOpsService CR to console plugin and backend deployments", func() {
 			By("verifying Argo CD in openshift-gitops exists and is available")
+			if fixture.EnvNonOLM() {
+				Skip("Skipping test as NON_OLM env var is set. This test requires operator to running via CSV.")
+				return
+			}
+
+			if fixture.EnvLocalRun() {
+				Skip("Skipping test as LOCAL_RUN env var is set. There is no CSV to modify in this case.")
+				return
+			}
+
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+
+			csv := getCSV(ctx, k8sClient)
+			Expect(csv).ToNot(BeNil())
+			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
+
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
+			addDynamicPluginEnv(csv, ocVersion)
 
 			By("getting the cluster-scoped GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
@@ -168,11 +192,33 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("validates default ImagePullPolicy when not set in CR", func() {
 			By("verifying Argo CD in openshift-gitops exists and is available")
+			if fixture.EnvNonOLM() {
+				Skip("Skipping test as NON_OLM env var is set. This test requires operator to running via CSV.")
+				return
+			}
+
+			if fixture.EnvLocalRun() {
+				Skip("Skipping test as LOCAL_RUN env var is set. There is no CSV to modify in this case.")
+				return
+			}
+
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
+
+			csv := getCSV(ctx, k8sClient)
+			Expect(csv).ToNot(BeNil())
+			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
+
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
+			addDynamicPluginEnv(csv, ocVersion)
 
 			By("getting the GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
@@ -218,6 +264,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("This test does not support local run, as when the controller is running locally there is no env var to modify")
 				return
 			}
+
+			csv := getCSV(ctx, k8sClient)
+			Expect(csv).ToNot(BeNil())
+			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
+
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
+			addDynamicPluginEnv(csv, ocVersion)
+
 			By("adding image pull policy env variable to IMAGE_PULL_POLICY in Subscription")
 
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
@@ -245,11 +304,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
 					if container.ImagePullPolicy != corev1.PullAlways {
+						fmt.Println("ImagePullPolicy is set to " + container.ImagePullPolicy)
 						return false
 					}
 				}
 				return true
-			}, "3m", "5s").Should(BeTrue())
+			}, "5m", "5s").Should(BeTrue())
 
 			By("verifying plugin deployment has ImagePullPolicy set based on env variable")
 			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
@@ -261,6 +321,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				for _, container := range pluginDepl.Spec.Template.Spec.Containers {
 					if container.ImagePullPolicy != corev1.PullAlways {
+						fmt.Println("ImagePullPolicy is set to " + container.ImagePullPolicy)
 						return false
 					}
 				}
