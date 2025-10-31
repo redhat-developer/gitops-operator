@@ -19,6 +19,7 @@ package sequential
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -279,7 +280,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("adding image pull policy env variable to IMAGE_PULL_POLICY in Subscription")
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
+			os.Setenv("IMAGE_PULL_POLICY", "Always")
 
 			By("verifying Argo CD in openshift-gitops exists and is available")
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
@@ -304,7 +305,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
 					if container.ImagePullPolicy != corev1.PullAlways {
-						fmt.Println("ImagePullPolicy is set to " + container.ImagePullPolicy)
+						fmt.Println("ImagePullPolicy is set to " + string(container.ImagePullPolicy) + " but expected " + os.Getenv("IMAGE_PULL_POLICY"))
 						return false
 					}
 				}
@@ -330,7 +331,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating image pull policy env variable to Never")
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
+			os.Setenv("IMAGE_PULL_POLICY", "Never")
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {
@@ -361,7 +362,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return true
 			}, "3m", "5s").Should(BeTrue())
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
+			os.Setenv("IMAGE_PULL_POLICY", "IfNotPresent")
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {
