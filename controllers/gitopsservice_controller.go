@@ -114,9 +114,24 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 			})),
 		).Watches(&argoapp.ArgoCD{},
 		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			return obj.GetName() == "openshift-gitops" && obj.GetNamespace() == "openshift-gitops"
-		}))).
+		builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				if e.ObjectNew.GetName() != "openshift-gitops" || e.ObjectNew.GetNamespace() != "openshift-gitops" {
+					return false
+				}
+				// Ignore updates to CR status in which case metadata.Generation does not change
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
+			},
+		})).
 		Complete(r)
 }
 

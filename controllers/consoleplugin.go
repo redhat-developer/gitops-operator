@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -16,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/redhat-developer/gitops-operator/common"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,10 +55,12 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Env:             util.ProxyEnvVars(),
-				Name:            gitopsPluginName,
-				Image:           consolePluginImage,
-				ImagePullPolicy: argocdutil.GetImagePullPolicy(crImagePullPolicy),
+				Env:                      util.ProxyEnvVars(),
+				Name:                     gitopsPluginName,
+				Image:                    consolePluginImage,
+				ImagePullPolicy:          argocdutil.GetImagePullPolicy(crImagePullPolicy),
+				TerminationMessagePath:   corev1.TerminationMessagePathDefault,
+				TerminationMessagePolicy: corev1.TerminationMessageReadFile,
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
@@ -309,17 +311,18 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	} else {
 		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
-		changed := !reflect.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
-			!reflect.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Containers, newSpecTemplate.Spec.Containers) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Volumes, newSpecTemplate.Spec.Volumes) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext) || !reflect.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
+		// Use semantic equality instead of reflect.DeepEqual to handle Kubernetes defaults properly
+		changed := !equality.Semantic.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers, newSpecTemplate.Spec.Containers) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Volumes, newSpecTemplate.Spec.Volumes) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.SecurityContext, newSpecTemplate.Spec.SecurityContext) || !equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
@@ -364,10 +367,10 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := !reflect.DeepEqual(existingServiceRef.Annotations, pluginServiceRef.Annotations) ||
-			!reflect.DeepEqual(existingServiceRef.Labels, pluginServiceRef.Labels) ||
-			!reflect.DeepEqual(existingServiceRef.Spec.Selector, pluginServiceRef.Spec.Selector) ||
-			!reflect.DeepEqual(existingServiceRef.Spec.Ports, pluginServiceRef.Spec.Ports)
+		changed := !equality.Semantic.DeepEqual(existingServiceRef.Annotations, pluginServiceRef.Annotations) ||
+			!equality.Semantic.DeepEqual(existingServiceRef.Labels, pluginServiceRef.Labels) ||
+			!equality.Semantic.DeepEqual(existingServiceRef.Spec.Selector, pluginServiceRef.Spec.Selector) ||
+			!equality.Semantic.DeepEqual(existingServiceRef.Spec.Ports, pluginServiceRef.Spec.Ports)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin service", "Namespace", existingServiceRef.Namespace, "Name", existingServiceRef.Name)
@@ -375,7 +378,7 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 			existingServiceRef.Labels = pluginServiceRef.Labels
 			existingServiceRef.Spec.Selector = pluginServiceRef.Spec.Selector
 			existingServiceRef.Spec.Ports = pluginServiceRef.Spec.Ports
-			return reconcile.Result{}, r.Client.Update(context.TODO(), pluginServiceRef)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingServiceRef)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -405,14 +408,14 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := !reflect.DeepEqual(existingPlugin.Spec.DisplayName, newConsolePlugin.Spec.DisplayName) ||
-			!reflect.DeepEqual(existingPlugin.Spec.Backend.Service, newConsolePlugin.Spec.Backend.Service)
+		changed := !equality.Semantic.DeepEqual(existingPlugin.Spec.DisplayName, newConsolePlugin.Spec.DisplayName) ||
+			!equality.Semantic.DeepEqual(existingPlugin.Spec.Backend.Service, newConsolePlugin.Spec.Backend.Service)
 
 		if changed {
 			reqLogger.Info("Reconciling Console Plugin", "Namespace", existingPlugin.Namespace, "Name", existingPlugin.Name)
 			existingPlugin.Spec.DisplayName = newConsolePlugin.Spec.DisplayName
 			existingPlugin.Spec.Backend.Service = newConsolePlugin.Spec.Backend.Service
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newConsolePlugin)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPlugin)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -440,13 +443,13 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := !reflect.DeepEqual(existingPluginConfigMap.Data, newPluginConfigMap.Data) ||
-			!reflect.DeepEqual(existingPluginConfigMap.Labels, newPluginConfigMap.Labels)
+		changed := !equality.Semantic.DeepEqual(existingPluginConfigMap.Data, newPluginConfigMap.Data) ||
+			!equality.Semantic.DeepEqual(existingPluginConfigMap.Labels, newPluginConfigMap.Labels)
 		if changed {
 			reqLogger.Info("Reconciling plugin configMap", "Namespace", existingPluginConfigMap.Namespace, "Name", existingPluginConfigMap.Name)
 			existingPluginConfigMap.Data = newPluginConfigMap.Data
 			existingPluginConfigMap.Labels = newPluginConfigMap.Labels
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginConfigMap)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginConfigMap)
 		}
 	}
 	return reconcile.Result{}, nil
