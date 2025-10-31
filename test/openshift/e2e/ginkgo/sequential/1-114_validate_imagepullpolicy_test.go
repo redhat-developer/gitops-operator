@@ -53,10 +53,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verifies that imagePullPolicy from ArgoCD CR spec is propagated to all ArgoCD workload resources", func() {
 
 			By("creating a test namespace for ArgoCD instance")
-			ns := fixture.CreateNamespace("test-1-114-imagepullpolicy")
-			defer func() {
-				Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
-			}()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
 
 			By("creating an ArgoCD instance with imagePullPolicy set to Always")
 			policy := corev1.PullAlways
@@ -131,37 +129,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
 				// Eventually the imagePullPolicy should be updated
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: ns.Name}, depl)
-					if err != nil {
-						return false
-					}
-					if len(depl.Spec.Template.Spec.Containers) == 0 {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullIfNotPresent {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns.Name, corev1.PullIfNotPresent, depl), "3m", "5s").Should(BeTrue(),
 					"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 			}
 
 			By("verifying statefulset has been updated to use IfNotPresent imagePullPolicy")
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "argocd-application-controller", Namespace: ns.Name}, ss)
-				if err != nil {
-					return false
-				}
-				for _, container := range ss.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullIfNotPresent {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("argocd-application-controller", ns.Name, corev1.PullIfNotPresent, ss), "3m", "5s").Should(BeTrue(),
 				"StatefulSet argocd-application-controller should have all containers with ImagePullPolicy set to IfNotPresent")
 
 		})
@@ -204,21 +177,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: "openshift-gitops"}, depl)
-					if err != nil {
-						return false
-					}
-					if len(depl.Spec.Template.Spec.Containers) == 0 {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullAlways {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways, depl), "3m", "5s").Should(BeTrue(),
 					"openshift-gitops Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 			}
 
@@ -231,21 +190,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(ss).Should(k8sFixture.ExistByName())
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}, ss)
-				if err != nil {
-					return false
-				}
-				if len(ss.Spec.Template.Spec.Containers) == 0 {
-					return false
-				}
-				for _, container := range ss.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullAlways {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("openshift-gitops-application-controller", "openshift-gitops", corev1.PullAlways, ss), "3m", "5s").Should(BeTrue(),
 				"openshift-gitops StatefulSet should have all containers with ImagePullPolicy set to Always")
 
 		})
@@ -276,21 +221,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: "openshift-gitops"}, depl)
-					if err != nil {
-						return false
-					}
-					if len(depl.Spec.Template.Spec.Containers) == 0 {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullIfNotPresent {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent, depl), "3m", "5s").Should(BeTrue(),
 					"openshift-gitops Deployment %s should have all containers with ImagePullPolicy set to default(IfNotPresent)", deplName)
 			}
 
@@ -303,21 +234,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(ss).Should(k8sFixture.ExistByName())
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}, ss)
-				if err != nil {
-					return false
-				}
-				if len(ss.Spec.Template.Spec.Containers) == 0 {
-					return false
-				}
-				for _, container := range ss.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullIfNotPresent {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("openshift-gitops-application-controller", "openshift-gitops", corev1.PullIfNotPresent, ss), "3m", "5s").Should(BeTrue(),
 				"openshift-gitops StatefulSet should have all containers with ImagePullPolicy set to default(PullIfNotPresent)")
 
 		})
@@ -330,10 +247,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			By("creating a test namespace for first ArgoCD instance without imagePullPolicy set")
-			ns1 := fixture.CreateNamespace("test-1-114-env-default")
-			defer func() {
-				Expect(k8sClient.Delete(ctx, ns1)).To(Succeed())
-			}()
+			ns1, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
 
 			By("creating an ArgoCD instance without explicitly setting imagePullPolicy")
 			argoCD1 := &argov1beta1api.ArgoCD{
@@ -381,18 +296,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: ns1.Name}, depl)
-					if err != nil {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullAlways {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns1.Name, corev1.PullAlways, depl), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should inherit operator-level imagePullPolicy (Always)", deplName, ns1.Name)
 			}
 
@@ -405,28 +309,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(ss1, "3m", "5s").Should(k8sFixture.ExistByName())
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "argocd-application-controller", Namespace: ns1.Name}, ss1)
-				if err != nil {
-					return false
-				}
-				if len(ss1.Spec.Template.Spec.Containers) == 0 {
-					return false
-				}
-				for _, container := range ss1.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullAlways {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("argocd-application-controller", ns1.Name, corev1.PullAlways, ss1), "3m", "5s").Should(BeTrue(),
 				"StatefulSet in namespace %s should inherit operator-level imagePullPolicy (Always)", ns1.Name)
 
 			By("creating a second test namespace for ArgoCD instance that should inherit operator-level default")
-			ns2 := fixture.CreateNamespace("test-1-114-env-inherit")
-			defer func() {
-				Expect(k8sClient.Delete(ctx, ns2)).To(Succeed())
-			}()
+			ns2, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
 
 			By("creating a second ArgoCD instance without explicitly setting imagePullPolicy")
 			argoCD2 := &argov1beta1api.ArgoCD{
@@ -448,18 +336,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: ns2.Name}, depl)
-					if err != nil {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullAlways {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns2.Name, corev1.PullAlways, depl), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should inherit operator-level imagePullPolicy (Always)", deplName, ns2.Name)
 			}
 
@@ -472,28 +349,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(ss2, "3m", "5s").Should(k8sFixture.ExistByName())
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "argocd-application-controller", Namespace: ns2.Name}, ss2)
-				if err != nil {
-					return false
-				}
-				if len(ss2.Spec.Template.Spec.Containers) == 0 {
-					return false
-				}
-				for _, container := range ss2.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullAlways {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("argocd-application-controller", ns2.Name, corev1.PullAlways, ss2), "3m", "5s").Should(BeTrue(),
 				"StatefulSet in namespace %s should inherit operator-level imagePullPolicy (Always)", ns2.Name)
 
 			By("creating a third test namespace for ArgoCD instance with explicit imagePullPolicy override")
-			ns3 := fixture.CreateNamespace("test-1-114-env-override")
-			defer func() {
-				Expect(k8sClient.Delete(ctx, ns3)).To(Succeed())
-			}()
+			ns3, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
 
 			By("creating a third ArgoCD instance with explicit imagePullPolicy set to IfNotPresent (overriding operator default)")
 			policy := corev1.PullIfNotPresent
@@ -518,21 +379,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(func() bool {
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deplName, Namespace: ns3.Name}, depl)
-					if err != nil {
-						return false
-					}
-					if len(depl.Spec.Template.Spec.Containers) == 0 {
-						return false
-					}
-					for _, container := range depl.Spec.Template.Spec.Containers {
-						if container.ImagePullPolicy != corev1.PullIfNotPresent {
-							return false
-						}
-					}
-					return true
-				}, "3m", "5s").Should(BeTrue(),
+				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns3.Name, corev1.PullIfNotPresent, depl), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should use explicit imagePullPolicy (IfNotPresent) overriding operator default", deplName, ns3.Name)
 			}
 
@@ -545,21 +392,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(ss3, "3m", "5s").Should(k8sFixture.ExistByName())
 
-			Eventually(func() bool {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: "argocd-application-controller", Namespace: ns3.Name}, ss3)
-				if err != nil {
-					return false
-				}
-				if len(ss3.Spec.Template.Spec.Containers) == 0 {
-					return false
-				}
-				for _, container := range ss3.Spec.Template.Spec.Containers {
-					if container.ImagePullPolicy != corev1.PullIfNotPresent {
-						return false
-					}
-				}
-				return true
-			}, "3m", "5s").Should(BeTrue(),
+			Eventually(statefulsetFixture.VerifyStatefulSetImagePullPolicy("argocd-application-controller", ns3.Name, corev1.PullIfNotPresent, ss3), "3m", "5s").Should(BeTrue(),
 				"StatefulSet in namespace %s should use explicit imagePullPolicy (IfNotPresent) overriding operator default", ns3.Name)
 
 		})
