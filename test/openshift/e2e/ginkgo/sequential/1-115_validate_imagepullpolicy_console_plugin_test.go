@@ -46,7 +46,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
