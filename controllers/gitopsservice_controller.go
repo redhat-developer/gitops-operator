@@ -671,10 +671,6 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
 				changed = true
 			}
-			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].ImagePullPolicy, deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy) {
-				found.Spec.Template.Spec.Containers[0].ImagePullPolicy = deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy
-				changed = true
-			}
 			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
 				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
 				changed = true
