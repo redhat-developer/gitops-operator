@@ -278,13 +278,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			addDynamicPluginEnv(csv, ocVersion)
 
-			By("adding image pull policy env variable to IMAGE_PULL_POLICY in Subscription")
+			By("adding image pull policy env variable IMAGE_PULL_POLICY in Subscription")
 
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
+			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "Always", k8sClient)
 
 			By("verifying Argo CD in openshift-gitops exists and is available")
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
@@ -340,6 +341,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
+			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "Never", k8sClient)
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {
@@ -375,6 +377,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
+			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "IfNotPresent", k8sClient)
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {

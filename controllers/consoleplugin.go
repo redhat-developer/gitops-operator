@@ -58,7 +58,7 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 				Env:             util.ProxyEnvVars(),
 				Name:            gitopsPluginName,
 				Image:           consolePluginImage,
-				ImagePullPolicy: common.GetImagePullPolicy(crImagePullPolicy),
+				ImagePullPolicy: argocdutil.GetImagePullPolicy(&crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",

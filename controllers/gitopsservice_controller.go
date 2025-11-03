@@ -758,7 +758,7 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 			{
 				Name:            ns.Name,
 				Image:           image,
-				ImagePullPolicy: common.GetImagePullPolicy(crImagePullPolicy),
+				ImagePullPolicy: argocdutil.GetImagePullPolicy(&crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
