@@ -641,6 +641,23 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 	// TODO: Uncomment this once the sequential test suite timeout has increased.
 }
 
+func AddEnvVarToCSV(csv *olmv1alpha1.ClusterServiceVersion, envKey string, value string) {
+	containers := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers
+	for i := range containers {
+		found := false
+		for j := range containers[i].Env {
+			if containers[i].Env[j].Name == envKey {
+				containers[i].Env[j].Value = value
+				found = true
+				break
+			}
+		}
+		if !found {
+			containers[i].Env = append(containers[i].Env, corev1.EnvVar{Name: envKey, Value: value})
+		}
+	}
+}
+
 // WaitForOperatorPodToHaveEnvVar waits for the operator pod to have the specified environment variable with the expected value.
 // This ensures that after updating the subscription, the operator pod has actually restarted with the new env var.
 func WaitForOperatorPodToHaveEnvVar(ns string, envKey string, expectedValue string, k8sClient client.Client) {

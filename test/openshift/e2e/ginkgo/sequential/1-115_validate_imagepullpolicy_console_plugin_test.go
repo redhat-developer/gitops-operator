@@ -280,7 +280,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("adding image pull policy env variable IMAGE_PULL_POLICY in Subscription")
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
+			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "Always")
+			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
+			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
@@ -336,7 +338,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating image pull policy env variable to Never")
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
+			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
+			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "Never")
+			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
@@ -372,7 +376,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return true
 			}, "3m", "5s").Should(BeTrue())
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
+			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
+			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "IfNotPresent")
+			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
