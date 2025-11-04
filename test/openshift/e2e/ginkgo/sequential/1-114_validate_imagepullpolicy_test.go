@@ -31,7 +31,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -61,7 +60,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
-					ImagePullPolicy: &policy,
+					ImagePullPolicy: policy,
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -115,7 +114,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("updating ArgoCD instance to use imagePullPolicy IfNotPresent")
 			policy = corev1.PullIfNotPresent
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ImagePullPolicy = &policy
+				ac.Spec.ImagePullPolicy = policy
 			})
 
 			By("waiting for ArgoCD to reconcile the change")
@@ -150,13 +149,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("updating openshift-gitops ArgoCD to set imagePullPolicy to Always")
 			argocdFixture.Update(openshiftGitopsArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ImagePullPolicy = ptr.To(corev1.PullAlways)
+				ac.Spec.ImagePullPolicy = corev1.PullAlways
 			})
 
 			defer func() {
 				By("restoring openshift-gitops ArgoCD imagePullPolicy to default after test")
 				argocdFixture.Update(openshiftGitopsArgoCD, func(ac *argov1beta1api.ArgoCD) {
-					ac.Spec.ImagePullPolicy = nil
+					ac.Spec.ImagePullPolicy = ""
 				})
 			}()
 
@@ -361,7 +360,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD3 := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns3.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
-					ImagePullPolicy: &policy,
+					ImagePullPolicy: policy,
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD3)).To(Succeed())
