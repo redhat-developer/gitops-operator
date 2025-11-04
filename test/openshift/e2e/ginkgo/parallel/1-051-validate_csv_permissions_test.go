@@ -47,7 +47,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			By("run oc command to verify our ability to delete resourcequotas")
-			res, err := osFixture.ExecCommand("oc", "auth", "can-i", "delete", "resourcequotas", "-n", "openshift-gitops", "--as", "system:serviceaccount:openshift-gitops-operator:openshift-gitops-operator-controller-manager")
+			res, err := osFixture.ExecCommand("oc", "auth", "can-i", "delete", "resourcequotas", "-n", "openshift-gitops", "--as", "system:serviceaccount:"+fixture.GetInstallationNamespace()+":openshift-gitops-operator-controller-manager")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(strings.TrimSpace(res)).To(Equal("yes"))
 
