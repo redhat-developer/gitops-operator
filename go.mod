@@ -220,4 +220,4 @@ replace (
 	k8s.io/sample-controller => k8s.io/sample-controller v0.33.1
 )
 
-replace github.com/argoproj-labs/argocd-operator => github.com/olivergondza/argocd-operator v0.14.0-rc1.0.20250930152012-c0a9ad2ab6f3
+replace github.com/argoproj-labs/argocd-operator => github.com/olivergondza/argocd-operator v0.14.0-rc1.0.20251104113656-05154993f5fd
