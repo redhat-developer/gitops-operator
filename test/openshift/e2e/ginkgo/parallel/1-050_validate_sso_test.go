@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-050_validate_sso", func() {
 
@@ -31,7 +31,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})

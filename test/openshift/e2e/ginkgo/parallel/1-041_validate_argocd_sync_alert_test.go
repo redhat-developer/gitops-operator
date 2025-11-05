@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -12,12 +12,12 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-041_validate_argocd_sync_alert", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("verifying PrometheusRule gitops-operator-argocd-alerts exists and has expected values", func() {

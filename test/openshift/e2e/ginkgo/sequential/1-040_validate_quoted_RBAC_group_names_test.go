@@ -15,6 +15,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail()
+		})
+
 		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", func() {
 
 			By("logging in to Argo CD instance")

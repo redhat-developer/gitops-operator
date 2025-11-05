@@ -634,6 +634,11 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 
 	}, "3m", "1s").Should(BeTrue())
 
+	// The above logic will successfully wait for Deployments to be ready. However, this does not mean that the operator's controller logic has completed it's initial cluster reconciliation logic (starting a watch then reconciling existing resources)
+	// - I'm not aware of a way to detect when this has completed, so instead I am inserting a 15 second pause.
+	// - If anyone has a better way of doing this, let us know.
+	// time.Sleep(15 * time.Second)
+	// TODO: Uncomment this once the sequential test suite timeout has increased.
 }
 
 func WaitForAllStatefulSetsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {

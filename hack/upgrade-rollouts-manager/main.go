@@ -267,8 +267,10 @@ func regenerateE2ETestScript(commitID string, pathToGitRepo string) error {
 		} else {
 			res += line + "\n"
 		}
-
 	}
+
+	// Trim trailing space
+	res = strings.TrimSpace(res)
 
 	if err := os.WriteFile(path, []byte(res), 0600); err != nil {
 		return err

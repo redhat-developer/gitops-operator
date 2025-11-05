@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -11,12 +11,12 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-005_validate_metrics_test", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("verifies that default ServiceMonitors exist in openshift-gitops and PrometheusRule ArgoCDSyncAlert exists", func() {
