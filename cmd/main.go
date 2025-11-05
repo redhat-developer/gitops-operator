@@ -246,11 +246,16 @@ func main() {
 		setupLog.Info("Argo Rollouts manager running in cluster-scoped mode")
 	}
 
+	resourceLabels := map[string]string{
+		argocdcommon.ArgoCDTrackedByOperatorLabel: argocdcommon.ArgoCDAppName,
+	}
+
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
 		Client:                                mgr.GetClient(),
 		Scheme:                                mgr.GetScheme(),
 		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
 		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
+		ResourceLabels:                        resourceLabels,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
