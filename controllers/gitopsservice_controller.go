@@ -607,7 +607,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy)
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -652,6 +652,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
 				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].ImagePullPolicy, deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy) {
+				found.Spec.Template.Spec.Containers[0].ImagePullPolicy = deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy
 				changed = true
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
@@ -744,7 +748,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -752,8 +756,9 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  ns.Name,
-				Image: image,
+				Name:            ns.Name,
+				Image:           image,
+				ImagePullPolicy: argocdutil.GetImagePullPolicy(crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
