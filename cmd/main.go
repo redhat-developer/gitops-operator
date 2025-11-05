@@ -39,7 +39,7 @@ import (
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
 	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
-	wc "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
+	cw "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -152,7 +152,8 @@ func main() {
 		TLSOpts:     []func(*tls.Config){disableHTTP2},
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// Set default manager options
+	options := ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -162,21 +163,38 @@ func main() {
 		Controller: controllerconfig.Controller{
 			SkipNameValidation: &skipControllerNameValidation,
 		},
-		Cache: cache.Options{
+	}
+
+	// Use transformers to strip data from Secrets and ConfigMaps
+	// that are not tracked by the operator to reduce memory usage.
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		setupLog.Info("memory optimization is enabled")
+		options.Cache = cache.Options{
 			Scheme: scheme,
 			ByObject: map[crclient.Object]cache.ByObject{
-				&corev1.Secret{}:    {Transform: cacheutils.StripSecretDataTranform()},
-				&corev1.ConfigMap{}: {Transform: cacheutils.StripConfigMapDataTransform()},
+				&corev1.Secret{}:    {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
+				&corev1.ConfigMap{}: {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
 			},
-		},
-	})
+		}
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	liveClient, _ := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
-	client := wc.NewClientWrapper(mgr.GetClient(), liveClient)
+	var client crclient.Client
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		liveClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+		if err != nil {
+			setupLog.Error(err, "unable to create live client")
+			os.Exit(1)
+		}
+		client = cw.NewClientWrapper(mgr.GetClient(), liveClient)
+	} else {
+		client = mgr.GetClient()
+	}
 
 	registerComponentOrExit(mgr, console.AddToScheme)
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
