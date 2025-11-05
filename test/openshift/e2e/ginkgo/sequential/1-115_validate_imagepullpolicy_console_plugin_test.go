@@ -19,7 +19,6 @@ package sequential
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -280,14 +279,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("adding image pull policy env variable IMAGE_PULL_POLICY in Subscription")
 
-			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "Always")
-			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
-			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
-			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "Always", k8sClient)
 
 			By("verifying Argo CD in openshift-gitops exists and is available")
 			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
@@ -302,9 +298,25 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
 
+			By("printing deployment ImagePullPolicy")
+			deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
+			for _, container := range deployment.Spec.Template.Spec.Containers {
+				fmt.Println("Container: " + container.Name + " is " + string(container.ImagePullPolicy))
+			}
+
 			By("verifying backend deployment has ImagePullPolicy set based on env variable")
 			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: argoCD.Namespace}}
 			Eventually(clusterDepl).Should(k8sFixture.ExistByName())
+			fmt.Println("Printing the list of deployment env variables")
+			envList := clusterDepl.Spec.Template.Spec.Containers[0].Env
+			for _, env := range envList {
+				fmt.Println("Env: " + env.Name + " is " + env.Value)
+			}
+
+			envValue, err := fixture.GetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY")
+			Expect(err).ToNot(HaveOccurred())
+			fmt.Println("EnvValue: " + string(*envValue))
+
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterDepl), clusterDepl)
 				if err != nil {
@@ -312,7 +324,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 				for _, container := range clusterDepl.Spec.Template.Spec.Containers {
 					if container.ImagePullPolicy != corev1.PullAlways {
-						fmt.Println("ImagePullPolicy is set to " + string(container.ImagePullPolicy) + " but expected " + os.Getenv("IMAGE_PULL_POLICY"))
+						fmt.Println("ImagePullPolicy is set to " + string(container.ImagePullPolicy))
 						return false
 					}
 				}
@@ -338,14 +350,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating image pull policy env variable to Never")
 
-			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
-			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "Never")
-			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
-			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "Never", k8sClient)
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {
@@ -376,14 +385,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return true
 			}, "3m", "5s").Should(BeTrue())
 
-			//fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
-			fixture.AddEnvVarToCSV(csv, "IMAGE_PULL_POLICY", "IfNotPresent")
-			Expect(k8sClient.Update(ctx, csv)).To(Succeed())
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
 				fixture.RestoreSubcriptionToDefault()
 			}()
-			fixture.WaitForOperatorPodToHaveEnvVar("openshift-gitops-operator", "IMAGE_PULL_POLICY", "IfNotPresent", k8sClient)
 
 			By("verifying backend deployment has ImagePullPolicy changed based on env variable")
 			Eventually(func() bool {

@@ -641,61 +641,6 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 	// TODO: Uncomment this once the sequential test suite timeout has increased.
 }
 
-func AddEnvVarToCSV(csv *olmv1alpha1.ClusterServiceVersion, envKey string, value string) {
-	containers := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers
-	for i := range containers {
-		found := false
-		for j := range containers[i].Env {
-			if containers[i].Env[j].Name == envKey {
-				containers[i].Env[j].Value = value
-				found = true
-				break
-			}
-		}
-		if !found {
-			containers[i].Env = append(containers[i].Env, corev1.EnvVar{Name: envKey, Value: value})
-		}
-	}
-}
-
-// WaitForOperatorPodToHaveEnvVar waits for the operator pod to have the specified environment variable with the expected value.
-// This ensures that after updating the subscription, the operator pod has actually restarted with the new env var.
-func WaitForOperatorPodToHaveEnvVar(ns string, envKey string, expectedValue string, k8sClient client.Client) {
-	Eventually(func() bool {
-		var deplList appsv1.DeploymentList
-		if err := k8sClient.List(context.Background(), &deplList, client.InNamespace(ns)); err != nil {
-			GinkgoWriter.Println(err)
-			return false
-		}
-
-		for _, depl := range deplList.Items {
-			// Look for the operator deployment (typically contains "controller-manager" or "operator")
-			if !strings.Contains(depl.Name, "operator") && !strings.Contains(depl.Name, "controller-manager") {
-				continue
-			}
-
-			// Check if the deployment's pod template has the expected env var
-			for _, container := range depl.Spec.Template.Spec.Containers {
-				for _, env := range container.Env {
-					if env.Name == envKey {
-						if env.Value == expectedValue {
-							// Found the env var with the expected value
-							// Now verify the deployment is fully rolled out with this change
-							if depl.Generation == depl.Status.ObservedGeneration &&
-								depl.Status.Replicas == depl.Status.ReadyReplicas &&
-								depl.Status.UpdatedReplicas == depl.Status.Replicas {
-								return true
-							}
-						}
-						break
-					}
-				}
-			}
-		}
-		return false
-	}, "5m", "5s").Should(BeTrue())
-}
-
 func WaitForAllStatefulSetsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {
 
 	Eventually(func() bool {
