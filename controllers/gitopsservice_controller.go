@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"reflect"
 	"strings"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -39,6 +38,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,7 +103,8 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
-		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
+		// Removed Owns(&appsv1.Deployment{}) watch to prevent hot loop from deployment updates
+		// Deployments are still reconciled when GitopsService or ArgoCD changes
 		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
 		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
 		Watches(
@@ -114,9 +115,24 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 			})),
 		).Watches(&argoapp.ArgoCD{},
 		&handler.EnqueueRequestForObject{},
-		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			return obj.GetName() == "openshift-gitops" && obj.GetNamespace() == "openshift-gitops"
-		}))).
+		builder.WithPredicates(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				if e.ObjectNew.GetName() != "openshift-gitops" || e.ObjectNew.GetNamespace() != "openshift-gitops" {
+					return false
+				}
+				// Ignore updates to CR status in which case metadata.Generation does not change
+				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				// Only watch openshift-gitops ArgoCD
+				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
+			},
+		})).
 		Complete(r)
 }
 
@@ -501,7 +517,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		// if user is patching nodePlacement through GitopsService CR, then existingArgoCD NodePlacement is updated.
 		if defaultArgoCDInstance.Spec.NodePlacement != nil {
-			if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+			if !equality.Semantic.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
 				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 				changed = true
 			}
@@ -571,7 +587,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			} else {
 				return reconcile.Result{}, err
 			}
-		} else if !reflect.DeepEqual(existingClusterRole.Rules, clusterRoleObj.Rules) {
+		} else if !equality.Semantic.DeepEqual(existingClusterRole.Rules, clusterRoleObj.Rules) {
 			reqLogger.Info("Reconciling existing Cluster Role", "Name", clusterRoleObj.Name)
 			existingClusterRole.Rules = clusterRoleObj.Rules
 			err = r.Client.Update(context.TODO(), existingClusterRole)
@@ -650,35 +666,32 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Image = desiredImage
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
 				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
-				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
-				changed = true
-			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
 				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
+			// Use semantic equality to handle Kubernetes defaults properly
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].SecurityContext, deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].SecurityContext, deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext) {
 				found.Spec.Template.Spec.Containers[0].SecurityContext = deploymentObj.Spec.Template.Spec.Containers[0].SecurityContext
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.NodeSelector, deploymentObj.Spec.Template.Spec.NodeSelector) {
 				found.Spec.Template.Spec.NodeSelector = deploymentObj.Spec.Template.Spec.NodeSelector
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Tolerations, deploymentObj.Spec.Template.Spec.Tolerations) {
 				found.Spec.Template.Spec.Tolerations = deploymentObj.Spec.Template.Spec.Tolerations
 				changed = true
 			}
-			if !reflect.DeepEqual(found.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
+			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.SecurityContext, deploymentObj.Spec.Template.Spec.SecurityContext) {
 				found.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
 				changed = true
 			}
