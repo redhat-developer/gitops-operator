@@ -250,6 +250,15 @@ spec:
               image:
                 description: Image defines Argo Rollouts controller image (optional)
                 type: string
+              imagePullPolicy:
+                description: |-
+                  ImagePullPolicy specifies the image pull policy for the Rollouts controller.
+                  Valid values are: Always, IfNotPresent, Never
+                enum:
+                - Always
+                - IfNotPresent
+                - Never
+                type: string
               namespaceScoped:
                 description: NamespaceScoped lets you specify if RolloutManager has
                   to watch a namespace or the whole cluster
