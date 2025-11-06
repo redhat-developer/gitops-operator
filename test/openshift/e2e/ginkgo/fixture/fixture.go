@@ -511,7 +511,7 @@ func RestoreSubcriptionToDefault() {
 	Expect(err).ToNot(HaveOccurred())
 
 	// optionalEnvVarsToRemove is a non-exhaustive list of environment variables that are known to be added to Subscription or operator Deployment by tests
-	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES"}
+	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "IMAGE_PULL_POLICY"}
 
 	if EnvNonOLM() {
 

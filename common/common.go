@@ -16,7 +16,9 @@ limitations under the License.
 
 package common
 
-import "os"
+import (
+	"os"
+)
 
 const (
 	// ArgoCDInstanceName is the default Argo CD instance name
@@ -33,6 +35,8 @@ const (
 	DefaultConsoleVersion = "v0.1.0"
 	// Default console plugin installation OCP version
 	DefaultDynamicPluginStartOCPVersion = "4.15.0"
+	// ImagePullPolicyEnvVar is the environment variable for configuring image pull policy
+	ImagePullPolicy = "IMAGE_PULL_POLICY"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes

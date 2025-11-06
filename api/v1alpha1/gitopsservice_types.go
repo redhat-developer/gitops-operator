@@ -34,6 +34,9 @@ type GitopsServiceSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// ConsolePlugin defines the Resource configuration for the Console Plugin components
 	ConsolePlugin *ConsolePluginStruct `json:"consolePlugin,omitempty"`
+	// ImagePullPolicy defines the image pull policy for GitOps workloads
+	// +kubebuilder:validation:Enum=Always;IfNotPresent;Never
+	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // ConsolePluginStruct defines the resource configuration for the Console Plugin components
