@@ -3,8 +3,8 @@ module github.com/redhat-developer/gitops-operator
 go 1.24.6
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.7-0.20251029155400-4619e3168941
-	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251024105544-f7c3f5b0cc95
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.7-0.20251105123110-0c547c7a7765
+	github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251104052658-38b9581ce39a
 	github.com/argoproj/argo-cd/v3 v3.1.8
 	github.com/argoproj/gitops-engine v0.7.1-0.20250905160054-e48120133eec
 	github.com/go-logr/logr v1.4.3
@@ -16,7 +16,7 @@ require (
 	github.com/openshift/api v0.0.0-20240906151052-5d963dce87aa
 	github.com/operator-framework/api v0.17.5
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.73.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
 	golang.org/x/mod v0.28.0
 	gotest.tools v2.2.0+incompatible
