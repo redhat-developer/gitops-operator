@@ -31,10 +31,10 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.7-0.20251105123110-0c547c7a7765 h1:zVN+W/nQrRB/kB63YcvcCseuiE//sEzNw6Oa8rqiFOs=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.7-0.20251105123110-0c547c7a7765/go.mod h1:WPyZkNHZjir/OTt8mrRwcUZKe1euHrHPJsRv1Wp/F/0=
-github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251105202113-2a10f87771b9 h1:v/iZr/sGwdHoqIcdSVZKoXaJ/ivv+2u85OFjyNGLDH0=
-github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251105202113-2a10f87771b9/go.mod h1:ABtgKWsvMlUp6Xys8BVi0CHKdT9ZoFP+rYCqRsY0wvg=
-github.com/argoproj/argo-cd/v3 v3.1.8 h1:NkLPiRI5qGkV+q1EN3O7/0Wb9O/MVl62vadKteZqMUw=
-github.com/argoproj/argo-cd/v3 v3.1.8/go.mod h1:ZHb/LOz/hr88VWMJiVTd8DGYL7MheHCAT8S6DgYOBFo=
+github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251111193025-5e0aa4e8458c h1:CP/mjwUUVDMy60dy75lrJ/99d/zKA5BIF03GRsFoxOY=
+github.com/argoproj-labs/argocd-operator v0.14.0-rc1.0.20251111193025-5e0aa4e8458c/go.mod h1:pi8DWrcB1D1RZcDRa1Km9oLYnMjCxV8LLvgikss8bn4=
+github.com/argoproj/argo-cd/v3 v3.1.9 h1:9P9vJKo1RGWu6mtQnGu61r+0h3XKlA2j3kVhwogUQ/0=
+github.com/argoproj/argo-cd/v3 v3.1.9/go.mod h1:ZHb/LOz/hr88VWMJiVTd8DGYL7MheHCAT8S6DgYOBFo=
 github.com/argoproj/gitops-engine v0.7.1-0.20250905160054-e48120133eec h1:rNAwbRQFvRIuW/e2bU+B10mlzghYXsnwZedYeA7Drz4=
 github.com/argoproj/gitops-engine v0.7.1-0.20250905160054-e48120133eec/go.mod h1:aIBEG3ohgaC1gh/sw2On6knkSnXkqRLDoBj234Dqczw=
 github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5 h1:YBoLSjpoaJXaXAldVvBRKJuOPvIXz9UOv6S96gMJM/Q=
