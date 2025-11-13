@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -9,13 +9,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-104_validate_prometheus_alert", func() {
 
 		BeforeEach(func() {
 
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("verify that openshift gitops operator servicemonitor exists in openshift-gitops-operator namespace, and has the expected values", func() {

@@ -22,8 +22,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-105_validate_label_selector", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx         context.Context
+			k8sClient   client.Client
+			ns          *corev1.Namespace
+			cleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -31,6 +33,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
+		})
+
+		AfterEach(func() {
+			defer cleanupFunc()
+
+			fixture.OutputDebugOnFail(ns)
+
+			fixture.RestoreSubcriptionToDefault()
 		})
 
 		It("ensures that ARGOCD_LABEL_SELECTOR controls which ArgoCD CRs are reconciled via operator", func() {
@@ -43,13 +53,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("adding ARGOCD_LABEL_SELECTOR foo=bar to Operator")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_LABEL_SELECTOR", "foo=bar")
 
-			defer func() { // Restore subscription to default after test
-				fixture.RestoreSubcriptionToDefault()
-			}()
+			By("creating new namespace-scoped ArgoCD instance")
 
-			By("creating new namespace-scoped ArgoCD instance in test-argocd")
-
-			ns := fixture.CreateNamespace("test-argocd")
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{

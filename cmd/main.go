@@ -38,6 +38,8 @@ import (
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
+	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
+	cw "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -47,11 +49,14 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -147,7 +152,8 @@ func main() {
 		TLSOpts:     []func(*tls.Config){disableHTTP2},
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// Set default manager options
+	options := ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -157,10 +163,37 @@ func main() {
 		Controller: controllerconfig.Controller{
 			SkipNameValidation: &skipControllerNameValidation,
 		},
-	})
+	}
+
+	// Use transformers to strip data from Secrets and ConfigMaps
+	// that are not tracked by the operator to reduce memory usage.
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		setupLog.Info("memory optimization is enabled")
+		options.Cache = cache.Options{
+			Scheme: scheme,
+			ByObject: map[crclient.Object]cache.ByObject{
+				&corev1.Secret{}:    {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
+				&corev1.ConfigMap{}: {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
+			},
+		}
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
+	}
+
+	var client crclient.Client
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		liveClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+		if err != nil {
+			setupLog.Error(err, "unable to create live client")
+			os.Exit(1)
+		}
+		client = cw.NewClientWrapper(mgr.GetClient(), liveClient)
+	} else {
+		client = mgr.GetClient()
 	}
 
 	registerComponentOrExit(mgr, console.AddToScheme)
@@ -186,7 +219,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileGitopsService{
-		Client:                mgr.GetClient(),
+		Client:                client,
 		Scheme:                mgr.GetScheme(),
 		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr); err != nil {
@@ -195,7 +228,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileArgoCDRoute{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD route")
@@ -203,7 +236,7 @@ func main() {
 	}
 
 	if err = (&controllers.ArgoCDMetricsReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
@@ -225,7 +258,7 @@ func main() {
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:        mgr.GetClient(),
+		Client:        client,
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
 		K8sClient:     k8sClient,
@@ -246,18 +279,23 @@ func main() {
 		setupLog.Info("Argo Rollouts manager running in cluster-scoped mode")
 	}
 
+	resourceLabels := map[string]string{
+		argocdcommon.ArgoCDTrackedByOperatorLabel: argocdcommon.ArgoCDAppName,
+	}
+
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client:                                mgr.GetClient(),
+		Client:                                client,
 		Scheme:                                mgr.GetScheme(),
 		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
 		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
+		ResourceLabels:                        resourceLabels,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
 	}
 
 	if err = (&notificationsprovisioner.NotificationsConfigurationReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notifications Configuration")

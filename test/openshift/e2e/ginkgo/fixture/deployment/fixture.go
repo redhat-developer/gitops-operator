@@ -427,3 +427,24 @@ func fetchDeployment(f func(*appsv1.Deployment) bool) matcher.GomegaMatcher {
 	}, BeTrue())
 
 }
+
+// verifyDeploymentImagePullPolicy checks if all containers in a deployment have the expected imagePullPolicy
+func VerifyDeploymentImagePullPolicy(name, namespace string, expectedPolicy corev1.PullPolicy, depl *appsv1.Deployment) func() bool {
+	return func() bool {
+		depl := &appsv1.Deployment{}
+		k8sClient, _ := utils.GetE2ETestKubeClient()
+		err := k8sClient.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, depl)
+		if err != nil {
+			return false
+		}
+		if len(depl.Spec.Template.Spec.Containers) == 0 {
+			return false
+		}
+		for _, container := range depl.Spec.Template.Spec.Containers {
+			if container.ImagePullPolicy != expectedPolicy {
+				return false
+			}
+		}
+		return true
+	}
+}
