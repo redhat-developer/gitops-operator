@@ -1,45 +1,24 @@
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: metrics-bearer-token
-  namespace: openshift-gitops-operator
-  annotations:
-    kubernetes.io/service-account.name: openshift-gitops-operator-controller-manager
-type: kubernetes.io/service-account-token
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  annotations:
-    openshift.io/description: This ConfigMap is used for Prometheus monitoring of the GitOps Operator.
-    openshift.io/display-name: GitOps Operator Prometheus Monitor ConfigMap
-    openshift.io/owning-component: service-ca
-    service.beta.openshift.io/inject-cabundle: "true"
-  name: metrics-monitor-ca-bundle
-  namespace: openshift-gitops-operator
----
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: openshift-gitops-operator-metrics-monitor
   labels:
     control-plane: gitops-operator
+  name: openshift-gitops-operator-metrics-monitor
 spec:
+  endpoints:
+  - bearerTokenSecret:
+      key: token
+      name: openshift-gitops-operator-metrics-bearer-token
+    interval: 30s
+    path: /metrics
+    port: metrics
+    scheme: https
+    tlsConfig:
+      ca:
+        configMap:
+          key: service-ca.crt
+          name: openshift-gitops-operator-metrics-monitor-ca-bundle
+      serverName: openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc
   selector:
     matchLabels:
       control-plane: gitops-operator
-  endpoints:
-    - bearerTokenSecret:
-        name: openshift-gitops-operator-metrics-bearer-token
-        key: token
-      interval: 30s
-      path: /metrics
-      port: metrics
-      scheme: https
-      tlsConfig:
-        ca:
-          configMap:
-            name: openshift-gitops-operator-metrics-monitor-ca-bundle
-            key: service-ca.crt
-        serverName: openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc
