@@ -15,6 +15,7 @@ resources:
 - bases/cluster-analysis-template-crd.yaml
 - bases/experiment-crd.yaml
 - bases/rollout-crd.yaml
+- bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
