@@ -46,8 +46,8 @@ import (
 	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
 	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
 	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
