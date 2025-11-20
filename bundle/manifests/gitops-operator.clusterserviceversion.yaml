@@ -180,7 +180,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2025-11-17T03:54:56Z"
+    createdAt: "2025-11-20T04:37:10Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -578,6 +578,7 @@ spec:
           - config.openshift.io
           resources:
           - clusterversions
+          - ingresses
           verbs:
           - get
           - list
