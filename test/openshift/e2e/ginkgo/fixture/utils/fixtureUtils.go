@@ -8,19 +8,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
 	osappsv1 "github.com/openshift/api/apps/v1"
-	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
-
-	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
-	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
@@ -29,6 +22,11 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
+	imageUpdater "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
+
+	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 
 	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
 	. "github.com/onsi/gomega" //nolint:all
@@ -94,14 +92,6 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 		return nil, nil, err
 	}
 
-	if err := gitopsoperatorv1alpha1.AddToScheme(scheme); err != nil {
-		return nil, nil, err
-	}
-
-	if err := olmv1alpha1.AddToScheme(scheme); err != nil {
-		return nil, nil, err
-	}
-
 	if err := routev1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
@@ -111,9 +101,6 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := consolev1.AddToScheme(scheme); err != nil {
-		return nil, nil, err
-	}
-	if err := rolloutmanagerv1alpha1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
@@ -134,6 +121,10 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := batchv1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := imageUpdater.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
