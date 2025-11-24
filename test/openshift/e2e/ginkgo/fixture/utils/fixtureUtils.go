@@ -23,7 +23,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	imageUpdater "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
+	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -128,6 +131,17 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 		return nil, nil, err
 	}
 
+	if err := olmv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := gitopsoperatorv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := rolloutmanagerv1alpha1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, nil, err
