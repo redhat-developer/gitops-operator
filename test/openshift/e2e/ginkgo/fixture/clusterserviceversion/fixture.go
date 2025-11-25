@@ -6,6 +6,7 @@ import (
 	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
 	. "github.com/onsi/gomega" //nolint:all
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -13,6 +14,12 @@ import (
 
 // Update will update a ClusterServiceVersion CR. Update will keep trying to update object until it succeeds, or times out.
 func Update(obj *olmv1alpha1.ClusterServiceVersion, modify func(*olmv1alpha1.ClusterServiceVersion)) {
+	if fixture.EnvNonOLM() || fixture.EnvLocalRun() || fixture.EnvCI() {
+		// Skipping CSV update as operator is not managed via OLM in these environments.
+		// In CI environment, the operator is managed via Subscription rather than direct CSV access.
+		return
+	}
+
 	k8sClient, _ := utils.GetE2ETestKubeClient()
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {

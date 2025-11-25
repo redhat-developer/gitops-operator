@@ -46,6 +46,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return
 			}
 
+			if fixture.EnvCI() {
+				Skip("Skipping CSV-based test in CI environment where operator is managed via Subscription")
+				return
+			}
+
 			// Find CSV
 			var csv *olmv1alpha1.ClusterServiceVersion
 			var csvList olmv1alpha1.ClusterServiceVersionList
