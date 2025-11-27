@@ -19,10 +19,13 @@ package parallel
 import (
 	"context"
 	"fmt"
-	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
+
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
+	"gopkg.in/yaml.v3"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -32,7 +35,6 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -165,14 +167,16 @@ func (matcher *validResourceFile) Match(actual any) (success bool, err error) {
 		return false, fmt.Errorf("BeValidResourceFile matcher expects a string (file path)")
 	}
 
-	content, err := os.ReadFile(filePath)
+	filePath = filepath.Clean(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return false, fmt.Errorf("failed to read file: %v", err)
 	}
-	println(string(content))
+	defer f.Close()
 
+	decoder := yaml.NewDecoder(f)
 	var data map[string]any
-	if err := yaml.Unmarshal(content, &data); err != nil {
+	if err := decoder.Decode(&data); err != nil {
 		return false, fmt.Errorf("failed parsing supposed YAML file: %v", err)
 	}
 
