@@ -361,24 +361,6 @@ var _ = Describe("GitOpsServiceController", func() {
 				return nil
 			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
 
-			// Wait for the ArgoCD instance to be available before proceeding
-			// This ensures the instance is fully ready to process applications
-			Eventually(func() error {
-				argoCD := &argoapp.ArgoCD{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      argocdInstance,
-						Namespace: sourceNS,
-					},
-				}
-				if err := k8sClient.Get(context.TODO(), client.ObjectKeyFromObject(argoCD), argoCD); err != nil {
-					return err
-				}
-				if argoCD.Status.Phase != "Available" {
-					return fmt.Errorf("ArgoCD instance is not yet Available, current phase: %s", argoCD.Status.Phase)
-				}
-				return nil
-			}, time.Minute*10, interval).ShouldNot(HaveOccurred())
-
 			// create a target namespace to deploy resources
 			// allow argocd to create resources in the target namespace by adding managed-by label
 			targetNamespaceObj := &corev1.Namespace{
