@@ -47,6 +47,7 @@ import (
 	deploymentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
 	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 )
 
@@ -83,6 +84,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-agent-principal-1-051")
+
+			// Add namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES to allow cluster-scoped resources
+			if !gitopsFixture.EnvLocalRun() {
+				By("adding namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES in Subscription")
+				gitopsFixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", fmt.Sprintf("openshift-gitops, %s", ns.Name))
+			}
 
 			// Define ArgoCD CR with principal enabled
 			argoCD = &argov1beta1api.ArgoCD{
@@ -211,6 +218,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Cleanup namespace")
 			if cleanupFunc != nil {
 				cleanupFunc()
+			}
+
+			// Restore Subscription to default state to clean up env var changes
+			if !gitopsFixture.EnvLocalRun() {
+				gitopsFixture.RestoreSubcriptionToDefault()
 			}
 		})
 
@@ -478,7 +490,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal("quay.io/argoprojlabs/argocd-agent:v0.3.2"))
+			imageName := "registry.redhat.io/openshift-gitops-1/argocd-agent-rhel8@sha256:18e72933d437d57697d9ff03ac67940007a647ee46ff30bc6801d9c9681fae33"
+			Expect(container.Image).To(Equal(imageName))
 
 			By("Create required secrets and certificates for principal pod to start properly")
 
