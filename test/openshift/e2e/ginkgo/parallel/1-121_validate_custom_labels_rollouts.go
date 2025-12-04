@@ -76,10 +76,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("updating RolloutManager spec")
 
 			// Add a new label to trigger reconciliation
-			if rolloutManager.ObjectMeta.Labels == nil {
-				rolloutManager.ObjectMeta.Labels = make(map[string]string)
+			if rolloutManager.Labels == nil {
+				rolloutManager.Labels = make(map[string]string)
 			}
-			rolloutManager.ObjectMeta.Labels["test-update"] = "true"
+			rolloutManager.Labels["test-update"] = "true"
 			patch := client.MergeFrom(rolloutManager.DeepCopy())
 			Expect(k8sClient.Patch(ctx, rolloutManager, patch)).To(Succeed())
 
