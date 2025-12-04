@@ -35,8 +35,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFI
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1 h1:TjX3ZHPA3YOmoHZutzfvOQVKRO2Jt4JvDCPvI4VhWoA=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250625125608-ebd6207c8bb1/go.mod h1:yTwzKUV79YyI764hkXdVojGYBA9yKJk3qXx5mRuQ2Xc=
-github.com/argoproj-labs/argocd-operator v0.0.0-20251125121734-d31c354add55 h1:ew6ysNJ88wvYHnnzxyO2mawuCDghuN0REhgOSaknKNA=
-github.com/argoproj-labs/argocd-operator v0.0.0-20251125121734-d31c354add55/go.mod h1:FnNg+8MBzJeXD5QtfEwesgMhGwDqp1Oa92T4dVJCT9g=
+github.com/argoproj-labs/argocd-operator v0.15.1-0.20251204065549-76739d532c1d h1:Zzq4rCBW9irP2WeP/QWQK9vppKPNoQDPvJwF/30wepI=
+github.com/argoproj-labs/argocd-operator v0.15.1-0.20251204065549-76739d532c1d/go.mod h1:FnNg+8MBzJeXD5QtfEwesgMhGwDqp1Oa92T4dVJCT9g=
 github.com/argoproj/argo-cd/v3 v3.0.16 h1:V67eJxuPTS20kjcA1K/uLnbapEVUfIJ9eIO62ns4ECU=
 github.com/argoproj/argo-cd/v3 v3.0.16/go.mod h1:oTCI5r+Hacij94yJto2/mVXAHB8r3375h9SInqbS8EM=
 github.com/argoproj/gitops-engine v0.7.1-0.20250905153922-d96c3d51e4c4 h1:OsQxWX8UHdwXuy72Y1Js8gQY3xmOzFEieCSpMoXKFb8=
