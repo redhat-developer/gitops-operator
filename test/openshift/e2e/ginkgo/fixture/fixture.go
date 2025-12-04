@@ -862,6 +862,29 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "deployments", "-n", namespace, "-o", "yaml")
+		if err != nil {
+			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
+			continue
+		}
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "events", "-n", namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to get events for namespace", err, kubectlOutput)
+		} else {
+			GinkgoWriter.Println("")
+			GinkgoWriter.Println("----------------------------------------------------------------")
+			GinkgoWriter.Println("'kubectl get events -n " + namespace + ":")
+			GinkgoWriter.Println(kubectlOutput)
+			GinkgoWriter.Println("----------------------------------------------------------------")
+		}
+
 	}
 
 	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "argocds", "-A", "-o", "yaml")
@@ -874,6 +897,8 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 	}
+
+	GinkgoWriter.Println("You can skip this debug output by setting 'SKIP_DEBUG_OUTPUT=true'")
 
 }
 

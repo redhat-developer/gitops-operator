@@ -203,7 +203,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES=openshift-gitops  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
+	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build docker image with the manager.
