@@ -36,7 +36,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			cleanupFunc1 func()
 			cleanupFunc2 func()
 			cleanupFunc3 func()
-			nmName       string = "nm-test"
+			nmName       = "nm-test"
 		)
 
 		BeforeEach(func() {

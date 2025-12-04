@@ -306,10 +306,10 @@ func TestAdminClusterRoleMapper(t *testing.T) {
 
 		// Sort both slices to ensure consistent comparison
 		sort.Slice(result, func(i, j int) bool {
-			return result[i].NamespacedName.Name < result[j].NamespacedName.Name
+			return result[i].Name < result[j].Name
 		})
 		sort.Slice(expectedRequests, func(i, j int) bool {
-			return expectedRequests[i].NamespacedName.Name < expectedRequests[j].NamespacedName.Name
+			return expectedRequests[i].Name < expectedRequests[j].Name
 		})
 
 		assert.Equal(t, expectedRequests, result)
