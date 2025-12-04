@@ -490,7 +490,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			imageName := "registry.redhat.io/openshift-gitops-1/argocd-agent-rhel8@sha256:18e72933d437d57697d9ff03ac67940007a647ee46ff30bc6801d9c9681fae33"
+			imageName := "quay.io/argoprojlabs/argocd-agent:v0.3.2"
 			Expect(container.Image).To(Equal(imageName))
 
 			By("Create required secrets and certificates for principal pod to start properly")
