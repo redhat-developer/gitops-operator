@@ -32,7 +32,7 @@ spec:
       control-plane: gitops-operator
   endpoints:
     - bearerTokenSecret:
-        name: openshift-gitops-operator-metrics-bearer-token
+        name: openshift-gitops-operator-metrics-monitor-bearer-token
         key: token
       interval: 30s
       path: /metrics

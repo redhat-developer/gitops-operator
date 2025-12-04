@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(sm.Spec.Endpoints).To(Equal([]monitoringv1.Endpoint{{
 				BearerTokenSecret: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "openshift-gitops-operator-metrics-bearer-token",
+						Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
 					},
 					Key: "token",
 				},
