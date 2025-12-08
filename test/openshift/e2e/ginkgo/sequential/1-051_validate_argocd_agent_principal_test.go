@@ -42,13 +42,12 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
-	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -86,9 +85,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-agent-principal-1-051")
 
 			// Add namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES to allow cluster-scoped resources
-			if !gitopsFixture.EnvLocalRun() {
+			if !fixture.EnvLocalRun() {
 				By("adding namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES in Subscription")
-				gitopsFixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", fmt.Sprintf("openshift-gitops, %s", ns.Name))
+				fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", fmt.Sprintf("openshift-gitops, %s", ns.Name))
 			}
 
 			// Define ArgoCD CR with principal enabled
@@ -221,8 +220,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			// Restore Subscription to default state to clean up env var changes
-			if !gitopsFixture.EnvLocalRun() {
-				gitopsFixture.RestoreSubcriptionToDefault()
+			if !fixture.EnvLocalRun() {
+				fixture.RestoreSubcriptionToDefault()
 			}
 		})
 
