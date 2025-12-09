@@ -221,3 +221,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.33.1
 	k8s.io/sample-controller => k8s.io/sample-controller v0.33.1
 )
+
+replace github.com/argoproj-labs/argocd-operator => github.com/jgwest/argocd-operator v0.0.15-0.20251209161237-786165d7b942
