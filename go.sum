@@ -2,8 +2,8 @@ cloud.google.com/go/compute/metadata v0.3.0/go.mod h1:zFmK7XCadkQkj6TtorcaGlCW1h
 github.com/NYTimes/gziphandler v1.1.1/go.mod h1:n/CVRwUEOgIxrgPvAQhUUr9oeUtvrhMomdKFjzJNB0c=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250930165405-32bff720ee88 h1:VIHOmVN9j0v8REhVb1VbB9oACZhXenoumGSaMRiCKIg=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.6-0.20250930165405-32bff720ee88/go.mod h1:kHvG0FHnwmSlZXmINYDpMNd2dhKN/eT2+2OrA+A7NKI=
-github.com/argoproj-labs/argocd-operator v0.14.2-0.20251204072050-081f799da834 h1:UgK6mKChYXp/pZjMNDxpa0vqZqkF9G9X2LZh0d5Kg5g=
-github.com/argoproj-labs/argocd-operator v0.14.2-0.20251204072050-081f799da834/go.mod h1:9cnIt4riyY3pAAh8ttGZA8BPZP7XtEfzKEwicsJcBy8=
+github.com/argoproj-labs/argocd-operator v0.14.2-0.20251210081219-2bf7d3d3fcb3 h1:RP6Gd1lKD50OMst0UothOin96+d1nrnNFRvj9tFDem0=
+github.com/argoproj-labs/argocd-operator v0.14.2-0.20251210081219-2bf7d3d3fcb3/go.mod h1:9cnIt4riyY3pAAh8ttGZA8BPZP7XtEfzKEwicsJcBy8=
 github.com/argoproj/argo-cd/v2 v2.14.15 h1:+rE5bwbCg21mA3ltIvSVI8/KtzRxLLmuDKIyPx93G9k=
 github.com/argoproj/argo-cd/v2 v2.14.15/go.mod h1:O5p0wngJjy8Rg9M2x+JH0ifrmyuI40ui2mxIPKLMbSk=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5/go.mod h1:wHh0iHkYZB8zMSxRWpUBQtwG5a7fFgvEO+odwuTv2gs=
