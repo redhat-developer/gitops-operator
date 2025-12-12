@@ -40,10 +40,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
 					},
 					Key: "token",
-				}, Interval: monitoringv1.Duration("30s"),
-				Path:   "/metrics",
-				Port:   "metrics",
-				Scheme: "https",
+				},
+				Interval: monitoringv1.Duration("30s"),
+				Path:     "/metrics",
+				Port:     "metrics",
+				Scheme:   "https",
 				TLSConfig: &monitoringv1.TLSConfig{
 					SafeTLSConfig: monitoringv1.SafeTLSConfig{
 						CA: monitoringv1.SecretOrConfigMap{
@@ -53,7 +54,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								},
 								Key: "service-ca.crt",
 							},
-						}, Cert: monitoringv1.SecretOrConfigMap{},
+						},
+						Cert:       monitoringv1.SecretOrConfigMap{},
 						ServerName: "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc",
 					},
 				},
