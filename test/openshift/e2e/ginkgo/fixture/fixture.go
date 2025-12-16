@@ -206,7 +206,7 @@ func EnsureSequentialCleanSlateWithError() error {
 func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) error {
 
 	if EnvNonOLM() || EnvLocalRun() {
-		// Skipping as CSV does not exist when not using OLM, nor when running locally.
+		// Skipping as CSV does exist when not using OLM, nor does it exist when running locally
 		return nil
 	}
 

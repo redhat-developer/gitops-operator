@@ -86,7 +86,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", func() {
-
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
@@ -168,7 +167,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can update resource constraints", func() {
-
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
@@ -240,7 +238,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates gitops plugin and backend can have different resource constraints", func() {
-
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
