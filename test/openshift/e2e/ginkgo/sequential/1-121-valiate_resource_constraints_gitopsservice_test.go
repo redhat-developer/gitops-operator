@@ -86,10 +86,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", func() {
-			if fixture.EnvCI() {
-				Skip("Skipping CSV-based test in CI environment where operator is managed via Subscription")
-				return
-			}
 
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
@@ -172,10 +168,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can update resource constraints", func() {
-			if fixture.EnvCI() {
-				Skip("Skipping CSV-based test in CI environment where operator is managed via Subscription")
-				return
-			}
 
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
@@ -248,10 +240,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates gitops plugin and backend can have different resource constraints", func() {
-			if fixture.EnvCI() {
-				Skip("Skipping CSV-based test in CI environment where operator is managed via Subscription")
-				return
-			}
 
 			csv := getCSV(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())

@@ -205,9 +205,8 @@ func EnsureSequentialCleanSlateWithError() error {
 // RemoveDynamicPluginFromCSV ensures that if the CSV in 'openshift-gitops-operator' NS exists, that the CSV does not contain the dynamic plugin env var
 func RemoveDynamicPluginFromCSV(ctx context.Context, k8sClient client.Client) error {
 
-	if EnvNonOLM() || EnvLocalRun() || EnvCI() {
+	if EnvNonOLM() || EnvLocalRun() {
 		// Skipping as CSV does not exist when not using OLM, nor when running locally.
-		// In CI environment, the operator is managed via Subscription rather than direct CSV access.
 		return nil
 	}
 
