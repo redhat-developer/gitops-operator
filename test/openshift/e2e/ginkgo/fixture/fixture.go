@@ -377,7 +377,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		return deploymentFixture.GetEnv(depl, key)
+		return deploymentFixture.GetEnv(depl, "manager", key)
 
 	} else if EnvCI() {
 
@@ -414,7 +414,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.SetEnv(depl, key, value)
+		deploymentFixture.SetEnv(depl, "manager", key, value)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -451,7 +451,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.RemoveEnv(depl, key)
+		deploymentFixture.RemoveEnv(depl, "manager", key)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -518,7 +518,7 @@ func RestoreSubcriptionToDefault() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
 		for _, envKey := range optionalEnvVarsToRemove {
-			deploymentFixture.RemoveEnv(depl, envKey)
+			deploymentFixture.RemoveEnv(depl, "manager", envKey)
 		}
 
 		err := waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient)
