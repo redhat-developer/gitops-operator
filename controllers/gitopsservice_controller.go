@@ -118,11 +118,9 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		&handler.EnqueueRequestForObject{},
 		builder.WithPredicates(predicate.Funcs{
 			CreateFunc: func(e event.CreateEvent) bool {
-				// Only watch openshift-gitops ArgoCD
 				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
 			},
 			UpdateFunc: func(e event.UpdateEvent) bool {
-				// Only watch openshift-gitops ArgoCD
 				if e.ObjectNew.GetName() != "openshift-gitops" || e.ObjectNew.GetNamespace() != "openshift-gitops" {
 					return false
 				}
@@ -130,7 +128,6 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 				return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
 			},
 			DeleteFunc: func(e event.DeleteEvent) bool {
-				// Only watch openshift-gitops ArgoCD
 				return e.Object.GetName() == "openshift-gitops" && e.Object.GetNamespace() == "openshift-gitops"
 			},
 		})).
@@ -466,135 +463,83 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := false
-		if existingArgoCD.Spec.ApplicationSet != nil {
-			if existingArgoCD.Spec.ApplicationSet.Resources == nil {
-				existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
-				changed = true
-			}
-		}
-
-		if existingArgoCD.Spec.Controller.Resources == nil {
-			existingArgoCD.Spec.Controller.Resources = defaultArgoCDInstance.Spec.Controller.Resources
-			changed = true
-		}
-
-		if argocdcontroller.UseDex(existingArgoCD) {
-			if existingArgoCD.Spec.SSO != nil && existingArgoCD.Spec.SSO.Provider == argoapp.SSOProviderTypeDex {
-				if existingArgoCD.Spec.SSO.Dex != nil {
-					if existingArgoCD.Spec.SSO.Dex.Resources == nil {
-						existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
-						changed = true
-					}
-				}
-			}
-		}
-
-		//lint:ignore SA1019 known to be deprecated
-		if existingArgoCD.Spec.Grafana.Resources == nil { //nolint:staticcheck // SA1019: We must test deprecated fields.
-			//lint:ignore SA1019 known to be deprecated
-			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources //nolint:staticcheck // SA1019: We must test deprecated fields.
-			changed = true
-		}
-
-		if existingArgoCD.Spec.HA.Resources == nil {
-			existingArgoCD.Spec.HA.Resources = defaultArgoCDInstance.Spec.HA.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Redis.Resources == nil {
-			existingArgoCD.Spec.Redis.Resources = defaultArgoCDInstance.Spec.Redis.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Repo.Resources == nil {
-			existingArgoCD.Spec.Repo.Resources = defaultArgoCDInstance.Spec.Repo.Resources
-			changed = true
-		}
-
-		if existingArgoCD.Spec.Server.Resources == nil {
-			existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
-			changed = true
-		}
-
-		// if user is patching nodePlacement through GitopsService CR, then existingArgoCD NodePlacement is updated.
-		if defaultArgoCDInstance.Spec.NodePlacement != nil {
-			if !equality.Semantic.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
-				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
-				changed = true
-			}
-			// Handle the case where NodePlacement should be removed
-		} else if existingArgoCD.Spec.NodePlacement != nil {
-			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
-			changed = true
-		}
-
-		if changed {
-			reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-				if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: existingArgoCD.Name, Namespace: existingArgoCD.Namespace}, existingArgoCD); err != nil {
-					return err
-				}
-				changed := false
-				if existingArgoCD.Spec.ApplicationSet != nil {
-					if existingArgoCD.Spec.ApplicationSet.Resources == nil {
-						existingArgoCD.Spec.ApplicationSet.Resources = defaultArgoCDInstance.Spec.ApplicationSet.Resources
-						changed = true
-					}
-				}
-				if existingArgoCD.Spec.Controller.Resources == nil {
-					existingArgoCD.Spec.Controller.Resources = defaultArgoCDInstance.Spec.Controller.Resources
+		updateArgoCDResources := func(existing *argoapp.ArgoCD, desired *argoapp.ArgoCD) bool {
+			changed := false
+			if existing.Spec.ApplicationSet != nil {
+				if existing.Spec.ApplicationSet.Resources == nil {
+					existing.Spec.ApplicationSet.Resources = desired.Spec.ApplicationSet.Resources
 					changed = true
 				}
-				if argocdcontroller.UseDex(existingArgoCD) {
-					if existingArgoCD.Spec.SSO != nil && existingArgoCD.Spec.SSO.Provider == argoapp.SSOProviderTypeDex {
-						if existingArgoCD.Spec.SSO.Dex != nil {
-							if existingArgoCD.Spec.SSO.Dex.Resources == nil {
-								existingArgoCD.Spec.SSO.Dex.Resources = defaultArgoCDInstance.Spec.SSO.Dex.Resources
-								changed = true
-							}
+			}
+
+			if existing.Spec.Controller.Resources == nil {
+				existing.Spec.Controller.Resources = desired.Spec.Controller.Resources
+				changed = true
+			}
+
+			if argocdcontroller.UseDex(existing) {
+				if existing.Spec.SSO != nil && existing.Spec.SSO.Provider == argoapp.SSOProviderTypeDex {
+					if existing.Spec.SSO.Dex != nil {
+						if existing.Spec.SSO.Dex.Resources == nil {
+							existing.Spec.SSO.Dex.Resources = desired.Spec.SSO.Dex.Resources
+							changed = true
 						}
 					}
 				}
-				//lint:ignore SA1019 known to be deprecated
-				if existingArgoCD.Spec.Grafana.Resources == nil { //nolint:staticcheck // SA1019: We must test deprecated fields.
-					//lint:ignore SA1019 known to be deprecated
-					existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources //nolint:staticcheck // SA1019: We must test deprecated fields.
-					changed = true
-				}
-				if existingArgoCD.Spec.HA.Resources == nil {
-					existingArgoCD.Spec.HA.Resources = defaultArgoCDInstance.Spec.HA.Resources
-					changed = true
-				}
-				if existingArgoCD.Spec.Redis.Resources == nil {
-					existingArgoCD.Spec.Redis.Resources = defaultArgoCDInstance.Spec.Redis.Resources
-					changed = true
-				}
-				if existingArgoCD.Spec.Repo.Resources == nil {
-					existingArgoCD.Spec.Repo.Resources = defaultArgoCDInstance.Spec.Repo.Resources
-					changed = true
-				}
-				if existingArgoCD.Spec.Server.Resources == nil {
-					existingArgoCD.Spec.Server.Resources = defaultArgoCDInstance.Spec.Server.Resources
-					changed = true
-				}
-				if defaultArgoCDInstance.Spec.NodePlacement != nil {
-					if !equality.Semantic.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
-						existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
-						changed = true
-					}
-				} else if existingArgoCD.Spec.NodePlacement != nil {
-					existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
-					changed = true
-				}
-				if !changed {
-					return nil
-				}
-				return r.Client.Update(context.TODO(), existingArgoCD)
-			})
-			if err != nil {
-				return reconcile.Result{}, err
 			}
+
+			//lint:ignore SA1019 known to be deprecated
+			if existing.Spec.Grafana.Resources == nil { //nolint:staticcheck // SA1019: We must test deprecated fields.
+				//lint:ignore SA1019 known to be deprecated
+				existing.Spec.Grafana.Resources = desired.Spec.Grafana.Resources //nolint:staticcheck // SA1019: We must test deprecated fields.
+				changed = true
+			}
+
+			if existing.Spec.HA.Resources == nil {
+				existing.Spec.HA.Resources = desired.Spec.HA.Resources
+				changed = true
+			}
+
+			if existing.Spec.Redis.Resources == nil {
+				existing.Spec.Redis.Resources = desired.Spec.Redis.Resources
+				changed = true
+			}
+
+			if existing.Spec.Repo.Resources == nil {
+				existing.Spec.Repo.Resources = desired.Spec.Repo.Resources
+				changed = true
+			}
+
+			if existing.Spec.Server.Resources == nil {
+				existing.Spec.Server.Resources = desired.Spec.Server.Resources
+				changed = true
+			}
+
+			if desired.Spec.NodePlacement != nil {
+				if !equality.Semantic.DeepEqual(existing.Spec.NodePlacement, desired.Spec.NodePlacement) {
+					existing.Spec.NodePlacement = desired.Spec.NodePlacement
+					changed = true
+				}
+			} else if existing.Spec.NodePlacement != nil {
+				existing.Spec.NodePlacement = desired.Spec.NodePlacement
+				changed = true
+			}
+
+			return changed
+		}
+
+		reqLogger.Info("Reconciling ArgoCD", "Namespace", existingArgoCD.Namespace, "Name", existingArgoCD.Name)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: existingArgoCD.Name, Namespace: existingArgoCD.Namespace}, existingArgoCD); err != nil {
+				return err
+			}
+			if !updateArgoCDResources(existingArgoCD, defaultArgoCDInstance) {
+				return nil
+			}
+			return r.Client.Update(context.TODO(), existingArgoCD)
+		})
+		if err != nil {
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -741,7 +686,6 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.Containers[0].Args = deploymentObj.Spec.Template.Spec.Containers[0].Args
 				changed = true
 			}
-			// Use semantic equality to handle Kubernetes defaults properly
 			if !equality.Semantic.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
 				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
