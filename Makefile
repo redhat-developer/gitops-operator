@@ -184,7 +184,9 @@ e2e-tests-sequential:
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel:
-	CI=prow make e2e-tests-parallel-ginkgo
+    "scripts/run-rollouts-e2e-tests.sh"
+
+	# CI=prow make e2e-tests-parallel-ginkgo
 	# @echo "Running GitOps Operator parallel E2E tests..."
 	# . ./scripts/run-kuttl-tests.sh  parallel
 
