@@ -218,6 +218,11 @@ func main() {
 		}
 	}
 
+	if err = (&argov1beta1api.ArgoCD{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "ArgoCD")
+		os.Exit(1)
+	}
+
 	if err = (&controllers.ReconcileGitopsService{
 		Client:                client,
 		Scheme:                mgr.GetScheme(),
