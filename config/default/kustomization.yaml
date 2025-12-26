@@ -72,3 +72,6 @@ vars:
 #    kind: Service
 #    version: v1
 #    name: webhook-service
+# If needed, add commonAnnotations for webhook CA injection
+commonAnnotations:
+  service.beta.openshift.io/inject-cabundle: "true"
