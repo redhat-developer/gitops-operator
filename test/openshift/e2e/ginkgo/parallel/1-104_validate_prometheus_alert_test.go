@@ -3,10 +3,14 @@ package parallel
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	corev1 "k8s.io/api/core/v1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -14,7 +18,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-104_validate_prometheus_alert", func() {
 
 		BeforeEach(func() {
-
 			fixture.EnsureParallelCleanSlate()
 		})
 
@@ -33,19 +36,29 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(sm).Should(k8sFixture.ExistByName())
 
-			Expect(sm.Spec.Endpoints).Should(Equal([]monitoringv1.Endpoint{{
-				BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
-				Interval:        monitoringv1.Duration("30s"),
-				Path:            "/metrics",
-				Port:            "metrics",
-				Scheme:          "https",
+			Expect(sm.Spec.Endpoints).To(Equal([]monitoringv1.Endpoint{{
+				BearerTokenSecret: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
+					},
+					Key: "token",
+				},
+				Interval: monitoringv1.Duration("30s"),
+				Path:     "/metrics",
+				Port:     "metrics",
+				Scheme:   "https",
 				TLSConfig: &monitoringv1.TLSConfig{
 					SafeTLSConfig: monitoringv1.SafeTLSConfig{
-						CA:         monitoringv1.SecretOrConfigMap{},
-						Cert:       monitoringv1.SecretOrConfigMap{},
+						CA: monitoringv1.SecretOrConfigMap{
+							ConfigMap: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "openshift-gitops-operator-metrics-monitor-ca-bundle",
+								},
+								Key: "service-ca.crt",
+							},
+						},
 						ServerName: "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc",
 					},
-					CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
 				},
 			}}))
 
@@ -57,5 +70,4 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}))
 		})
 	})
-
 })

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    openshift.io/description: This ConfigMap is used for Prometheus monitoring of
+      the GitOps Operator.
+    openshift.io/display-name: GitOps Operator Prometheus Monitor ConfigMap
+    openshift.io/owning-component: service-ca
+    service.beta.openshift.io/inject-cabundle: "true"
+  name: openshift-gitops-operator-metrics-monitor-ca-bundle
