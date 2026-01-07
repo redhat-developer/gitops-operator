@@ -1,6 +1,6 @@
 # Dockerfile to bootstrap build and test in openshift-ci
 
-FROM quay.io/devtools_gitops/go-toolset:1.25
+FROM quay.io/devtools_gitops/go-toolset:1.25.3
 USER root
 
 ARG KUBECTL_KUTTL_VERSION=0.12.1
