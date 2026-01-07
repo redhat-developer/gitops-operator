@@ -5,6 +5,7 @@ metadata:
   name: webhook-service
   namespace: system
   annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
     service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
 spec:
   ports:

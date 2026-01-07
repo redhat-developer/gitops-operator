@@ -1,6 +1,10 @@
 resources:
-#- manifests.yaml
+- manifests.yaml
 - service.yaml
 
 configurations:
 - kustomizeconfig.yaml
+
+commonAnnotations:
+  service.beta.openshift.io/inject-cabundle: "true"
+  service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
