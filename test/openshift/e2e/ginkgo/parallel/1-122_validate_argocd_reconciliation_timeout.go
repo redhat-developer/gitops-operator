@@ -168,8 +168,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("Validate the precedence of the appSync value over the timeout.reconciliation value in configmap", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating ArgoCD CR with appSync value and timeout.reconciliation value in configmap")
 			argoCD := &argov1beta1api.ArgoCD{
