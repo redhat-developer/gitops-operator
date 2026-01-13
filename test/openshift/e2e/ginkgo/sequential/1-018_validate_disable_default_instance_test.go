@@ -114,11 +114,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true")
 
+			installationNamespace := fixture.GetInstallationNamespace()
+
 			By("verifying operator restarts with DISABLE_DEFAULT_ARGOCD_INSTANCE set")
 			operatorControllerDepl := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops-operator-controller-manager",
-					Namespace: fixture.GetInstallationNamespace(), // The original kuttl test was 'openshift-operators'
+					Namespace: installationNamespace, // The original kuttl test was 'openshift-operators'
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
