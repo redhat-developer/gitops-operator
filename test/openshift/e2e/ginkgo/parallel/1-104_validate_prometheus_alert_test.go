@@ -28,10 +28,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				return
 			}
 
+			var installationNamespace = fixture.GetInstallationNamespace()
+
 			sm := &monitoringv1.ServiceMonitor{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops-operator-metrics-monitor",
-					Namespace: "openshift-gitops-operator",
+					Namespace: installationNamespace,
 				},
 			}
 			Eventually(sm).Should(k8sFixture.ExistByName())
@@ -57,7 +59,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								Key: "service-ca.crt",
 							},
 						},
-						ServerName: "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc",
+						ServerName: "openshift-gitops-operator-metrics-service." + installationNamespace + ".svc",
 					},
 				},
 			}}))
