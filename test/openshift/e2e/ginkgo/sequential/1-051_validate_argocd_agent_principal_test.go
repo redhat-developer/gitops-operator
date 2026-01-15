@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	agentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/agent"
@@ -41,6 +42,15 @@ import (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+
+	const (
+		argoCDName                    = "example"
+		argoCDAgentPrincipalName      = "example-agent-principal" // argoCDName + "-agent-principal"
+		principalMetricsServiceFmt    = "%s-agent-principal-metrics"
+		principalRedisProxyServiceFmt = "%s-agent-principal-redisproxy"
+		principalHealthzServiceFmt    = "%s-agent-principal-healthz"
+	)
+
 	Context("1-051_validate_argocd_agent_principal", func() {
 
 		var (
@@ -75,7 +85,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Define ArgoCD CR with principal enabled
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      argoCDAgentInstanceNamePrincipal,
+					Name:      argoCDName,
 					Namespace: ns.Name,
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -113,34 +123,34 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Define required resources for principal pod
 			serviceAccount = &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
 
 			role = &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
 
 			roleBinding = &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
 
 			clusterRole = &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("%s-%s-agent-principal", argoCDAgentInstanceNamePrincipal, ns.Name),
+					Name: fmt.Sprintf("%s-%s-agent-principal", argoCDName, ns.Name),
 				},
 			}
 
 			clusterRoleBinding = &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("%s-%s-agent-principal", argoCDAgentInstanceNamePrincipal, ns.Name),
+					Name: fmt.Sprintf("%s-%s-agent-principal", argoCDName, ns.Name),
 				},
 			}
 
@@ -150,32 +160,32 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				PrincipalTLSSecretName:         agentPrincipalTLSSecretName,
 				RootCASecretName:               agentRootCASecretName,
 				ResourceProxyTLSSecretName:     agentResourceProxyTLSSecretName,
-				RedisInitialPasswordSecretName: fmt.Sprintf("%s-redis-initial-password", argoCDAgentInstanceNamePrincipal),
+				RedisInitialPasswordSecretName: "example-redis-initial-password",
 			}
 
-			resourceProxyServiceName = fmt.Sprintf("%s-agent-principal-resource-proxy", argoCDAgentInstanceNamePrincipal)
+			resourceProxyServiceName = fmt.Sprintf("%s-agent-principal-resource-proxy", argoCDName)
 			serviceNames = []string{
-				deploymentNameAgentPrincipal,
-				fmt.Sprintf("%s-agent-principal-metrics", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-redis", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-repo-server", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-server", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-agent-principal-redisproxy", argoCDAgentInstanceNamePrincipal),
+				argoCDAgentPrincipalName,
+				fmt.Sprintf(principalMetricsServiceFmt, argoCDName),
+				fmt.Sprintf("%s-redis", argoCDName),
+				fmt.Sprintf("%s-repo-server", argoCDName),
+				fmt.Sprintf("%s-server", argoCDName),
+				fmt.Sprintf(principalRedisProxyServiceFmt, argoCDName),
 				resourceProxyServiceName,
-				fmt.Sprintf("%s-agent-principal-healthz", argoCDAgentInstanceNamePrincipal),
+				fmt.Sprintf(principalHealthzServiceFmt, argoCDName),
 			}
-			deploymentNames = []string{fmt.Sprintf("%s-redis", argoCDAgentInstanceNamePrincipal), fmt.Sprintf("%s-repo-server", argoCDAgentInstanceNamePrincipal), fmt.Sprintf("%s-server", argoCDAgentInstanceNamePrincipal)}
+			deploymentNames = []string{fmt.Sprintf("%s-redis", argoCDName), fmt.Sprintf("%s-repo-server", argoCDName), fmt.Sprintf("%s-server", argoCDName)}
 
 			principalDeployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
 
 			principalRoute = &routev1.Route{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("%s-agent-principal", argoCDAgentInstanceNamePrincipal),
+					Name:      fmt.Sprintf("%s-agent-principal", argoCDName),
 					Namespace: ns.Name,
 				},
 			}
@@ -193,7 +203,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				argocdagent.EnvArgoCDPrincipalAuth:                      "mtls:CN=([^,]+)",
 				argocdagent.EnvArgoCDPrincipalEnableResourceProxy:       "true",
 				argocdagent.EnvArgoCDPrincipalKeepAliveMinInterval:      "30s",
-				argocdagent.EnvArgoCDPrincipalRedisServerAddress:        fmt.Sprintf("%s-%s:%d", argoCDAgentInstanceNamePrincipal, "redis", ArgoCDDefaultRedisPort),
+				argocdagent.EnvArgoCDPrincipalRedisServerAddress:        fmt.Sprintf("%s-%s:%d", argoCDName, "redis", common.ArgoCDDefaultRedisPort),
 				argocdagent.EnvArgoCDPrincipalRedisCompressionType:      "gzip",
 				argocdagent.EnvArgoCDPrincipalLogFormat:                 "text",
 				argocdagent.EnvArgoCDPrincipalEnableWebSocket:           "false",
@@ -206,8 +216,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			principalResources = agentFixture.PrincipalResources{
 				PrincipalNamespaceName:   ns.Name,
-				ArgoCDAgentPrincipalName: deploymentNameAgentPrincipal,
-				ArgoCDName:               argoCDAgentInstanceNamePrincipal,
+				ArgoCDAgentPrincipalName: argoCDAgentPrincipalName,
+				ArgoCDName:               argoCDName,
 				ServiceAccount:           serviceAccount,
 				Role:                     role,
 				RoleBinding:              roleBinding,
@@ -216,11 +226,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				PrincipalDeployment:      principalDeployment,
 				PrincipalRoute:           principalRoute,
 				ServicesToDelete: []string{
-					deploymentNameAgentPrincipal,
-					fmt.Sprintf("%s-agent-principal-metrics", argoCDAgentInstanceNamePrincipal),
-					fmt.Sprintf("%s-agent-principal-redisproxy", argoCDAgentInstanceNamePrincipal),
+					argoCDAgentPrincipalName,
+					fmt.Sprintf(principalMetricsServiceFmt, argoCDName),
+					fmt.Sprintf(principalRedisProxyServiceFmt, argoCDName),
 					resourceProxyServiceName,
-					fmt.Sprintf("%s-agent-principal-healthz", argoCDAgentInstanceNamePrincipal),
+					fmt.Sprintf(principalHealthzServiceFmt, argoCDName),
 				},
 			}
 		})
@@ -239,7 +249,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		createRequiredSecrets := func(namespace *corev1.Namespace, additionalPrincipalSANs ...string) {
 			agentFixture.CreateRequiredSecrets(agentFixture.PrincipalSecretsConfig{
 				PrincipalNamespaceName:     namespace.Name,
-				PrincipalServiceName:       deploymentNameAgentPrincipal,
+				PrincipalServiceName:       argoCDAgentPrincipalName,
 				ResourceProxyServiceName:   resourceProxyServiceName,
 				JWTSecretName:              secretNames.JWTSecretName,
 				PrincipalTLSSecretName:     secretNames.PrincipalTLSSecretName,
@@ -257,8 +267,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			agentFixture.VerifyExpectedResourcesExist(agentFixture.VerifyExpectedResourcesExistParams{
 				Namespace:                namespace,
-				ArgoCDAgentPrincipalName: deploymentNameAgentPrincipal,
-				ArgoCDName:               argoCDAgentInstanceNamePrincipal,
+				ArgoCDAgentPrincipalName: argoCDAgentPrincipalName,
+				ArgoCDName:               argoCDName,
 				ServiceAccount:           serviceAccount,
 				Role:                     role,
 				RoleBinding:              roleBinding,
@@ -292,7 +302,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal has the custom image we specified in ArgoCD CR")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgentPrincipal, *principalDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
 			Expect(container.Image).To(Equal("quay.io/user/argocd-agent:v1"))
 
@@ -307,7 +317,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Disable principal")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Enabled = ptr.To(false)
@@ -333,9 +343,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal uses the default agent image")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgentPrincipal, *principalDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(ArgoCDAgentPrincipalDefaultImageName))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
 
 			By("Create required secrets and certificates for principal pod to start properly")
 
@@ -343,7 +353,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal pod starts successfully by checking logs")
 
-			agentFixture.VerifyLogs(deploymentNameAgentPrincipal, ns.Name, []string{
+			agentFixture.VerifyLogs(argoCDAgentPrincipalName, ns.Name, []string{
 				"Starting metrics server",
 				"Redis proxy started",
 				"Application informer synced and ready",
@@ -370,7 +380,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Disable principal")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Enabled = nil
@@ -394,7 +404,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal has the custom image we specified in ArgoCD CR")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgentPrincipal, *principalDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
 			Expect(container.Image).To(Equal("quay.io/argoprojlabs/argocd-agent:v0.5.0"))
 
@@ -407,7 +417,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Update ArgoCD CR with new configuration")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 
@@ -453,12 +463,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(
 				func() bool {
 					// Fetch the latest deployment from the cluster
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deploymentNameAgentPrincipal, Namespace: ns.Name}, principalDeployment)
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalDeployment)
 					if err != nil {
 						GinkgoWriter.Println("Error getting deployment for image check: ", err)
 						return false
 					}
-					container = deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgentPrincipal, *principalDeployment)
+					container = deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 					if container == nil {
 						return false
 					}
@@ -553,7 +563,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Disable route while keeping principal enabled")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Server.Route.Enabled = ptr.To(false)
 			})
@@ -569,11 +579,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(principalDeployment).Should(k8sFixture.ExistByName())
 
 			for _, serviceName := range []string{
-				fmt.Sprintf("%s-agent-principal", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-agent-principal-metrics", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-agent-principal-redisproxy", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-agent-principal-resource-proxy", argoCDAgentInstanceNamePrincipal),
-				fmt.Sprintf("%s-agent-principal-healthz", argoCDAgentInstanceNamePrincipal),
+				fmt.Sprintf("%s-agent-principal", argoCDName),
+				fmt.Sprintf(principalMetricsServiceFmt, argoCDName),
+				fmt.Sprintf(principalRedisProxyServiceFmt, argoCDName),
+				fmt.Sprintf("%s-agent-principal-resource-proxy", argoCDName),
+				fmt.Sprintf(principalHealthzServiceFmt, argoCDName),
 			} {
 				service := &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
@@ -586,7 +596,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Re-enable route")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Server.Route.Enabled = ptr.To(true)
 			})
@@ -615,7 +625,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			principalService := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
@@ -640,7 +650,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			principalService := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
@@ -665,7 +675,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			principalService := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgentPrincipal,
+					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
 			}
@@ -674,7 +684,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Update service type to LoadBalancer")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNamePrincipal, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Server.Service.Type = corev1.ServiceTypeLoadBalancer
 			})
@@ -682,7 +692,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Verify principal service type is updated to LoadBalancer")
 
 			Eventually(func() corev1.ServiceType {
-				err := k8sClient.Get(ctx, client.ObjectKey{Name: deploymentNameAgentPrincipal, Namespace: ns.Name}, principalService)
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalService)
 				if err != nil {
 					return ""
 				}

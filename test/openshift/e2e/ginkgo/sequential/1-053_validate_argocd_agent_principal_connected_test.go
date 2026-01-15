@@ -121,15 +121,6 @@ const (
 	agentRootCASecretName           = "argocd-agent-ca"
 	agentClientTLSSecretName        = "argocd-agent-client-tls"
 	agentResourceProxyTLSSecretName = "argocd-agent-resource-proxy-tls"
-
-	// Redis port
-	ArgoCDDefaultRedisPort = 6379
-
-	// ArgoCDAgentAgentDefaultImageName is the default image name for the ArgoCD agent's agent component.
-	ArgoCDAgentAgentDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.5.2"
-
-	// ArgoCDAgentPrincipalDefaultImageName is the default image name for the ArgoCD agent's principal component.
-	ArgoCDAgentPrincipalDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.5.2"
 )
 
 var (
@@ -222,7 +213,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			_, cleanupFuncClusterAutonomous := fixture.CreateNamespaceWithCleanupFunc(autonomousAgentClusterName)
 			registerCleanup(cleanupFuncClusterAutonomous)
 
-			// Create namespaces with managed-by label for the agent's application controller to deploy resources
 			_, cleanupFuncManagedApplication := fixture.CreateManagedNamespaceWithCleanupFunc(managedAgentApplicationNamespace, namespaceManagedAgent)
 			registerCleanup(cleanupFuncManagedApplication)
 

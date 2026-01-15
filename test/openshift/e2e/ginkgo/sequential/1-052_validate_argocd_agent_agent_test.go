@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent/agent"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
@@ -39,6 +40,12 @@ import (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+
+	const (
+		argoCDName           = "example"
+		argoCDAgentAgentName = "example-agent-agent" // argoCDName + "-agent-agent"
+	)
+
 	Context("1-052_validate_argocd_agent_agent", func() {
 
 		var (
@@ -70,7 +77,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Define ArgoCD CR with agent enabled
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      argoCDAgentInstanceNameAgent,
+					Name:      argoCDName,
 					Namespace: ns.Name,
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -100,7 +107,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								Insecure:         ptr.To(false),
 							},
 							Redis: &argov1beta1api.AgentRedisSpec{
-								ServerAddress: fmt.Sprintf("%s-%s:%d", argoCDAgentInstanceNameAgent, "redis", ArgoCDDefaultRedisPort),
+								ServerAddress: fmt.Sprintf("%s-%s:%d", argoCDName, "redis", common.ArgoCDDefaultRedisPort),
 							},
 						},
 					},
@@ -110,34 +117,34 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Define required resources for agent pod
 			serviceAccount = &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgent,
+					Name:      argoCDAgentAgentName,
 					Namespace: ns.Name,
 				},
 			}
 
 			role = &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgent,
+					Name:      argoCDAgentAgentName,
 					Namespace: ns.Name,
 				},
 			}
 
 			roleBinding = &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgent,
+					Name:      argoCDAgentAgentName,
 					Namespace: ns.Name,
 				},
 			}
 
 			clusterRole = &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("%s-%s-agent-agent", argoCDAgentInstanceNameAgent, ns.Name),
+					Name: fmt.Sprintf("%s-%s-agent-agent", argoCDName, ns.Name),
 				},
 			}
 
 			clusterRoleBinding = &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: fmt.Sprintf("%s-%s-agent-agent", argoCDAgentInstanceNameAgent, ns.Name),
+					Name: fmt.Sprintf("%s-%s-agent-agent", argoCDName, ns.Name),
 				},
 			}
 
@@ -145,19 +152,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			secretNames = []string{
 				agentClientTLSSecretName,
 				agentRootCASecretName,
-				fmt.Sprintf("%s-redis-initial-password", argoCDAgentInstanceNameAgent),
+				"example-redis-initial-password",
 			}
 
 			serviceNames = []string{
-				fmt.Sprintf("%s-agent-agent-metrics", argoCDAgentInstanceNameAgent),
-				fmt.Sprintf("%s-agent-agent-healthz", argoCDAgentInstanceNameAgent),
-				fmt.Sprintf("%s-redis", argoCDAgentInstanceNameAgent),
+				fmt.Sprintf("%s-agent-agent-metrics", argoCDName),
+				fmt.Sprintf("%s-agent-agent-healthz", argoCDName),
+				fmt.Sprintf("%s-redis", argoCDName),
 			}
-			deploymentNames = []string{fmt.Sprintf("%s-redis", argoCDAgentInstanceNameAgent)}
+			deploymentNames = []string{fmt.Sprintf("%s-redis", argoCDName)}
 
 			agentDeployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      deploymentNameAgent,
+					Name:      argoCDAgentAgentName,
 					Namespace: ns.Name,
 				},
 			}
@@ -177,7 +184,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				agent.EnvArgoCDAgentEnableWebSocket:     "false",
 				agent.EnvArgoCDAgentEnableCompression:   "false",
 				agent.EnvArgoCDAgentKeepAliveInterval:   "30s",
-				agent.EnvArgoCDAgentRedisAddress:        fmt.Sprintf("%s-%s:%d", argoCDAgentInstanceNameAgent, "redis", ArgoCDDefaultRedisPort),
+				agent.EnvArgoCDAgentRedisAddress:        fmt.Sprintf("%s-%s:%d", argoCDName, "redis", common.ArgoCDDefaultRedisPort),
 				agent.EnvArgoCDAgentEnableResourceProxy: "true",
 			}
 		})
@@ -245,8 +252,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Eventually(agentDeployment).Should(k8sFixture.ExistByName())
 			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/component", string(argov1beta1api.AgentComponentTypeAgent)))
-			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/managed-by", argoCDAgentInstanceNameAgent))
-			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/name", deploymentNameAgent))
+			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/managed-by", argoCDName))
+			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/name", argoCDAgentAgentName))
 			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/part-of", "argocd-agent"))
 		}
 
@@ -262,7 +269,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(clusterRoleBinding).Should(k8sFixture.NotExistByName())
 			Eventually(agentDeployment).Should(k8sFixture.NotExistByName())
 
-			for _, serviceName := range []string{fmt.Sprintf("%s-agent-agent-metrics", argoCDAgentInstanceNameAgent), fmt.Sprintf("%s-agent-agent-healthz", argoCDAgentInstanceNameAgent)} {
+			for _, serviceName := range []string{fmt.Sprintf("%s-agent-agent-metrics", argoCDName), fmt.Sprintf("%s-agent-agent-healthz", argoCDName)} {
 				service := &corev1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      serviceName,
@@ -288,7 +295,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify agent has the custom image we specified in ArgoCD CR")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgent, *agentDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
 			Expect(container.Image).To(Equal("quay.io/user/argocd-agent:v1"))
 
@@ -303,7 +310,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Disable agent")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNameAgent, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.Enabled = ptr.To(false)
@@ -329,9 +336,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify agent uses the default agent image")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgent, *agentDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(ArgoCDAgentAgentDefaultImageName))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
 
 			By("Verify environment variables are set correctly")
 
@@ -350,7 +357,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Disable agent")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNameAgent, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.Enabled = nil
@@ -374,7 +381,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify agent has the custom image we specified in ArgoCD CR")
 
-			container := deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgent, *agentDeployment)
+			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
 			Expect(container.Image).To(Equal("quay.io/argoprojlabs/argocd-agent:v0.5.0"))
 
@@ -387,7 +394,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Update ArgoCD CR with new configuration")
 
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentInstanceNameAgent, Namespace: ns.Name}, argoCD)).To(Succeed())
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 
@@ -414,12 +421,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(
 				func() bool {
 					// Fetch the latest deployment from the cluster
-					err := k8sClient.Get(ctx, client.ObjectKey{Name: deploymentNameAgent, Namespace: ns.Name}, agentDeployment)
+					err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentAgentName, Namespace: ns.Name}, agentDeployment)
 					if err != nil {
 						GinkgoWriter.Println("Error getting deployment for image check: ", err)
 						return false
 					}
-					container = deploymentFixture.GetTemplateSpecContainerByName(deploymentNameAgent, *agentDeployment)
+					container = deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 					if container == nil {
 						return false
 					}
