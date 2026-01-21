@@ -271,6 +271,9 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
 
+.PHONY: olm-deploy
+olm-deploy: ## Build the operator bundle and deploy it to OpenShift through OLM
+	./hack/scripts/olm-deploy.sh
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
