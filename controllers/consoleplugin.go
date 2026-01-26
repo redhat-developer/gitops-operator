@@ -276,31 +276,21 @@ func sortContainers(containers []corev1.Container) []corev1.Container {
 		return containers
 	}
 	sorted := make([]corev1.Container, len(containers))
-	for i, c := range containers {
-		sorted[i] = *c.DeepCopy()
-		// Sort Env by Name
-		if len(sorted[i].Env) > 0 {
-			sort.Slice(sorted[i].Env, func(a, b int) bool {
-				return sorted[i].Env[a].Name < sorted[i].Env[b].Name
-			})
-		}
-		// Sort Ports by ContainerPort, then by Name
-		if len(sorted[i].Ports) > 0 {
-			sort.Slice(sorted[i].Ports, func(a, b int) bool {
-				if sorted[i].Ports[a].ContainerPort != sorted[i].Ports[b].ContainerPort {
-					return sorted[i].Ports[a].ContainerPort < sorted[i].Ports[b].ContainerPort
-				}
-				return sorted[i].Ports[a].Name < sorted[i].Ports[b].Name
-			})
-		}
-		// Sort VolumeMounts by Name
-		if len(sorted[i].VolumeMounts) > 0 {
-			sort.Slice(sorted[i].VolumeMounts, func(a, b int) bool {
-				return sorted[i].VolumeMounts[a].Name < sorted[i].VolumeMounts[b].Name
-			})
-		}
+	for i := range containers {
+		sorted[i] = *containers[i].DeepCopy()
+		sort.Slice(sorted[i].Env, func(a, b int) bool {
+			return sorted[i].Env[a].Name < sorted[i].Env[b].Name
+		})
+		sort.Slice(sorted[i].Ports, func(a, b int) bool {
+			if sorted[i].Ports[a].ContainerPort != sorted[i].Ports[b].ContainerPort {
+				return sorted[i].Ports[a].ContainerPort < sorted[i].Ports[b].ContainerPort
+			}
+			return sorted[i].Ports[a].Name < sorted[i].Ports[b].Name
+		})
+		sort.Slice(sorted[i].VolumeMounts, func(a, b int) bool {
+			return sorted[i].VolumeMounts[a].Name < sorted[i].VolumeMounts[b].Name
+		})
 	}
-	// Sort containers by Name
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Name < sorted[j].Name
 	})
@@ -309,9 +299,6 @@ func sortContainers(containers []corev1.Container) []corev1.Container {
 
 // sortVolumes creates a sorted copy of volumes by name
 func sortVolumes(volumes []corev1.Volume) []corev1.Volume {
-	if len(volumes) == 0 {
-		return volumes
-	}
 	sorted := make([]corev1.Volume, len(volumes))
 	copy(sorted, volumes)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -322,9 +309,6 @@ func sortVolumes(volumes []corev1.Volume) []corev1.Volume {
 
 // sortTolerations creates a sorted copy of tolerations by key, operator, and effect
 func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
-	if len(tolerations) == 0 {
-		return tolerations
-	}
 	sorted := make([]corev1.Toleration, len(tolerations))
 	copy(sorted, tolerations)
 	sort.Slice(sorted, func(i, j int) bool {
