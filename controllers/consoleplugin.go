@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -16,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/redhat-developer/gitops-operator/common"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -267,6 +269,61 @@ func pluginConfigMap() *corev1.ConfigMap {
 	return cm
 }
 
+// sortContainers creates a sorted copy of containers by name, and nested fields
+// (Env, Ports, VolumeMounts) to handle non-deterministic ordering from etcd
+func sortContainers(containers []corev1.Container) []corev1.Container {
+	if len(containers) == 0 {
+		return containers
+	}
+	sorted := make([]corev1.Container, len(containers))
+	for i := range containers {
+		sorted[i] = *containers[i].DeepCopy()
+		sort.Slice(sorted[i].Env, func(a, b int) bool {
+			return sorted[i].Env[a].Name < sorted[i].Env[b].Name
+		})
+		sort.Slice(sorted[i].Ports, func(a, b int) bool {
+			if sorted[i].Ports[a].ContainerPort != sorted[i].Ports[b].ContainerPort {
+				return sorted[i].Ports[a].ContainerPort < sorted[i].Ports[b].ContainerPort
+			}
+			return sorted[i].Ports[a].Name < sorted[i].Ports[b].Name
+		})
+		sort.Slice(sorted[i].VolumeMounts, func(a, b int) bool {
+			return sorted[i].VolumeMounts[a].Name < sorted[i].VolumeMounts[b].Name
+		})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+	return sorted
+}
+
+// sortVolumes creates a sorted copy of volumes by name
+func sortVolumes(volumes []corev1.Volume) []corev1.Volume {
+	sorted := make([]corev1.Volume, len(volumes))
+	copy(sorted, volumes)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+	return sorted
+}
+
+// sortTolerations creates a sorted copy of tolerations by key, operator, and effect
+func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
+	sorted := make([]corev1.Toleration, len(tolerations))
+	copy(sorted, tolerations)
+	sort.Slice(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+		if a.Key != b.Key {
+			return a.Key < b.Key
+		}
+		if a.Operator != b.Operator {
+			return string(a.Operator) < string(b.Operator)
+		}
+		return string(a.Effect) < string(b.Effect)
+	})
+	return sorted
+}
+
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy)
@@ -309,17 +366,19 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	} else {
 		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
-		changed := !reflect.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
-			!reflect.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Containers, newSpecTemplate.Spec.Containers) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Volumes, newSpecTemplate.Spec.Volumes) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext) || !reflect.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
+		// Sort list fields before comparing to handle non-deterministic ordering
+		changed := !equality.Semantic.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
+			!equality.Semantic.DeepEqual(sortContainers(existingSpecTemplate.Spec.Containers), sortContainers(newSpecTemplate.Spec.Containers)) ||
+			!equality.Semantic.DeepEqual(sortVolumes(existingSpecTemplate.Spec.Volumes), sortVolumes(newSpecTemplate.Spec.Volumes)) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
+			!equality.Semantic.DeepEqual(sortTolerations(existingPluginDeployment.Spec.Template.Spec.Tolerations), sortTolerations(newPluginDeployment.Spec.Template.Spec.Tolerations)) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.SecurityContext, newSpecTemplate.Spec.SecurityContext) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
