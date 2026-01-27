@@ -269,6 +269,18 @@ func pluginConfigMap() *corev1.ConfigMap {
 	return cm
 }
 
+// normalizeContainerDefaults sets Kubernetes default values for container fields that are
+// automatically populated by the API server. This ensures consistent comparison between
+// existing containers (from etcd) and new containers (from operator).
+func normalizeContainerDefaults(container *corev1.Container) {
+	if container.TerminationMessagePath == "" {
+		container.TerminationMessagePath = "/dev/termination-log"
+	}
+	if container.TerminationMessagePolicy == "" {
+		container.TerminationMessagePolicy = corev1.TerminationMessageReadFile
+	}
+}
+
 // sortContainers creates a sorted copy of containers by name, and nested fields
 // (Env, Ports, VolumeMounts) to handle non-deterministic ordering from etcd
 func sortContainers(containers []corev1.Container) []corev1.Container {
@@ -278,6 +290,7 @@ func sortContainers(containers []corev1.Container) []corev1.Container {
 	sorted := make([]corev1.Container, len(containers))
 	for i := range containers {
 		sorted[i] = *containers[i].DeepCopy()
+		normalizeContainerDefaults(&sorted[i])
 		sort.Slice(sorted[i].Env, func(a, b int) bool {
 			return sorted[i].Env[a].Name < sorted[i].Env[b].Name
 		})
