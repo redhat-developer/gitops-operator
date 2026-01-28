@@ -40,7 +40,7 @@ func GetEnv(d *appsv1.Deployment, container string, key string) (*string, error)
 				currEnv := containers[idc].Env[idx]
 
 				if currEnv.Name == key {
-					return &currEnv.Name, nil
+					return &currEnv.Value, nil
 				}
 			}
 		}
@@ -404,8 +404,17 @@ func HaveServiceAccountName(expectedServiceAccountName string) matcher.GomegaMat
 // HaveResourceRequirements validates if the deployment object contains the given resource requirements.
 func HaveResourceRequirements(requirements *corev1.ResourceRequirements) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
-		GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected: ", requirements.String(), "actual: ", depl.Spec.Template.Spec.Containers[0].Resources.String())
-		return reflect.DeepEqual(requirements, depl.Spec.Template.Spec.Containers[0].Resources)
+		if len(depl.Spec.Template.Spec.Containers) == 0 {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements: no containers found")
+			return false
+		}
+		actual := depl.Spec.Template.Spec.Containers[0].Resources
+		if requirements == nil {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected: nil", "actual:", actual.String())
+		} else {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected:", requirements.String(), "actual:", actual.String())
+		}
+		return reflect.DeepEqual(requirements, &actual)
 	})
 }
 
@@ -433,7 +442,7 @@ func fetchDeployment(f func(*appsv1.Deployment) bool) matcher.GomegaMatcher {
 }
 
 // verifyDeploymentImagePullPolicy checks if all containers in a deployment have the expected imagePullPolicy
-func VerifyDeploymentImagePullPolicy(name, namespace string, expectedPolicy corev1.PullPolicy, depl *appsv1.Deployment) func() bool {
+func VerifyDeploymentImagePullPolicy(name, namespace string, expectedPolicy corev1.PullPolicy) func() bool {
 	return func() bool {
 		depl := &appsv1.Deployment{}
 		k8sClient, _ := utils.GetE2ETestKubeClient()

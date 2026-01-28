@@ -119,7 +119,7 @@ func gather() string {
 	Expect(err).ToNot(HaveOccurred())
 
 	stdout, err := osFixture.ExecCommandWithOutputParam(
-		true,
+		true, true,
 		"oc", "adm", "must-gather", "--image", mustGatherImage(), "--dest-dir", destDir,
 	)
 	Expect(err).ToNot(HaveOccurred())
