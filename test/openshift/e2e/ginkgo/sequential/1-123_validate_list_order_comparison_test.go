@@ -186,15 +186,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					delete(ac.Annotations, testReconciliationTriggerAnnotation)
 				}
 			})
-			time.Sleep(10 * time.Second)
 
-			By("verifying update was triggered")
+			By("verifying update was triggered (operator detects change and corrects image)")
+			Eventually(func() (int64, error) {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment); err != nil {
+					return 0, err
+				}
+				return pluginDeployment.Generation, nil
+			}, "2m", "5s").Should(BeNumerically(">", genAfterChange),
+				fmt.Sprintf("Generation should increase when operator corrects the image. Initial: %d, AfterChange: %d", initialGen, genAfterChange))
+
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
-			finalGen := pluginDeployment.Generation
-
-			Expect(finalGen).ToNot(Equal(genAfterChange),
-				"Generation should change when actual changes are made",
-				initialGen, genAfterChange, finalGen)
+			if len(pluginDeployment.Spec.Template.Spec.Containers) > 0 {
+				Expect(pluginDeployment.Spec.Template.Spec.Containers[0].Image).ToNot(Equal("wrong-image:wrong-tag"),
+					"Operator should have corrected the wrong image")
+			}
 		})
 	})
 })
