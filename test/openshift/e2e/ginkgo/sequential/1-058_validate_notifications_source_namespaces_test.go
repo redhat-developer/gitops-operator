@@ -29,11 +29,11 @@ import (
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	namespaceFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/namespace"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,6 +49,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -547,6 +548,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
 			defer cleanupFunc()
+
+			By("adding namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES to make it cluster-scoped")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
 
 			By("creating source namespace")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-9")
