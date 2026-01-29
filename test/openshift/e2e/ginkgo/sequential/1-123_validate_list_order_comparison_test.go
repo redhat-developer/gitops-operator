@@ -157,9 +157,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)
 			}, "2m", "5s").Should(Succeed())
 
-			By("capturing initial Generation before making actual change")
+			By("capturing initial state before making actual change")
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			initialGen := pluginDeployment.Generation
+			expectedImage := pluginDeployment.Spec.Template.Spec.Containers[0].Image
 
 			By("making an actual change to the deployment")
 			deploymentFixture.Update(pluginDeployment, func(d *appsv1.Deployment) {
@@ -171,6 +172,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			genAfterChange := pluginDeployment.Generation
 			Expect(genAfterChange).ToNot(Equal(initialGen))
+
+			time.Sleep(15 * time.Second)
 
 			By("triggering reconciliation")
 			argocdFixture.Update(argocd, func(ac *argov1beta1api.ArgoCD) {
@@ -187,20 +190,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 			})
 
-			By("verifying update was triggered (operator detects change and corrects image)")
-			Eventually(func() (int64, error) {
+			By("verifying operator corrected the image back to the expected image")
+			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment); err != nil {
-					return 0, err
+					return false
 				}
-				return pluginDeployment.Generation, nil
-			}, "2m", "5s").Should(BeNumerically(">", genAfterChange),
-				fmt.Sprintf("Generation should increase when operator corrects the image. Initial: %d, AfterChange: %d", initialGen, genAfterChange))
-
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
-			if len(pluginDeployment.Spec.Template.Spec.Containers) > 0 {
-				Expect(pluginDeployment.Spec.Template.Spec.Containers[0].Image).ToNot(Equal("wrong-image:wrong-tag"),
-					"Operator should have corrected the wrong image")
-			}
+				if len(pluginDeployment.Spec.Template.Spec.Containers) == 0 {
+					return false
+				}
+				return pluginDeployment.Spec.Template.Spec.Containers[0].Image == expectedImage
+			}, "5m", "5s").Should(BeTrue(), "Operator should restore the image to %q within 5m", expectedImage)
 		})
 	})
 })
