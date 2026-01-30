@@ -21,12 +21,13 @@ import (
 	"fmt"
 	"time"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,43 +38,86 @@ import (
 
 const testReconciliationTriggerAnnotation = "test-reconciliation-trigger"
 const gitopsPluginDeploymentName = "gitops-plugin"
+const openshiftGitopsNamespace = "openshift-gitops"
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-123_validate_list_order_comparison", func() {
-		// Reviewer note: This test has been verified passing locally with `make run` (operator
-		// running on host) and also after installing the operator via OLM on an OpenShift cluster.
-		// If it fails in CI (e.g. OpenShift Prow / GitHub workflow) without an obvious cause,
-		// consider environment differences (e.g. container order, timing, or cluster state).
 
 		var (
 			k8sClient client.Client
 			ctx       context.Context
+			runDebug  struct {
+				initialGen, genAfterOrderChange, finalGen int64
+				expectedImage, lastPluginImage            string
+			}
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			runDebug = struct {
+				initialGen, genAfterOrderChange, finalGen int64
+				expectedImage, lastPluginImage            string
+			}{}
+		})
+
+		AfterEach(func() {
+			if CurrentSpecReport().Failed() {
+				GinkgoWriter.Println("++++ 1-123 failure debug start ++++")
+				kubeClient, err := fixtureUtils.GetE2ETestKubeClient()
+				if err != nil {
+					GinkgoWriter.Println(fmt.Sprintf("could not get kube client: %v", err))
+				} else {
+					c := context.Background()
+					gs := &gitopsoperatorv1alpha1.GitopsService{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
+					gsErr := kubeClient.Get(c, client.ObjectKeyFromObject(gs), gs)
+					pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: gitopsPluginDeploymentName, Namespace: openshiftGitopsNamespace}}
+					pluginErr := kubeClient.Get(c, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
+					readyReplicas, observedGen, deplGen := int32(0), int64(0), int64(0)
+					if pluginErr == nil {
+						readyReplicas = pluginDepl.Status.ReadyReplicas
+						observedGen = pluginDepl.Status.ObservedGeneration
+						deplGen = pluginDepl.Generation
+					}
+					GinkgoWriter.Println(fmt.Sprintf("gs=%v plugin=%v ready=%d gen=%d obs=%d",
+						gsErr == nil, pluginErr == nil, readyReplicas, deplGen, observedGen))
+					if runDebug.finalGen != 0 || runDebug.genAfterOrderChange != 0 {
+						GinkgoWriter.Println(fmt.Sprintf("list-order: initial=%d afterOrder=%d final=%d (want %d)",
+							runDebug.initialGen, runDebug.genAfterOrderChange, runDebug.finalGen, runDebug.genAfterOrderChange))
+					}
+					if runDebug.expectedImage != "" {
+						GinkgoWriter.Println(fmt.Sprintf("image: expected=%q last=%q",
+							runDebug.expectedImage, runDebug.lastPluginImage))
+					}
+				}
+				GinkgoWriter.Println("++++ 1-123 failure debug end ++++")
+			}
+			fixture.OutputDebugOnFail(openshiftGitopsNamespace)
 		})
 
 		It("Should not trigger updates when only list order differs", func() {
-			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
+			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
 
 			pluginDeployment := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      gitopsPluginDeploymentName,
-					Namespace: "openshift-gitops",
+					Namespace: openshiftGitopsNamespace,
 				},
 			}
-			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)
-			}, "2m", "5s").Should(Succeed())
+			Eventually(pluginDeployment, "5m", "5s").Should(k8sFixture.ExistByName(),
+				"deployment %s never showed in %s (5m)", gitopsPluginDeploymentName, openshiftGitopsNamespace)
+			Eventually(pluginDeployment, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1),
+				"deployment %s in %s not ready after 60s", gitopsPluginDeploymentName, openshiftGitopsNamespace)
 
 			By("capturing initial state before simulating etcd order change")
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			initialGen := pluginDeployment.Generation
+			runDebug.initialGen = initialGen
 
 			hasMultipleContainers := len(pluginDeployment.Spec.Template.Spec.Containers) >= 2
 			hasMultipleVolumes := len(pluginDeployment.Spec.Template.Spec.Volumes) >= 2
@@ -84,7 +128,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			By("simulating etcd returning lists in different order")
-			err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment); err != nil {
 					return err
 				}
@@ -122,19 +166,20 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			genAfterManualOrderChange := pluginDeployment.Generation
+			runDebug.genAfterOrderChange = genAfterManualOrderChange
 
-			By("triggering reconciliation")
-			argocdFixture.Update(argocd, func(ac *argov1beta1api.ArgoCD) {
-				if ac.Annotations == nil {
-					ac.Annotations = make(map[string]string)
+			By("triggering reconciliation by updating GitopsService CR")
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				if gs.Annotations == nil {
+					gs.Annotations = make(map[string]string)
 				}
-				ac.Annotations[testReconciliationTriggerAnnotation] = "list-order-test"
+				gs.Annotations[testReconciliationTriggerAnnotation] = "list-order-test"
 			})
 			time.Sleep(10 * time.Second)
 
-			argocdFixture.Update(argocd, func(ac *argov1beta1api.ArgoCD) {
-				if ac.Annotations != nil {
-					delete(ac.Annotations, testReconciliationTriggerAnnotation)
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				if gs.Annotations != nil {
+					delete(gs.Annotations, testReconciliationTriggerAnnotation)
 				}
 			})
 			time.Sleep(10 * time.Second)
@@ -142,6 +187,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying no unnecessary update was triggered")
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			finalGen := pluginDeployment.Generation
+			runDebug.finalGen = finalGen
 
 			Expect(finalGen).To(Equal(genAfterManualOrderChange),
 				fmt.Sprintf("Generation should not change when only list order differs. Initial: %d, AfterManualOrderChange: %d, Final: %d", initialGen, genAfterManualOrderChange, finalGen))
@@ -149,23 +195,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("Should trigger updates when actual changes are made", func() {
-			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
+			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
 
 			pluginDeployment := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      gitopsPluginDeploymentName,
-					Namespace: "openshift-gitops",
+					Namespace: openshiftGitopsNamespace,
 				},
 			}
-			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)
-			}, "2m", "5s").Should(Succeed())
+			Eventually(pluginDeployment, "5m", "5s").Should(k8sFixture.ExistByName(),
+				"deployment %s never showed in %s (5m)", gitopsPluginDeploymentName, openshiftGitopsNamespace)
+			Eventually(pluginDeployment, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1),
+				"deployment %s in %s not ready after 60s", gitopsPluginDeploymentName, openshiftGitopsNamespace)
 
 			By("capturing initial state before making actual change")
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment)).To(Succeed())
 			initialGen := pluginDeployment.Generation
-			// Target the operator-managed container by name so we don't depend on container order (e.g. oauth-proxy may be first on OpenShift)
 			pluginContainer := deploymentFixture.GetTemplateSpecContainerByName(gitopsPluginDeploymentName, *pluginDeployment)
 			Expect(pluginContainer).ToNot(BeNil(), "deployment should have container %q", gitopsPluginDeploymentName)
 			expectedImage := pluginContainer.Image
@@ -187,17 +235,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			time.Sleep(15 * time.Second)
 
 			By("triggering reconciliation")
-			argocdFixture.Update(argocd, func(ac *argov1beta1api.ArgoCD) {
-				if ac.Annotations == nil {
-					ac.Annotations = make(map[string]string)
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				if gs.Annotations == nil {
+					gs.Annotations = make(map[string]string)
 				}
-				ac.Annotations[testReconciliationTriggerAnnotation] = "actual-change-test"
+				gs.Annotations[testReconciliationTriggerAnnotation] = "actual-change-test"
 			})
 			time.Sleep(15 * time.Second)
 
-			argocdFixture.Update(argocd, func(ac *argov1beta1api.ArgoCD) {
-				if ac.Annotations != nil {
-					delete(ac.Annotations, testReconciliationTriggerAnnotation)
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				if gs.Annotations != nil {
+					delete(gs.Annotations, testReconciliationTriggerAnnotation)
 				}
 			})
 
@@ -210,7 +258,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				if c == nil {
 					return false
 				}
-				GinkgoWriter.Println(fmt.Sprintf("container %q: current image=%q, expected (original) image=%q, match=%v", c.Name, c.Image, expectedImage, c.Image == expectedImage))
+				runDebug.lastPluginImage = c.Image
 				return c.Image == expectedImage
 			}, "5m", "5s").Should(BeTrue(), "Operator should restore the image of container %q to %q within 5m", gitopsPluginDeploymentName, expectedImage)
 		})
