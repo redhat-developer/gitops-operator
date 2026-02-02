@@ -141,9 +141,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "nginx-deployment"}
 			for _, depl := range deploymentsShouldExist {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: test_1_27_customNS.Name}}
-				Eventually(depl).Should(k8sFixture.ExistByName())
-				Eventually(depl).Should(deploymentFixture.HaveReplicas(1))
-				Eventually(depl).Should(deploymentFixture.HaveReadyReplicas(1))
+				Eventually(depl, "4m", "5s").Should(k8sFixture.ExistByName())
+				Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReplicas(1))
+				Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: test_1_27_customNS.Name}}
