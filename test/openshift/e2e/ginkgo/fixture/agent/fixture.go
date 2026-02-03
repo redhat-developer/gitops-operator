@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
@@ -290,7 +291,7 @@ func CreateClusterRegistrationSecret(cfg ClusterRegistrationSecretConfig) {
 			Name:      fmt.Sprintf("cluster-%s", cfg.AgentName),
 			Namespace: cfg.PrincipalNamespaceName,
 			Labels: map[string]string{
-				"argocd.argoproj.io/secret-type":           "cluster",
+				common.ArgoCDSecretTypeLabel:               "cluster",
 				"argocd-agent.argoproj-labs.io/agent-name": cfg.AgentName,
 			},
 		},
@@ -370,7 +371,7 @@ func VerifyExpectedResourcesExist(params VerifyExpectedResourcesExistParams) {
 
 func VerifyLogs(deploymentName, namespace string, requiredMessages []string) {
 	Eventually(func() bool {
-		logOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs",
+		logOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs",
 			"deployment/"+deploymentName, "-n", namespace, "--tail=200")
 		if err != nil {
 			GinkgoWriter.Println("Error getting agent logs: ", err)

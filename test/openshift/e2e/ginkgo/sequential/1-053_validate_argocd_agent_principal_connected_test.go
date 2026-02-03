@@ -158,7 +158,68 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			clusterRoleBindingManagedAgent    *rbacv1.ClusterRoleBinding
 			clusterRoleAutonomousAgent        *rbacv1.ClusterRole
 			clusterRoleBindingAutonomousAgent *rbacv1.ClusterRoleBinding
+
+			// ClusterRoleBindings to grant admin permissions to application controllers
+			// - This is only required in gitops-operator, as gitops-operator modifies the application controller clusterroles via hooks 'applyReconcilerHook' et al (whereas argocd-operator does not)
+			adminCRBManagedAgent    *rbacv1.ClusterRoleBinding
+			adminCRBAutonomousAgent *rbacv1.ClusterRoleBinding
 		)
+
+		// As above, create admin CRBs so ArgoCDs created in the test can deploy routes/deployments
+		createAdminCRBsForGitOpsOperator := func() {
+
+			// Create ClusterRoleBindings to grant admin permissions to application controllers for creating routes/deployments (required for gitops-operator, see above for details why)
+			adminCRBManagedAgent = &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("%s-admin-crb", namespaceManagedAgent),
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     "ClusterRole",
+					Name:     "admin",
+				},
+				Subjects: []rbacv1.Subject{
+					{
+						Kind:      rbacv1.ServiceAccountKind,
+						Name:      fmt.Sprintf("%s-argocd-application-controller", argoCDAgentInstanceNameAgent),
+						Namespace: namespaceManagedAgent,
+					},
+				},
+			}
+
+			// Delete existing CRB if it exists before creating
+			existingCRB := &rbacv1.ClusterRoleBinding{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(adminCRBManagedAgent), existingCRB); err == nil {
+				Expect(k8sClient.Delete(ctx, existingCRB)).To(Succeed())
+			}
+			Expect(k8sClient.Create(ctx, adminCRBManagedAgent)).To(Succeed())
+
+			adminCRBAutonomousAgent = &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: fmt.Sprintf("%s-admin-crb", namespaceAutonomousAgent),
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: rbacv1.GroupName,
+					Kind:     "ClusterRole",
+					Name:     "admin",
+				},
+				Subjects: []rbacv1.Subject{
+					{
+						Kind:      rbacv1.ServiceAccountKind,
+						Name:      fmt.Sprintf("%s-argocd-application-controller", argoCDAgentInstanceNameAgent),
+						Namespace: namespaceAutonomousAgent,
+					},
+				},
+			}
+
+			// Delete existing CRB if it exists before creating
+			existingCRB = &rbacv1.ClusterRoleBinding{}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(adminCRBAutonomousAgent), existingCRB); err == nil {
+				Expect(k8sClient.Delete(ctx, existingCRB)).To(Succeed())
+			}
+			Expect(k8sClient.Create(ctx, adminCRBAutonomousAgent)).To(Succeed())
+
+		}
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
@@ -172,6 +233,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					cleanupFuncs = append(cleanupFuncs, fn)
 				}
 			}
+
+			createAdminCRBsForGitOpsOperator()
 
 			clusterRolePrincipal = &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
@@ -213,10 +276,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			_, cleanupFuncClusterAutonomous := fixture.CreateNamespaceWithCleanupFunc(autonomousAgentClusterName)
 			registerCleanup(cleanupFuncClusterAutonomous)
 
-			_, cleanupFuncManagedApplication := fixture.CreateManagedNamespaceWithCleanupFunc(managedAgentApplicationNamespace, namespaceManagedAgent)
+			_, cleanupFuncManagedApplication := fixture.CreateClusterScopedManagedNamespaceWithCleanupFunc(managedAgentApplicationNamespace, argoCDAgentInstanceNameAgent)
 			registerCleanup(cleanupFuncManagedApplication)
 
-			_, cleanupFuncAutonomousApplication := fixture.CreateManagedNamespaceWithCleanupFunc(autonomousAgentApplicationNamespace, namespaceAutonomousAgent)
+			_, cleanupFuncAutonomousApplication := fixture.CreateClusterScopedManagedNamespaceWithCleanupFunc(autonomousAgentApplicationNamespace, argoCDAgentInstanceNameAgent)
 			registerCleanup(cleanupFuncAutonomousApplication)
 		})
 
@@ -290,6 +353,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			_ = k8sClient.Delete(ctx, clusterRoleAutonomousAgent)
 			_ = k8sClient.Delete(ctx, clusterRoleBindingAutonomousAgent)
+
+			_ = k8sClient.Delete(ctx, adminCRBManagedAgent)
+			_ = k8sClient.Delete(ctx, adminCRBAutonomousAgent)
 
 			By("Cleanup namespaces created in this test")
 			for i := len(cleanupFuncs) - 1; i >= 0; i-- {
