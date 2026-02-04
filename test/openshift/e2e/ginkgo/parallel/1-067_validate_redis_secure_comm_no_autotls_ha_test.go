@@ -87,15 +87,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(argoCD, "5m", "10s").Should(argocdFixture.BeAvailable())
 
 				deploymentsShouldExist := []string{"argocd-redis-ha-haproxy", "argocd-server", "argocd-repo-server"}
-				for _, depl := range deploymentsShouldExist {
+				for _, deplName := range deploymentsShouldExist {
 					replicas := 1
-					if depl == "argocd-redis-ha-haproxy" {
+					if deplName == "argocd-redis-ha-haproxy" {
 						replicas = 3
 					}
 
-					depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
-					Eventually(depl).Should(k8sFixture.ExistByName())
-					Eventually(depl).Should(deplFixture.HaveReadyReplicas(replicas))
+					depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: ns.Name}}
+					Eventually(depl, "2m", "5s").Should(k8sFixture.ExistByName(), "Deployment "+deplName+" did not exist within timeout")
+					Eventually(depl, "6m", "10s").Should(deplFixture.HaveReadyReplicas(replicas), "Deployment "+deplName+" did not have ready replicas within timeout")
 				}
 
 				statefulsetsShouldExist := []string{"argocd-redis-ha-server", "argocd-application-controller"}
@@ -107,9 +107,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					}
 
 					statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: ss, Namespace: ns.Name}}
-					Eventually(statefulSet).Should(k8sFixture.ExistByName())
-					Eventually(statefulSet).Should(statefulsetFixture.HaveReplicas(replicas))
-					Eventually(statefulSet).Should(statefulsetFixture.HaveReadyReplicas(replicas))
+					Eventually(statefulSet, "2m", "5s").Should(k8sFixture.ExistByName(), "StatefulSet "+ss+" did not exist within timeout")
+					Eventually(statefulSet, "3m", "5s").Should(statefulsetFixture.HaveReplicas(replicas), "StatefulSet "+ss+" did not have correct replicas within timeout")
+					Eventually(statefulSet, "6m", "10s").Should(statefulsetFixture.HaveReadyReplicas(replicas), "StatefulSet "+ss+" did not have ready replicas within timeout")
 				}
 
 			}
@@ -191,14 +191,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
-			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
+			Eventually(repoServerDepl, "2m", "5s").Should(k8sFixture.ExistByName(), "Repo server deployment did not exist within timeout")
 
 			By("expecting repo-server to have desired container process command/arguments")
 			Expect(repoServerDepl).To(deplFixture.HaveContainerCommandSubstring("uid_entrypoint.sh argocd-repo-server --redis argocd-redis-ha-haproxy."+ns.Name+".svc.cluster.local:6379 --redis-use-tls --redis-ca-certificate /app/config/reposerver/tls/redis/tls.crt --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-repo-server deployment is wrong")
 
 			argocdServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: ns.Name}}
-			Eventually(argocdServerDepl).Should(k8sFixture.ExistByName())
+			Eventually(argocdServerDepl, "2m", "5s").Should(k8sFixture.ExistByName(), "ArgoCD server deployment did not exist within timeout")
 
 			By("expecting argocd-server to have desired container process command/arguments")
 			Expect(argocdServerDepl).To(deplFixture.HaveContainerCommandSubstring("argocd-server --staticassets /shared/app --dex-server https://argocd-dex-server."+ns.Name+".svc.cluster.local:5556 --repo-server argocd-repo-server."+ns.Name+".svc.cluster.local:8081 --redis argocd-redis-ha-haproxy."+ns.Name+".svc.cluster.local:6379 --redis-use-tls --redis-ca-certificate /app/config/server/tls/redis/tls.crt --loglevel info --logformat text", 0),
@@ -206,7 +206,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("expecting application-controller to have desired container process command/arguments")
 			applicationControllerSS := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
-			Eventually(applicationControllerSS).Should(k8sFixture.ExistByName())
+			Eventually(applicationControllerSS, "2m", "5s").Should(k8sFixture.ExistByName(), "Application controller StatefulSet did not exist within timeout")
 
 			Expect(applicationControllerSS).To(statefulsetFixture.HaveContainerCommandSubstring("argocd-application-controller --operation-processors 10 --redis argocd-redis-ha-haproxy."+ns.Name+".svc.cluster.local:6379 --redis-use-tls --redis-ca-certificate /app/config/controller/tls/redis/tls.crt --repo-server argocd-repo-server."+ns.Name+".svc.cluster.local:8081 --status-processors 20 --kubectl-parallelism-limit 10 --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-application-controller statefulsets is wrong")
