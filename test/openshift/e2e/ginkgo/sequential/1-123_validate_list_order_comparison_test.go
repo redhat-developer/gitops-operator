@@ -19,11 +19,16 @@ package sequential
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
+	version "github.com/hashicorp/go-version"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
@@ -40,14 +45,53 @@ const testReconciliationTriggerAnnotation = "test-reconciliation-trigger"
 const gitopsPluginDeploymentName = "gitops-plugin"
 const openshiftGitopsNamespace = "openshift-gitops"
 
+// getOperatorVersion returns the installed GitOps operator version or "?" if unknown.
+func getOperatorVersion(c client.Client) string {
+	sub := &olmv1alpha1.Subscription{}
+	err := c.Get(context.Background(), client.ObjectKey{Namespace: "openshift-gitops-operator", Name: "openshift-gitops-operator"}, sub)
+	if err != nil || sub.Status.InstalledCSV == "" {
+		return "?"
+	}
+	if i := strings.LastIndex(sub.Status.InstalledCSV, "."); i >= 0 && i+1 < len(sub.Status.InstalledCSV) {
+		return strings.TrimPrefix(sub.Status.InstalledCSV[i+1:], "v")
+	}
+	return sub.Status.InstalledCSV
+}
+
+// ocpVersionLessThanPluginMin returns true when OCP version is below the plugin-reconcile minimum.
+// Same check as gitopsservice_controller.go (realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion)).
+func ocpVersionLessThanPluginMin(ocpVersion, minVersion string) bool {
+	if ocpVersion == "" || minVersion == "" {
+		return false
+	}
+	v1, err := version.NewVersion(ocpVersion)
+	if err != nil {
+		return false
+	}
+	v2, err := version.NewVersion(minVersion)
+	if err != nil {
+		return false
+	}
+	real := v1.Segments()
+	start := v2.Segments()
+	if len(real) < 2 || len(start) < 2 {
+		return false
+	}
+	realMajor, realMinor := real[0], real[1]
+	startMajor, startMinor := start[0], start[1]
+	return realMajor < startMajor || (realMajor == startMajor && realMinor < startMinor)
+}
+
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-123_validate_list_order_comparison", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
-			runDebug  struct {
+			k8sClient          client.Client
+			ctx                context.Context
+			ocpVersionStr      string
+			operatorVersionStr string
+			runDebug           struct {
 				initialGen, genAfterOrderChange, finalGen int64
 				expectedImage, lastPluginImage            string
 			}
@@ -61,38 +105,34 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				initialGen, genAfterOrderChange, finalGen int64
 				expectedImage, lastPluginImage            string
 			}{}
+			ocpVersionStr, _ = util.GetClusterVersion(k8sClient)
+			operatorVersionStr = getOperatorVersion(k8sClient)
+			GinkgoWriter.Println(fmt.Sprintf("++++ 1-123: OCP=%q operator=%s", ocpVersionStr, operatorVersionStr))
+			if ocpVersionLessThanPluginMin(ocpVersionStr, common.DefaultDynamicPluginStartOCPVersion) {
+				Skip("Plugin reconciliation is disabled when OCP version < " + common.DefaultDynamicPluginStartOCPVersion + "; skipping 1-123 test")
+			}
 		})
 
 		AfterEach(func() {
 			if CurrentSpecReport().Failed() {
-				GinkgoWriter.Println("++++ 1-123 failure debug start ++++")
-				kubeClient, err := fixtureUtils.GetE2ETestKubeClient()
-				if err != nil {
-					GinkgoWriter.Println(fmt.Sprintf("could not get kube client: %v", err))
-				} else {
-					c := context.Background()
-					gs := &gitopsoperatorv1alpha1.GitopsService{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
-					gsErr := kubeClient.Get(c, client.ObjectKeyFromObject(gs), gs)
+				kubeClient, _, err := fixtureUtils.GetE2ETestKubeClientWithError()
+				if err == nil {
 					pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: gitopsPluginDeploymentName, Namespace: openshiftGitopsNamespace}}
-					pluginErr := kubeClient.Get(c, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
-					readyReplicas, observedGen, deplGen := int32(0), int64(0), int64(0)
+					pluginErr := kubeClient.Get(context.Background(), client.ObjectKeyFromObject(pluginDepl), pluginDepl)
+					deplGen, observedGen := int64(0), int64(0)
 					if pluginErr == nil {
-						readyReplicas = pluginDepl.Status.ReadyReplicas
-						observedGen = pluginDepl.Status.ObservedGeneration
-						deplGen = pluginDepl.Generation
+						deplGen, observedGen = pluginDepl.Generation, pluginDepl.Status.ObservedGeneration
 					}
-					GinkgoWriter.Println(fmt.Sprintf("gs=%v plugin=%v ready=%d gen=%d obs=%d",
-						gsErr == nil, pluginErr == nil, readyReplicas, deplGen, observedGen))
-					if runDebug.finalGen != 0 || runDebug.genAfterOrderChange != 0 {
-						GinkgoWriter.Println(fmt.Sprintf("list-order: initial=%d afterOrder=%d final=%d (want %d)",
-							runDebug.initialGen, runDebug.genAfterOrderChange, runDebug.finalGen, runDebug.genAfterOrderChange))
+					line := fmt.Sprintf("++++ 1-123 fail: OCP=%q operator=%s plugin_exists=%v gen=%d obs=%d",
+						ocpVersionStr, operatorVersionStr, pluginErr == nil, deplGen, observedGen)
+					if runDebug.genAfterOrderChange != 0 || runDebug.finalGen != 0 {
+						line += fmt.Sprintf(" list_order: initial=%d afterOrder=%d final=%d",
+							runDebug.initialGen, runDebug.genAfterOrderChange, runDebug.finalGen)
 					}
-					if runDebug.expectedImage != "" {
-						GinkgoWriter.Println(fmt.Sprintf("image: expected=%q last=%q",
-							runDebug.expectedImage, runDebug.lastPluginImage))
-					}
+					GinkgoWriter.Println(line)
 				}
-				GinkgoWriter.Println("++++ 1-123 failure debug end ++++")
+			} else {
+				GinkgoWriter.Println(fmt.Sprintf("++++ 1-123: OCP=%q operator=%s passed", ocpVersionStr, operatorVersionStr))
 			}
 			fixture.OutputDebugOnFail(openshiftGitopsNamespace)
 		})
@@ -217,6 +257,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			pluginContainer := deploymentFixture.GetTemplateSpecContainerByName(gitopsPluginDeploymentName, *pluginDeployment)
 			Expect(pluginContainer).ToNot(BeNil(), "deployment should have container %q", gitopsPluginDeploymentName)
 			expectedImage := pluginContainer.Image
+			runDebug.expectedImage = expectedImage
 
 			By("making an actual change to the deployment")
 			deploymentFixture.Update(pluginDeployment, func(d *appsv1.Deployment) {
