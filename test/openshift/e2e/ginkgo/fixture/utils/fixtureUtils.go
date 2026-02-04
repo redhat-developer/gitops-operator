@@ -12,6 +12,7 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	osappsv1 "github.com/openshift/api/apps/v1"
+	configv1 "github.com/openshift/api/config/v1"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -103,6 +104,10 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := routev1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := configv1.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
