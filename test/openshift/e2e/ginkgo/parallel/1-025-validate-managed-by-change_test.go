@@ -42,8 +42,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-025-validate-managed-by-change", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx              context.Context
+			k8sClient        client.Client
+			test_1_25_argo1  *corev1.Namespace
+			test_1_25_argo2  *corev1.Namespace
+			test_1_25_target *corev1.Namespace
+			cleanup1         func()
+			cleanup2         func()
+			cleanup3         func()
 		)
 
 		BeforeEach(func() {
@@ -52,27 +58,39 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail("test-1-25-argo1", "test-1-25-argo2", "test-1-25-target")
+
+			if cleanup3 != nil {
+				cleanup3()
+			}
+			if cleanup2 != nil {
+				cleanup2()
+			}
+			if cleanup1 != nil {
+				cleanup1()
+			}
+		})
+
 		It("ensuring that managed-by label can transition between two different Argo CD instances", func() {
 
 			By("creating 3 namespaces: 2 contain argo cd instances, and one will be managed by one of those namespaces")
 
-			test_1_25_argo1NS, cleanup1 := fixture.CreateNamespaceWithCleanupFunc("test-1-25-argo1")
-			defer cleanup1()
+			test_1_25_argo1, cleanup1 = fixture.CreateNamespaceWithCleanupFunc("test-1-25-argo1")
 
-			test_1_25_argo2NS, cleanup2 := fixture.CreateNamespaceWithCleanupFunc("test-1-25-argo2")
-			defer cleanup2()
+			test_1_25_argo2, cleanup2 = fixture.CreateNamespaceWithCleanupFunc("test-1-25-argo2")
 
-			test_1_25_targetNS, cleanup3 := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-25-target", test_1_25_argo1NS.Name)
-			defer cleanup3()
+			test_1_25_target, cleanup3 = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-25-target", test_1_25_argo1.Name)
 
 			argoCDtest_1_25_argo1 := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_25_argo1NS.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_25_argo1.Name},
 				Spec:       argov1beta1api.ArgoCDSpec{},
 			}
 			Expect(k8sClient.Create(ctx, argoCDtest_1_25_argo1)).To(Succeed())
 
 			argoCDtest_1_25_argo2 := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_25_argo2NS.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_25_argo2.Name},
 				Spec:       argov1beta1api.ArgoCDSpec{},
 			}
 			Expect(k8sClient.Create(ctx, argoCDtest_1_25_argo2)).To(Succeed())
@@ -91,7 +109,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: test_1_25_targetNS.Name,
+						Namespace: test_1_25_target.Name,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
@@ -104,20 +122,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 			By("waiting for all pods to be ready in both Argo CD namespaces")
-			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_25_argo1NS.Name, k8sClient)
-			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_25_argo2NS.Name, k8sClient)
+			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_25_argo1.Name, k8sClient)
+			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_25_argo2.Name, k8sClient)
 
 			By("verifying Argo CD Application deployed as expected and is healthy and synced")
 			Eventually(app, "3m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "60s", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("update 'test_1_25_target' NS to be managed by the second Argo CD instance, rather than the first")
-			namespaceFixture.Update(test_1_25_targetNS, func(n *corev1.Namespace) {
+			namespaceFixture.Update(test_1_25_target, func(n *corev1.Namespace) {
 				n.Labels["argocd.argoproj.io/managed-by"] = "test-1-25-argo2"
 			})
 
 			By("verifying that RoleBinding in 'test_1_25_target' is updated to the second namespace")
-			roleBindingIntest_1_25_targetNS := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: test_1_25_targetNS.Name}}
+			roleBindingIntest_1_25_targetNS := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: test_1_25_target.Name}}
 			Eventually(roleBindingIntest_1_25_targetNS).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 				Kind:      "ServiceAccount",
 				Name:      "argocd-argocd-application-controller",
@@ -142,7 +160,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: test_1_25_targetNS.Name,
+						Namespace: test_1_25_target.Name,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
