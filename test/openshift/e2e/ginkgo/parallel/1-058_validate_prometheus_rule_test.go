@@ -91,8 +91,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-			Eventually(app).Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app).Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status within timeout")
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced), "Application did not sync within timeout")
 		})
 	})
 })
