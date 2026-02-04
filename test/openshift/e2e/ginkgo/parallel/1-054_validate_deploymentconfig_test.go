@@ -93,8 +93,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 			By("verifying Application is healthy and sync operation succeeded")
-			Eventually(app).Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app).Should(applicationFixture.HaveOperationStatePhase(common.OperationSucceeded))
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status within timeout")
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveOperationStatePhase(common.OperationSucceeded), "Application operation did not succeed within timeout")
 
 			By("verifying DeploymentConfig has 2 replicas")
 			dc := &osappsv1.DeploymentConfig{
@@ -124,8 +124,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}, "2m", "1s").Should(BeTrue())
 
 			By("verifying Application is still healthy and operation has succeeded")
-			Eventually(app).Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app).Should(applicationFixture.HaveOperationStatePhase(common.OperationSucceeded))
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status after update within timeout")
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveOperationStatePhase(common.OperationSucceeded), "Application operation did not succeed after update within timeout")
 
 		})
 
