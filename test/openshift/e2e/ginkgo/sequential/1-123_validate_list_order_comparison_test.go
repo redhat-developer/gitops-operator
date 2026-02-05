@@ -19,13 +19,11 @@ package sequential
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	version "github.com/hashicorp/go-version"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -44,19 +42,6 @@ import (
 const testReconciliationTriggerAnnotation = "test-reconciliation-trigger"
 const gitopsPluginDeploymentName = "gitops-plugin"
 const openshiftGitopsNamespace = "openshift-gitops"
-
-// getOperatorVersion returns the installed GitOps operator version or "?" if unknown.
-func getOperatorVersion(c client.Client) string {
-	sub := &olmv1alpha1.Subscription{}
-	err := c.Get(context.Background(), client.ObjectKey{Namespace: "openshift-gitops-operator", Name: "openshift-gitops-operator"}, sub)
-	if err != nil || sub.Status.InstalledCSV == "" {
-		return "?"
-	}
-	if i := strings.LastIndex(sub.Status.InstalledCSV, "."); i >= 0 && i+1 < len(sub.Status.InstalledCSV) {
-		return strings.TrimPrefix(sub.Status.InstalledCSV[i+1:], "v")
-	}
-	return sub.Status.InstalledCSV
-}
 
 // ocpVersionLessThanPluginMin returns true when OCP version is below the plugin-reconcile minimum.
 // Same check as gitopsservice_controller.go (realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion)).
@@ -87,11 +72,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-123_validate_list_order_comparison", func() {
 
 		var (
-			k8sClient          client.Client
-			ctx                context.Context
-			ocpVersionStr      string
-			operatorVersionStr string
-			runDebug           struct {
+			k8sClient     client.Client
+			ctx           context.Context
+			ocpVersionStr string
+			runDebug      struct {
 				initialGen, genAfterOrderChange, finalGen int64
 				expectedImage, lastPluginImage            string
 			}
@@ -106,7 +90,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				expectedImage, lastPluginImage            string
 			}{}
 			ocpVersionStr, _ = util.GetClusterVersion(k8sClient)
-			operatorVersionStr = getOperatorVersion(k8sClient)
 			if ocpVersionLessThanPluginMin(ocpVersionStr, common.DefaultDynamicPluginStartOCPVersion) {
 				Skip("Plugin reconciliation is disabled when OCP version < " + common.DefaultDynamicPluginStartOCPVersion + "; skipping 1-123 test")
 			}
@@ -122,8 +105,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if pluginErr == nil {
 						deplGen, observedGen = pluginDepl.Generation, pluginDepl.Status.ObservedGeneration
 					}
-					line := fmt.Sprintf("fail: OCP=%q operator=%s plugin_exists=%v gen=%d obs=%d",
-						ocpVersionStr, operatorVersionStr, pluginErr == nil, deplGen, observedGen)
+					line := fmt.Sprintf("fail: OCP=%q plugin_reconcile_min=%q plugin_exists=%v gen=%d obs=%d",
+						ocpVersionStr, common.DefaultDynamicPluginStartOCPVersion, pluginErr == nil, deplGen, observedGen)
 					if runDebug.genAfterOrderChange != 0 || runDebug.finalGen != 0 {
 						line += fmt.Sprintf(" list_order: initial=%d afterOrder=%d final=%d",
 							runDebug.initialGen, runDebug.genAfterOrderChange, runDebug.finalGen)
