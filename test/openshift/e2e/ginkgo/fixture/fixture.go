@@ -932,6 +932,17 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println("----------------------------------------------------------------")
 	}
 
+	kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "applications", "-A", "-o", "yaml")
+	if err != nil {
+		GinkgoWriter.Println("unable to output all argo cd statuses", err, kubectlOutput)
+	} else {
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get argocds -A -o yaml':")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+	}
+
 	GinkgoWriter.Println("You can skip this debug output by setting 'SKIP_DEBUG_OUTPUT=true'")
 
 }
