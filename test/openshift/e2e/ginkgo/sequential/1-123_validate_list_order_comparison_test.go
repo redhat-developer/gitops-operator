@@ -107,7 +107,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}{}
 			ocpVersionStr, _ = util.GetClusterVersion(k8sClient)
 			operatorVersionStr = getOperatorVersion(k8sClient)
-			GinkgoWriter.Println(fmt.Sprintf("++++ 1-123: OCP=%q operator=%s", ocpVersionStr, operatorVersionStr))
 			if ocpVersionLessThanPluginMin(ocpVersionStr, common.DefaultDynamicPluginStartOCPVersion) {
 				Skip("Plugin reconciliation is disabled when OCP version < " + common.DefaultDynamicPluginStartOCPVersion + "; skipping 1-123 test")
 			}
@@ -123,7 +122,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if pluginErr == nil {
 						deplGen, observedGen = pluginDepl.Generation, pluginDepl.Status.ObservedGeneration
 					}
-					line := fmt.Sprintf("++++ 1-123 fail: OCP=%q operator=%s plugin_exists=%v gen=%d obs=%d",
+					line := fmt.Sprintf("fail: OCP=%q operator=%s plugin_exists=%v gen=%d obs=%d",
 						ocpVersionStr, operatorVersionStr, pluginErr == nil, deplGen, observedGen)
 					if runDebug.genAfterOrderChange != 0 || runDebug.finalGen != 0 {
 						line += fmt.Sprintf(" list_order: initial=%d afterOrder=%d final=%d",
@@ -131,8 +130,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					}
 					GinkgoWriter.Println(line)
 				}
-			} else {
-				GinkgoWriter.Println(fmt.Sprintf("++++ 1-123: OCP=%q operator=%s passed", ocpVersionStr, operatorVersionStr))
 			}
 			fixture.OutputDebugOnFail(openshiftGitopsNamespace)
 		})
