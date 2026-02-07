@@ -261,7 +261,11 @@ func RunArgoCDCLI(args ...string) (string, error) {
 
 	cmdArgs := append([]string{"argocd"}, args...)
 
-	GinkgoWriter.Println("executing command", cmdArgs)
+	if args[0] == "login" {
+		GinkgoWriter.Println("executing command: argocd login (...)")
+	} else {
+		GinkgoWriter.Println("executing command", cmdArgs)
+	}
 
 	// #nosec G204
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
