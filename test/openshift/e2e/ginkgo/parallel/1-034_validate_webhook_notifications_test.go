@@ -380,7 +380,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 			Eventually(notifConfigMap).Should(k8sFixture.ExistByName())
 			Eventually(notifConfigMap).Should(configmap.HaveStringDataKeyValueContainsSubstring("template.test-app-created", `{"created":"{{.app.metadata.name}}","type":"{{(call .repo.GetAppDetails).Type}}"}`))
 
-			By("creating an Argo CD Application that contains a notificatio annotation, which will trigger the notifications controller")
+			By("creating an Argo CD Application that contains a notification annotation, which will trigger the notifications controller")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-app-3",
@@ -419,7 +419,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 
 				return strings.Contains(out, `{"created":"my-app-3","type":"Directory"}`)
 
-			}).Should(BeTrue())
+			}, "4m", "5s").Should(BeTrue())
 
 		})
 

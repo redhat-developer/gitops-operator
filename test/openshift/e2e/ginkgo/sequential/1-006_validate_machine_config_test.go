@@ -57,9 +57,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 
-			if defaultArgoCD != nil {
+			fixture.OutputDebugOnFail("openshift-gitops")
 
-				fixture.OutputDebugOnFail(defaultArgoCD)
+			if defaultArgoCD != nil {
 
 				argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
 					ac.Spec.Repo.Replicas = nil

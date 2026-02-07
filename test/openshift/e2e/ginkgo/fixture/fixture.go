@@ -282,6 +282,8 @@ func CreateNamespace(name string) *corev1.Namespace {
 		Labels: NamespaceLabels,
 	}}
 
+	By("creating namespace '" + ns.Name + "'")
+
 	err := k8sClient.Create(context.Background(), ns)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -902,6 +904,9 @@ func OutputDebugOnFail(namespaceParams ...any) {
 			continue
 		}
 
+		// Uncomment this to output the pod logs from app controller and repo server in ns
+		// outputAppControllerAndRepoLogsInNamespace(namespace)
+
 		GinkgoWriter.Println("")
 		GinkgoWriter.Println("----------------------------------------------------------------")
 		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
@@ -938,7 +943,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 	} else {
 		GinkgoWriter.Println("")
 		GinkgoWriter.Println("----------------------------------------------------------------")
-		GinkgoWriter.Println("'kubectl get argocds -A -o yaml':")
+		GinkgoWriter.Println("'kubectl get applications -A -o yaml':")
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 	}
@@ -992,7 +997,7 @@ func outputPodLog(podSubstring string) {
 		return
 	}
 
-	// Look specifically for operator pod
+	// Look specifically for pod with name
 	matchingPods := []corev1.Pod{}
 	for idx := range podList.Items {
 		pod := podList.Items[idx]
@@ -1003,19 +1008,19 @@ func outputPodLog(podSubstring string) {
 
 	if len(matchingPods) == 0 {
 		// This can happen when the operator is not running on the cluster
-		GinkgoWriter.Println("DebugOutputOperatorLogs was called, but no pods were found.")
+		GinkgoWriter.Println("outputPodLog was called looking for substring '" + podSubstring + "', but no pods were found.")
 		return
 	}
 
 	if len(matchingPods) != 1 {
-		GinkgoWriter.Println("unexpected number of operator pods", matchingPods)
+		GinkgoWriter.Println("unexpected number of pods", matchingPods)
 		return
 	}
 
 	// Extract operator logs
 	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
 	if err != nil {
-		GinkgoWriter.Println("unable to extract operator logs", err)
+		GinkgoWriter.Println("unable to extract logs for", matchingPods[0].Name, err)
 		return
 	}
 
@@ -1026,12 +1031,47 @@ func outputPodLog(podSubstring string) {
 
 	GinkgoWriter.Println("")
 	GinkgoWriter.Println("----------------------------------------------------------------")
-	GinkgoWriter.Println("Log output from operator pod:")
+	GinkgoWriter.Println("Log output from pod '" + matchingPods[0].Name + "' in " + matchingPods[0].Namespace + ":")
 	for _, line := range lines[startIndex:] {
 		GinkgoWriter.Println(">", line)
 	}
 	GinkgoWriter.Println("----------------------------------------------------------------")
 
+}
+
+//nolint:unused
+func outputAppControllerAndRepoLogsInNamespace(namespace string) {
+
+	var podList corev1.PodList
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+	err := k8sClient.List(context.Background(), &podList, client.InNamespace(namespace))
+	Expect(err).ToNot(HaveOccurred())
+	for _, pod := range podList.Items {
+
+		want := strings.Contains(pod.Name, "repo-server") || strings.Contains(pod.Name, "application-controller")
+		if !want {
+			continue
+		}
+
+		kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs", "pod/"+pod.Name, "-n", pod.Namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to extract logs for", pod.Name, err)
+			return
+		}
+
+		// Output only the last 500 lines
+		lines := strings.Split(kubectlLogOutput, "\n")
+
+		startIndex := max(len(lines)-500, 0)
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("Log output from pod '" + pod.Name + "' in " + pod.Namespace + ":")
+		for _, line := range lines[startIndex:] {
+			GinkgoWriter.Println(">", line)
+		}
+		GinkgoWriter.Println("----------------------------------------------------------------")
+	}
 }
 
 func IsUpstreamOperatorTests() bool {

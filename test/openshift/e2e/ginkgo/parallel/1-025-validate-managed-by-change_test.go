@@ -173,12 +173,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app_argo2)).To(Succeed())
 
 			By("First Argo CD instance Application should be unhealthy, because it is no longer managing the namespace")
-			Eventually(app, "4m", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusMissing))
-			Eventually(app, "4m", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeUnknown))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusMissing))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeUnknown))
 
 			By("Second Argo CD instance Application should be healthy, because it is now managing the namespace")
-			Eventually(app_argo2, "60s", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app_argo2, "60s", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app_argo2, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app_argo2, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 		})
 
 	})

@@ -42,14 +42,28 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-064_validate_tcp_reset_error_test", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx                context.Context
+			k8sClient          client.Client
+			app                *argocdv1alpha1.Application
+			test_1_27_customNS *corev1.Namespace
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+		})
+
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail("openshift-gitops", "test-1-27-custom")
+
+			if app != nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+			if test_1_27_customNS != nil {
+				Expect(k8sClient.Delete(ctx, test_1_27_customNS)).To(Succeed())
+			}
 		})
 
 		It("verifies that argocd cli app manifests command will succesfully retrieve app manifests, and tcp reset error will not occur", func() {
@@ -63,7 +77,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(openshiftgitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating Argo CD Application in openshift-gitops namespace")
-			app := &argocdv1alpha1.Application{
+			app = &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: openshiftgitopsArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
@@ -86,20 +100,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { // cleanup on test exit
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}()
 
 			By("verifying test-1-27-custom NS is created and is managed by openshift-gitops, and Application deploys successfully")
-			test_1_27_customNS := &corev1.Namespace{
+			test_1_27_customNS = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-27-custom"},
 			}
 
 			Eventually(test_1_27_customNS, "5m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(test_1_27_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
-			defer func() {
-				Expect(k8sClient.Delete(ctx, test_1_27_customNS)).To(Succeed()) // post-test cleanup
-			}()
 
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
