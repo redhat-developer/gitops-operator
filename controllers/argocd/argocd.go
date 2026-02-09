@@ -86,10 +86,14 @@ func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
 	}
 }
 
-func getArgoSSOSpec() *argoapp.ArgoCDSSOSpec {
-	return &argoapp.ArgoCDSSOSpec{
-		Provider: argoapp.SSOProviderTypeDex,
-		Dex:      getArgoDexSpec(),
+func getArgoSSOSpec(enableOpenShiftOAuth bool) *argoapp.ArgoCDSSOSpec {
+	if enableOpenShiftOAuth {
+		return nil
+	} else {
+		return &argoapp.ArgoCDSSOSpec{
+			Provider: argoapp.SSOProviderTypeDex,
+			Dex:      getArgoDexSpec(),
+		}
 	}
 }
 
@@ -180,7 +184,7 @@ func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
 // with comprehensive default resource exclusions
-func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
+func NewCR(name, ns string, enableOpenShiftOAuth bool) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{
 		{
 			APIGroups: []string{"", "discovery.k8s.io"},
@@ -239,7 +243,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 		Spec: argoapp.ArgoCDSpec{
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
-			SSO:                getArgoSSOSpec(),
+			SSO:                getArgoSSOSpec(enableOpenShiftOAuth),
 			Grafana:            getArgoGrafanaSpec(),
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),

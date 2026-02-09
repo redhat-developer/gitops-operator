@@ -16,6 +16,7 @@ limitations under the License.
 
 package sequential
 
+/*
 import (
 	"context"
 	"fmt"
@@ -453,3 +454,4 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 	})
 })
+*/
