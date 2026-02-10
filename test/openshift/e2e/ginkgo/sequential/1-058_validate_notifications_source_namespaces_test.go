@@ -549,9 +549,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
 			defer cleanupFunc()
 
-			By("adding namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES to make it cluster-scoped")
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
-
 			By("creating source namespace")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-9")
 			defer cleanupFunc1()
