@@ -33,7 +33,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
-	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -164,7 +163,6 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=config.openshift.io,resources=clusterversions,verbs=get;list;watch
-//+kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
 
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consoleclidownloads,verbs=create;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=console.openshift.io,resources=consolelinks,verbs=create;delete;get;list;patch;update;watch
@@ -380,16 +378,6 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(oAuthEna
 	}
 
 	return nil
-}
-
-func (r *ReconcileGitopsService) IsExternalAuthenticationEnabledOnOpenShiftCluster() bool {
-	fmt.Println("Checking if external authentication is enabled on OpenShift cluster...")
-	var authConfig configv1.Authentication
-	if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: "cluster"}, &authConfig); err != nil {
-		fmt.Println("could not get Authentication config")
-		return false
-	}
-	return authConfig.Spec.Type == "OIDC"
 }
 
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger, oAuthEnabled bool) (reconcile.Result, error) {

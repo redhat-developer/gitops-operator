@@ -16,7 +16,7 @@ limitations under the License.
 
 package sequential
 
-/*
+
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -656,4 +656,3 @@ func buildApplicationResource(applicationName, nsName, agentName, argocdInstance
 	}
 	return application
 }
-*/
