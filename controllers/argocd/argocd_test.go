@@ -27,7 +27,7 @@ import (
 )
 
 func TestArgoCD(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", false)
 
 	testApplicationSetResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
@@ -190,7 +190,7 @@ func TestArgoCD(t *testing.T) {
 }
 
 func TestDexConfiguration(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", false)
 
 	// Verify Dex OpenShift Configuration
 	assert.Equal(t, testArgoCD.Spec.SSO.Dex.OpenShiftOAuth, true)
