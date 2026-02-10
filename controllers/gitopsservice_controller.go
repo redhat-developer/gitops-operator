@@ -24,10 +24,13 @@ import (
 	"reflect"
 	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/scheme"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
 	configv1 "github.com/openshift/api/config/v1"
@@ -44,8 +47,10 @@ import (
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -133,6 +138,7 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
+	Config                *rest.Config
 }
 
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
@@ -212,7 +218,7 @@ type ReconcileGitopsService struct {
 func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
-
+	oAuthEnabled, _ := oAuthEndpointReachable(r.Config)
 	// Fetch the GitopsService instance
 	instance := &pipelinesv1alpha1.GitopsService{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)
@@ -262,13 +268,13 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 
 	if !r.DisableDefaultInstall {
 		// Create/reconcile the default Argo CD instance, unless default install is disabled
-		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
+		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger, oAuthEnabled); err != nil {
 			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
 		}
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
 		// deleting it if necessary
-		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
+		if err := r.ensureDefaultArgoCDInstanceDoesntExist(oAuthEnabled); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
 	}
@@ -313,10 +319,36 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 }
 
-func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
-	externalOIDCEnabled := r.IsExternalAuthenticationEnabledOnOpenShiftCluster()
+func oAuthEndpointReachable(cfg *rest.Config) (bool, error) {
+	if cfg == nil {
+		return false, fmt.Errorf("rest.Config is nil")
+	}
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, externalOIDCEnabled)
+	restCfg := rest.CopyConfig(cfg)
+	restCfg.APIPath = "/"
+	restCfg.GroupVersion = &schema.GroupVersion{}
+	restCfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+
+	client, err := rest.UnversionedRESTClientFor(restCfg)
+	if err != nil {
+		return false, err
+	}
+
+	raw, err := client.Get().AbsPath("/.well-known/oauth-authorization-server").Do(context.TODO()).Raw()
+
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, fmt.Errorf("OAuth endpoint not found at /.well-known/oauth-authorization-server")
+		}
+		return false, err
+	}
+
+	return len(raw) > 0, nil
+}
+
+func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(oAuthEnabled bool) error {
+
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, oAuthEnabled)
 	if err != nil {
 		return err
 	}
@@ -360,10 +392,9 @@ func (r *ReconcileGitopsService) IsExternalAuthenticationEnabledOnOpenShiftClust
 	return authConfig.Spec.Type == "OIDC"
 }
 
-func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
-	externalOIDCEnabled := r.IsExternalAuthenticationEnabledOnOpenShiftCluster()
+func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger, oAuthEnabled bool) (reconcile.Result, error) {
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, externalOIDCEnabled)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, oAuthEnabled)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

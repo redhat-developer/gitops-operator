@@ -221,6 +221,7 @@ func main() {
 	if err = (&controllers.ReconcileGitopsService{
 		Client:                client,
 		Scheme:                mgr.GetScheme(),
+		Config:                mgr.GetConfig(),
 		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
@@ -260,6 +261,7 @@ func main() {
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:        client,
 		Scheme:        mgr.GetScheme(),
+		Config:        mgr.GetConfig(),
 		LabelSelector: labelSelectorFlag,
 		K8sClient:     k8sClient,
 		LocalUsers: &argocdprovisioner.LocalUsersInfo{
