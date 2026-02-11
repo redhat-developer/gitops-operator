@@ -325,6 +325,37 @@ func CreateManagedNamespaceWithCleanupFunc(name string, managedByNamespace strin
 	return ns, nsDeletionFunc(ns)
 }
 
+// Create a namespace 'name' that is managed by a cluster-scoped ArgoCD instance, via managed-by-cluster-argocd label.
+func CreateClusterScopedManagedNamespace(name string, managedByArgoCDInstance string) *corev1.Namespace {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+
+	// If the Namespace already exists, delete it first
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
+		// Namespace exists, so delete it first
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
+	}
+
+	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name: name,
+		Labels: map[string]string{
+			E2ETestLabelsKey: E2ETestLabelsValue,
+			"argocd.argoproj.io/managed-by-cluster-argocd": managedByArgoCDInstance,
+		},
+	}}
+
+	Expect(k8sClient.Create(context.Background(), ns)).To(Succeed())
+
+	return ns
+
+}
+
+func CreateClusterScopedManagedNamespaceWithCleanupFunc(name string, managedByArgoCDInstance string) (*corev1.Namespace, func()) {
+	ns := CreateClusterScopedManagedNamespace(name, managedByArgoCDInstance)
+	return ns, nsDeletionFunc(ns)
+}
+
 // nsDeletionFunc is a convenience function that returns a function that deletes a namespace. This is used for Namespace cleanup by other functions.
 func nsDeletionFunc(ns *corev1.Namespace) func() {
 
@@ -377,7 +408,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		return deploymentFixture.GetEnv(depl, key)
+		return deploymentFixture.GetEnv(depl, "manager", key)
 
 	} else if EnvCI() {
 
@@ -414,7 +445,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.SetEnv(depl, key, value)
+		deploymentFixture.SetEnv(depl, "manager", key, value)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -451,7 +482,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.RemoveEnv(depl, key)
+		deploymentFixture.RemoveEnv(depl, "manager", key)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -518,11 +549,10 @@ func RestoreSubcriptionToDefault() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
 		for _, envKey := range optionalEnvVarsToRemove {
-			deploymentFixture.RemoveEnv(depl, envKey)
+			deploymentFixture.RemoveEnv(depl, "manager", envKey)
 		}
 
-		err := waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient)
-		Expect(err).ToNot(HaveOccurred())
+		waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient)
 
 		Eventually(depl, "3m", "1s").Should(deploymentFixture.HaveReadyReplicas(1))
 
@@ -535,8 +565,7 @@ func RestoreSubcriptionToDefault() {
 			subscriptionFixture.RemoveSpecConfig(sub)
 		}
 
-		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
-		Expect(err).ToNot(HaveOccurred())
+		waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -551,8 +580,7 @@ func RestoreSubcriptionToDefault() {
 
 		subscriptionFixture.RemoveSpecConfig(sub)
 
-		err = waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
-		Expect(err).ToNot(HaveOccurred())
+		waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -562,7 +590,7 @@ func RestoreSubcriptionToDefault() {
 
 // waitForAllEnvVarsToBeRemovedFromDeployments checks all Deployments in the Namespace, to ensure that none of those Deployments contain environment variables defined within envVarKeys.
 // This can be used before a test starts to ensure that Operator or Argo CD containers are back to default state.
-func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string, k8sClient client.Client) error {
+func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string, k8sClient client.Client) {
 
 	Eventually(func() bool {
 		var deplList appsv1.DeploymentList
@@ -603,7 +631,6 @@ func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string,
 
 	}, "3m", "1s").Should(BeTrue())
 
-	return nil
 }
 
 func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {
@@ -857,7 +884,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 
 	for _, namespace := range namespaces {
 
-		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "all", "-n", namespace)
+		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all", "-n", namespace)
 		if err != nil {
 			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
@@ -869,7 +896,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 
-		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "deployments", "-n", namespace, "-o", "yaml")
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "deployments", "-n", namespace, "-o", "yaml")
 		if err != nil {
 			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
@@ -881,7 +908,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 
-		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "events", "-n", namespace)
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "events", "-n", namespace)
 		if err != nil {
 			GinkgoWriter.Println("unable to get events for namespace", err, kubectlOutput)
 		} else {
@@ -894,7 +921,7 @@ func OutputDebugOnFail(namespaceParams ...any) {
 
 	}
 
-	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "argocds", "-A", "-o", "yaml")
+	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "argocds", "-A", "-o", "yaml")
 	if err != nil {
 		GinkgoWriter.Println("unable to output all argo cd statuses", err, kubectlOutput)
 	} else {
@@ -975,7 +1002,7 @@ func outputPodLog(podSubstring string) {
 	}
 
 	// Extract operator logs
-	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
+	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
 	if err != nil {
 		GinkgoWriter.Println("unable to extract operator logs", err)
 		return
