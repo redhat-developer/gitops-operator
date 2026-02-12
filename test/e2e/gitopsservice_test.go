@@ -156,7 +156,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 
 			By("create a new Argo CD instance in test ns")
-			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace)
+			argocdNonDefaultNamespaceInstance, err := argocd.NewCR(argocdNonDefaultInstanceName, argocdNonDefaultNamespace, k8sClient)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = k8sClient.Create(context.TODO(), argocdNonDefaultNamespaceInstance)
@@ -344,7 +344,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 
 			// create an ArgoCD instance in the source namespace
-			argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS)
+			argoCDInstanceObj, err := argocd.NewCR(argocdInstance, sourceNS, k8sClient)
 			Expect(err).NotTo(HaveOccurred())
 			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
 			if !kubeerrors.IsAlreadyExists(err) {
@@ -523,7 +523,7 @@ var _ = Describe("GitOpsServiceController", func() {
 			}
 
 			By("create an Argo CD instance in source namespace")
-			argoCDInstanceObj, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace)
+			argoCDInstanceObj, err := argocd.NewCR(argocdNonDefaultNamespaceInstanceName, argocdNonDefaultNamespace, k8sClient)
 			Expect(err).NotTo(HaveOccurred())
 			err = k8sClient.Create(context.TODO(), argoCDInstanceObj)
 			Expect(err).NotTo(HaveOccurred())
