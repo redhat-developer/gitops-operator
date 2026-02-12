@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -46,7 +46,7 @@ import (
 // - quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:latest # For main branch.
 const defaultMustGatherImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather:latest"
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-120_validate_running_must_gather", func() {
 
@@ -56,7 +56,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			// This test needs to be in sequential, because must-gather will attempt to retrieve the contents of openshift-gitops namespace, and thus we need other tests not to be touching that namespace at the same time.
+			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})

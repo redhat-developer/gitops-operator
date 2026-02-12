@@ -41,8 +41,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-010_validate-ootb-manage-other-namespace", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx                context.Context
+			k8sClient          client.Client
+			nsTest_1_10_custom *corev1.Namespace
+			nsCleanupFunc      func()
+			app                *argocdv1alpha1.Application
 		)
 
 		BeforeEach(func() {
@@ -51,11 +54,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(nsTest_1_10_custom, "openshift-gitops")
+
+			if nsCleanupFunc != nil {
+				nsCleanupFunc()
+			}
+			if app != nil {
+				_ = k8sClient.Delete(ctx, app)
+			}
+		})
+
 		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", func() {
 
 			By("creating a new namespace that is managed by openshift-gitops Argo CD instance")
-			nsTest_1_10_custom, cleanupFunc1 := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")
-			defer cleanupFunc1()
+			nsTest_1_10_custom, nsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")
 
 			openshiftgitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
@@ -91,7 +104,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}}))
 
 			By("creating a new Argo CD application in openshift-gitops ns, targeting the new namespace")
-			app := &argocdv1alpha1.Application{
+			app = &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-10-custom", Namespace: openshiftgitopsArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
@@ -113,9 +126,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { // cleanup on test exit
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}()
 
 			By("verifying that Argo CD is able to deploy to that other namespace")
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
