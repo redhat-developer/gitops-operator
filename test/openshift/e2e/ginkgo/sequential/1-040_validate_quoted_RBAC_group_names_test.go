@@ -1,6 +1,8 @@
 package sequential
 
 import (
+	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -16,10 +18,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		AfterEach(func() {
+
+			// Delete the new role we created during the test
+			defer func() {
+				By("deleting the role we created during the test")
+				_, err := argocdFixture.RunArgoCDCLI("proj", "role", "delete", "default", "somerole")
+				Expect(err).ToNot(HaveOccurred())
+			}()
+
 			fixture.OutputDebugOnFail()
+
 		})
 
 		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", func() {
+
+			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(defaultArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("logging in to Argo CD instance")
 			Expect(argocdFixture.LogInToDefaultArgoCDInstance()).To(Succeed())
@@ -28,14 +43,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			output, err := argocdFixture.RunArgoCDCLI("proj", "role", "create", "default", "somerole")
 			Expect(err).ToNot(HaveOccurred())
 
-			// Delete the new role we created during the test
-			defer func() {
-				By("deleting the role we created during the test")
-				_, err = argocdFixture.RunArgoCDCLI("proj", "role", "delete", "default", "somerole")
-				Expect(err).ToNot(HaveOccurred())
-			}()
-
 			Expect(output).To(ContainSubstring("Role 'somerole' created"))
+
+			By("waiting for Argo CD to verify the role exists before we add to it (there seems to be some kind of intermittent race condition here in Argo CD itself, where create succeeds in the previous step, but we received 503 in the next step)")
+			Eventually(func() bool {
+				output, err := argocdFixture.RunArgoCDCLI("proj", "role", "get", "default", "somerole")
+				if err != nil {
+					GinkgoWriter.Println("error:", err)
+					return false
+				}
+
+				return strings.Contains(output, "Role Name:")
+
+			}, "30s", "5s").Should(BeTrue())
 
 			By("adding a group claim to the somerole role")
 			output, err = argocdFixture.RunArgoCDCLI("proj", "role", "add-group", "default", "somerole", "\"CN=foo,OU=bar,O=baz\"")

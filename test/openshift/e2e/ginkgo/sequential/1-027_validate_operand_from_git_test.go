@@ -44,14 +44,28 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-027_validate_operand_from_git", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx              context.Context
+			k8sClient        client.Client
+			app              *argocdv1alpha1.Application
+			test_1_27_custom *corev1.Namespace
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+		})
+
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(test_1_27_custom, "openshift-gitops")
+
+			if app != nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+			if test_1_27_custom != nil {
+				Expect(k8sClient.Delete(ctx, test_1_27_custom)).To(Succeed())
+			}
 		})
 
 		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", func() {
@@ -63,7 +77,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(openshiftgitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating Argo CD Application in openshift-gitops namespace")
-			app := &argocdv1alpha1.Application{
+			app = &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: openshiftgitopsArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
@@ -86,20 +100,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { // cleanup on test exit
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}()
 
 			By("verifying test-1-27-custom NS is created and is managed by openshift-gitops, and Application deploys successfully")
-			test_1_27_customNS := &corev1.Namespace{
+			test_1_27_custom = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-27-custom"},
 			}
 
-			Eventually(test_1_27_customNS, "5m", "5s").Should(k8sFixture.ExistByName())
-			Eventually(test_1_27_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
-			defer func() {
-				Expect(k8sClient.Delete(ctx, test_1_27_customNS)).To(Succeed()) // post-test cleanup
-			}()
+			Eventually(test_1_27_custom, "5m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(test_1_27_custom).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
 
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
@@ -123,7 +131,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: test_1_27_customNS.Name,
+						Namespace: test_1_27_custom.Name,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
@@ -140,13 +148,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying expected Argo CD workloads exist in test-1-27-custom namespace")
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "nginx-deployment"}
 			for _, depl := range deploymentsShouldExist {
-				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: test_1_27_customNS.Name}}
-				Eventually(depl).Should(k8sFixture.ExistByName())
-				Eventually(depl).Should(deploymentFixture.HaveReplicas(1))
-				Eventually(depl).Should(deploymentFixture.HaveReadyReplicas(1))
+				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: test_1_27_custom.Name}}
+				Eventually(depl, "4m", "5s").Should(k8sFixture.ExistByName())
+				Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReplicas(1))
+				Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
-			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: test_1_27_customNS.Name}}
+			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: test_1_27_custom.Name}}
 			Eventually(statefulSet).Should(k8sFixture.ExistByName())
 			Eventually(statefulSet).Should(statefulsetFixture.HaveReplicas(1))
 			Eventually(statefulSet).Should(statefulsetFixture.HaveReadyReplicas(1))
