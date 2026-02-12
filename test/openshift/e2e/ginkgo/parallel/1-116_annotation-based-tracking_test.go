@@ -41,8 +41,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-116_annotation-based-tracking_test", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient        client.Client
+			ctx              context.Context
+			nsTestDemo1      *corev1.Namespace
+			nsTestDemo2      *corev1.Namespace
+			nsAppNS1         *corev1.Namespace
+			nsAppNS2         *corev1.Namespace
+			cleanupTestDemo1 func()
+			cleanupTestDemo2 func()
+			cleanupAppNS1    func()
+			cleanupAppNS2    func()
 		)
 
 		BeforeEach(func() {
@@ -53,16 +61,32 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(nsTestDemo1, nsTestDemo2, nsAppNS1, nsAppNS2)
+
+			if cleanupAppNS2 != nil {
+				cleanupAppNS2()
+			}
+			if cleanupAppNS1 != nil {
+				cleanupAppNS1()
+			}
+			if cleanupTestDemo2 != nil {
+				cleanupTestDemo2()
+			}
+			if cleanupTestDemo1 != nil {
+				cleanupTestDemo1()
+			}
+		})
+
 		It("verifies that when annotation tracking is enabled that Argo CD instance starts and has the annotation tracking value specified in ConfigMap", func() {
 
 			By("creating Argo CD instances with annotation+label in two different namespaces")
-			nsTestDemo1, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-test-demo-1")
-			defer cleanupFunc()
+			nsTestDemo1, cleanupTestDemo1 = fixture.CreateNamespaceWithCleanupFunc("argocd-test-demo-1")
 			Eventually(nsTestDemo1).Should(namespaceFixture.HavePhase(corev1.NamespaceActive))
 
-			nsTestDemo2, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-test-demo-2")
+			nsTestDemo2, cleanupTestDemo2 = fixture.CreateNamespaceWithCleanupFunc("argocd-test-demo-2")
 			Eventually(nsTestDemo2).Should(namespaceFixture.HavePhase(corev1.NamespaceActive))
-			defer cleanupFunc()
 
 			argoCDTestDemo1 := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-instance-demo-1", Namespace: nsTestDemo1.Name},
@@ -87,12 +111,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating 2 more namespaces, each managed by one of the above Argo CD instances")
 
-			nsAppNS1, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-1", "argocd-test-demo-1")
-			defer cleanupFunc()
+			nsAppNS1, cleanupAppNS1 = fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-1", "argocd-test-demo-1")
 			Eventually(nsAppNS1).Should(namespaceFixture.HavePhase(corev1.NamespaceActive))
 
-			nsAppNS2, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-2", "argocd-test-demo-2")
-			defer cleanupFunc()
+			nsAppNS2, cleanupAppNS2 = fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-2", "argocd-test-demo-2")
 			Eventually(nsAppNS2).Should(namespaceFixture.HavePhase(corev1.NamespaceActive))
 
 			By("creating an Application in each Argo CD instance, targeting one of the namespaces and verifying the deploy succeeds")

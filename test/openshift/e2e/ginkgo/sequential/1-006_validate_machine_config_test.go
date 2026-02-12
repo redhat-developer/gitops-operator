@@ -43,8 +43,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-006_validate_machine_config", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx           context.Context
+			k8sClient     client.Client
+			defaultArgoCD *argov1beta1api.ArgoCD
+			app           *argocdv1alpha1.Application
 		)
 
 		BeforeEach(func() {
@@ -53,10 +55,27 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail("openshift-gitops")
+
+			if defaultArgoCD != nil {
+
+				argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
+					ac.Spec.Repo.Replicas = nil
+				})
+			}
+
+			if app != nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+		})
+
 		It("verifies that repo server replicas can be modified via .spec.repo.replicas", func() {
 
 			By("setting the repo server replicas to 2 on openshift-gitops Argo CD")
-			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			var err error
+			defaultArgoCD, err = argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(defaultArgoCD).ToNot(BeNil())
 
@@ -64,15 +83,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.Repo.Replicas = ptr.To(int32(2))
 			})
 
-			defer func() {
-				// Revert to default on test end
-				argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
-					ac.Spec.Repo.Replicas = nil
-				})
-			}()
-
 			By("creating an Argo CD Application targeting the Argo CD namespace")
-			app := &argocdv1alpha1.Application{
+			app = &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "validate-machine-config", Namespace: defaultArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
@@ -94,9 +106,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { // Ensure Application is removed on test end
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}()
 
 			By("waiting for Argo CD to become available after the repo server change we made")
 			Eventually(defaultArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
