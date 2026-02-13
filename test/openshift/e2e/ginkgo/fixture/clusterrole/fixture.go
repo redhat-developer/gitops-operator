@@ -3,10 +3,8 @@ package clusterrole
 import (
 	"context"
 
-	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
-	. "github.com/onsi/ginkgo/v2" //nolint:all
-	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
-	. "github.com/onsi/gomega" //nolint:all
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	matcher "github.com/onsi/gomega/types"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	rbacv1 "k8s.io/api/rbac/v1"
