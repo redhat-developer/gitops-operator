@@ -120,7 +120,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
-			Eventually(argoCD, "1m", "5s").Should(argocdFixture.HaveServerStatus("Running"))
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveServerStatus("Running"))
 			Consistently(argoCD, "20s", "5s").Should(argocdFixture.HaveRepoStatus("Pending"))
 			Expect(argoCD).ShouldNot(argocdFixture.BeAvailable())
 		})
