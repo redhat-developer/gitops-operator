@@ -104,7 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Namespace: targetNS.Name,
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
+					ClusterResourceWhitelist: []argocdv1alpha1.ClusterResourceRestrictionItem{
 						{
 							Group: "*",
 							Kind:  "*",
