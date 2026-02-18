@@ -57,7 +57,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("getting the Subscription and CSV that was used to install the operator")
 
-			if fixture.EnvCI() {
+			if fixture.EnvCI() && !fixture.EnvInterop() {
 				subscription, err := fixture.GetSubscriptionInEnvCIEnvironment(k8sClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(subscription).ToNot(BeNil())
