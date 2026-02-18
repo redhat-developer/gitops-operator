@@ -26,8 +26,7 @@ import (
 	"time"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	//lint:ignore ST1001 "This is a common practice in Gomega tests for readability."
-	. "github.com/onsi/ginkgo/v2" //nolint:all
+	. "github.com/onsi/ginkgo/v2"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
