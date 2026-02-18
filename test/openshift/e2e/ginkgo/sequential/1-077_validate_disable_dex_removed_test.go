@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-077_validate_disable_dex_removed", func() {
 
@@ -57,7 +57,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("getting the Subscription and CSV that was used to install the operator")
 
-			if fixture.EnvCI() && !fixture.EnvInterop() {
+			if fixture.EnvCI() {
 				subscription, err := fixture.GetSubscriptionInEnvCIEnvironment(k8sClient)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(subscription).ToNot(BeNil())

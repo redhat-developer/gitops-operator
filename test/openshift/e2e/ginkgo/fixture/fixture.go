@@ -360,12 +360,6 @@ func EnvLocalRun() bool {
 	return exists
 }
 
-// EnvInterop checks if INTEROP env var is set; this variable is set when testing Interoperability of GitOps Operator and OCP
-func EnvInterop() bool {
-	_, exists := os.LookupEnv("INTEROP")
-	return exists
-}
-
 // EnvCI checks if CI env var is set; this variable is set when testing on GitOps Operator running via CI pipeline (and using an OLM Subscription)
 func EnvCI() bool {
 	_, exists := os.LookupEnv("CI")
