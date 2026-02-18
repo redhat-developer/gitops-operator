@@ -104,12 +104,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Namespace: targetNS.Name,
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
-						{
-							Group: "*",
-							Kind:  "*",
-						},
-					},
+					ClusterResourceWhitelist: []argocdv1alpha1.ClusterResourceRestrictionItem{{
+						Group: "*",
+						Kind:  "*",
+					}},
 				},
 			}
 			Expect(k8sClient.Create(ctx, appProject)).To(Succeed())
