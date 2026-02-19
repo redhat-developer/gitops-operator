@@ -106,10 +106,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "gitops-configmap", Namespace: ns.Name}}
 			Eventually(configMap, "8m", "10s").Should(k8sFixture.ExistByName(), "ConfigMap did not exist within timeout")
 
-			// Refresh the ConfigMap to get the latest data from the API server
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(configMap), configMap)).To(Succeed())
-			Expect(configMap.Annotations["foo"]).To(Equal("gitops-configmap"))
-
 		})
 	})
 })

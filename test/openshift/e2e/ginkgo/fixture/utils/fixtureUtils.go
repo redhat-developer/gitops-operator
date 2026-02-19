@@ -16,6 +16,7 @@ import (
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
+	imageUpdater "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -138,6 +139,10 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 	}
 
 	if err := batchv1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := imageUpdater.AddToScheme(scheme); err != nil {
 		return nil, nil, err
 	}
 
