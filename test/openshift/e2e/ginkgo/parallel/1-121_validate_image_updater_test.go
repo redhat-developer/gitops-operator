@@ -115,17 +115,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying all workloads are started")
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "argocd-argocd-image-updater-controller"}
-			for _, deplName := range deploymentsShouldExist {
-				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: ns.Name}}
-				Eventually(depl, "2m", "5s").Should(k8sFixture.ExistByName(), "Deployment "+deplName+" did not exist within timeout")
-				Eventually(depl, "2m", "5s").Should(deplFixture.HaveReplicas(1), "Deployment "+deplName+" did not have correct replicas within timeout")
-				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), "Deployment "+deplName+" was not ready within timeout")
+			for _, depl := range deploymentsShouldExist {
+				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
+				Eventually(depl).Should(k8sFixture.ExistByName())
+				Eventually(depl).Should(deplFixture.HaveReplicas(1))
+				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), depl.Name+" was not ready")
 			}
 
 			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
+			Eventually(statefulSet).Should(k8sFixture.ExistByName())
+			Eventually(statefulSet).Should(ssFixture.HaveReplicas(1))
+			Eventually(statefulSet, "3m", "5s").Should(ssFixture.HaveReadyReplicas(1))
 			Eventually(statefulSet).Should(k8sFixture.ExistByName())
 			Eventually(statefulSet).Should(ssFixture.HaveReplicas(1))
 			Eventually(statefulSet, "3m", "5s").Should(ssFixture.HaveReadyReplicas(1))
@@ -153,18 +157,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 			By("verifying deploying the Application succeeded")
-			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status within timeout")
-			Eventually(app, "8m", "10s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced), "Application did not sync within timeout")
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
 
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
+			namespace := ns.Name
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater",
 					Namespace: ns.Name,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
-					Namespace: ns.Name,
+					Namespace: &namespace,
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
 						{
 							NamePattern: "app*",
@@ -188,21 +193,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 
 				if err != nil {
-					GinkgoWriter.Printf("Error getting Application: %v\n", err)
 					return "" // Let Eventually retry on error
 				}
 
 				// Nil-safe check: The Kustomize block is only added by the Image Updater after its first run.
 				// We must check that it and its Images field exist before trying to access them.
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
-					imageStr := string(app.Spec.Source.Kustomize.Images[0])
-					GinkgoWriter.Printf("Found Kustomize image: %s\n", imageStr)
-					return imageStr
+					return string(app.Spec.Source.Kustomize.Images[0])
 				}
 
 				// Return an empty string to signify the condition is not yet met.
 				return ""
-			}, "10m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
+			}, "5m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"))
 		})
 	})
 })
