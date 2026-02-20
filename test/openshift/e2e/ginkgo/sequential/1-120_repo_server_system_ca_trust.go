@@ -58,7 +58,7 @@ import (
 var (
 	// The differences between the upstream image using Ubuntu, and the downstream one using rhel.
 	image        = "" // argocd-operator default
-	version      = "" // argocd-operator default
+	imageVersion = "" // argocd-operator default
 	caBundlePath = "/etc/ssl/certs/ca-certificates.crt"
 
 	trustedHelmAppSource = &appv1alpha1.ApplicationSource{
@@ -98,7 +98,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			if !fixture.EnvNonOLM() {
 				image = "registry.redhat.io/openshift-gitops-1/argocd-rhel8"
-				version = "sha256:8a0544c14823492165550d83a6d8ba79dd632b46144d3fdcb543793726111d76"
+				imageVersion = "sha256:8a0544c14823492165550d83a6d8ba79dd632b46144d3fdcb543793726111d76"
 				caBundlePath = "/etc/ssl/certs/ca-bundle.crt"
 			}
 		})
@@ -482,7 +482,7 @@ func argoCDSpec(ns *corev1.Namespace, repoSpec argov1beta1api.ArgoCDRepoSpec) *a
 		ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 		Spec: argov1beta1api.ArgoCDSpec{
 			Image:   image,
-			Version: version,
+			Version: imageVersion,
 			Repo:    repoSpec,
 		},
 	}
@@ -706,7 +706,7 @@ func (pt *podTrust) fetch() {
 	pt.count = getTrustedCertCount(pod)
 	pt.log = getRepoCertGenerationLog(pod)
 
-	out, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "-n", pt.ns.Name, "events")
+	out, err := osFixture.ExecCommandWithOutputParam(false, false, "kubectl", "-n", pt.ns.Name, "events")
 	if err != nil {
 		panic(err)
 	}
@@ -763,7 +763,7 @@ func getTrustedCertCount(rsPod *corev1.Pod) int {
 			"cat", caBundlePath,
 		}
 
-		out, err = osFixture.ExecCommandWithOutputParam(false, command...)
+		out, err = osFixture.ExecCommandWithOutputParam(false, false, command...)
 		if err == nil {
 			break
 		}
@@ -788,7 +788,7 @@ func getTrustedCertCount(rsPod *corev1.Pod) int {
 
 func getRepoCertGenerationLog(rsPod *corev1.Pod) string {
 	out, err := osFixture.ExecCommandWithOutputParam(
-		false,
+		false, false,
 		"kubectl", "-n", rsPod.Namespace, "logs", "-c", "update-ca-certificates", rsPod.Name,
 	)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("output: %s", out))
