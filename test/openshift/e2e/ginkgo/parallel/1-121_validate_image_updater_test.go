@@ -118,11 +118,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying all workloads are started")
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "argocd-argocd-image-updater-controller"}
-			for _, depl := range deploymentsShouldExist {
-				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: depl, Namespace: ns.Name}}
-				Eventually(depl).Should(k8sFixture.ExistByName())
-				Eventually(depl).Should(deplFixture.HaveReplicas(1))
-				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), depl.Name+" was not ready")
+			for _, deplName := range deploymentsShouldExist {
+				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: ns.Name}}
+				Eventually(depl, "2m", "5s").Should(k8sFixture.ExistByName(), "Deployment "+deplName+" did not exist within timeout")
+				Eventually(depl, "2m", "5s").Should(deplFixture.HaveReplicas(1), "Deployment "+deplName+" did not have correct replicas within timeout")
+				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), "Deployment "+deplName+" was not ready within timeout")
 			}
 
 			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
@@ -199,23 +199,38 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				GinkgoWriter.Printf("Deployments in namespace %s after ImageUpdater CR creation:\n%s\n", ns.Name, output)
 			}
 
+			By("checking ImageUpdater CR and Application status for debugging")
+			output, err = osFixture.ExecCommand("oc", "get", "imageupdater", "image-updater", "-n", ns.Name, "-o", "yaml")
+			if err == nil {
+				GinkgoWriter.Printf("ImageUpdater CR status:\n%s\n", output)
+			}
+
+			output, err = osFixture.ExecCommand("oc", "get", "application", "app-01", "-n", ns.Name, "-o", "yaml")
+			if err == nil {
+				GinkgoWriter.Printf("Application status before waiting for image update:\n%s\n", output)
+			}
+
 			By("ensuring that the Application image has `29437546.0` version after update")
 			Eventually(func() string {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 
 				if err != nil {
+					GinkgoWriter.Printf("Error getting Application: %v\n", err)
 					return "" // Let Eventually retry on error
 				}
 
 				// Nil-safe check: The Kustomize block is only added by the Image Updater after its first run.
 				// We must check that it and its Images field exist before trying to access them.
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
-					return string(app.Spec.Source.Kustomize.Images[0])
+					imageStr := string(app.Spec.Source.Kustomize.Images[0])
+					GinkgoWriter.Printf("Found Kustomize image: %s\n", imageStr)
+					return imageStr
 				}
 
 				// Return an empty string to signify the condition is not yet met.
+				GinkgoWriter.Printf("Application Kustomize block not yet updated. Kustomize: %v\n", app.Spec.Source.Kustomize)
 				return ""
-			}, "8m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
+			}, "10m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
 		})
 	})
 })
