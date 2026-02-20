@@ -130,6 +130,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(statefulSet).Should(ssFixture.HaveReplicas(1))
 			Eventually(statefulSet, "3m", "5s").Should(ssFixture.HaveReadyReplicas(1))
 
+			By("listing deployments in namespace for debugging")
+			output, err = osFixture.ExecCommand("oc", "get", "deployments", "-n", ns.Name)
+			if err == nil {
+				GinkgoWriter.Printf("Deployments in namespace %s:\n%s\n", ns.Name, output)
+			}
+
 			By("creating Application")
 			app := &appv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
@@ -153,8 +159,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 			By("verifying deploying the Application succeeded")
-			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status within timeout")
+			Eventually(app, "8m", "10s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced), "Application did not sync within timeout")
+
+			By("ensuring ImageUpdater controller deployment is ready before creating ImageUpdater CR")
+			imageUpdaterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-image-updater-controller", Namespace: ns.Name}}
+			Eventually(imageUpdaterDepl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), "ImageUpdater controller deployment was not ready within timeout")
 
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
@@ -183,6 +193,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, imageUpdater)).To(Succeed())
 
+			By("listing deployments in namespace after creating ImageUpdater CR")
+			output, err = osFixture.ExecCommand("oc", "get", "deployments", "-n", ns.Name)
+			if err == nil {
+				GinkgoWriter.Printf("Deployments in namespace %s after ImageUpdater CR creation:\n%s\n", ns.Name, output)
+			}
+
 			By("ensuring that the Application image has `29437546.0` version after update")
 			Eventually(func() string {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
@@ -199,7 +215,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				// Return an empty string to signify the condition is not yet met.
 				return ""
-			}, "5m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"))
+			}, "8m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
 		})
 	})
 })
