@@ -104,7 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Namespace: targetNS.Name,
 						},
 					},
-					ClusterResourceWhitelist: []metav1.GroupKind{
+					ClusterResourceWhitelist: []argocdv1alpha1.ClusterResourceRestrictionItem{
 						{
 							Group: "*",
 							Kind:  "*",
@@ -119,7 +119,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			// Verify AppProject configuration
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(appProject), appProject)).To(Succeed())
-			Expect(len(appProject.Spec.Destinations)).To(BeNumerically(">", 0), "AppProject should have at least one destination configured")
+			Expect(appProject.Spec.Destinations).ToNot(BeEmpty(), "AppProject should have at least one destination configured")
 			Expect(appProject.Spec.Destinations[0].Namespace).To(Equal(targetNS.Name), "AppProject destination should match target namespace")
 			Expect(appProject.Spec.Destinations[0].Server).To(Equal("https://kubernetes.default.svc"), "AppProject destination server should be configured")
 
