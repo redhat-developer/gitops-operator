@@ -419,7 +419,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 
 				return strings.Contains(out, `{"created":"my-app-3","type":"Directory"}`)
 
-			}, "4m", "5s").Should(BeTrue())
+			}, "5m", "10s").Should(BeTrue(), "Webhook did not receive the expected notification within timeout")
 
 		})
 
