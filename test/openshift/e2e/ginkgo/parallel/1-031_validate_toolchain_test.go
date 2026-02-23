@@ -85,7 +85,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that toolchain versions have the expected values", func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-			expected_kustomizeVersion := "v5.7.0"
+			expected_kustomizeVersion := "v5.8.0"
 			expected_helmVersion := "v3.18.4"
 			expected_argocdVersion := "v3.2.1"
 
