@@ -116,6 +116,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
+			By("listing deployments in namespace")
+			output, err = osFixture.ExecCommand("oc", "get", "deployments", "-n", ns.Name)
+			if err == nil {
+				GinkgoWriter.Printf("Deployments in namespace %s:\n%s\n", ns.Name, output)
+			}
+
 			By("verifying all workloads are started")
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "argocd-argocd-image-updater-controller"}
 			for _, deplName := range deploymentsShouldExist {
