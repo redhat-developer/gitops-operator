@@ -285,7 +285,7 @@ kustomize: ## Download kustomize locally if necessary.
 GINKGO_CLI = $(shell pwd)/bin/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
-	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.25.3)
+	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.28.1)
 
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
