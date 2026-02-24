@@ -87,7 +87,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(redisTLSSecret), redisTLSSecret)).To(Succeed())
 			Expect(redisTLSSecret.Type).To(Equal(corev1.SecretTypeTLS), "Secret type should be kubernetes.io/tls")
-			Expect(len(redisTLSSecret.Data)).To(Equal(2), "Secret should contain exactly 2 data items (tls.key and tls.crt)")
+			Expect(redisTLSSecret.Data).To(HaveLen(2), "Secret should contain exactly 2 data items (tls.key and tls.crt)")
 
 			By("verifying the redis-server deployment has the expected TLS flags")
 			redisDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis", Namespace: ns.Name}}
