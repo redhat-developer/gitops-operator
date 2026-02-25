@@ -97,7 +97,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				expected_dexVersion = "v2.43.0"
 				expected_redisVersion = "8.2.3"
 				
-			} else os.Getenv("CI") == "konflux" {
+			} else if os.Getenv("CI") == "konflux" {
 				// when running in konflux, we can get pre-release dex and released version of redix
 				expected_dexVersion = "v2.43.0"
 				expected_redisVersion = "7.2.11"
