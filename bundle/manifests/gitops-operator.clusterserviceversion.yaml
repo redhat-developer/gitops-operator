@@ -180,7 +180,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-02-18T10:47:28Z"
+    createdAt: "2026-02-25T06:55:11Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -305,6 +305,11 @@ spec:
       displayName: Gitops Service
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
+      version: v1alpha1
+    - description: ImageUpdater is the Schema for the imageupdaters API
+      displayName: ImageUpdater
+      kind: ImageUpdater
+      name: imageupdaters.argocd-image-updater.argoproj.io
       version: v1alpha1
     - kind: NamespaceManagement
       name: namespacemanagements.argoproj.io

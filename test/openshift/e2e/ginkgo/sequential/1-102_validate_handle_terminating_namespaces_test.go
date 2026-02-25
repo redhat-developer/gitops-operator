@@ -147,7 +147,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 
 				return true
-			}).Should(BeTrue())
+			}, "3m", "5s").Should(BeTrue(), "RoleBindings were not created in John namespace within timeout")
 
 			By("creating a test Argo CD Application targeting john NS")
 

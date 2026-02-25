@@ -132,6 +132,11 @@ spec:
       kind: RolloutManager
       name: rolloutmanagers.argoproj.io
       version: v1alpha1
+    - description: ImageUpdater is the Schema for the imageupdaters API
+      displayName: ImageUpdater
+      kind: ImageUpdater
+      name: imageupdaters.argocd-image-updater.argoproj.io
+      version: v1alpha1
     - description: GitopsService is the Schema for the gitopsservices API
       displayName: Gitops Service
       kind: GitopsService
