@@ -25,6 +25,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -69,6 +70,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			principalDeployment      *appsv1.Deployment
 			expectedEnvVariables     map[string]string
 			secretNames              agentFixture.AgentSecretNames
+			principalNetworkPolicy   *networkingv1.NetworkPolicy
 			principalRoute           *routev1.Route
 			resourceProxyServiceName string
 			principalResources       agentFixture.PrincipalResources
@@ -189,6 +191,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Namespace: ns.Name,
 				},
 			}
+			principalNetworkPolicy = &networkingv1.NetworkPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-agent-principal-network-policy", argoCDName),
+					Namespace: ns.Name,
+				},
+			}
 
 			// List environment variables with expected values for the principal deployment
 			expectedEnvVariables = map[string]string{
@@ -225,6 +233,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ClusterRoleBinding:       clusterRoleBinding,
 				PrincipalDeployment:      principalDeployment,
 				PrincipalRoute:           principalRoute,
+				PrincipalNetworkPolicy:   principalNetworkPolicy,
 				ServicesToDelete: []string{
 					argoCDAgentPrincipalName,
 					fmt.Sprintf(principalMetricsServiceFmt, argoCDName),
@@ -276,6 +285,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ClusterRoleBinding:       clusterRoleBinding,
 				PrincipalDeployment:      principalDeployment,
 				PrincipalRoute:           principalRoute,
+				PrincipalNetworkPolicy:   principalNetworkPolicy,
 				SecretNames:              secretNames,
 				ServiceNames:             serviceNames,
 				DeploymentNames:          deploymentNames,
@@ -698,6 +708,69 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				return principalService.Spec.Type
 			}, "30s", "2s").Should(Equal(corev1.ServiceTypeLoadBalancer))
+		})
+
+		It("should create principal NetworkPolicy if principal is enabled", func() {
+			By("Create ArgoCD instance with principal enabled")
+
+			argoCD.Spec.ArgoCDAgent.Principal.Enabled = ptr.To(true)
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			verifyExpectedResourcesExist(ns)
+			By("Verify principal NetworkPolicy exists and has expected policy addresses and ports")
+
+			Expect(principalNetworkPolicy.Spec.PodSelector.MatchLabels[common.ArgoCDKeyName]).To(Equal(argoCDAgentPrincipalName))
+			Expect(principalNetworkPolicy.Spec.PolicyTypes).To(ContainElement(networkingv1.PolicyTypeIngress))
+			Expect(principalNetworkPolicy.Spec.Ingress).To(HaveLen(2))
+
+			ing := principalNetworkPolicy.Spec.Ingress[0]
+			Expect(ing.From).To(HaveLen(1))
+			Expect(ing.From[0].NamespaceSelector).ToNot(BeNil())
+			Expect(*ing.From[0].NamespaceSelector).To(Equal(metav1.LabelSelector{}))
+
+			// Ports the principal exposes (see argocdagent deployment/service code)
+			expectedPorts := map[int32]bool{
+				8443: true, // principal HTTPS target port
+				8000: true, // metrics
+				6379: true, // redis proxy
+				9090: true, // resource proxy
+				8003: true, // healthz
+			}
+			Expect(ing.Ports).To(HaveLen(len(expectedPorts)))
+			for _, p := range ing.Ports {
+				Expect(p.Port).ToNot(BeNil())
+				Expect(expectedPorts[p.Port.IntVal]).To(BeTrue(), "unexpected ingress port %d", p.Port.IntVal)
+			}
+			Expect(principalNetworkPolicy.Spec.Ingress[1].From).To(HaveLen(1))
+
+			Expect(*principalNetworkPolicy.Spec.Ingress[1].From[0].IPBlock).To(Equal(networkingv1.IPBlock{CIDR: "0.0.0.0/0"}))
+			Expect(principalNetworkPolicy.Spec.Ingress[1].Ports).To(HaveLen(2))
+			Expect(principalNetworkPolicy.Spec.Ingress[1].Ports[0].Port.IntVal).To(Equal(int32(8443)))
+			Expect(principalNetworkPolicy.Spec.Ingress[1].Ports[1].Port.IntVal).To(Equal(int32(443)))
+
+			By("Verify principal NetworkPolicy is deleted when principal instance is disabled")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.ArgoCDAgent.Principal.Enabled = nil
+			})
+
+			Eventually(principalNetworkPolicy).Should(k8sFixture.NotExistByName())
+
+			By("Verify principal NetworkPolicy is created when principal instance is enabled and network policy is enabled")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.ArgoCDAgent.Principal.Enabled = ptr.To(true)
+				ac.Spec.NetworkPolicy.Enabled = ptr.To(true)
+			})
+			Eventually(principalNetworkPolicy).Should(k8sFixture.ExistByName())
+
+			By("Verify principal NetworkPolicy is not created when network policy is disabled")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.NetworkPolicy.Enabled = ptr.To(false)
+			})
+
+			Eventually(principalNetworkPolicy).Should(k8sFixture.NotExistByName())
 		})
 	})
 })
