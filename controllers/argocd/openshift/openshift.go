@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
-
-	"golang.org/x/mod/semver"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
-
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/go-logr/logr"
+	"golang.org/x/mod/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -59,6 +60,13 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 			} else {
 				o.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities = nil
 			}
+		case cr.Name + "-repo-server":
+
+			prodImage := o.Spec.Template.Spec.Containers[0].Image
+			usingReleasedImages := strings.Contains(prodImage, "registry.redhat.io/openshift-gitops-1/argocd-rhel")
+			if cr.Spec.Repo.SystemCATrust != nil && usingReleasedImages {
+				updateSystemCATrustBuilding(cr, o, prodImage, logv)
+			}
 		}
 	case *appsv1.StatefulSet:
 		if o.Name == cr.Name+"-redis-ha-server" {
@@ -104,6 +112,96 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 		}
 	}
 	return nil
+}
+
+// updateSystemCATrustBuilding replaces the procedure based on ubuntu container with one based on rhel containers.
+// This requires changing the init container image, its script and the mount points to all consuming containers.
+func updateSystemCATrustBuilding(cr *argoapp.ArgoCD, o *appsv1.Deployment, prodImage string, logv logr.Logger) {
+	// These volumes are created by argocd-operator
+	volumeSource := "argocd-ca-trust-source"
+	volumeTarget := "argocd-ca-trust-target"
+
+	// Drop upstream init container and replace it with rhel specific logic
+	o.Spec.Template.Spec.InitContainers = slices.DeleteFunc(
+		o.Spec.Template.Spec.InitContainers,
+		func(container corev1.Container) bool {
+			return container.Name == "update-ca-certificates"
+		},
+	)
+
+	initContainer := corev1.Container{
+		Name:            "update-ca-certificates",
+		Image:           prodImage,
+		SecurityContext: argoutil.DefaultSecurityContext(),
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: volumeSource, MountPath: "/var/run/secrets/ca-trust-source", ReadOnly: true},
+			{Name: volumeTarget, MountPath: "/etc/pki/ca-trust"},
+		},
+		Command: []string{"/bin/bash", "-c"},
+		Args: []string{`
+set -eEuo pipefail
+trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+# Populate the empty volume with the expected structure
+mkdir -p /etc/pki/ca-trust/{extracted/{openssl,pem,java,edk2},source/{anchors,blacklist}}
+
+# Copy user anchors where update-ca-trust expects it
+# Using loop over 'cp *' to work well with no CA files provided (all optional, none configured, etc.)
+ls /var/run/secrets/ca-trust-source/ | while read -r f; do
+    cp -L "/var/run/secrets/ca-trust-source/$f" /etc/pki/ca-trust/source/anchors/
+done
+
+echo "User defined trusted CA files:"
+ls /etc/pki/ca-trust/source/anchors/
+
+update-ca-trust
+
+echo "Trusted anchors:"
+trust list
+
+echo "Done!"
+			`},
+	}
+
+	// Replace distro CA certs with empty volume when the image CA's are supposed to be dropped
+	if cr.Spec.Repo.SystemCATrust.DropImageCertificates {
+		o.Spec.Template.Spec.Volumes = append(o.Spec.Template.Spec.Volumes, corev1.Volume{
+			Name: "distro-ca-trust-source",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
+		initContainer.VolumeMounts = append(initContainer.VolumeMounts, corev1.VolumeMount{
+			Name:      "distro-ca-trust-source",
+			MountPath: "/usr/share/pki/ca-trust-source/",
+		})
+	}
+	o.Spec.Template.Spec.InitContainers = append(o.Spec.Template.Spec.InitContainers, initContainer)
+
+	// Update where to mount for prod containers
+	var mountedTo []string
+	for ci, container := range o.Spec.Template.Spec.Containers {
+		// Only mount to production container or sidecars using the same image
+		if container.Image != prodImage {
+			continue
+		}
+		mountedTo = append(mountedTo, container.Name)
+
+		// The source volume is not needed on RHEL
+		o.Spec.Template.Spec.Containers[ci].VolumeMounts = slices.DeleteFunc(
+			o.Spec.Template.Spec.Containers[ci].VolumeMounts,
+			func(mount corev1.VolumeMount) bool {
+				return mount.Name == volumeSource
+			},
+		)
+		// Use the RHEL-specific mount point for the target trust volume
+		for vi, volume := range o.Spec.Template.Spec.Containers[ci].VolumeMounts {
+			if volume.Name == volumeTarget {
+				o.Spec.Template.Spec.Containers[ci].VolumeMounts[vi].MountPath = "/etc/pki/ca-trust"
+			}
+		}
+	}
+	logv.Info(fmt.Sprintf("injected systemCATrust to repo-server containers: %s", strings.Join(mountedTo, ",")))
 }
 
 // BuilderHook updates the Argo CD controller builder to watch for changes to the "admin" ClusterRole
