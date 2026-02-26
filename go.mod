@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260218104514-432c01ce417a
-	github.com/argoproj-labs/argocd-operator v0.17.0-rc1.0.20260211145236-4c05ef8fa3d7
+	github.com/argoproj-labs/argocd-operator v0.17.0-rc1.0.20260225073619-a52ee52d3941
 	github.com/argoproj/argo-cd/v3 v3.3.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.3
@@ -43,7 +43,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
-	github.com/argoproj-labs/argocd-image-updater v1.1.0 // indirect
+	github.com/argoproj-labs/argocd-image-updater v1.1.1 // indirect
 	github.com/argoproj/pkg v0.13.7-0.20250305113207-cbc37dc61de5 // indirect
 	github.com/argoproj/pkg/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

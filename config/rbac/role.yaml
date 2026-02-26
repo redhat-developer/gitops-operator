@@ -223,6 +223,7 @@ rules:
 - apiGroups:
   - config.openshift.io
   resources:
+  - authentications
   - clusterversions
   - ingresses
   verbs:

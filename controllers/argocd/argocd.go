@@ -17,11 +17,14 @@ limitations under the License.
 package argocd
 
 import (
+	"context"
+
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoappController "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
@@ -86,7 +89,10 @@ func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
 	}
 }
 
-func getArgoSSOSpec() *argoapp.ArgoCDSSOSpec {
+func getArgoSSOSpec(client client.Client) *argoapp.ArgoCDSSOSpec {
+	if argoappController.IsOpenShiftCluster() && argoappController.IsExternalAuthenticationEnabledOnCluster(context.TODO(), client) {
+		return nil
+	}
 	return &argoapp.ArgoCDSSOSpec{
 		Provider: argoapp.SSOProviderTypeDex,
 		Dex:      getArgoDexSpec(),
@@ -180,7 +186,7 @@ func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
 // with comprehensive default resource exclusions
-func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
+func NewCR(name, ns string, client client.Client) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{
 		{
 			APIGroups: []string{"", "discovery.k8s.io"},
@@ -239,7 +245,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 		Spec: argoapp.ArgoCDSpec{
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
-			SSO:                getArgoSSOSpec(),
+			SSO:                getArgoSSOSpec(client),
 			Grafana:            getArgoGrafanaSpec(),
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),
