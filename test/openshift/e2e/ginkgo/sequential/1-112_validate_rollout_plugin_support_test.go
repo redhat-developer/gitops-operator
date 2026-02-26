@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							{
 								Name:     "argoproj-labs/sample-prometheus",
 								Location: "https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64",
-								SHA256:   "dac10cbf57633c9832a17f8c27d2ca34aa97dd3d",
+								SHA256:   "af83581a496cebad569c6ddca4e1b7beef1c6f51573d6cd235cebe4390d3a767",
 							},
 						},
 					},
@@ -132,10 +132,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(rolloutsConfigMap).Should(k8sFixture.ExistByName())
-			Eventually(rolloutsConfigMap).Should(configmap.HaveStringDataKeyValue("metricPlugins", `
+			Eventually(rolloutsConfigMap).Should(configmap.HaveStringDataKeyValue("metricProviderPlugins", `
 - name: argoproj-labs/sample-prometheus
   location: https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64
-  sha256: dac10cbf57633c9832a17f8c27d2ca34aa97dd3d`))
+  sha256: af83581a496cebad569c6ddca4e1b7beef1c6f51573d6cd235cebe4390d3a767`))
 
 			By("verifying the trafficRouterPlugin contains both gatewayAPI, AND our openshift route plugin")
 
