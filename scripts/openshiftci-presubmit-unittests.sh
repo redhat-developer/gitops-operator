@@ -27,3 +27,16 @@ cd ../..
 
 # Run unit
 make test
+
+# Upload coverage to codecov.io - failures here should not fail the build
+(
+  set +e
+  CODECOV_TOKEN_FILE="/var/run/codecov-token/CODECOV_TOKEN"
+  if [[ ! -f "${CODECOV_TOKEN_FILE}" ]]; then
+    echo "Codecov token not found at ${CODECOV_TOKEN_FILE}, skipping upload"
+    exit 0
+  fi
+  curl -OSs --fail-with-body https://cli.codecov.io/latest/linux/codecov
+  chmod +x codecov
+  CODECOV_TOKEN="$(cat "${CODECOV_TOKEN_FILE}")" ./codecov upload-process --flag unit-tests --file cover.out
+) || echo "Coverage upload to codecov.io failed, continuing"
