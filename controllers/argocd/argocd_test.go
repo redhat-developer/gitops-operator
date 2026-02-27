@@ -21,13 +21,22 @@ import (
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	configv1 "github.com/openshift/api/config/v1"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestArgoCD(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	scheme := runtime.NewScheme()
+	_ = argoapp.AddToScheme(scheme)
+	_ = configv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", fakeClient)
 
 	testApplicationSetResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
@@ -190,7 +199,15 @@ func TestArgoCD(t *testing.T) {
 }
 
 func TestDexConfiguration(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	scheme := runtime.NewScheme()
+	_ = argoapp.AddToScheme(scheme)
+	_ = configv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", fakeClient)
 
 	// Verify Dex OpenShift Configuration
 	assert.Equal(t, testArgoCD.Spec.SSO.Dex.OpenShiftOAuth, true)

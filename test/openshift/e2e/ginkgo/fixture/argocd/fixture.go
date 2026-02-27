@@ -153,6 +153,41 @@ func HaveApplicationControllerOperationProcessors(operationProcessors int) match
 	})
 }
 
+func HaveExternalAuthenticationCondition(expected metav1.Condition) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		for _, c := range argocd.Status.Conditions {
+			// FIRST match by Type
+			if c.Type != expected.Type {
+				continue
+			}
+			GinkgoWriter.Println("Matched condition type:", c.Type)
+			// Then check Reason
+			if c.Reason != expected.Reason {
+				GinkgoWriter.Println("HaveCondition: reason does not match", c.Reason, expected.Reason)
+				return false
+			}
+
+			// Then check Status
+			if c.Status != expected.Status {
+				GinkgoWriter.Println("HaveCondition: status does not match", c.Status, expected.Status)
+				return false
+			}
+
+			// Message check is optional (can be multiline)
+			if expected.Message != "" && c.Message != expected.Message {
+				GinkgoWriter.Println("HaveCondition: message does not match")
+				return false
+			}
+
+			// ✅ Found correct condition
+			return true
+		}
+
+		GinkgoWriter.Println("HaveCondition: condition type not found:", expected.Type)
+		return false
+	})
+}
+
 func HaveCondition(condition metav1.Condition) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 

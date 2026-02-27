@@ -134,6 +134,7 @@ type ReconcileGitopsService struct {
 	DisableDefaultInstall bool
 }
 
+// +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/finalizers,verbs=update
@@ -313,7 +314,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, r.Client)
 	if err != nil {
 		return err
 	}
@@ -349,7 +350,7 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, r.Client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
