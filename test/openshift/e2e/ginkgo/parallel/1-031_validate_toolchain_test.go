@@ -99,7 +99,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			} else {
 				// when running against RC/ released version of gitops
-				expected_dexVersion = "v2.41.1"
+				expected_dexVersion = "v2.43.1"
 				expected_redisVersion = "7.2.11"
 			}
 
