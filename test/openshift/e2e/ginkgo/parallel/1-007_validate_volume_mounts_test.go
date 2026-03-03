@@ -143,5 +143,67 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
+		It("verifies that dex controller has the expected volumes and volumemounts, including custom volumes and volumemounts", func() {
+
+			By("creating new namespace-scoped Argo CD instance with dex enabled and custom volumes and volume mounts")
+			randomNS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+
+			argoCDRandomNS := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
+				Spec: argov1beta1api.ArgoCDSpec{
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeDex,
+						Dex: &argov1beta1api.ArgoCDDexSpec{
+							OpenShiftOAuth: true,
+							Volumes: []corev1.Volume{
+								{Name: "custom-dex-volume", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "custom-dex-volume", MountPath: "/custom/dex"},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCDRandomNS)).To(Succeed())
+
+			By("verifying Argo CD is available and Dex is running")
+			Eventually(argoCDRandomNS, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying dex server Deployment has the expected volume and volumemount values")
+			dexServerDepl := appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-dex-server", Namespace: randomNS.Name}}
+
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(&dexServerDepl), &dexServerDepl)).To(Succeed())
+
+			// Check that custom volume mounts are present
+			Expect(dexServerDepl.Spec.Template.Spec.Containers[0].VolumeMounts).To(Equal([]corev1.VolumeMount{
+				{Name: "static-files", MountPath: "/shared"},
+				{Name: "dexconfig", MountPath: "/tmp"},
+				{Name: "custom-dex-volume", MountPath: "/custom/dex"},
+			}))
+
+			// Verify that the deployment has the expected volumes (including custom ones)
+			Expect(dexServerDepl.Spec.Template.Spec.Volumes).To(Equal([]corev1.Volume{
+				{
+					Name: "static-files",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "dexconfig",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "custom-dex-volume",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			}))
+		})
+
 	})
 })

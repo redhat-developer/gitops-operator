@@ -1,13 +1,20 @@
 package openshift
 
 import (
+	"context"
+	"sort"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 
+	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestReconcileArgoCD_reconcileApplicableClusterRole(t *testing.T) {
@@ -107,13 +114,13 @@ func TestReconcileArgoCD_reconcileRedisDeployment(t *testing.T) {
 	a := makeTestArgoCD()
 	testDeployment := makeTestDeployment()
 
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "redis"
+	testDeployment.Name = a.Name + "-" + "redis"
 	want := append(getArgsForRedhatRedis(), testDeployment.Spec.Template.Spec.Containers[0].Args...)
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
 	assert.Equal(t, testDeployment.Spec.Template.Spec.Containers[0].Args, want)
 
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "not-redis"
+	testDeployment.Name = a.Name + "-" + "not-redis"
 	want = testDeployment.Spec.Template.Spec.Containers[0].Args
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
@@ -124,7 +131,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	a := makeTestArgoCD()
 	testDeployment := makeTestDeployment()
 
-	testDeployment.ObjectMeta.Name = a.Name + "-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-redis-ha-haproxy"
 	testDeployment.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{},
 	}
@@ -141,7 +148,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	assert.Equal(t, wantc, *testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
 
 	testDeployment = makeTestDeployment()
-	testDeployment.ObjectMeta.Name = a.Name + "-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-redis-ha-haproxy"
 	testDeployment.Spec.Template.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
 		Capabilities: &corev1.Capabilities{},
 	}
@@ -150,7 +157,7 @@ func TestReconcileArgoCD_reconcileRedisHaProxyDeployment(t *testing.T) {
 	assert.Nil(t, testDeployment.Spec.Template.Spec.Containers[0].SecurityContext.Capabilities)
 
 	testDeployment = makeTestDeployment()
-	testDeployment.ObjectMeta.Name = a.Name + "-" + "not-redis-ha-haproxy"
+	testDeployment.Name = a.Name + "-" + "not-redis-ha-haproxy"
 	want = testDeployment.Spec.Template.Spec.Containers[0].Command
 
 	assert.NoError(t, ReconcilerHook(a, testDeployment, ""))
@@ -206,4 +213,105 @@ func TestReconcileArgoCD_reconcileSecrets(t *testing.T) {
 	}
 	assert.NoError(t, ReconcilerHook(a, testSecret, ""))
 	assert.Equal(t, string(testSecret.Data["namespaces"]), "someRandomNamespace")
+}
+
+func TestAdminClusterRoleMapper(t *testing.T) {
+	s := scheme.Scheme
+	s.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{}, &argoapp.ArgoCDList{})
+
+	t.Run("non-admin object returns empty result", func(t *testing.T) {
+		fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+
+		mapFunc := adminClusterRoleMapper(fakeClient)
+
+		nonAdminClusterRole := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "not-admin",
+			},
+		}
+
+		result := mapFunc(context.TODO(), nonAdminClusterRole)
+
+		assert.Empty(t, result)
+	})
+
+	t.Run("admin object with no Argo CD instances returns empty result", func(t *testing.T) {
+		fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+
+		mapFunc := adminClusterRoleMapper(fakeClient)
+
+		// Create admin cluster role
+		adminClusterRole := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "admin",
+			},
+		}
+
+		result := mapFunc(context.TODO(), adminClusterRole)
+
+		assert.Empty(t, result)
+	})
+
+	t.Run("admin object with Argo CD instances returns reconcile requests", func(t *testing.T) {
+		// Create test Argo CD instances
+		argocd1 := &argoapp.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-1",
+				Namespace: "namespace-1",
+			},
+		}
+
+		argocd2 := &argoapp.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-2",
+				Namespace: "namespace-2",
+			},
+		}
+
+		// Create fake client with Argo CD instances
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(s).
+			WithObjects(argocd1, argocd2).
+			Build()
+
+		mapFunc := adminClusterRoleMapper(fakeClient)
+
+		// Create admin cluster role
+		adminClusterRole := &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "admin",
+			},
+		}
+
+		result := mapFunc(context.TODO(), adminClusterRole)
+
+		// Should return reconcile requests for both Argo CD instances
+		assert.Len(t, result, 2)
+
+		// Check that the reconcile requests contain the correct namespaced names
+		expectedRequests := []reconcile.Request{
+			{
+				NamespacedName: client.ObjectKey{
+					Name:      "argocd-1",
+					Namespace: "namespace-1",
+				},
+			},
+			{
+				NamespacedName: client.ObjectKey{
+					Name:      "argocd-2",
+					Namespace: "namespace-2",
+				},
+			},
+		}
+
+		// Sort both slices to ensure consistent comparison
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Name < result[j].Name
+		})
+		sort.Slice(expectedRequests, func(i, j int) bool {
+			return expectedRequests[i].Name < expectedRequests[j].Name
+		})
+
+		assert.Equal(t, expectedRequests, result)
+	})
 }

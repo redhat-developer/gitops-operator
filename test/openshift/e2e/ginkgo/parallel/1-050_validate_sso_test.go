@@ -1,25 +1,38 @@
-package sequential
+package parallel
 
 import (
 	"context"
+	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	osappsv1 "github.com/openshift/api/apps/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+func getOCPVersion() string {
+	output, err := osFixture.ExecCommand("oc", "version")
+	Expect(err).ToNot(HaveOccurred())
+	for _, line := range strings.Split(output, "\n") {
+		if strings.Contains(line, "Server Version:") {
+			return strings.TrimSpace(line[strings.Index(line, ":")+1:])
+		}
+	}
+	return ""
+}
+
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-050_validate_sso", func() {
 
@@ -32,7 +45,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -44,6 +57,54 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			if cleanupFunc != nil {
 				cleanupFunc()
 			}
+		})
+		It("ensures the conditions in status when external Authentication is enabled on clusters; above 4.20 by default in openshit is enabled", func() {
+			By("creating simple namespace-scoped Argo CD instance")
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if ocVersion < "4.20" {
+				Skip("skipping this test as OCP version is less than 4.20")
+				return
+			}
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+
+			argoCD := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
+				Spec:       argov1beta1api.ArgoCDSpec{},
+			}
+			argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+				Provider: argov1beta1api.SSOProviderTypeDex,
+				Dex: &argov1beta1api.ArgoCDDexSpec{
+					OpenShiftOAuth: true,
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveSSOStatus("Failed"))
+
+			By("verifying the conditions in status")
+			Eventually(argoCD).Should(argocdFixture.HaveExternalAuthenticationCondition(metav1.Condition{
+				Reason: "UnsupportedSSOConfiguration",
+				Status: "True",
+				Type:   "UnsupportedConfiguration",
+			}))
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.SSO = nil
+			})
+			Eventually(func() []metav1.Condition {
+				fresh := &argov1beta1api.ArgoCD{}
+				err := k8sClient.Get(ctx, types.NamespacedName{Name: argoCD.Name, Namespace: argoCD.Namespace}, fresh)
+				Expect(err).NotTo(HaveOccurred())
+				return fresh.Status.Conditions
+			}, "2m", "5s").ShouldNot(
+				ContainElement(
+					WithTransform(func(c metav1.Condition) string {
+						return c.Type
+					}, Equal("UnsupportedConfiguration")),
+				),
+			)
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveSSOStatus("Unknown"))
+
 		})
 
 		It("ensures Dex/Keycloak SSO can be enabled and disabled on a namespace-scoped Argo CD instance", func() {
@@ -115,37 +176,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(service).Should(k8sFixture.NotExistByName())
 			Consistently(service).Should(k8sFixture.NotExistByName())
 
-			By("switching ArgoCD to SSO enabled via keycloak")
-			argocdFixture.Update(newArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
-					Provider: "keycloak",
-					Dex: &argov1beta1api.ArgoCDDexSpec{
-						Config: "test",
-					},
-				}
-			})
-
-			By("verifying that with keycloak, Argo CD becomes available but SSO is failed")
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HavePhase("Pending"))
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Failed"))
-			By("verifying keycloak DeploymentConfigs are not used")
-
-			Eventually(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.NotExistByName())
-			Consistently(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.NotExistByName())
-
-			By("patching the CR to remove dex entry from .spec.sso")
-			argocdFixture.Update(newArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.SSO.Dex = nil
-			})
-
-			By("verifying keycloak is now used")
-			Eventually(newArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(newArgoCD, "3m", "5s").Should(argocdFixture.HaveSSOStatus("Running"))
-
-			Eventually(&osappsv1.DeploymentConfig{ObjectMeta: metav1.ObjectMeta{Name: "keycloak", Namespace: ns.Name}}).
-				Should(k8sFixture.ExistByName())
 		})
 
 	})

@@ -65,7 +65,16 @@ func HaveStringDataKeyValue(key string, value string) matcher.GomegaMatcher {
 			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key, "Have:", a, "Expected:", value)
 		}
 
-		return string(a) == value
+		return a == value
+	})
+
+}
+
+// NotHaveStringDataKey returns true if ConfigMap's .data 'key' does not exist, false otherwise
+func NotHaveStringDataKey(key string) matcher.GomegaMatcher {
+	return fetchConfigMap(func(cm *corev1.ConfigMap) bool {
+		_, exists := cm.Data[key]
+		return !exists
 	})
 
 }
@@ -106,7 +115,7 @@ func HaveStringDataKeyValueContainsSubstring(key string, substring string) match
 			GinkgoWriter.Println("HaveStringDataKeyValue: ConfigMag key", key, "Value:", a, "Expected:", substring)
 		}
 
-		return strings.Contains(string(a), substring)
+		return strings.Contains(a, substring)
 	})
 
 }

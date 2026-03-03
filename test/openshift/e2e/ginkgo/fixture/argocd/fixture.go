@@ -10,6 +10,7 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	matcher "github.com/onsi/gomega/types"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -148,7 +149,81 @@ func HaveHost(host string) matcher.GomegaMatcher {
 func HaveApplicationControllerOperationProcessors(operationProcessors int) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 		GinkgoWriter.Println("HaveApplicationControllerOperationProcessors:", "Expected:", operationProcessors, "/ actual:", argocd.Spec.Controller.Processors.Operation)
-		return argocd.Spec.Controller.Processors.Operation == int32(operationProcessors)
+		return int(argocd.Spec.Controller.Processors.Operation) == operationProcessors
+	})
+}
+
+func HaveExternalAuthenticationCondition(expected metav1.Condition) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		for _, c := range argocd.Status.Conditions {
+			// FIRST match by Type
+			if c.Type != expected.Type {
+				continue
+			}
+			GinkgoWriter.Println("Matched condition type:", c.Type)
+			// Then check Reason
+			if c.Reason != expected.Reason {
+				GinkgoWriter.Println("HaveCondition: reason does not match", c.Reason, expected.Reason)
+				return false
+			}
+
+			// Then check Status
+			if c.Status != expected.Status {
+				GinkgoWriter.Println("HaveCondition: status does not match", c.Status, expected.Status)
+				return false
+			}
+
+			// Message check is optional (can be multiline)
+			if expected.Message != "" && c.Message != expected.Message {
+				GinkgoWriter.Println("HaveCondition: message does not match")
+				return false
+			}
+
+			// ✅ Found correct condition
+			return true
+		}
+
+		GinkgoWriter.Println("HaveCondition: condition type not found:", expected.Type)
+		return false
+	})
+}
+
+func HaveCondition(condition metav1.Condition) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+
+		if len(argocd.Status.Conditions) != 1 {
+			GinkgoWriter.Println("HaveCondition: length is zero")
+			return false
+		}
+
+		instanceCondition := argocd.Status.Conditions[0]
+
+		GinkgoWriter.Println("HaveCondition - Message:", instanceCondition.Message, condition.Message)
+		if instanceCondition.Message != condition.Message {
+			GinkgoWriter.Println("HaveCondition: message does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Reason:", instanceCondition.Reason, condition.Reason)
+		if instanceCondition.Reason != condition.Reason {
+			GinkgoWriter.Println("HaveCondition: reason does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Status:", instanceCondition.Status, condition.Status)
+		if instanceCondition.Status != condition.Status {
+			GinkgoWriter.Println("HaveCondition: status does not match")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveCondition - Type:", instanceCondition.Type, condition.Type)
+		if instanceCondition.Type != condition.Type {
+			GinkgoWriter.Println("HaveCondition: type does not match")
+			return false
+		}
+
+		return true
+
 	})
 }
 
@@ -219,8 +294,13 @@ func RunArgoCDCLI(args ...string) (string, error) {
 
 	cmdArgs := append([]string{"argocd"}, args...)
 
-	GinkgoWriter.Println("executing command", cmdArgs)
+	if args[0] == "login" {
+		GinkgoWriter.Println("executing command: argocd login (...)")
+	} else {
+		GinkgoWriter.Println("executing command", cmdArgs)
+	}
 
+	// #nosec G204
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 
 	output, err := cmd.CombinedOutput()

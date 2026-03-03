@@ -5,6 +5,14 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= ""
 
+
+# Try to detect Docker or Podman
+CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
+
+# If neither Docker nor Podman is found, print an error message and exit
+ifeq ($(CONTAINER_RUNTIME),)
+$(warning "No container runtime (Docker or Podman) found in PATH. Please install one of them.")
+endif
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -116,8 +124,8 @@ test-all: manifests generate fmt vet ## Run all tests.
 
 .PHONY: test-e2e
 test-e2e: manifests generate fmt vet ## Run e2e tests.
-	go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
+	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
+	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
 
 .PHONY: test-metrics
 test-metrics:
@@ -152,7 +160,7 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
-	go test `go list ./... | grep -v test` -coverprofile cover.out
+	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
 
 
 .PHONY: e2e-tests-ginkgo
@@ -161,21 +169,21 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --timeout 90m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -v --trace --timeout 180m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 30m -r ./test/openshift/e2e/ginkgo/parallel 
+	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
-e2e-tests-sequential: 
+e2e-tests-sequential:
 	CI=prow make e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
 #	@echo "Running GitOps Operator sequential E2E tests..."
 #	. ./scripts/run-kuttl-tests.sh  sequential
 
 .PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-tests-parallel: 
+e2e-tests-parallel:
 	CI=prow make e2e-tests-parallel-ginkgo
 	# @echo "Running GitOps Operator parallel E2E tests..."
 	# . ./scripts/run-kuttl-tests.sh  parallel
@@ -188,12 +196,12 @@ e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
 .PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-parallel:
 	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel	
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel
 
 .PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-non-olm-tests-all:
 	@echo "Running Non-OLM GitOps Operator E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all		
+	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all
 
 ##@ Build
 
@@ -203,15 +211,15 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES=openshift-gitops  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
+	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+docker-build: test ## Build container image with the manager.
+	$(CONTAINER_RUNTIME) build -t ${IMG} .
 
 .PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+docker-push: ## Push container image with the manager.
+	$(CONTAINER_RUNTIME) push ${IMG}
 
 ##@ Build Dependencies
 
@@ -263,11 +271,10 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=true -f -
 
-
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
@@ -277,7 +284,7 @@ kustomize: ## Download kustomize locally if necessary.
 GINKGO_CLI = $(shell pwd)/bin/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
-	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.22.2)
+	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.28.1)
 
 
 # go-get-tool will 'go install' any package $2 and install it to $1.
@@ -305,7 +312,7 @@ bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metada
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_RUNTIME) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -329,7 +336,6 @@ endif
 endif
 
 
-
 # A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
 # These images MUST exist in a registry and be pull-able.
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
@@ -347,9 +353,43 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(shell basename $(CONTAINER_RUNTIME)) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+
+.PHONY: gosec
+gosec: go_sec
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./...
+
+.PHONY: lint
+lint: golangci_lint
+	$(GOLANGCI_LINT) --version
+	GOMAXPROCS=2 $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+
+
+GO_SEC = $(shell pwd)/bin/gosec
+go_sec: ## Download gosec locally if necessary.
+	$(call go-get-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@latest)
+
+GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
+golangci_lint: ## Download golangci-lint locally if necessary.
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)
+
+
+# go-get-tool will 'go install' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+GOFLAGS="" go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOFLAGS="" GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

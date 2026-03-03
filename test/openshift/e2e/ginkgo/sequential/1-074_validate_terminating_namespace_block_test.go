@@ -111,7 +111,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			defer func() {
 				// At the end of the test, remove the finalizer from the ConfigMap so the NS can be deleted.
 				configmapFixture.Update(firstConfigMap, func(cm *corev1.ConfigMap) {
-					cm.ObjectMeta.Finalizers = nil
+					cm.Finalizers = nil
 				})
 			}()
 

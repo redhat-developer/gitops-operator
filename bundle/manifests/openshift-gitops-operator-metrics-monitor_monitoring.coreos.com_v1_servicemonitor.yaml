@@ -6,13 +6,18 @@ metadata:
   name: openshift-gitops-operator-metrics-monitor
 spec:
   endpoints:
-  - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+  - bearerTokenSecret:
+      key: token
+      name: openshift-gitops-operator-metrics-monitor-bearer-token
     interval: 30s
     path: /metrics
     port: metrics
     scheme: https
     tlsConfig:
-      caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+      ca:
+        configMap:
+          key: service-ca.crt
+          name: openshift-gitops-operator-metrics-monitor-ca-bundle
       serverName: openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc
   selector:
     matchLabels:

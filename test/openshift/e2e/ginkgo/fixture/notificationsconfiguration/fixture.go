@@ -34,6 +34,8 @@ func Update(obj *argov1alpha1api.NotificationsConfiguration, modify func(*argov1
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+//
+//nolint:unused
 func fetchNotificationsConfiguration(f func(*argov1alpha1api.NotificationsConfiguration) bool) matcher.GomegaMatcher {
 
 	return WithTransform(func(depl *argov1alpha1api.NotificationsConfiguration) bool {

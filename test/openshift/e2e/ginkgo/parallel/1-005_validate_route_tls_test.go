@@ -50,7 +50,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensures that certificates can be confirmed on server and webhook  Routes", func() {
+		It("ensures that certificates can be confirmed on server and webhook Routes", func() {
+
+			fixture.EnsureRunningOnOpenShift()
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
@@ -95,7 +97,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(serverRoute.Spec.TLS.InsecureEdgeTerminationPolicy).To(Equal(routev1.InsecureEdgeTerminationPolicyRedirect))
 			Expect(serverRoute.Spec.TLS.Termination).To(Equal(routev1.TLSTerminationReencrypt))
 
-			webhookRoute := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "example-applicationset-controller-webhook", Namespace: ns.Name}}
+			webhookRoute := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "example-appset-webhook", Namespace: ns.Name}}
 			Eventually(webhookRoute).Should(k8sFixture.ExistByName())
 			Expect(webhookRoute.Spec.To.Kind).To(Equal("Service"))
 			Expect(webhookRoute.Spec.To.Name).To(Equal("example-applicationset-controller"))

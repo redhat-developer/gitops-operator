@@ -22,7 +22,7 @@ import (
 
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -380,7 +380,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 			Eventually(notifConfigMap).Should(k8sFixture.ExistByName())
 			Eventually(notifConfigMap).Should(configmap.HaveStringDataKeyValueContainsSubstring("template.test-app-created", `{"created":"{{.app.metadata.name}}","type":"{{(call .repo.GetAppDetails).Type}}"}`))
 
-			By("creating an Argo CD Application that contains a notificatio annotation, which will trigger the notifications controller")
+			By("creating an Argo CD Application that contains a notification annotation, which will trigger the notifications controller")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "my-app-3",
@@ -419,7 +419,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 
 				return strings.Contains(out, `{"created":"my-app-3","type":"Directory"}`)
 
-			}).Should(BeTrue())
+			}, "4m", "5s").Should(BeTrue())
 
 		})
 

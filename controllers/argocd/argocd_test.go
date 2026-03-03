@@ -17,16 +17,26 @@ limitations under the License.
 package argocd
 
 import (
+	"strings"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	configv1 "github.com/openshift/api/config/v1"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestArgoCD(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	scheme := runtime.NewScheme()
+	_ = argoapp.AddToScheme(scheme)
+	_ = configv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", fakeClient)
 
 	testApplicationSetResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
@@ -74,7 +84,9 @@ func TestArgoCD(t *testing.T) {
 			v1.ResourceCPU:    resourcev1.MustParse("500m"),
 		},
 	}
-	assert.DeepEqual(t, testArgoCD.Spec.Grafana.Resources, testGrafanaResources)
+
+	//lint:ignore SA1019 known to be deprecated
+	assert.DeepEqual(t, testArgoCD.Spec.Grafana.Resources, testGrafanaResources) //nolint:staticcheck // SA1019: We must test deprecated fields.
 
 	testHAResources := &v1.ResourceRequirements{
 		Requests: v1.ResourceList{
@@ -124,10 +136,78 @@ func TestArgoCD(t *testing.T) {
 		},
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.Server.Resources, testServerResources)
+
+	// Test ResourceExclusions field
+	resourceExclusions := testArgoCD.Spec.ResourceExclusions
+	assert.Assert(t, len(resourceExclusions) > 0)
+
+	// Verify that the YAML contains expected resource types
+	expectedResources := []string{
+		"Endpoints",
+		"EndpointSlice",
+		"APIService",
+		"Lease",
+		"SelfSubjectReview",
+		"TokenReview",
+		"LocalSubjectAccessReview",
+		"SelfSubjectAccessReview",
+		"SelfSubjectRulesReview",
+		"SubjectAccessReview",
+		"CertificateSigningRequest",
+		"CertificateRequest",
+		"CiliumIdentity",
+		"CiliumEndpoint",
+		"CiliumEndpointSlice",
+		"PolicyReport",
+		"ClusterPolicyReport",
+		"EphemeralReport",
+		"ClusterEphemeralReport",
+		"AdmissionReport",
+		"ClusterAdmissionReport",
+		"BackgroundScanReport",
+		"ClusterBackgroundScanReport",
+		"UpdateRequest",
+		"TaskRun",
+		"PipelineRun",
+	}
+
+	for _, expectedResource := range expectedResources {
+		assert.Assert(t, strings.Contains(resourceExclusions, expectedResource),
+			"ResourceExclusions should contain %s", expectedResource)
+	}
+
+	// Verify that the YAML contains expected API groups
+	expectedAPIGroups := []string{
+		"discovery.k8s.io",
+		"apiregistration.k8s.io",
+		"coordination.k8s.io",
+		"authentication.k8s.io",
+		"authorization.k8s.io",
+		"certificates.k8s.io",
+		"cert-manager.io",
+		"cilium.io",
+		"kyverno.io",
+		"reports.kyverno.io",
+		"wgpolicyk8s.io",
+		"tekton.dev",
+	}
+
+	for _, expectedAPIGroup := range expectedAPIGroups {
+		assert.Assert(t, strings.Contains(resourceExclusions, expectedAPIGroup),
+			"ResourceExclusions should contain API group %s", expectedAPIGroup)
+	}
 }
 
 func TestDexConfiguration(t *testing.T) {
-	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops")
+	scheme := runtime.NewScheme()
+	_ = argoapp.AddToScheme(scheme)
+	_ = configv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", fakeClient)
 
 	// Verify Dex OpenShift Configuration
 	assert.Equal(t, testArgoCD.Spec.SSO.Dex.OpenShiftOAuth, true)

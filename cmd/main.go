@@ -27,6 +27,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"go.uber.org/zap/zapcore"
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -35,7 +36,10 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
+	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
+	cw "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -45,18 +49,20 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -69,7 +75,7 @@ import (
 )
 
 var (
-	scheme   = runtime.NewScheme()
+	scheme   = k8sruntime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
 
@@ -86,6 +92,7 @@ func main() {
 	var probeAddr string
 
 	var enableHTTP2 = false
+	var skipControllerNameValidation = true
 
 	var labelSelectorFlag string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -145,17 +152,48 @@ func main() {
 		TLSOpts:     []func(*tls.Config){disableHTTP2},
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// Set default manager options
+	options := ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "2b63967d.openshift.io",
-	})
+		Controller: controllerconfig.Controller{
+			SkipNameValidation: &skipControllerNameValidation,
+		},
+	}
+
+	// Use transformers to strip data from Secrets and ConfigMaps
+	// that are not tracked by the operator to reduce memory usage.
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		setupLog.Info("memory optimization is enabled")
+		options.Cache = cache.Options{
+			Scheme: scheme,
+			ByObject: map[crclient.Object]cache.ByObject{
+				&corev1.Secret{}:    {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
+				&corev1.ConfigMap{}: {Transform: cacheutils.StripDataFromSecretOrConfigMapTransform()},
+			},
+		}
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
+	}
+
+	var client crclient.Client
+	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
+		liveClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+		if err != nil {
+			setupLog.Error(err, "unable to create live client")
+			os.Exit(1)
+		}
+		client = cw.NewClientWrapper(mgr.GetClient(), liveClient)
+	} else {
+		client = mgr.GetClient()
 	}
 
 	registerComponentOrExit(mgr, console.AddToScheme)
@@ -181,7 +219,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileGitopsService{
-		Client:                mgr.GetClient(),
+		Client:                client,
 		Scheme:                mgr.GetScheme(),
 		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 	}).SetupWithManager(mgr); err != nil {
@@ -190,7 +228,7 @@ func main() {
 	}
 
 	if err = (&controllers.ReconcileArgoCDRoute{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD route")
@@ -198,7 +236,7 @@ func main() {
 	}
 
 	if err = (&controllers.ArgoCDMetricsReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
@@ -211,10 +249,23 @@ func main() {
 	}
 	setupLog.Info(fmt.Sprintf("Watching label-selector \"%s\"", labelSelectorFlag))
 
+	k8sClient, err := initK8sClient()
+	if err != nil {
+		setupLog.Error(err, "Failed to initialize Kubernetes client")
+		os.Exit(1)
+	}
+
+	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:        mgr.GetClient(),
+		Client:        client,
 		Scheme:        mgr.GetScheme(),
 		LabelSelector: labelSelectorFlag,
+		K8sClient:     k8sClient,
+		LocalUsers: &argocdprovisioner.LocalUsersInfo{
+			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
+		},
+		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
@@ -228,18 +279,23 @@ func main() {
 		setupLog.Info("Argo Rollouts manager running in cluster-scoped mode")
 	}
 
+	resourceLabels := map[string]string{
+		argocdcommon.ArgoCDTrackedByOperatorLabel: argocdcommon.ArgoCDAppName,
+	}
+
 	if err = (&rolloutManagerProvisioner.RolloutManagerReconciler{
-		Client:                                mgr.GetClient(),
+		Client:                                client,
 		Scheme:                                mgr.GetScheme(),
 		OpenShiftRoutePluginLocation:          getArgoRolloutsOpenshiftRouteTrafficManagerPath(),
 		NamespaceScopedArgoRolloutsController: isNamespaceScoped,
+		ResourceLabels:                        resourceLabels,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo Rollouts")
 		os.Exit(1)
 	}
 
 	if err = (&notificationsprovisioner.NotificationsConfigurationReconciler{
-		Client: mgr.GetClient(),
+		Client: client,
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Notifications Configuration")
@@ -256,8 +312,6 @@ func main() {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)
 	}
-
-	argocd.Register(openshift.ReconcilerHook)
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -296,4 +350,20 @@ func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) err
 		os.Exit(1)
 	}
 	setupLog.Info(fmt.Sprintf("Component registered: %v", reflect.ValueOf(f)))
+}
+
+func initK8sClient() (*kubernetes.Clientset, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		setupLog.Error(err, "unable to get k8s config")
+		return nil, err
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		setupLog.Error(err, "unable to create k8s client")
+		return nil, err
+	}
+
+	return k8sClient, nil
 }

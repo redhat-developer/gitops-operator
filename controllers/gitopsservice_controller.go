@@ -61,7 +61,6 @@ var logs = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                            int32  = 8080
-	portTLS                         int32  = 8443
 	backendImage                    string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
 	backendImageEnvName                    = "BACKEND_IMAGE"
 	serviceName                            = "cluster"
@@ -113,7 +112,11 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 			builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 				return obj.GetName() == "openshift-gitops"
 			})),
-		).
+		).Watches(&argoapp.ArgoCD{},
+		&handler.EnqueueRequestForObject{},
+		builder.WithPredicates(predicate.NewPredicateFuncs(func(obj client.Object) bool {
+			return obj.GetName() == "openshift-gitops" && obj.GetNamespace() == "openshift-gitops"
+		}))).
 		Complete(r)
 }
 
@@ -131,6 +134,7 @@ type ReconcileGitopsService struct {
 	DisableDefaultInstall bool
 }
 
+// +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=pipelines.openshift.io,resources=gitopsservices/finalizers,verbs=update
@@ -199,6 +203,8 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups=argoproj.io,resources=notificationsconfigurations;notificationsconfigurations/finalizers,verbs=*
 //+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;
 //+kubebuilder:rbac:groups="apiregistration.k8s.io",resources="apiservices",verbs=get;list
+//+kubebuilder:rbac:groups="argoproj.io",resources=namespacemanagements;namespacemanagements/status,verbs=create;get;list;watch;update;patch;delete;deletecollection
+//+kubebuilder:rbac:groups="config.openshift.io",resources=ingresses,verbs=get;list;watch
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
@@ -261,7 +267,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
 		// deleting it if necessary
-		if err := r.ensureDefaultArgoCDInstanceDoesntExist(instance, reqLogger); err != nil {
+		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
 	}
@@ -306,9 +312,9 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 }
 
-func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) error {
+func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, r.Client)
 	if err != nil {
 		return err
 	}
@@ -344,7 +350,7 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist(instance
 
 func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipelinesv1alpha1.GitopsService, reqLogger logr.Logger) (reconcile.Result, error) {
 
-	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace)
+	defaultArgoCDInstance, err := argocd.NewCR(common.ArgoCDInstanceName, serviceNamespace, r.Client)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -468,8 +474,10 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		if existingArgoCD.Spec.Grafana.Resources == nil {
-			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources
+		//lint:ignore SA1019 known to be deprecated
+		if existingArgoCD.Spec.Grafana.Resources == nil { //nolint:staticcheck // SA1019: We must test deprecated fields.
+			//lint:ignore SA1019 known to be deprecated
+			existingArgoCD.Spec.Grafana.Resources = defaultArgoCDInstance.Spec.Grafana.Resources //nolint:staticcheck // SA1019: We must test deprecated fields.
 			changed = true
 		}
 
@@ -601,7 +609,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName)
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy)
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -619,6 +627,9 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		}
 		if len(instance.Spec.Tolerations) > 0 {
 			deploymentObj.Spec.Template.Spec.Tolerations = instance.Spec.Tolerations
+		}
+		if instance.Spec.ConsolePlugin != nil && instance.Spec.ConsolePlugin.Backend != nil && instance.Spec.ConsolePlugin.Backend.Resources != nil {
+			deploymentObj.Spec.Template.Spec.Containers[0].Resources = *instance.Spec.ConsolePlugin.Backend.Resources
 		}
 		// Check if this Deployment already exists
 		found := &appsv1.Deployment{}
@@ -643,6 +654,14 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Env, deploymentObj.Spec.Template.Spec.Containers[0].Env) {
 				found.Spec.Template.Spec.Containers[0].Env = deploymentObj.Spec.Template.Spec.Containers[0].Env
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].ImagePullPolicy, deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy) {
+				found.Spec.Template.Spec.Containers[0].ImagePullPolicy = deploymentObj.Spec.Template.Spec.Containers[0].ImagePullPolicy
+				changed = true
+			}
+			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Resources, deploymentObj.Spec.Template.Spec.Containers[0].Resources) {
+				found.Spec.Template.Spec.Containers[0].Resources = deploymentObj.Spec.Template.Spec.Containers[0].Resources
 				changed = true
 			}
 			if !reflect.DeepEqual(found.Spec.Template.Spec.Containers[0].Args, deploymentObj.Spec.Template.Spec.Containers[0].Args) {
@@ -731,7 +750,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -739,8 +758,9 @@ func newBackendDeployment(ns types.NamespacedName) *appsv1.Deployment {
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
 			{
-				Name:  ns.Name,
-				Image: image,
+				Name:            ns.Name,
+				Image:           image,
+				ImagePullPolicy: argocdutil.GetImagePullPolicy(crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",

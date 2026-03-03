@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-func GetEnv(d *appsv1.Deployment, key string) (*string, error) {
+func GetEnv(d *appsv1.Deployment, container string, key string) (*string, error) {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	if err != nil {
@@ -30,76 +30,80 @@ func GetEnv(d *appsv1.Deployment, key string) (*string, error) {
 
 	containers := d.Spec.Template.Spec.Containers
 
-	Expect(len(containers)).Should(BeNumerically("==", 1))
+	for idc := range containers {
 
-	for idx := range containers[0].Env {
+		if containers[idc].Name == container {
+			for idx := range containers[idc].Env {
 
-		currEnv := containers[0].Env[idx]
+				currEnv := containers[idc].Env[idx]
 
-		if currEnv.Name == key {
-			return &currEnv.Name, nil
+				if currEnv.Name == key {
+					return &currEnv.Value, nil
+				}
+			}
 		}
 	}
-
 	return nil, nil
 
 }
 
-func SetEnv(depl *appsv1.Deployment, key string, value string) {
+func SetEnv(depl *appsv1.Deployment, container string, key string, value string) {
 
 	Update(depl, func(d *appsv1.Deployment) {
 		containers := d.Spec.Template.Spec.Containers
-
-		Expect(len(containers)).Should(BeNumerically("==", 1))
 
 		newEnvVars := []corev1.EnvVar{}
 
 		match := false
-		for idx := range containers[0].Env {
+		for idc := range containers {
 
-			currEnv := containers[0].Env[idx]
+			if containers[idc].Name == container {
+				for idx := range containers[idc].Env {
 
-			if currEnv.Name == key {
-				// replace with the value from the param
-				newEnvVars = append(newEnvVars, corev1.EnvVar{Name: key, Value: value})
-				match = true
-			} else {
-				newEnvVars = append(newEnvVars, currEnv)
+					currEnv := containers[idc].Env[idx]
+
+					if currEnv.Name == key {
+						// replace with the value from the param
+						newEnvVars = append(newEnvVars, corev1.EnvVar{Name: key, Value: value})
+						match = true
+					} else {
+						newEnvVars = append(newEnvVars, currEnv)
+					}
+				}
+
+				if !match {
+					newEnvVars = append(newEnvVars, corev1.EnvVar{Name: key, Value: value})
+				}
+
+				containers[idc].Env = newEnvVars
 			}
 		}
-
-		if !match {
-			newEnvVars = append(newEnvVars, corev1.EnvVar{Name: key, Value: value})
-		}
-
-		containers[0].Env = newEnvVars
-
 	})
 
 }
 
-func RemoveEnv(depl *appsv1.Deployment, key string) {
+func RemoveEnv(depl *appsv1.Deployment, container string, key string) {
 
 	Update(depl, func(d *appsv1.Deployment) {
 		containers := d.Spec.Template.Spec.Containers
 
-		Expect(len(containers)).Should(BeNumerically("==", 1))
+		for idc := range containers {
+			if containers[idc].Name == container {
+				newEnvVars := []corev1.EnvVar{}
+				for idx := range containers[idc].Env {
 
-		newEnvVars := []corev1.EnvVar{}
+					currEnv := containers[idc].Env[idx]
 
-		for idx := range containers[0].Env {
+					if currEnv.Name == key {
+						// don't add, thus causing it to be removed
+					} else {
+						newEnvVars = append(newEnvVars, currEnv)
+					}
+				}
 
-			currEnv := containers[0].Env[idx]
-
-			if currEnv.Name == key {
-				// don't add, thus causing it to be removed
-			} else {
-				newEnvVars = append(newEnvVars, currEnv)
+				containers[idc].Env = newEnvVars
 			}
 		}
-
-		containers[0].Env = newEnvVars
-
 	})
 
 }
@@ -147,6 +151,22 @@ func GetTemplateSpecContainerByName(name string, depl appsv1.Deployment) *corev1
 	}
 
 	return nil
+}
+
+func HaveTemplateSpec(podTemplateSpec corev1.PodTemplateSpec) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+
+		templateSpec := depl.Spec.Template.Spec
+
+		if templateSpec.NodeSelector == nil {
+			GinkgoWriter.Println("HaveTemplateSpec - .spec.template.spec is nil")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveTemplateSpec - expected:", podTemplateSpec, "actual:", templateSpec)
+		return reflect.DeepEqual(podTemplateSpec, templateSpec)
+	})
+
 }
 
 func HaveTemplateSpecNodeSelector(nodeSelector map[string]string) matcher.GomegaMatcher {
@@ -243,28 +263,28 @@ func HaveObservedGeneration(observedGeneration int) matcher.GomegaMatcher {
 func HaveReplicas(replicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment", depl.Name, "- HaveReplicas:", "expected: ", replicas, "actual: ", depl.Status.Replicas)
-		return depl.Status.Replicas == int32(replicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.Replicas) == replicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment ", depl.Name, "- HaveReadyReplicas:", "expected: ", readyReplicas, "actual: ", depl.Status.ReadyReplicas)
-		return depl.Status.ReadyReplicas == int32(readyReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.ReadyReplicas) == readyReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveUpdatedReplicas(updatedReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment HaveUpdatedReplicas:", "expected: ", updatedReplicas, "actual: ", depl.Status.UpdatedReplicas)
-		return depl.Status.UpdatedReplicas == int32(updatedReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.UpdatedReplicas) == updatedReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveAvailableReplicas(availableReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment HaveAvailableReplicas:", "expected: ", availableReplicas, "actual: ", depl.Status.AvailableReplicas)
-		return depl.Status.AvailableReplicas == int32(availableReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.AvailableReplicas) == availableReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
@@ -301,7 +321,7 @@ func HaveContainerCommandSubstring(expectedCommandSubstring string, containerInd
 
 		GinkgoWriter.Println("HaveContainerCommandSubstring: Have:")
 		GinkgoWriter.Println(cmdLine)
-		GinkgoWriter.Println("HaveContainerCommandSubstring: Expect:")
+		GinkgoWriter.Println("HaveContainerCommandSubstring: Expect substring:")
 		GinkgoWriter.Println(expectedCommandSubstring)
 
 		return strings.Contains(cmdLine, expectedCommandSubstring)
@@ -335,6 +355,23 @@ func HaveContainerWithEnvVar(envKey string, envValue string, containerIndex int)
 	})
 }
 
+func HaveSpecTemplateSpecVolume(volumeParam corev1.Volume) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+
+		GinkgoWriter.Println("HaveSpecTemplateSpecVolume - Volumes:")
+		for _, volume := range depl.Spec.Template.Spec.Volumes {
+			GinkgoWriter.Println("-", volume)
+
+			if reflect.DeepEqual(volumeParam, volume) {
+				return true
+			}
+		}
+
+		return false
+	})
+
+}
+
 func HaveConditionTypeStatus(expectedConditionType appsv1.DeploymentConditionType, expectedConditionStatus corev1.ConditionStatus) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 
@@ -362,6 +399,23 @@ func HaveServiceAccountName(expectedServiceAccountName string) matcher.GomegaMat
 	})
 }
 
+// HaveResourceRequirements validates if the deployment object contains the given resource requirements.
+func HaveResourceRequirements(requirements *corev1.ResourceRequirements) matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+		if len(depl.Spec.Template.Spec.Containers) == 0 {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements: no containers found")
+			return false
+		}
+		actual := depl.Spec.Template.Spec.Containers[0].Resources
+		if requirements == nil {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected: nil", "actual:", actual.String())
+		} else {
+			GinkgoWriter.Println("Deployment HaveResourceRequirements:", "expected:", requirements.String(), "actual:", actual.String())
+		}
+		return reflect.DeepEqual(requirements, &actual)
+	})
+}
+
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
 func fetchDeployment(f func(*appsv1.Deployment) bool) matcher.GomegaMatcher {
 
@@ -383,4 +437,25 @@ func fetchDeployment(f func(*appsv1.Deployment) bool) matcher.GomegaMatcher {
 
 	}, BeTrue())
 
+}
+
+// verifyDeploymentImagePullPolicy checks if all containers in a deployment have the expected imagePullPolicy
+func VerifyDeploymentImagePullPolicy(name, namespace string, expectedPolicy corev1.PullPolicy) func() bool {
+	return func() bool {
+		depl := &appsv1.Deployment{}
+		k8sClient, _ := utils.GetE2ETestKubeClient()
+		err := k8sClient.Get(context.Background(), client.ObjectKey{Name: name, Namespace: namespace}, depl)
+		if err != nil {
+			return false
+		}
+		if len(depl.Spec.Template.Spec.Containers) == 0 {
+			return false
+		}
+		for _, container := range depl.Spec.Template.Spec.Containers {
+			if container.ImagePullPolicy != expectedPolicy {
+				return false
+			}
+		}
+		return true
+	}
 }

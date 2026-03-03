@@ -52,6 +52,22 @@ func UpdateWithError(obj *corev1.Secret, modify func(*corev1.Secret)) error {
 	return err
 }
 
+// HaveNonEmptyKeyValue returns true if Secret has the given key, and the value of the key is non-empty
+func HaveNonEmptyKeyValue(key string) matcher.GomegaMatcher {
+	return fetchSecret(func(sec *corev1.Secret) bool {
+		a, exists := sec.Data[key]
+		if !exists {
+			GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, "does not exist")
+			return false
+		}
+
+		GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, " Have:", string(a))
+
+		return len(a) > 0
+	})
+
+}
+
 // HaveStringDataKeyValue returns true if Secret has 'key' field under .data map, and the value of that field is equal to 'value'
 func HaveStringDataKeyValue(key string, value string) matcher.GomegaMatcher {
 	return fetchSecret(func(sec *corev1.Secret) bool {
@@ -76,6 +92,16 @@ func HaveDataKeyValue(key string, value []byte) matcher.GomegaMatcher {
 			return false
 		}
 		return bytes.Equal(a, value)
+	})
+
+}
+
+// NotHaveDataKey returns true if Secret's .data 'key' does not exist, false otherwise
+func NotHaveDataKey(key string) matcher.GomegaMatcher {
+	return fetchSecret(func(secret *corev1.Secret) bool {
+		_, exists := secret.Data[key]
+		GinkgoWriter.Println("NotHaveDataKey - key:", key, "Exists:", exists)
+		return !exists
 	})
 
 }

@@ -12,6 +12,8 @@ import (
 )
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+//
+//nolint:unused
 func fetchClusterRoleBinding(f func(*rbacv1.ClusterRoleBinding) bool) matcher.GomegaMatcher {
 
 	return WithTransform(func(crb *rbacv1.ClusterRoleBinding) bool {

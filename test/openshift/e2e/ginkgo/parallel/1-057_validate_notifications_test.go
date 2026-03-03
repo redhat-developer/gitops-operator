@@ -22,7 +22,7 @@ import (
 
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -213,7 +213,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("waiting for Argo CD to send an email to smtp4dev Pod indicating that the Application was created")
 
 			podList := &corev1.PodList{}
-			Expect(k8sClient.List(ctx, podList, &client.ListOptions{Namespace: ns.Name}))
+			Expect(k8sClient.List(ctx, podList, &client.ListOptions{Namespace: ns.Name})).To(Succeed())
 			var smtp4DevPod *corev1.Pod
 			for idx := range podList.Items {
 				item := podList.Items[idx]

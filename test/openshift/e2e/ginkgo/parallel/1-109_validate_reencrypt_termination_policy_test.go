@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -11,12 +11,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-109_validate_reencrypt_termination_policy", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("ensure the openshift-gitops default argo cd server route has expected TLS  Config values: insecure redirect and reencrypt, and the route ingress is sucessfully admitted", func() {

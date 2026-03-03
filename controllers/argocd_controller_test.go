@@ -83,6 +83,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		name                   string
 		setEnvVarFunc          func(*testing.T, string)
 		envVar                 string
+		consoleLinkPrevExist   bool
 		consoleLinkShouldExist bool
 		wantErr                bool
 		Err                    error
@@ -92,6 +93,17 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 			setEnvVarFunc: func(t *testing.T, envVar string) {
 				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
+			consoleLinkPrevExist:   true,
+			consoleLinkShouldExist: false,
+			envVar:                 "true",
+			wantErr:                false,
+		},
+		{
+			name: "DISABLE_DEFAULT_ARGOCD_CONSOLELINK is set to true and consoleLink doesn't exist previously",
+			setEnvVarFunc: func(t *testing.T, envVar string) {
+				t.Setenv(disableArgoCDConsoleLink, envVar)
+			},
+			consoleLinkPrevExist:   false,
 			consoleLinkShouldExist: false,
 			envVar:                 "true",
 			wantErr:                false,
@@ -102,6 +114,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 				t.Setenv(disableArgoCDConsoleLink, envVar)
 			},
 			envVar:                 "false",
+			consoleLinkPrevExist:   true,
 			consoleLinkShouldExist: true,
 			wantErr:                false,
 		},
@@ -109,6 +122,7 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 			name:                   "DISABLE_DEFAULT_ARGOCD_CONSOLELINK isn't set and consoleLink doesn't get deleted",
 			setEnvVarFunc:          nil,
 			envVar:                 "",
+			consoleLinkPrevExist:   true,
 			consoleLinkShouldExist: true,
 			wantErr:                false,
 		},
@@ -118,7 +132,10 @@ func TestReconcile_delete_consolelink(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			reconcileArgoCD, fakeClient := newFakeReconcileArgoCD(argoCDRoute, consoleLink)
 			consoleLink := newConsoleLink("https://test.com", "Cluster Argo CD")
-			fakeClient.Create(context.TODO(), consoleLink)
+			if test.consoleLinkPrevExist {
+				err := fakeClient.Create(context.TODO(), consoleLink)
+				assert.NilError(t, err)
+			}
 
 			if test.setEnvVarFunc != nil {
 				test.setEnvVarFunc(t, test.envVar)
@@ -203,10 +220,6 @@ func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, w
 	t.Helper()
 	assertNoError(t, r.err)
 
-	if r.result.Requeue {
-		t.Fatalf("Expected ConsoleLink to be deleted without requeuing")
-	}
-
 	got, err := getConsoleLink(c)
 	assertNoError(t, err)
 	if diff := cmp.Diff(want.Spec, got.Spec); diff != "" {
@@ -217,10 +230,6 @@ func assertConsoleLinkExists(t *testing.T, c client.Client, r reconcileResult, w
 func assertConsoleLinkDeletion(t *testing.T, c client.Client, r reconcileResult) {
 	t.Helper()
 	assertNoError(t, r.err)
-
-	if r.result.Requeue {
-		t.Fatalf("Expected ConsoleLink to be created without requeuing")
-	}
 
 	_, err := getConsoleLink(c)
 

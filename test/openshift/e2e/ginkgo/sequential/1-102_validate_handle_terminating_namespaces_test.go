@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argocdv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -41,8 +41,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-102_validate_handle_terminating_namespaces", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient         client.Client
+			ctx               context.Context
+			ns                *corev1.Namespace
+			janeNs            *corev1.Namespace
+			johnNs            *corev1.Namespace
+			configMapJaneNs   *corev1.ConfigMap
+			nsCleanupFunc     func()
+			janeNsCleanupFunc func()
+			johnNsCleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -52,11 +59,31 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(ns, janeNs, johnNs)
+
+			// Remove the ConfigMap finalizer so the namespace can be cleaned up
+			if configMapJaneNs != nil {
+				configmapFixture.Update(configMapJaneNs, func(cm *corev1.ConfigMap) {
+					cm.Finalizers = nil
+				})
+			}
+			if johnNsCleanupFunc != nil {
+				johnNsCleanupFunc()
+			}
+			if janeNsCleanupFunc != nil {
+				janeNsCleanupFunc()
+			}
+			if nsCleanupFunc != nil {
+				nsCleanupFunc()
+			}
+		})
+
 		It("ensures that if one managed-by namespace is stuck in terminating, it does not prevent other managed-by namespaces from being managed or deployed to", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, nsCleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -68,20 +95,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating a namespace 'jane' containing a ConfigMap with a unowned finalizer")
-			janeNs, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("jane", ns.Name)
-			defer cleanupFunc()
+			janeNs, janeNsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("jane", ns.Name)
 
-			configMapJaneNs := corev1.ConfigMap{
+			configMapJaneNs = &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "my-config-map-2", Namespace: janeNs.Name, Finalizers: []string{"some.random/finalizer"}},
 			}
-			Expect(k8sClient.Create(ctx, &configMapJaneNs)).To(Succeed())
-
-			// At the end of the test, ensure the ConfigMap finalizer is removed so that the namespace is cleaned up
-			defer func() {
-				configmapFixture.Update(&configMapJaneNs, func(cm *corev1.ConfigMap) {
-					cm.ObjectMeta.Finalizers = nil
-				})
-			}()
+			Expect(k8sClient.Create(ctx, configMapJaneNs)).To(Succeed())
 
 			By("deleting the jane NS in a background go routine, which puts the jane NS into a simulated stuck in terminating state")
 			go func() {
@@ -93,8 +112,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(janeNs).Should(namespaceFixture.HavePhase(corev1.NamespaceTerminating))
 
 			By("creating John NS")
-			johnNs, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("john", ns.Name)
-			defer cleanupFunc()
+			johnNs, johnNsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("john", ns.Name)
 
 			By("Wait for managed-by rolebindings to be created in John NS")
 			Eventually(func() bool {

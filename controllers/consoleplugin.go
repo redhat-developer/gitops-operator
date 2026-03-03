@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -16,6 +17,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/redhat-developer/gitops-operator/common"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,7 +46,7 @@ const (
 	kubeAppLabelName             = "app.kubernetes.io/name"
 )
 
-func getPluginPodSpec() corev1.PodSpec {
+func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 	consolePluginImage := os.Getenv(pluginImageEnv)
 	if consolePluginImage == "" {
 		image := common.DefaultConsoleImage
@@ -58,7 +60,7 @@ func getPluginPodSpec() corev1.PodSpec {
 				Env:             util.ProxyEnvVars(),
 				Name:            gitopsPluginName,
 				Image:           consolePluginImage,
-				ImagePullPolicy: corev1.PullAlways,
+				ImagePullPolicy: argocdutil.GetImagePullPolicy(crImagePullPolicy),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "http",
@@ -133,8 +135,8 @@ func getPluginPodSpec() corev1.PodSpec {
 	return podSpec
 }
 
-func pluginDeployment() *appsv1.Deployment {
-	podSpec := getPluginPodSpec()
+func pluginDeployment(crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
+	podSpec := getPluginPodSpec(crImagePullPolicy)
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -250,7 +252,7 @@ ServerRoot "/etc/httpd"
 </VirtualHost>`, servicePort, servicePort)
 
 func pluginConfigMap() *corev1.ConfigMap {
-	return &corev1.ConfigMap{
+	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      httpdConfigMapName,
 			Namespace: serviceNamespace,
@@ -263,11 +265,81 @@ func pluginConfigMap() *corev1.ConfigMap {
 			"httpd.conf": httpdConfig,
 		},
 	}
+	argocdutil.AddTrackedByOperatorLabel(&cm.ObjectMeta)
+	return cm
+}
+
+// normalizeContainerDefaults sets Kubernetes default values for container fields that are
+// automatically populated by the API server. This ensures consistent comparison between
+// existing containers (from etcd) and new containers (from operator).
+func normalizeContainerDefaults(container *corev1.Container) {
+	if container.TerminationMessagePath == "" {
+		container.TerminationMessagePath = "/dev/termination-log"
+	}
+	if container.TerminationMessagePolicy == "" {
+		container.TerminationMessagePolicy = corev1.TerminationMessageReadFile
+	}
+}
+
+// sortContainers creates a sorted copy of containers by name, and nested fields
+// (Env, Ports, VolumeMounts) to handle non-deterministic ordering from etcd
+func sortContainers(containers []corev1.Container) []corev1.Container {
+	if len(containers) == 0 {
+		return containers
+	}
+	sorted := make([]corev1.Container, len(containers))
+	for i := range containers {
+		sorted[i] = *containers[i].DeepCopy()
+		normalizeContainerDefaults(&sorted[i])
+		sort.Slice(sorted[i].Env, func(a, b int) bool {
+			return sorted[i].Env[a].Name < sorted[i].Env[b].Name
+		})
+		sort.Slice(sorted[i].Ports, func(a, b int) bool {
+			if sorted[i].Ports[a].ContainerPort != sorted[i].Ports[b].ContainerPort {
+				return sorted[i].Ports[a].ContainerPort < sorted[i].Ports[b].ContainerPort
+			}
+			return sorted[i].Ports[a].Name < sorted[i].Ports[b].Name
+		})
+		sort.Slice(sorted[i].VolumeMounts, func(a, b int) bool {
+			return sorted[i].VolumeMounts[a].Name < sorted[i].VolumeMounts[b].Name
+		})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+	return sorted
+}
+
+// sortVolumes creates a sorted copy of volumes by name
+func sortVolumes(volumes []corev1.Volume) []corev1.Volume {
+	sorted := make([]corev1.Volume, len(volumes))
+	copy(sorted, volumes)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+	return sorted
+}
+
+// sortTolerations creates a sorted copy of tolerations by key, operator, and effect
+func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
+	sorted := make([]corev1.Toleration, len(tolerations))
+	copy(sorted, tolerations)
+	sort.Slice(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+		if a.Key != b.Key {
+			return a.Key < b.Key
+		}
+		if a.Operator != b.Operator {
+			return string(a.Operator) < string(b.Operator)
+		}
+		return string(a.Effect) < string(b.Effect)
+	})
+	return sorted
 }
 
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginDeployment := pluginDeployment()
+	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy)
 
 	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -280,6 +352,10 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	}
 	if len(cr.Spec.NodeSelector) > 0 {
 		newPluginDeployment.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(newPluginDeployment.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
+	}
+
+	if cr.Spec.ConsolePlugin != nil && cr.Spec.ConsolePlugin.GitopsPlugin != nil && cr.Spec.ConsolePlugin.GitopsPlugin.Resources != nil {
+		newPluginDeployment.Spec.Template.Spec.Containers[0].Resources = *cr.Spec.ConsolePlugin.GitopsPlugin.Resources
 	}
 
 	if len(cr.Spec.Tolerations) > 0 {
@@ -303,21 +379,23 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	} else {
 		existingSpecTemplate := &existingPluginDeployment.Spec.Template
 		newSpecTemplate := newPluginDeployment.Spec.Template
-		changed := !reflect.DeepEqual(existingPluginDeployment.ObjectMeta.Labels, newPluginDeployment.ObjectMeta.Labels) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
-			!reflect.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Containers, newSpecTemplate.Spec.Containers) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.Volumes, newSpecTemplate.Spec.Volumes) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
-			!reflect.DeepEqual(existingPluginDeployment.Spec.Template.Spec.Tolerations, newPluginDeployment.Spec.Template.Spec.Tolerations) ||
-			!reflect.DeepEqual(existingSpecTemplate.Spec.SecurityContext, existingSpecTemplate.Spec.SecurityContext)
+		// Sort list fields before comparing to handle non-deterministic ordering
+		changed := !equality.Semantic.DeepEqual(existingPluginDeployment.Labels, newPluginDeployment.Labels) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
+			!equality.Semantic.DeepEqual(sortContainers(existingSpecTemplate.Spec.Containers), sortContainers(newSpecTemplate.Spec.Containers)) ||
+			!equality.Semantic.DeepEqual(sortVolumes(existingSpecTemplate.Spec.Volumes), sortVolumes(newSpecTemplate.Spec.Volumes)) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.DNSPolicy, newSpecTemplate.Spec.DNSPolicy) ||
+			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Template.Spec.NodeSelector, newPluginDeployment.Spec.Template.Spec.NodeSelector) ||
+			!equality.Semantic.DeepEqual(sortTolerations(existingPluginDeployment.Spec.Template.Spec.Tolerations), sortTolerations(newPluginDeployment.Spec.Template.Spec.Tolerations)) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.SecurityContext, newSpecTemplate.Spec.SecurityContext) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
-			existingPluginDeployment.ObjectMeta.Labels = newPluginDeployment.ObjectMeta.Labels
+			existingPluginDeployment.Labels = newPluginDeployment.Labels
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
 			existingPluginDeployment.Spec.Selector = newPluginDeployment.Spec.Selector
 			existingSpecTemplate.Labels = newSpecTemplate.Labels
@@ -328,6 +406,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			existingSpecTemplate.Spec.DNSPolicy = newSpecTemplate.Spec.DNSPolicy
 			existingPluginDeployment.Spec.Template.Spec.NodeSelector = newPluginDeployment.Spec.Template.Spec.NodeSelector
 			existingPluginDeployment.Spec.Template.Spec.Tolerations = newPluginDeployment.Spec.Template.Spec.Tolerations
+			existingSpecTemplate.Spec.Containers[0].Resources = newSpecTemplate.Spec.Containers[0].Resources
 			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginDeployment)
 		}
 	}
@@ -357,15 +436,15 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 			return reconcile.Result{}, err
 		}
 	} else {
-		changed := !reflect.DeepEqual(existingServiceRef.ObjectMeta.Annotations, pluginServiceRef.ObjectMeta.Annotations) ||
-			!reflect.DeepEqual(existingServiceRef.ObjectMeta.Labels, pluginServiceRef.ObjectMeta.Labels) ||
+		changed := !reflect.DeepEqual(existingServiceRef.Annotations, pluginServiceRef.Annotations) ||
+			!reflect.DeepEqual(existingServiceRef.Labels, pluginServiceRef.Labels) ||
 			!reflect.DeepEqual(existingServiceRef.Spec.Selector, pluginServiceRef.Spec.Selector) ||
 			!reflect.DeepEqual(existingServiceRef.Spec.Ports, pluginServiceRef.Spec.Ports)
 
 		if changed {
 			reqLogger.Info("Reconciling plugin service", "Namespace", existingServiceRef.Namespace, "Name", existingServiceRef.Name)
-			existingServiceRef.ObjectMeta.Annotations = pluginServiceRef.ObjectMeta.Annotations
-			existingServiceRef.ObjectMeta.Labels = pluginServiceRef.ObjectMeta.Labels
+			existingServiceRef.Annotations = pluginServiceRef.Annotations
+			existingServiceRef.Labels = pluginServiceRef.Labels
 			existingServiceRef.Spec.Selector = pluginServiceRef.Spec.Selector
 			existingServiceRef.Spec.Ports = pluginServiceRef.Spec.Ports
 			return reconcile.Result{}, r.Client.Update(context.TODO(), pluginServiceRef)
@@ -434,11 +513,11 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 		}
 	} else {
 		changed := !reflect.DeepEqual(existingPluginConfigMap.Data, newPluginConfigMap.Data) ||
-			!reflect.DeepEqual(existingPluginConfigMap.ObjectMeta.Labels, newPluginConfigMap.ObjectMeta.Labels)
+			!reflect.DeepEqual(existingPluginConfigMap.Labels, newPluginConfigMap.Labels)
 		if changed {
 			reqLogger.Info("Reconciling plugin configMap", "Namespace", existingPluginConfigMap.Namespace, "Name", existingPluginConfigMap.Name)
 			existingPluginConfigMap.Data = newPluginConfigMap.Data
-			existingPluginConfigMap.ObjectMeta.Labels = newPluginConfigMap.ObjectMeta.Labels
+			existingPluginConfigMap.Labels = newPluginConfigMap.Labels
 			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginConfigMap)
 		}
 	}

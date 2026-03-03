@@ -2,6 +2,34 @@
 
 set -ex
 
+cleanup_on_failure() {
+  local exit_code=$?
+  if [ $exit_code -ne 0 ]; then
+    echo ">> Script failed with exit code ${exit_code}, collecting debug logs..."
+    echo ""
+    echo "Pods in openshift-gitops-operator"
+    oc get pods -n openshift-gitops-operator -o yaml
+    echo ""
+    echo "Operator pod log"
+    oc logs deployment/openshift-gitops-operator-controller-manager -n openshift-gitops-operator
+    echo ""
+    echo "Events in openshift-gitops-operator"
+    oc get events -n openshift-gitops-operator
+    echo ""
+    echo "ArgoCDs in test-argocd:"
+    oc get argocds -n test-argocd -o yaml
+    echo ""
+    echo "Pods in test-argocd:"
+    oc get pods -n test-argocd -o yaml
+    echo ""
+    echo "Events in test-argocd:"
+    oc get events -n test-argocd
+    echo ""
+  fi
+  exit $exit_code
+}
+trap cleanup_on_failure EXIT
+
 export CI="prow"
 go mod vendor
 
@@ -32,10 +60,40 @@ metadata:
   namespace: test-argocd
 EOF
 
-sleep 60s
+
+EXPECTED_LABELS=("argocd-application-controller" "argocd-redis" "argocd-repo-server" "argocd-server")
+TIMEOUT=900
+INTERVAL=10
+ELAPSED=0
+
+echo ">> Waiting for all ${#EXPECTED_LABELS[@]} ArgoCD pods to exist in test-argocd..."
+while true; do
+  ALL_EXIST=true
+  for label in "${EXPECTED_LABELS[@]}"; do
+    if ! oc get pod -n test-argocd -l "app.kubernetes.io/name=${label}" --no-headers 2>/dev/null | grep -q .; then
+      ALL_EXIST=false
+      break
+    fi
+  done
+
+  if $ALL_EXIST; then
+    echo ">> All ${#EXPECTED_LABELS[@]} ArgoCD pods exist after ${ELAPSED}s."
+    break
+  fi
+
+  if [ $ELAPSED -ge $TIMEOUT ]; then
+    echo ">> Timed out after ${TIMEOUT}s waiting for ArgoCD pods to exist."
+    oc get pods -n test-argocd
+    exit 1
+  fi
+
+  sleep $INTERVAL
+  ELAPSED=$((ELAPSED + INTERVAL))
+done
 
 oc get pods -n test-argocd
 
-oc wait --for=condition=Ready -n test-argocd pod --timeout=15m  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)' 
+oc wait --for=condition=Ready -n test-argocd pod --timeout=15m \
+  -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)'
 
 echo ">> Running tests on ${CI}"

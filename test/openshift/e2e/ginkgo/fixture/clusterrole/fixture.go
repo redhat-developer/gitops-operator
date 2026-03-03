@@ -33,6 +33,8 @@ func Update(obj *rbacv1.ClusterRole, modify func(*rbacv1.ClusterRole)) {
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
+//
+//nolint:unused
 func fetchRole(f func(*rbacv1.ClusterRole) bool) matcher.GomegaMatcher {
 
 	return WithTransform(func(cr *rbacv1.ClusterRole) bool {

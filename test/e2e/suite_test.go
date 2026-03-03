@@ -43,13 +43,14 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/helper"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	controllerconfig "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -59,9 +60,9 @@ import (
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var skipControllerNameValidation = true
 
 const (
 	operatorName                        = "gitops-operator"
@@ -79,10 +80,7 @@ const (
 	consoleLinkName                     = "argocd"
 	argoCDInstanceName                  = "openshift-gitops"
 	gitopsInstanceName                  = "cluster"
-	defaultKeycloakIdentifier           = "keycloak"
-	defaultTemplateIdentifier           = "rhsso"
 	realmURL                            = "/auth/admin/realms/argocd"
-	rhssosecret                         = "keycloak-secret"
 	clusterConfigEnv                    = "ARGOCD_CLUSTER_CONFIG_NAMESPACES"
 	argocdManagedByLabel                = "argocd.argoproj.io/managed-by"
 	timeout                             = time.Minute * 5
@@ -142,6 +140,9 @@ var _ = BeforeSuite(func() {
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: scheme.Scheme,
+		Controller: controllerconfig.Controller{
+			SkipNameValidation: &skipControllerNameValidation,
+		},
 	})
 	Expect(err).NotTo(HaveOccurred())
 
@@ -163,9 +164,16 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	k8sClient, err := initK8sClient()
+	Expect(err).ToNot(HaveOccurred())
+
 	err = (&argocdprovisioner.ReconcileArgoCD{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		K8sClient: k8sClient,
+		LocalUsers: &argocdprovisioner.LocalUsersInfo{
+			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
+		},
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -208,14 +216,18 @@ func checkIfPresent(ns types.NamespacedName, obj client.Object) {
 	}, timeout, interval).ShouldNot(HaveOccurred())
 }
 
-// checks if a given resource is deleted
-// continouslly polls until the object is deleted or a timeout occurs
-func checkIfDeleted(ns types.NamespacedName, obj client.Object) {
-	Eventually(func() error {
-		err := k8sClient.Get(context.TODO(), ns, obj)
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}, timeout, interval).ShouldNot(HaveOccurred())
+func initK8sClient() (*kubernetes.Clientset, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		Fail("unable to get k8s config")
+		return nil, err
+	}
+
+	k8sClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		Fail("unable to get k8s config")
+		return nil, err
+	}
+
+	return k8sClient, nil
 }

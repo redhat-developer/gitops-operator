@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -75,7 +74,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 	instance := &pipelinesv1alpha1.GitopsService{}
 	var replicas int32 = 1
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -147,7 +146,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -158,7 +157,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -169,7 +168,11 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assert.NilError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -178,11 +181,11 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 			assertNoError(t, err)
 
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelComponent], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelInstance], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
-			assert.Equal(t, deployment.ObjectMeta.Labels[kubeAppLabelRuntimeNamespace], "openshift-gitops")
+			assert.Equal(t, deployment.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelComponent], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelInstance], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, deployment.Labels[kubeAppLabelRuntimeNamespace], "openshift-gitops")
 		})
 	}
 }
@@ -211,7 +214,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -289,7 +292,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -300,7 +303,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -311,7 +314,10 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -351,7 +357,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -427,7 +433,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -438,7 +444,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -449,7 +455,11 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -563,7 +573,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -574,7 +584,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -596,7 +606,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 			assertNoError(t, err)
 
-			assert.Equal(t, deployment.Spec.Template.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, deployment.Spec.Template.Labels[kubeAppLabelApp], "gitops-plugin")
 		})
 	}
 }
@@ -615,7 +625,7 @@ func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
 		consoleImage := common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Name, "gitops-plugin")
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Image, consoleImage)
-		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullAlways)
+		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].ImagePullPolicy, corev1.PullIfNotPresent)
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Name, "http")
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].Protocol, corev1.ProtocolTCP)
 		assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort, int32(9001))
@@ -692,7 +702,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -770,7 +780,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -781,7 +791,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -792,7 +802,11 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -828,7 +842,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			d := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -906,7 +920,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -917,7 +931,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: pointer.Int32Ptr(420),
+											DefaultMode: ptr.To(int32(420)),
 										},
 									},
 								},
@@ -928,7 +942,11 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), d)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), d)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -987,6 +1005,132 @@ func TestPlugin_reconcileDeployment(t *testing.T) {
 	assertNoError(t, err)
 }
 
+// Test to verify if the resource values are updated when the resource values are changed in the CR
+func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+	Resources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("234m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("5"),
+		},
+	}
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
+
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("123Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("234m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("456Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("5"))
+}
+
+// Test to verify if the default resource values are set when no resource values are provided in the CR
+func TestPlugin_ReconcileDeployment_DefaultResourceValues(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{}
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("128Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("250m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("256Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
+}
+
+// Test to verify if the resource values are updated when the resource values are changed in the CR
+func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+	Resources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("123Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("234m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("456Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("5"),
+		},
+	}
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Resources: Resources,
+		},
+		GitopsPlugin: &pipelinesv1alpha1.GitopsPluginStruct{
+			Resources: Resources,
+		},
+	}
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("123Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("234m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("456Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("5"))
+
+	// Update the resource values again
+	updatedResources := &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("100Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("200m"),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: resourcev1.MustParse("300Mi"),
+			corev1.ResourceCPU:    resourcev1.MustParse("400m"),
+		},
+	}
+	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = updatedResources, updatedResources
+
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	deployment = &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["memory"], resourcev1.MustParse("100Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Requests["cpu"], resourcev1.MustParse("200m"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["memory"], resourcev1.MustParse("300Mi"))
+	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("400m"))
+
+}
+
 func TestPlugin_reconcileService(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
@@ -1029,7 +1173,7 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1057,7 +1201,11 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1066,7 +1214,7 @@ func TestPlugin_reconcileService_changedAnnotations(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, service)
 			assertNoError(t, err)
 
-			assert.Equal(t, service.ObjectMeta.Annotations["service.beta.openshift.io/serving-cert-secret-name"], "console-serving-cert")
+			assert.Equal(t, service.Annotations["service.beta.openshift.io/serving-cert-secret-name"], "console-serving-cert")
 		})
 	}
 }
@@ -1103,7 +1251,7 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1126,7 +1274,10 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1135,10 +1286,10 @@ func TestPlugin_reconcileService_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, service)
 			assertNoError(t, err)
 
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelComponent], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelInstance], "gitops-plugin")
-			assert.Equal(t, service.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelComponent], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelInstance], "gitops-plugin")
+			assert.Equal(t, service.Labels[kubeAppLabelPartOf], "gitops-plugin")
 		})
 	}
 }
@@ -1169,7 +1320,7 @@ func TestPlugin_reconcileService_changedSelector(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1195,7 +1346,10 @@ func TestPlugin_reconcileService_changedSelector(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1241,7 +1395,7 @@ func TestPlugin_reconcileService_changedPorts(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			svc := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1269,7 +1423,10 @@ func TestPlugin_reconcileService_changedPorts(t *testing.T) {
 					}},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), svc)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), svc)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1325,7 +1482,7 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1344,7 +1501,10 @@ func TestPlugin_reconcileConsolePlugin_changedDisplayName(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cp)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cp)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1389,7 +1549,7 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cp := &consolev1.ConsolePlugin{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1403,7 +1563,10 @@ func TestPlugin_reconcileConsolePlugin_changedService(t *testing.T) {
 					},
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cp)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cp)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1464,7 +1627,7 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	for _, test := range tests {
+	for x, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cm := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1476,7 +1639,10 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 					"httpd.conf": httpdConfig,
 				},
 			}
-			reconciler.Client.Create(context.TODO(), cm)
+			if x == 0 {
+				err := reconciler.Client.Create(context.TODO(), cm)
+				assertNoError(t, err)
+			}
 
 			_, err := reconciler.reconcileConsolePlugin(instance, newRequest(serviceNamespace, gitopsPluginName))
 			assertNoError(t, err)
@@ -1485,8 +1651,212 @@ func TestPlug_reconcileConfigMap_changedLabels(t *testing.T) {
 			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, configMap)
 			assertNoError(t, err)
 
-			assert.Equal(t, configMap.ObjectMeta.Labels[kubeAppLabelApp], "gitops-plugin")
-			assert.Equal(t, configMap.ObjectMeta.Labels[kubeAppLabelPartOf], "gitops-plugin")
+			assert.Equal(t, configMap.Labels[kubeAppLabelApp], "gitops-plugin")
+			assert.Equal(t, configMap.Labels[kubeAppLabelPartOf], "gitops-plugin")
 		})
 	}
+}
+
+// Tests that reconciliation does NOT trigger an update when containers are returned in different order from etcd.
+func TestReconcileDeployment_NoUpdateWhenContainersOrderDiffers(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{}
+
+	// Create deployment
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Get the deployment and capture initial ResourceVersion and Generation
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	initialRV := deployment.ResourceVersion
+	initialGen := deployment.Generation
+
+	// Simulate etcd returning containers in different order
+	if len(deployment.Spec.Template.Spec.Containers) >= 2 {
+		containers := deployment.Spec.Template.Spec.Containers
+		reversedContainers := make([]corev1.Container, len(containers))
+		for i := range containers {
+			reversedContainers[len(containers)-1-i] = containers[i]
+		}
+		deployment.Spec.Template.Spec.Containers = reversedContainers
+		err = fakeClient.Update(context.TODO(), deployment)
+		assertNoError(t, err)
+	}
+
+	// Reconcile again - should NOT trigger an update
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Verify no update was triggered
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	assert.Equal(t, deployment.ResourceVersion, initialRV,
+		"ResourceVersion should NOT change when only container order differs")
+	assert.Equal(t, deployment.Generation, initialGen,
+		"Generation should NOT change when only container order differs")
+}
+
+// Tests that reconciliation does NOT trigger an update when volumes are returned in different order from etcd.
+func TestReconcileDeployment_NoUpdateWhenVolumesOrderDiffers(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{}
+
+	// Create deployment
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Get the deployment
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	// Simulate etcd returning volumes in different order
+	if len(deployment.Spec.Template.Spec.Volumes) >= 2 {
+		volumes := deployment.Spec.Template.Spec.Volumes
+		reversedVolumes := make([]corev1.Volume, len(volumes))
+		for i := range volumes {
+			reversedVolumes[len(volumes)-1-i] = volumes[i]
+		}
+		deployment.Spec.Template.Spec.Volumes = reversedVolumes
+		err = fakeClient.Update(context.TODO(), deployment)
+		assertNoError(t, err)
+
+		err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+		assertNoError(t, err)
+		rvAfterManualUpdate := deployment.ResourceVersion
+		genAfterManualUpdate := deployment.Generation
+
+		// Reconcile again - should NOT trigger an update
+		_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+		assertNoError(t, err)
+
+		// Verify no update was triggered
+		err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+		assertNoError(t, err)
+
+		assert.Equal(t, deployment.ResourceVersion, rvAfterManualUpdate,
+			"ResourceVersion should NOT change when only volume order differs")
+		assert.Equal(t, deployment.Generation, genAfterManualUpdate,
+			"Generation should NOT change when only volume order differs")
+	} else {
+		t.Skip("Skipping test: deployment has less than 2 volumes, cannot test order difference")
+	}
+}
+
+// Tests that reconciliation does NOT trigger an update when tolerations are returned in different order from etcd.
+func TestReconcileDeployment_NoUpdateWhenTolerationsOrderDiffers(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	// Create GitopsService with tolerations
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			Tolerations: []corev1.Toleration{
+				{
+					Key:      "key-a",
+					Operator: corev1.TolerationOpEqual,
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+				{
+					Key:      "key-b",
+					Operator: corev1.TolerationOpEqual,
+					Effect:   corev1.TaintEffectNoSchedule,
+				},
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(gitopsService).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	// Create deployment
+	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Get the deployment
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	// Simulate etcd returning tolerations in different order
+	if len(deployment.Spec.Template.Spec.Tolerations) >= 2 {
+		tolerations := deployment.Spec.Template.Spec.Tolerations
+		reversedTolerations := make([]corev1.Toleration, len(tolerations))
+		for i := range tolerations {
+			reversedTolerations[len(tolerations)-1-i] = tolerations[i]
+		}
+		deployment.Spec.Template.Spec.Tolerations = reversedTolerations
+		err = fakeClient.Update(context.TODO(), deployment)
+		assertNoError(t, err)
+
+		err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+		assertNoError(t, err)
+		rvAfterManualUpdate := deployment.ResourceVersion
+		genAfterManualUpdate := deployment.Generation
+
+		// Reconcile again - should NOT trigger an update
+		_, err = reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName))
+		assertNoError(t, err)
+
+		// Verify no update was triggered
+		err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+		assertNoError(t, err)
+
+		assert.Equal(t, deployment.ResourceVersion, rvAfterManualUpdate,
+			"ResourceVersion should NOT change when only toleration order differs")
+		assert.Equal(t, deployment.Generation, genAfterManualUpdate,
+			"Generation should NOT change when only toleration order differs")
+	} else {
+		t.Skip("Skipping test: deployment has less than 2 tolerations, cannot test order difference")
+	}
+}
+
+// Tests that legitimate changes do trigger updates.
+func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{}
+
+	// Create deployment
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Get the deployment and capture initial ResourceVersion and Generation
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	initialRV := deployment.ResourceVersion
+
+	// Make an actual change
+	deployment.Spec.Template.Spec.Containers[0].Image = "different-image:tag"
+	err = fakeClient.Update(context.TODO(), deployment)
+	assertNoError(t, err)
+
+	// Reconcile again - should trigger an update
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName))
+	assertNoError(t, err)
+
+	// Verify update was triggered
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+
+	assert.Assert(t, deployment.ResourceVersion != initialRV,
+		"ResourceVersion SHOULD change when actual change is made")
 }

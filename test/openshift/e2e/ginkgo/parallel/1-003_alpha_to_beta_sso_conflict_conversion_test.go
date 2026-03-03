@@ -97,9 +97,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				And(argocdFixture.HaveSSOStatus("Failed")))
 
 			Expect(argoCDbeta1.Spec.SSO.Provider).To(Equal(argov1beta1api.SSOProviderTypeDex))
-			Expect(argoCDbeta1.Spec.SSO.Dex.OpenShiftOAuth).To(Equal(true))
+			Expect(argoCDbeta1.Spec.SSO.Dex.OpenShiftOAuth).To(BeTrue())
 			Expect(argoCDbeta1.Spec.SSO.Keycloak.RootCA).To(Equal("\"---BEGIN---END---\""))
-			Expect(*argoCDbeta1.Spec.SSO.Keycloak.VerifyTLS).To(Equal(false))
+			Expect(*argoCDbeta1.Spec.SSO.Keycloak.VerifyTLS).To(BeFalse())
 			Expect(argoCDbeta1.Spec.ExtraConfig["oidc.tls.insecure.skip.verify"]).To(Equal("true"))
 
 			By("deleting ArgoCD CR via v1alpha1 API")

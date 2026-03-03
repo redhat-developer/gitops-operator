@@ -92,8 +92,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				And(argocdFixture.HavePhase("Available"), argocdFixture.HaveSSOStatus("Running")))
 
 			Expect(argoCDbeta1.Spec.SSO.Provider).To(Equal(argov1beta1api.SSOProviderTypeDex))
-			Expect(argoCDbeta1.Spec.SSO.Dex.OpenShiftOAuth).To(Equal(true))
-			Expect(argoCDbeta1.Spec.Server.Route.Enabled).To(Equal(true))
+			Expect(argoCDbeta1.Spec.SSO.Dex.OpenShiftOAuth).To(BeTrue())
+			Expect(argoCDbeta1.Spec.Server.Route.Enabled).To(BeTrue())
 
 			By("deleting ArgoCD CR via v1alpha1 API")
 			Expect(k8sClient.Delete(ctx, argoCDalpha1)).To(Succeed())

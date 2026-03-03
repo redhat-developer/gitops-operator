@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
@@ -35,6 +34,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -99,9 +99,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
-	if err := RestoreSubcriptionToDefault(); err != nil {
-		return err
-	}
+	RestoreSubcriptionToDefault()
 
 	// ensure namespaces created during test are deleted
 	err := ensureTestNamespacesDeleted(ctx, k8sClient)
@@ -254,7 +252,7 @@ func CreateRandomE2ETestNamespace() *corev1.Namespace {
 
 	testNamespaceName := "gitops-e2e-test-" + randomVal
 
-	ns := CreateNamespace(string(testNamespaceName))
+	ns := CreateNamespace(testNamespaceName)
 	return ns
 }
 
@@ -274,13 +272,15 @@ func CreateNamespace(name string) *corev1.Namespace {
 	// If the Namespace already exists, delete it first
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
 		// Namespace exists, so delete it first
-		Expect(deleteNamespace(context.Background(), ns.Name, k8sClient)).To(Succeed())
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
 	}
 
 	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name:   name,
 		Labels: NamespaceLabels,
 	}}
+
+	By("creating namespace '" + ns.Name + "'")
 
 	err := k8sClient.Create(context.Background(), ns)
 	Expect(err).ToNot(HaveOccurred())
@@ -303,7 +303,7 @@ func CreateManagedNamespace(name string, managedByNamespace string) *corev1.Name
 	// If the Namespace already exists, delete it first
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
 		// Namespace exists, so delete it first
-		Expect(deleteNamespace(context.Background(), ns.Name, k8sClient)).To(Succeed())
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
 	}
 
 	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
@@ -325,26 +325,58 @@ func CreateManagedNamespaceWithCleanupFunc(name string, managedByNamespace strin
 	return ns, nsDeletionFunc(ns)
 }
 
+// Create a namespace 'name' that is managed by a cluster-scoped ArgoCD instance, via managed-by-cluster-argocd label.
+func CreateClusterScopedManagedNamespace(name string, managedByArgoCDInstance string) *corev1.Namespace {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+
+	// If the Namespace already exists, delete it first
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(ns), ns); err == nil {
+		// Namespace exists, so delete it first
+		Expect(deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)).To(Succeed())
+	}
+
+	ns = &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name: name,
+		Labels: map[string]string{
+			E2ETestLabelsKey: E2ETestLabelsValue,
+			"argocd.argoproj.io/managed-by-cluster-argocd": managedByArgoCDInstance,
+		},
+	}}
+
+	Expect(k8sClient.Create(context.Background(), ns)).To(Succeed())
+
+	return ns
+
+}
+
+func CreateClusterScopedManagedNamespaceWithCleanupFunc(name string, managedByArgoCDInstance string) (*corev1.Namespace, func()) {
+	ns := CreateClusterScopedManagedNamespace(name, managedByArgoCDInstance)
+	return ns, nsDeletionFunc(ns)
+}
+
 // nsDeletionFunc is a convenience function that returns a function that deletes a namespace. This is used for Namespace cleanup by other functions.
 func nsDeletionFunc(ns *corev1.Namespace) func() {
 
 	return func() {
-
-		// If you are debugging an E2E test and want to prevent its namespace from being deleted when the test ends (so that you can examine the state of resources in the namespace) you can set E2E_DEBUG_SKIP_CLEANUP env var.
-		if os.Getenv("E2E_DEBUG_SKIP_CLEANUP") != "" {
-			GinkgoWriter.Println("Skipping namespace cleanup as E2E_DEBUG_SKIP_CLEANUP is set")
-			return
-		}
-
-		k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
-		Expect(err).ToNot(HaveOccurred())
-		err = k8sClient.Delete(context.Background(), ns, &client.DeleteOptions{PropagationPolicy: ptr.To(metav1.DeletePropagationForeground)})
-
-		// Error shouldn't occur, UNLESS it's because the NS no longer exists
-		if err != nil && !apierr.IsNotFound(err) {
-			Expect(err).ToNot(HaveOccurred())
-		}
+		DeleteNamespace(ns)
 	}
+
+}
+
+func DeleteNamespace(ns *corev1.Namespace) {
+	// If you are debugging an E2E test and want to prevent its namespace from being deleted when the test ends (so that you can examine the state of resources in the namespace) you can set E2E_DEBUG_SKIP_CLEANUP env var.
+	if os.Getenv("E2E_DEBUG_SKIP_CLEANUP") != "" {
+		GinkgoWriter.Println("Skipping namespace cleanup as E2E_DEBUG_SKIP_CLEANUP is set")
+		return
+	}
+
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	Expect(err).ToNot(HaveOccurred())
+
+	err = deleteNamespaceAndVerify(context.Background(), ns.Name, k8sClient)
+	Expect(err).ToNot(HaveOccurred())
 
 }
 
@@ -376,7 +408,7 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		return deploymentFixture.GetEnv(depl, key)
+		return deploymentFixture.GetEnv(depl, "manager", key)
 
 	} else if EnvCI() {
 
@@ -413,7 +445,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.SetEnv(depl, key, value)
+		deploymentFixture.SetEnv(depl, "manager", key, value)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -450,7 +482,7 @@ func RemoveEnvFromOperatorSubscriptionOrDeployment(key string) error {
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
-		deploymentFixture.RemoveEnv(depl, key)
+		deploymentFixture.RemoveEnv(depl, "manager", key)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
@@ -504,74 +536,61 @@ func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Su
 }
 
 // RestoreSubcriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
-func RestoreSubcriptionToDefault() error {
+func RestoreSubcriptionToDefault() {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
-	if err != nil {
-		return err
-	}
+	Expect(err).ToNot(HaveOccurred())
 
 	// optionalEnvVarsToRemove is a non-exhaustive list of environment variables that are known to be added to Subscription or operator Deployment by tests
-	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR"}
+	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "IMAGE_PULL_POLICY"}
 
 	if EnvNonOLM() {
 
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
 		for _, envKey := range optionalEnvVarsToRemove {
-			deploymentFixture.RemoveEnv(depl, envKey)
+			deploymentFixture.RemoveEnv(depl, "manager", envKey)
 		}
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		waitForAllEnvVarsToBeRemovedFromDeployments(depl.Namespace, optionalEnvVarsToRemove, k8sClient)
 
 		Eventually(depl, "3m", "1s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 	} else if EnvCI() {
 
 		sub, err := GetSubscriptionInEnvCIEnvironment(k8sClient)
-		if err != nil {
-			return err
-		}
+		Expect(err).ToNot(HaveOccurred())
 
 		if sub != nil {
 			subscriptionFixture.RemoveSpecConfig(sub)
 		}
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
 
 	} else if EnvLocalRun() {
 		// When running locally, there are no cluster resources to clean up
-		return nil
 
 	} else {
 
 		sub := &olmv1alpha1.Subscription{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator", Namespace: "openshift-gitops-operator"}}
-		if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub); err != nil {
-			return err
-		}
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(sub), sub)
+		Expect(err).ToNot(HaveOccurred())
 
 		subscriptionFixture.RemoveSpecConfig(sub)
 
-		if err := waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient); err != nil {
-			return err
-		}
+		waitForAllEnvVarsToBeRemovedFromDeployments("openshift-gitops-operator", optionalEnvVarsToRemove, k8sClient)
 
 		WaitForAllDeploymentsInTheNamespaceToBeReady("openshift-gitops-operator", k8sClient)
-	}
 
-	return nil
+	}
 
 }
 
 // waitForAllEnvVarsToBeRemovedFromDeployments checks all Deployments in the Namespace, to ensure that none of those Deployments contain environment variables defined within envVarKeys.
 // This can be used before a test starts to ensure that Operator or Argo CD containers are back to default state.
-func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string, k8sClient client.Client) error {
+func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string, k8sClient client.Client) {
 
 	Eventually(func() bool {
 		var deplList appsv1.DeploymentList
@@ -612,7 +631,6 @@ func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string,
 
 	}, "3m", "1s").Should(BeTrue())
 
-	return nil
 }
 
 func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {
@@ -643,6 +661,11 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 
 	}, "3m", "1s").Should(BeTrue())
 
+	// The above logic will successfully wait for Deployments to be ready. However, this does not mean that the operator's controller logic has completed it's initial cluster reconciliation logic (starting a watch then reconciling existing resources)
+	// - I'm not aware of a way to detect when this has completed, so instead I am inserting a 15 second pause.
+	// - If anyone has a better way of doing this, let us know.
+	// time.Sleep(15 * time.Second)
+	// TODO: Uncomment this once the sequential test suite timeout has increased.
 }
 
 func WaitForAllStatefulSetsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {
@@ -714,15 +737,15 @@ func ensureTestNamespacesDeleted(ctx context.Context, k8sClient client.Client) e
 
 	// delete selected namespaces
 	for _, namespace := range nsList.Items {
-		if err := deleteNamespace(ctx, namespace.Name, k8sClient); err != nil {
+		if err := deleteNamespaceAndVerify(ctx, namespace.Name, k8sClient); err != nil {
 			return fmt.Errorf("unable to delete namespace '%s': %w", namespace.Name, err)
 		}
 	}
 	return nil
 }
 
-// deleteNamespace deletes a namespace, and waits for it to be reported as deleted.
-func deleteNamespace(ctx context.Context, namespaceParam string, k8sClient client.Client) error {
+// deleteNamespaceAndVerify deletes a namespace, and waits for it to be reported as deleted.
+func deleteNamespaceAndVerify(ctx context.Context, namespaceParam string, k8sClient client.Client) error {
 
 	GinkgoWriter.Println("Deleting Namespace", namespaceParam)
 
@@ -814,7 +837,8 @@ var testReportMap = map[string]testReportEntry{} // acquire testReportLock befor
 // - Namespace parameter may be a string, *Namespace, or Namespace
 func OutputDebugOnFail(namespaceParams ...any) {
 
-	// Convert parameter to string of namespace name
+	// Convert parameter to string of namespace name:
+	// - You can specify Namespace, *Namespae, or string, and we will convert it to string namespace
 	namespaces := []string{}
 	for _, param := range namespaceParams {
 
@@ -860,9 +884,9 @@ func OutputDebugOnFail(namespaceParams ...any) {
 
 	for _, namespace := range namespaces {
 
-		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "all", "-n", namespace)
+		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all", "-n", namespace)
 		if err != nil {
-			GinkgoWriter.Println("unable to extract operator logs for namespace", namespace, err, kubectlOutput)
+			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
 		}
 
@@ -872,9 +896,35 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
 
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "deployments", "-n", namespace, "-o", "yaml")
+		if err != nil {
+			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
+			continue
+		}
+
+		// Uncomment this to output the pod logs from app controller and repo server in ns
+		// outputAppControllerAndRepoLogsInNamespace(namespace)
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "events", "-n", namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to get events for namespace", err, kubectlOutput)
+		} else {
+			GinkgoWriter.Println("")
+			GinkgoWriter.Println("----------------------------------------------------------------")
+			GinkgoWriter.Println("'kubectl get events -n " + namespace + ":")
+			GinkgoWriter.Println(kubectlOutput)
+			GinkgoWriter.Println("----------------------------------------------------------------")
+		}
+
 	}
 
-	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "get", "argocds", "-A", "-o", "yaml")
+	kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "argocds", "-A", "-o", "yaml")
 	if err != nil {
 		GinkgoWriter.Println("unable to output all argo cd statuses", err, kubectlOutput)
 	} else {
@@ -885,8 +935,52 @@ func OutputDebugOnFail(namespaceParams ...any) {
 		GinkgoWriter.Println("----------------------------------------------------------------")
 	}
 
+	kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "applications", "-A", "-o", "yaml")
+	if err != nil {
+		GinkgoWriter.Println("unable to output all argo cd statuses", err, kubectlOutput)
+	} else {
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("'kubectl get applications -A -o yaml':")
+		GinkgoWriter.Println(kubectlOutput)
+		GinkgoWriter.Println("----------------------------------------------------------------")
+	}
+
+	GinkgoWriter.Println("You can skip this debug output by setting 'SKIP_DEBUG_OUTPUT=true'")
+
 }
 
+// EnsureRunningOnOpenShift should be called if a test requires OpenShift (for example, it uses Route CR).
+func EnsureRunningOnOpenShift() {
+
+	runningOnOpenShift := RunningOnOpenShift()
+
+	if !runningOnOpenShift {
+		Skip("This test requires the cluster to be OpenShift")
+		return
+	}
+
+	Expect(runningOnOpenShift).To(BeTrueBecause("this test is marked as requiring an OpenShift cluster, and we have detected the cluster is OpenShift"))
+
+}
+
+// RunningOnOpenShift returns true if the cluster is an OpenShift cluster, false otherwise.
+func RunningOnOpenShift() bool {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	crdList := crdv1.CustomResourceDefinitionList{}
+	Expect(k8sClient.List(context.Background(), &crdList)).To(Succeed())
+
+	openshiftAPIsFound := 0
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Spec.Group, "openshift.io") {
+			openshiftAPIsFound++
+		}
+	}
+	return openshiftAPIsFound > 5 // I picked 5 as an arbitrary number, could also just be 1
+}
+
+//nolint:unused
 func outputPodLog(podSubstring string) {
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	if err != nil {
@@ -901,7 +995,7 @@ func outputPodLog(podSubstring string) {
 		return
 	}
 
-	// Look specifically for operator pod
+	// Look specifically for pod with name
 	matchingPods := []corev1.Pod{}
 	for idx := range podList.Items {
 		pod := podList.Items[idx]
@@ -912,19 +1006,19 @@ func outputPodLog(podSubstring string) {
 
 	if len(matchingPods) == 0 {
 		// This can happen when the operator is not running on the cluster
-		GinkgoWriter.Println("DebugOutputOperatorLogs was called, but no pods were found.")
+		GinkgoWriter.Println("outputPodLog was called looking for substring '" + podSubstring + "', but no pods were found.")
 		return
 	}
 
 	if len(matchingPods) != 1 {
-		GinkgoWriter.Println("unexpected number of operator pods", matchingPods)
+		GinkgoWriter.Println("unexpected number of pods", matchingPods)
 		return
 	}
 
 	// Extract operator logs
-	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
+	kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs", "pod/"+matchingPods[0].Name, "manager", "-n", matchingPods[0].Namespace)
 	if err != nil {
-		GinkgoWriter.Println("unable to extract operator logs", err)
+		GinkgoWriter.Println("unable to extract logs for", matchingPods[0].Name, err)
 		return
 	}
 
@@ -935,10 +1029,49 @@ func outputPodLog(podSubstring string) {
 
 	GinkgoWriter.Println("")
 	GinkgoWriter.Println("----------------------------------------------------------------")
-	GinkgoWriter.Println("Log output from operator pod:")
+	GinkgoWriter.Println("Log output from pod '" + matchingPods[0].Name + "' in " + matchingPods[0].Namespace + ":")
 	for _, line := range lines[startIndex:] {
 		GinkgoWriter.Println(">", line)
 	}
 	GinkgoWriter.Println("----------------------------------------------------------------")
 
+}
+
+//nolint:unused
+func outputAppControllerAndRepoLogsInNamespace(namespace string) {
+
+	var podList corev1.PodList
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+	err := k8sClient.List(context.Background(), &podList, client.InNamespace(namespace))
+	Expect(err).ToNot(HaveOccurred())
+	for _, pod := range podList.Items {
+
+		want := strings.Contains(pod.Name, "repo-server") || strings.Contains(pod.Name, "application-controller")
+		if !want {
+			continue
+		}
+
+		kubectlLogOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "logs", "pod/"+pod.Name, "-n", pod.Namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to extract logs for", pod.Name, err)
+			return
+		}
+
+		// Output only the last 500 lines
+		lines := strings.Split(kubectlLogOutput, "\n")
+
+		startIndex := max(len(lines)-500, 0)
+
+		GinkgoWriter.Println("")
+		GinkgoWriter.Println("----------------------------------------------------------------")
+		GinkgoWriter.Println("Log output from pod '" + pod.Name + "' in " + pod.Namespace + ":")
+		for _, line := range lines[startIndex:] {
+			GinkgoWriter.Println(">", line)
+		}
+		GinkgoWriter.Println("----------------------------------------------------------------")
+	}
+}
+
+func IsUpstreamOperatorTests() bool {
+	return false // This function should return true if running from argocd-operator repo, false if running from gitops-operator repo. This is to distinguish between tests in upstream argocd-operator and downstream gitops-operator repos.
 }

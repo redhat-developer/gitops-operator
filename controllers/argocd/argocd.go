@@ -17,11 +17,14 @@ limitations under the License.
 package argocd
 
 import (
+	"context"
+
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoappController "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
 
@@ -86,7 +89,10 @@ func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
 	}
 }
 
-func getArgoSSOSpec() *argoapp.ArgoCDSSOSpec {
+func getArgoSSOSpec(client client.Client) *argoapp.ArgoCDSSOSpec {
+	if argoappController.IsOpenShiftCluster() && argoappController.IsExternalAuthenticationEnabledOnCluster(context.TODO(), client) {
+		return nil
+	}
 	return &argoapp.ArgoCDSSOSpec{
 		Provider: argoapp.SSOProviderTypeDex,
 		Dex:      getArgoDexSpec(),
@@ -179,9 +185,49 @@ func getDefaultRBAC() argoapp.ArgoCDRBACSpec {
 }
 
 // NewCR returns an ArgoCD reference optimized for use in OpenShift
-// with Tekton
-func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
+// with comprehensive default resource exclusions
+func NewCR(name, ns string, client client.Client) (*argoapp.ArgoCD, error) {
 	b, err := yaml.Marshal([]resource{
+		{
+			APIGroups: []string{"", "discovery.k8s.io"},
+			Kinds:     []string{"Endpoints", "EndpointSlice"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Kinds:     []string{"APIService"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"coordination.k8s.io"},
+			Kinds:     []string{"Lease"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"authentication.k8s.io", "authorization.k8s.io"},
+			Kinds:     []string{"SelfSubjectReview", "TokenReview", "LocalSubjectAccessReview", "SelfSubjectAccessReview", "SelfSubjectRulesReview", "SubjectAccessReview"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"certificates.k8s.io"},
+			Kinds:     []string{"CertificateSigningRequest"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"cert-manager.io"},
+			Kinds:     []string{"CertificateRequest"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"cilium.io"},
+			Kinds:     []string{"CiliumIdentity", "CiliumEndpoint", "CiliumEndpointSlice"},
+			Clusters:  []string{"*"},
+		},
+		{
+			APIGroups: []string{"kyverno.io", "reports.kyverno.io", "wgpolicyk8s.io"},
+			Kinds:     []string{"PolicyReport", "ClusterPolicyReport", "EphemeralReport", "ClusterEphemeralReport", "AdmissionReport", "ClusterAdmissionReport", "BackgroundScanReport", "ClusterBackgroundScanReport", "UpdateRequest"},
+			Clusters:  []string{"*"},
+		},
 		{
 			APIGroups: []string{"tekton.dev"},
 			Kinds:     []string{"TaskRun", "PipelineRun"},
@@ -191,12 +237,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &argoapp.ArgoCD{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ArgoCD",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: ns,
@@ -204,7 +245,7 @@ func NewCR(name, ns string) (*argoapp.ArgoCD, error) {
 		Spec: argoapp.ArgoCDSpec{
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
-			SSO:                getArgoSSOSpec(),
+			SSO:                getArgoSSOSpec(client),
 			Grafana:            getArgoGrafanaSpec(),
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),

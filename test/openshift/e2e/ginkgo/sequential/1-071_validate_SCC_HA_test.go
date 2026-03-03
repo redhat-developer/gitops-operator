@@ -63,7 +63,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(scc), scc); err == nil {
 				Expect(k8sClient.Delete(ctx, scc)).To(Succeed())
 			} else {
-				Expect(err).ToNot(BeNil())
+				Expect(err).To(HaveOccurred())
 			}
 
 			scc = &securityv1.SecurityContextConstraints{

@@ -134,7 +134,7 @@ metadata:
                 }
               }
             },
-            "resourceExclusions": "- apiGroups:\n  - tekton.dev\n  clusters:\n  - '*'\n  kinds:\n  - TaskRun\n  - PipelineRun        \n",
+            "resourceExclusions": "- apiGroups:\n  - \"\"\n  - discovery.k8s.io\n  kinds:\n  - Endpoints\n  - EndpointSlice\n- apiGroups:\n  - apiregistration.k8s.io\n  kinds:\n  - APIService\n- apiGroups:\n  - coordination.k8s.io\n  kinds:\n  - Lease\n- apiGroups:\n  - authentication.k8s.io\n  - authorization.k8s.io\n  kinds:\n  - SelfSubjectReview\n  - TokenReview\n  - LocalSubjectAccessReview\n  - SelfSubjectAccessReview\n  - SelfSubjectRulesReview\n  - SubjectAccessReview\n- apiGroups:\n  - certificates.k8s.io\n  kinds:\n  - CertificateSigningRequest\n- apiGroups:\n  - cert-manager.io\n  kinds:\n  - CertificateRequest\n- apiGroups:\n  - cilium.io\n  kinds:\n  - CiliumIdentity\n  - CiliumEndpoint\n  - CiliumEndpointSlice\n- apiGroups:\n  - kyverno.io\n  - reports.kyverno.io\n  - wgpolicyk8s.io\n  kinds:\n  - PolicyReport\n  - ClusterPolicyReport\n  - EphemeralReport\n  - ClusterEphemeralReport\n  - AdmissionReport\n  - ClusterAdmissionReport\n  - BackgroundScanReport\n  - ClusterBackgroundScanReport\n  - UpdateRequest\n- apiGroups:\n  - tekton.dev\n  clusters:\n  - '*'\n  kinds:\n  - TaskRun\n  - PipelineRun\n",
             "server": {
               "resources": {
                 "limits": {
@@ -180,7 +180,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2025-06-25T12:59:48Z"
+    createdAt: "2026-02-27T08:17:37Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -306,6 +306,9 @@ spec:
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
       version: v1alpha1
+    - kind: NamespaceManagement
+      name: namespacemanagements.argoproj.io
+      version: v1beta1
     - description: NotificationsConfigurations contains the notification template
         used to generate notifications that notify users about important changes in
         the application state.
@@ -359,25 +362,6 @@ spec:
           - endpoints
           - events
           - namespaces
-          - pods
-          - secrets
-          - serviceaccounts
-          - services
-          - services/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - endpoints
-          - events
           - persistentvolumeclaims
           - pods
           - secrets
@@ -396,21 +380,10 @@ spec:
           - ""
           resources:
           - deployments
+          - podtemplates
           verbs:
           - get
           - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          - resourcequotas
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
           - watch
         - apiGroups:
           - ""
@@ -427,10 +400,13 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - podtemplates
+          - resourcequotas
           verbs:
+          - create
+          - delete
           - get
           - list
+          - update
           - watch
         - apiGroups:
           - apiextensions.k8s.io
@@ -471,22 +447,9 @@ spec:
           resources:
           - daemonsets
           - deployments
-          - replicasets
-          - statefulsets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
           - podtemplates
           - replicasets
+          - statefulsets
           verbs:
           - create
           - delete
@@ -526,21 +489,16 @@ spec:
           resources:
           - analysisruns
           - analysisruns/finalizers
+          - analysistemplates
+          - clusteranalysistemplates
           - experiments
           - experiments/finalizers
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - analysistemplates
+          - namespacemanagements
+          - namespacemanagements/status
+          - rollouts
+          - rollouts/finalizers
+          - rollouts/scale
+          - rollouts/status
           verbs:
           - create
           - delete
@@ -558,22 +516,10 @@ spec:
           - argocds
           - argocds/finalizers
           - argocds/status
+          - rolloutmanagers
           verbs:
           - create
           - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - clusteranalysistemplates
-          verbs:
-          - create
-          - delete
-          - deletecollection
           - get
           - list
           - patch
@@ -589,18 +535,6 @@ spec:
         - apiGroups:
           - argoproj.io
           resources:
-          - rolloutmanagers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
           - rolloutmanagers/finalizers
           verbs:
           - update
@@ -612,22 +546,6 @@ spec:
           - get
           - patch
           - update
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - rollouts
-          - rollouts/finalizers
-          - rollouts/scale
-          - rollouts/status
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - autoscaling
           resources:
@@ -654,21 +572,11 @@ spec:
           - update
           - watch
         - apiGroups:
-          - batch
-          resources:
-          - jobs
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
           - config.openshift.io
           resources:
+          - authentications
           - clusterversions
+          - ingresses
           verbs:
           - get
           - list
@@ -688,17 +596,6 @@ spec:
           - console.openshift.io
           resources:
           - consolelinks
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - console.openshift.io
-          resources:
           - consoleplugins
           verbs:
           - create
@@ -735,6 +632,7 @@ spec:
           - watch
         - apiGroups:
           - getambassador.io
+          - x.getambassador.io
           resources:
           - ambassadormappings
           - mappings
@@ -765,17 +663,6 @@ spec:
           - destinationrules
           - virtualservices
           verbs:
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - networking.k8s.io
-          resources:
-          - ingresses
-          verbs:
-          - create
           - get
           - list
           - patch
@@ -821,17 +708,6 @@ spec:
           - pipelines.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - pipelines.openshift.io
-          resources:
           - gitopsservices
           verbs:
           - create
@@ -859,20 +735,6 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - '*'
-          verbs:
-          - bind
-          - create
-          - delete
-          - deletecollection
-          - escalate
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
           - clusterrolebindings
           - clusterroles
           verbs:
@@ -903,17 +765,6 @@ spec:
           - route.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
           - routes
           - routes/custom-host
           verbs:
@@ -956,18 +807,10 @@ spec:
           - get
           - update
           - watch
-        - apiGroups:
-          - x.getambassador.io
-          resources:
-          - ambassadormappings
-          - mappings
+        - nonResourceURLs:
+          - /metrics
           verbs:
-          - create
-          - delete
           - get
-          - list
-          - update
-          - watch
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -1049,7 +892,7 @@ spec:
                 - --logtostderr=true
                 - --allow-paths=/metrics
                 - --http2-disable
-                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.13
+                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
                 name: kube-rbac-proxy
                 ports:
                 - containerPort: 8443

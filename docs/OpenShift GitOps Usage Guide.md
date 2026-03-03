@@ -3,8 +3,7 @@
 ## Table of Contents
 1. [Installing OpenShift GitOps](#installing-openshift-gitops)  
 2. [Configure SSO for OpenShift GitOps](#configure-sso-for-openshift-gitops)   
-    a. [Dex](#dex)  
-    b. [RHSSO / Keycloak](#rhssokeycloak)  
+    a. [Dex](#dex)   
 3. [Setting environment variables](#setting-environment-variables)    
 4. [Setting up a new ArgoCD instance](#setting-up-a-new-argo-cd-instance)  
 5. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
@@ -193,12 +192,6 @@ Dex can be used to authenticate with Argo CD. Refer [Dex config guidance](./dex_
 
 > **Note**  
 Dex is automatically configured for default Argo CD instance in the openshift-gitops namespace to allow users to use OpenShift OAuth to login into Argo CD. Refer [Uninstall](./dex_config_guidance.md#uninstall) section to disable dex on default Argo CD instance.
-
-### RHSSO/Keycloak
-
-GitOps comes with a bundled keycloak instance which is configured for authenticating with Argo CD component of Openshift GitOps. The main purpose of this instance created by the operator is to allow users to login into Argo CD with their OpenShift users.
-
-Refer [RHSSO config guidance](./rhsso_config_guidance.md) for installation & configuration steps.
 
 ## Setting environment variables
 
@@ -679,7 +672,7 @@ Similarly, A user can update the Application Controller **resource limits** of a
 
 `kubectl -n argocd patch argocd example --type='json' -p='[{"op": "replace", "path": "/spec/controller/resources/limits/memory", "value":"2048Mi"}]'`
 
-**The above commands can be modified to replace application controller with any other OpenShift GitOps workloads such as ApplicationSet Controller, Dex, Redis, Repo Server, Server, Keycloak e.t.c.,.**
+**The above commands can be modified to replace application controller with any other OpenShift GitOps workloads such as ApplicationSet Controller, Dex, Redis, Repo Server, Server, e.t.c.,.**
 
 ### Remove the resource requirements for Argo CD workloads
 

@@ -114,7 +114,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				secContext := container.SecurityContext
 				Expect(secContext).ToNot(BeNil())
 
-				if depl.Name == "argocd-applicationset-controller" {
+				switch depl.Name {
+				case "argocd-applicationset-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -125,7 +126,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							LocalhostProfile: nil,
 						},
 					}))
-				} else if depl.Name == "argocd-dex-server" {
+				case "argocd-dex-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -136,7 +137,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							LocalhostProfile: nil,
 						},
 					}))
-				} else if depl.Name == "argocd-notifications-controller" {
+				case "argocd-notifications-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -150,7 +151,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 					Expect(depl.Spec.Template.Spec.SecurityContext.RunAsNonRoot).To(Equal(ptr.To(true)))
 
-				} else if depl.Name == "argocd-redis" {
+				case "argocd-redis":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -162,7 +163,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						},
 					}))
 
-				} else if depl.Name == "argocd-repo-server" {
+				case "argocd-repo-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -174,7 +175,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						},
 					}))
 
-				} else if depl.Name == "argocd-server" {
+				case "argocd-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
 						AllowPrivilegeEscalation: ptr.To(false),
@@ -186,7 +187,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						},
 					}))
 
-				} else {
+				default:
 					Fail("unrecognized deployment: " + depl.Name)
 				}
 			}

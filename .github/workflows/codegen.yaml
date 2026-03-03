@@ -58,3 +58,22 @@ jobs:
       - name: Ensure there is no diff in manifests
         run: |
           git diff --ignore-matching-lines='.*createdAt:.*' --exit-code -- .
+
+  gosec:
+    name: Ensure that code passes gosec and golint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: "Ensure code passes 'go-sec' - run 'make gosec' to identify issues"
+        run: |
+          make gosec
+
+      - name: "Ensure code passes 'golangci-lint' - run 'make lint' to identify issues"
+        run: |
+          make lint 

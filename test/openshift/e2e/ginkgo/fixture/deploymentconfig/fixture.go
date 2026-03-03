@@ -4,6 +4,7 @@ import (
 	"context"
 
 	. "github.com/onsi/ginkgo/v2"
+
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
@@ -16,14 +17,14 @@ import (
 func HaveReplicas(replicas int) matcher.GomegaMatcher {
 	return fetchDeploymentConfig(func(depl *openshiftappsv1.DeploymentConfig) bool {
 		GinkgoWriter.Println("DeploymentConfig - HaveReplicas:", "expected: ", replicas, "actual: ", depl.Status.Replicas)
-		return depl.Status.Replicas == int32(replicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.Replicas) == replicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
 func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	return fetchDeploymentConfig(func(depl *openshiftappsv1.DeploymentConfig) bool {
 		GinkgoWriter.Println("DeploymentConfig - HaveReadyReplicas:", "expected: ", readyReplicas, "actual: ", depl.Status.ReadyReplicas)
-		return depl.Status.ReadyReplicas == int32(readyReplicas) && depl.Generation == depl.Status.ObservedGeneration
+		return int(depl.Status.ReadyReplicas) == readyReplicas && depl.Generation == depl.Status.ObservedGeneration
 	})
 }
 
