@@ -9,6 +9,7 @@ resources:
 - bases/argoproj.io_argocds.yaml
 - bases/argoproj.io_namespacemanagements.yaml
 - bases/argoproj.io_notificationsconfigurations.yaml
+- bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
 - bases/analysis-run-crd.yaml
 - bases/analysis-template-crd.yaml
 - bases/argoproj.io_rolloutmanagers.yaml
