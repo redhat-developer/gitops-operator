@@ -83,6 +83,28 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies that toolchain versions have the expected values", func() {
 
+<<<<<<< Updated upstream
+			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
+			expected_kustomizeVersion := "v5.8.1"
+			expected_helmVersion := "v3.19.4"
+			expected_argocdVersion := "v3.3.2"
+
+			var expected_dexVersion string
+			var expected_redisVersion string
+
+			if os.Getenv("CI") == "prow" {
+				// when running against openshift-ci
+				expected_dexVersion = "v2.43.0"
+				expected_redisVersion = "8.2.3"
+
+			} else {
+				// when running against RC/ released version of gitops
+				expected_dexVersion = "v2.43.1"
+				expected_redisVersion = "7.2.11"
+			}
+
+=======
+>>>>>>> Stashed changes
 			By("locating pods containing toolchain in openshift-gitops")
 
 			gitops_server_pod, err := getPodName("openshift-gitops-server")
@@ -174,15 +196,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			snapshotPath := "../snapshots/valid_toolchain_versions_release.yaml"
-
 			if os.Getenv("CI") == "prow" {
 				snapshotPath = "../snapshots/valid_toolchain_versions_prow.yaml"
 			}
-
-			By("comparing collected versions against snapshot")
-
-			snapshotData, readErr := os.ReadFile(snapshotPath)
-			Expect(readErr).NotTo(HaveOccurred(), "snapshot file not found at %s; run with E2E_UPDATE_SNAPSHOTS=1 to create it", snapshotPath)
 
 			if os.Getenv("E2E_UPDATE_SNAPSHOTS") == "1" {
 				By("updating snapshot file with collected versions")
@@ -191,6 +207,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Expect(os.MkdirAll(filepath.Dir(snapshotPath), 0755)).To(Succeed())
 				Expect(os.WriteFile(snapshotPath, data, 0644)).To(Succeed())
 			}
+
+			By("comparing collected versions against snapshot")
+
+			snapshotData, readErr := os.ReadFile(snapshotPath)
+			Expect(readErr).NotTo(HaveOccurred(), "snapshot file not found at %s; run with E2E_UPDATE_SNAPSHOTS=1 to create it", snapshotPath)
 
 			var snapshotVersions map[string]string
 			Expect(yaml.Unmarshal(snapshotData, &snapshotVersions)).To(Succeed())

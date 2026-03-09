@@ -1,0 +1,5 @@
+argocd: v3.3.2
+dex: v2.43.0
+helm: v3.19.4
+kustomize: v5.8.1
+redis: 7.2.11
