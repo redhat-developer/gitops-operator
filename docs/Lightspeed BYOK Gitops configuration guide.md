@@ -16,7 +16,7 @@ We have curated and optimized specialized knowledge sets for the following compo
 * Red Hat OpenShift GitOps Operator
 * ArgoCD Agent
 
-This knowledge is packaged into a container [image](https://quay.io/rhn-support-alkumari/argocd-byok-image:v0.0.2) and can be configured in Lightspeed using the instructions below.
+This knowledge is packaged into a container [image](https://quay.io/devtools_gitops/argocd_lightspeed_byok:v0.0.4) and can be configured in Lightspeed using the instructions below.
 
 ## Prerequisites
 
@@ -42,7 +42,7 @@ metadata:
 spec:
   ols:
     rag:
-      - image: quay.io/rhn-support-alkumari/argocd-byok-image:v0.0.4
+      - image: quay.io/devtools_gitops/argocd_lightspeed_byok:v0.0.4
 ```
 
 Note: Where image specifies the tag for the image that is present in the image registry so that the OpenShift Lightspeed Operator can access the custom content.
