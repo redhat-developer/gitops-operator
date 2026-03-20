@@ -8,12 +8,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -135,23 +137,33 @@ labels:
 			err = argocd.LogInToDefaultArgoCDInstance()
 			Expect(err).ToNot(HaveOccurred(), "Failed to login to Argo CD")
 
-			By("creating an Argo CD Application configured to deploy the templates")
+			By("Creating ArgoCD Application CR using the typed schema")
 			appName := "app-kustomize-" + ns.Name
-			app := &unstructured.Unstructured{}
-			app.SetGroupVersionKind(schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Application"})
-			app.SetName(appName)
-			app.SetNamespace("openshift-gitops")
 
-			// application spec
-			Expect(unstructured.SetNestedField(app.Object, "default", "spec", "project")).To(Succeed())
-			Expect(unstructured.SetNestedField(app.Object, "file://"+workDir+".git", "spec", "source", "repoURL")).To(Succeed())
-			Expect(unstructured.SetNestedField(app.Object, ".", "spec", "source", "path")).To(Succeed())
-			Expect(unstructured.SetNestedField(app.Object, "HEAD", "spec", "source", "targetRevision")).To(Succeed())
-			Expect(unstructured.SetNestedField(app.Object, "https://kubernetes.default.svc", "spec", "destination", "server")).To(Succeed())
-			Expect(unstructured.SetNestedField(app.Object, ns.Name, "spec", "destination", "namespace")).To(Succeed())
-			Expect(unstructured.SetNestedStringSlice(app.Object, []string{"PruneLast=true"}, "spec", "syncPolicy", "syncOptions")).To(Succeed())
+			app := &argov1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: "openshift-gitops",
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "file://" + workDir + ".git",
+						Path:           ".",
+						TargetRevision: "HEAD",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: ns.Name,
+					},
+					SyncPolicy: &argov1alpha1.SyncPolicy{
+						SyncOptions: argov1alpha1.SyncOptions{"PruneLast=true"},
+					},
+				},
+			}
 
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
 			DeferCleanup(func() {
 				_ = k8sClient.Delete(ctx, app)
 			})
