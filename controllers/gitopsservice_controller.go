@@ -73,6 +73,9 @@ var (
 
 const (
 	gitopsServicePrefix = "gitops-service-"
+	// PodSecurityLabelSyncLabel enables OpenShift to manage pod-security.kubernetes.io/* on the namespace.
+	PodSecurityLabelSyncLabel      = "security.openshift.io/scc.podSecurityLabelSync"
+	PodSecurityLabelSyncLabelValue = "true"
 	kamResourceName     = "kam"
 )
 
@@ -914,14 +917,7 @@ func newRestrictedNamespace(ns string) *corev1.Namespace {
 	}
 
 	if strings.HasPrefix(ns, "openshift-") {
-		// Set pod security policy, which is required for namespaces pre-fixed with openshift
-		// as the pod security label syncer doesn't set them on OCP namespaces.
-		objectMeta.Labels["pod-security.kubernetes.io/enforce"] = "restricted"
-		objectMeta.Labels["pod-security.kubernetes.io/enforce-version"] = "v1.29"
-		objectMeta.Labels["pod-security.kubernetes.io/audit"] = "restricted"
-		objectMeta.Labels["pod-security.kubernetes.io/audit-version"] = "latest"
-		objectMeta.Labels["pod-security.kubernetes.io/warn"] = "restricted"
-		objectMeta.Labels["pod-security.kubernetes.io/warn-version"] = "latest"
+		objectMeta.Labels[PodSecurityLabelSyncLabel] = PodSecurityLabelSyncLabelValue
 	}
 
 	return &corev1.Namespace{
@@ -1008,23 +1004,12 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 }
 
 func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
-
-	pssLabels := map[string]string{
-		"pod-security.kubernetes.io/enforce":         "restricted",
-		"pod-security.kubernetes.io/enforce-version": "v1.29",
-		"pod-security.kubernetes.io/audit":           "restricted",
-		"pod-security.kubernetes.io/audit-version":   "latest",
-		"pod-security.kubernetes.io/warn":            "restricted",
-		"pod-security.kubernetes.io/warn-version":    "latest",
+	if namespace.Labels == nil {
+		namespace.Labels = make(map[string]string)
 	}
-
-	changed := false
-	for pssKey, pssVal := range pssLabels {
-		if nsVal, exists := namespace.Labels[pssKey]; !exists || nsVal != pssVal {
-			namespace.Labels[pssKey] = pssVal
-			changed = true
-		}
-
+	if namespace.Labels[PodSecurityLabelSyncLabel] != PodSecurityLabelSyncLabelValue {
+		namespace.Labels[PodSecurityLabelSyncLabel] = PodSecurityLabelSyncLabelValue
+		return true, namespace
 	}
-	return changed, namespace
+	return false, namespace
 }
