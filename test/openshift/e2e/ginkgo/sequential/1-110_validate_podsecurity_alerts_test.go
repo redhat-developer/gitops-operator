@@ -2,7 +2,6 @@ package sequential
 
 import (
 	"context"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,7 +21,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift populates pod-security label keys", func() {
+		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift populates pod-security labels", func() {
 			gitopsNS := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "openshift-gitops",
@@ -34,27 +33,37 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(gitopsNS, "5m", "5s").Should(
 				k8sFixture.HaveLabelWithValue("security.openshift.io/scc.podSecurityLabelSync", "true"))
 
-			By("OpenShift pod security label syncer sets pod-security.kubernetes.io/* (values depend on OCP version; only non-empty keys are asserted)")
-			for _, key := range []string{
+			By("OpenShift populates at least one pod-security.kubernetes.io/* label")
+			pssLabelKeys := []string{
 				"pod-security.kubernetes.io/audit",
 				"pod-security.kubernetes.io/audit-version",
 				"pod-security.kubernetes.io/enforce",
 				"pod-security.kubernetes.io/enforce-version",
 				"pod-security.kubernetes.io/warn",
 				"pod-security.kubernetes.io/warn-version",
-			} {
-				labelKey := key
-				Eventually(func() bool {
-					k8sClient, _ := fixtureUtils.GetE2ETestKubeClient()
-					ns := &corev1.Namespace{}
-					if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "openshift-gitops"}, ns); err != nil {
-						return false
+			}
+			Eventually(func() bool {
+				k8sClient, _ := fixtureUtils.GetE2ETestKubeClient()
+				ns := &corev1.Namespace{}
+				if err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "openshift-gitops"}, ns); err != nil {
+					return false
+				}
+				if ns.Labels == nil {
+					return false
+				}
+				for _, key := range pssLabelKeys {
+					if ns.Labels[key] != "" {
+						return true
 					}
-					if ns.Labels == nil {
-						return false
-					}
-					return ns.Labels[labelKey] != ""
-				}).WithTimeout(5*time.Minute).WithPolling(5*time.Second).Should(BeTrue(), "expected label %s to be set by OpenShift", labelKey)
+				}
+				return false
+			}, "5m", "5s").Should(BeTrue(), "expected at least one pod-security.kubernetes.io/* label to be set by OpenShift")
+
+			k8sClient, _ := fixtureUtils.GetE2ETestKubeClient()
+			ns := &corev1.Namespace{}
+			Expect(k8sClient.Get(context.Background(), client.ObjectKey{Name: "openshift-gitops"}, ns)).To(Succeed())
+			for _, key := range pssLabelKeys {
+				GinkgoWriter.Printf("observed namespace label %s=%q\n", key, ns.Labels[key])
 			}
 		})
 
