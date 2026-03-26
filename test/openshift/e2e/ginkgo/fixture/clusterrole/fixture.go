@@ -2,6 +2,7 @@ package clusterrole
 
 import (
 	"context"
+	"reflect"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,6 +31,13 @@ func Update(obj *rbacv1.ClusterRole, modify func(*rbacv1.ClusterRole)) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
+}
+
+func HaveRules(expectedRules []rbacv1.PolicyRule) matcher.GomegaMatcher {
+	return fetchRole(func(cr *rbacv1.ClusterRole) bool {
+		GinkgoWriter.Println("HaveRules - Expected:", expectedRules, "/ Actual:", cr.Rules)
+		return reflect.DeepEqual(expectedRules, cr.Rules)
+	})
 }
 
 // This is intentionally NOT exported, for now. Create another function in this file/package that calls this function, and export that.
