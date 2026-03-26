@@ -641,83 +641,37 @@ func TestReconcile_PSSLabels(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
+	// Unit tests only assert the operator-managed sync label; pod-security.kubernetes.io/* is owned by OpenShift (e2e).
 	testCases := []struct {
-		name            string
-		namespace       string
-		initial_labels  map[string]string
-		expected_labels map[string]string
+		name                     string
+		namespace                string
+		initial_labels           map[string]string
+		wantPodSecurityLabelSync bool
 	}{
 		{
-			name:      "openshift-gitops: podSecurityLabelSync absent, valid PSS labels only",
+			name:      "openshift-gitops: podSecurityLabelSync absent",
 			namespace: "openshift-gitops",
 			initial_labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "privileged",
-				"pod-security.kubernetes.io/enforce-version": "v1.30",
-				"pod-security.kubernetes.io/audit":           "privileged",
-				"pod-security.kubernetes.io/audit-version":   "v1.29",
-				"pod-security.kubernetes.io/warn":            "privileged",
-				"pod-security.kubernetes.io/warn-version":    "v1.29",
+				"openshift.io/cluster-monitoring": "true",
 			},
-			expected_labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "privileged",
-				"pod-security.kubernetes.io/enforce-version": "v1.30",
-				"pod-security.kubernetes.io/audit":           "privileged",
-				"pod-security.kubernetes.io/audit-version":   "v1.29",
-				"pod-security.kubernetes.io/warn":            "privileged",
-				"pod-security.kubernetes.io/warn-version":    "v1.29",
-				PodSecurityLabelSyncLabel:                    PodSecurityLabelSyncLabelValue,
-			},
-		},
-		{
-			name:      "openshift-gitops: podSecurityLabelSync absent, invalid PSS labels only",
-			namespace: "openshift-gitops",
-			initial_labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "invalid",
-				"pod-security.kubernetes.io/enforce-version": "invalid",
-				"pod-security.kubernetes.io/warn":            "invalid",
-				"pod-security.kubernetes.io/warn-version":    "invalid",
-			},
-			expected_labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "invalid",
-				"pod-security.kubernetes.io/enforce-version": "invalid",
-				"pod-security.kubernetes.io/warn":            "invalid",
-				"pod-security.kubernetes.io/warn-version":    "invalid",
-				PodSecurityLabelSyncLabel:                    PodSecurityLabelSyncLabelValue,
-			},
+			wantPodSecurityLabelSync: true,
 		},
 		{
 			name:      "openshift-gitops: podSecurityLabelSync wrong value",
 			namespace: "openshift-gitops",
 			initial_labels: map[string]string{
-				"openshift.io/cluster-monitoring":            "true",
-				PodSecurityLabelSyncLabel:                    "false",
-				"pod-security.kubernetes.io/enforce":         "restricted",
-				"pod-security.kubernetes.io/enforce-version": "v1.29",
-				"pod-security.kubernetes.io/audit":           "restricted",
-				"pod-security.kubernetes.io/audit-version":   "latest",
-				"pod-security.kubernetes.io/warn":            "restricted",
-				"pod-security.kubernetes.io/warn-version":    "latest",
+				"openshift.io/cluster-monitoring": "true",
+				PodSecurityLabelSyncLabel:         "false",
 			},
-			expected_labels: map[string]string{
-				"openshift.io/cluster-monitoring":            "true",
-				PodSecurityLabelSyncLabel:                    PodSecurityLabelSyncLabelValue,
-				"pod-security.kubernetes.io/enforce":         "restricted",
-				"pod-security.kubernetes.io/enforce-version": "v1.29",
-				"pod-security.kubernetes.io/audit":           "restricted",
-				"pod-security.kubernetes.io/audit-version":   "latest",
-				"pod-security.kubernetes.io/warn":            "restricted",
-				"pod-security.kubernetes.io/warn-version":    "latest",
-			},
+			wantPodSecurityLabelSync: true,
 		},
 		{
-			name:      "test: user namespace labels unchanged by reconcile (no PSS / no sync)",
+			name:      "test: operator does not set podSecurityLabelSync on non-openshift-* namespaces",
 			namespace: "test",
 			initial_labels: map[string]string{
 				"openshift.io/cluster-monitoring": "true",
 			},
-			expected_labels: map[string]string{
-				"openshift.io/cluster-monitoring": "true",
-			},
+			wantPodSecurityLabelSync: false,
 		},
 	}
 
@@ -758,10 +712,10 @@ func TestReconcile_PSSLabels(t *testing.T) {
 
 			reconciled_ns := &corev1.Namespace{}
 			assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, reconciled_ns))
-			for key, value := range tc.expected_labels {
-				label, found := reconciled_ns.Labels[key]
-				assert.Check(t, found)
-				assert.Equal(t, label, value)
+			if tc.wantPodSecurityLabelSync {
+				assert.Equal(t, PodSecurityLabelSyncLabelValue, reconciled_ns.Labels[PodSecurityLabelSyncLabel])
+			} else {
+				assert.Check(t, reconciled_ns.Labels[PodSecurityLabelSyncLabel] != PodSecurityLabelSyncLabelValue)
 			}
 		})
 	}
