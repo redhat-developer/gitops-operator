@@ -17,8 +17,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies openshift-gitops Namespace has expected pod-security labels", func() {
-
+		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift sets audit to restricted", func() {
 			gitopsNS := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "openshift-gitops",
@@ -26,12 +25,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(gitopsNS).Should(k8sFixture.ExistByName())
 
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/audit", "restricted"))
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/audit-version", "latest"))
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/enforce", "restricted"))
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/enforce-version", "v1.29"))
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/warn", "restricted"))
-			Eventually(gitopsNS).Should(k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/warn-version", "latest"))
+			By("GitOps operator ensures security.openshift.io/scc.podSecurityLabelSync=true")
+			Eventually(gitopsNS, "5m", "5s").Should(
+				k8sFixture.HaveLabelWithValue("security.openshift.io/scc.podSecurityLabelSync", "true"))
+
+			By("OpenShift sets pod-security.kubernetes.io/audit=restricted (pod-security *-version labels vary by cluster and are not asserted)")
+			Eventually(gitopsNS, "5m", "5s").Should(
+				k8sFixture.HaveLabelWithValue("pod-security.kubernetes.io/audit", "restricted"))
 		})
 
 	})

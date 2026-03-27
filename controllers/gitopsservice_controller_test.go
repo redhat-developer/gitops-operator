@@ -641,42 +641,38 @@ func TestReconcile_PSSLabels(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
+	// Unit tests only assert the operator-managed sync label; pod-security.kubernetes.io/* is owned by OpenShift (e2e).
 	testCases := []struct {
-		name      string
-		namespace string
-		labels    map[string]string
+		name                     string
+		namespace                string
+		initial_labels           map[string]string
+		wantPodSecurityLabelSync bool
 	}{
 		{
-			name:      "modified valid PSS labels for openshift-gitops ns",
+			name:      "openshift-gitops: podSecurityLabelSync absent",
 			namespace: "openshift-gitops",
-			labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "privileged",
-				"pod-security.kubernetes.io/enforce-version": "v1.30",
-				"pod-security.kubernetes.io/audit":           "privileged",
-				"pod-security.kubernetes.io/audit-version":   "v1.29",
-				"pod-security.kubernetes.io/warn":            "privileged",
-				"pod-security.kubernetes.io/warn-version":    "v1.29",
+			initial_labels: map[string]string{
+				"openshift.io/cluster-monitoring": "true",
 			},
+			wantPodSecurityLabelSync: true,
 		},
 		{
-			name:      "modified invalid and empty PSS labels for openshift-gitops ns",
+			name:      "openshift-gitops: podSecurityLabelSync wrong value",
 			namespace: "openshift-gitops",
-			labels: map[string]string{
-				"pod-security.kubernetes.io/enforce":         "invalid",
-				"pod-security.kubernetes.io/enforce-version": "invalid",
-				"pod-security.kubernetes.io/warn":            "invalid",
-				"pod-security.kubernetes.io/warn-version":    "invalid",
+			initial_labels: map[string]string{
+				"openshift.io/cluster-monitoring": "true",
+				PodSecurityLabelSyncLabel:         "false",
 			},
+			wantPodSecurityLabelSync: true,
 		},
-	}
-
-	expected_labels := map[string]string{
-		"pod-security.kubernetes.io/enforce":         "restricted",
-		"pod-security.kubernetes.io/enforce-version": "v1.29",
-		"pod-security.kubernetes.io/audit":           "restricted",
-		"pod-security.kubernetes.io/audit-version":   "latest",
-		"pod-security.kubernetes.io/warn":            "restricted",
-		"pod-security.kubernetes.io/warn-version":    "latest",
+		{
+			name:      "test: operator does not set podSecurityLabelSync on non-openshift-* namespaces",
+			namespace: "test",
+			initial_labels: map[string]string{
+				"openshift.io/cluster-monitoring": "true",
+			},
+			wantPodSecurityLabelSync: false,
+		},
 	}
 
 	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.7.1"), newGitopsService())
@@ -704,40 +700,24 @@ func TestReconcile_PSSLabels(t *testing.T) {
 	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
-	// Check if PSS labels are addded to the user defined ns
-	reconciled_ns := &corev1.Namespace{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: "test"},
-		reconciled_ns)
-	assertNoError(t, err)
-
-	for label := range reconciled_ns.Labels {
-		_, found := expected_labels[label]
-		// Fail if label is found
-		assert.Check(t, found != true)
-	}
-
 	for _, tc := range testCases {
-		existing_ns := &corev1.Namespace{}
-		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
+		t.Run(tc.name, func(t *testing.T) {
+			ns := &corev1.Namespace{}
+			assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, ns))
+			ns.Labels = tc.initial_labels
+			assert.NilError(t, fakeClient.Update(context.TODO(), ns))
 
-		// Assign new values, confirm the assignment and update the PSS labels
-		existing_ns.Labels = tc.labels
-		err := fakeClient.Update(context.TODO(), existing_ns)
-		assert.NilError(t, err)
-		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, existing_ns), err)
-		assert.DeepEqual(t, existing_ns.Labels, tc.labels)
+			_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+			assertNoError(t, err)
 
-		_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
-		assertNoError(t, err)
-
-		assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, reconciled_ns), err)
-
-		for key, value := range expected_labels {
-			label, found := reconciled_ns.Labels[key]
-			// Fail if label is not found, comapre the values with the expected values if found
-			assert.Check(t, found)
-			assert.Equal(t, label, value)
-		}
+			reconciled_ns := &corev1.Namespace{}
+			assert.NilError(t, fakeClient.Get(context.TODO(), types.NamespacedName{Name: tc.namespace}, reconciled_ns))
+			if tc.wantPodSecurityLabelSync {
+				assert.Equal(t, PodSecurityLabelSyncLabelValue, reconciled_ns.Labels[PodSecurityLabelSyncLabel])
+			} else {
+				assert.Check(t, reconciled_ns.Labels[PodSecurityLabelSyncLabel] != PodSecurityLabelSyncLabelValue)
+			}
+		})
 	}
 }
 
