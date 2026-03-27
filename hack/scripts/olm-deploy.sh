@@ -103,6 +103,11 @@ EOF
     return 1
 }
 
+# When calling this script, specify environment variable pointing to, e.g.:
+# "IMAGE=quay.io/(your username)/gitops-operator" make olm-deploy
+# - The make targets will push to a number of repositories in your quay.io account
+# - Ensure that the docker/podman credentials you are using have push access to those repositories. e.g: (...)/gitops-operator, (...)/gitops-operator-bundle, (...)/gitops-operator-catalog.
+
 function main() {
     if [ ! -v IMAGE ]; then
         echo >&2 "Variable IMAGE not specified"
