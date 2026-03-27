@@ -29,3 +29,10 @@ cd ../..
 # Run e2e test
 make test-e2e
 
+# Run Rollouts E2E tests
+cd "$SCRIPT_DIR"
+
+# Get path containing the current script, usually (repo path)/scripts
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+"$SCRIPT_DIR/run-rollouts-e2e-tests.sh"
