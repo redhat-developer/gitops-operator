@@ -889,6 +889,132 @@ func TestReconcileBackend_DefaultRequestsAndLimits(t *testing.T) {
 	assert.Equal(t, deployment.Spec.Template.Spec.Containers[0].Resources.Limits["cpu"], resourcev1.MustParse("500m"))
 }
 
+// Tests for KAM component cleanup
+// No resources exist
+func TestCleanKAMResources_NoResourcesExist(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	fakeClient := fake.NewClientBuilder().WithScheme(s).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	// No KAM resources exist - function should be a silent no-op
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+}
+
+// Deployment exist
+func TestCleanKAMResources_DeploymentExist(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	kamDeploy := &appsv1.Deployment{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(kamDeploy).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &appsv1.Deployment{})
+	if !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Deployment to be deleted , got err: %v", err)
+	}
+}
+
+// Service exist
+func TestCleanKAMResources_ServiceExist(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	kamService := &corev1.Service{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(kamService).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &corev1.Service{})
+	if !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Service to be deleted , got err: %v", err)
+	}
+}
+
+// Route exist
+func TestCleanKAMResources_RouteExist(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	kamRoute := &routev1.Route{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(kamRoute).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+	err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &routev1.Route{})
+	if !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Route to be deleted , got err: %v", err)
+	}
+}
+
+// All Resources exist
+func TestCleanKAMResources_AllResourcesExist(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	kamDeploy := &appsv1.Deployment{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	kamService := &corev1.Service{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	kamRoute := &routev1.Route{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(kamDeploy, kamService, kamRoute).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+	if err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &appsv1.Deployment{}); !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Deployment to be deleted , got err: %v", err)
+	}
+	if err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &corev1.Service{}); !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Service to be deleted , got err: %v", err)
+	}
+	if err := fakeClient.Get(context.TODO(), types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, &routev1.Route{}); !errors.IsNotFound(err) {
+		t.Fatalf("expected KAM Route to be deleted , got err: %v", err)
+	}
+}
+
+// Idempotency
+func TestCleanKAMResources_Idempotent(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	kamDeploy := &appsv1.Deployment{
+		ObjectMeta: v1.ObjectMeta{Name: kamResourceName, Namespace: serviceNamespace},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(kamDeploy).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	// First call - deletes the KAM resource
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+	// Second call - must not panic even if the resources are already deleted
+	reconciler.cleanKAMResources(context.TODO(), reqLogger)
+
+}
+
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
