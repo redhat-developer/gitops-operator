@@ -62,14 +62,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating simple namespace-scoped Argo CD instance")
 			ocVersion := getOCPVersion()
 			Expect(ocVersion).ToNot(BeEmpty())
+
+			// Standard version check
 			if ocVersion < "4.20" {
 				Skip("skipping this test as OCP version is less than 4.20")
 				return
 			}
 
-			// also skip for CI
-			if strings.Contains(ocVersion, ".ci") {
-				Skip("skipping this test in CI because OIDC is not enabled by default")
+			// skip for CI environments if they are newer than 4.20.
+			if strings.Contains(ocVersion, ".ci") && !strings.HasPrefix(ocVersion, "4.20") {
+				Skip("skipping this test on CI clusters > 4.20 ")
 				return
 			}
 
