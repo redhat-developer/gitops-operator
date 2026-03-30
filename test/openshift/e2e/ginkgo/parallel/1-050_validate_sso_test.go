@@ -66,6 +66,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("skipping this test as OCP version is less than 4.20")
 				return
 			}
+
+			// also skip for CI
+			if strings.Contains(ocVersion, ".ci") {
+				Skip("skipping this test in CI because OIDC is not enabled by default")
+				return
+			}
+
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
