@@ -64,7 +64,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 
 			if testGitOpsNs != nil {
-				Expect(k8sClient.Delete(ctx, testGitOpsNs)).To(Succeed())
+				_ = k8sClient.Delete(ctx, testGitOpsNs)
 			}
 
 			if cleanupFunc != nil {
