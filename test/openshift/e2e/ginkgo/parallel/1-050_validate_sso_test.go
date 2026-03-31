@@ -51,32 +51,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			// try to output debug info only if the namespace was actually created
-			if ns != nil {
-				fixture.OutputDebugOnFail(ns)
-			}
+
+			fixture.OutputDebugOnFail(ns)
 
 			if cleanupFunc != nil {
 				cleanupFunc()
 			}
 		})
-
 		It("ensures the conditions in status when external Authentication is enabled on clusters; above 4.20 by default in openshit is enabled", func() {
 			By("creating simple namespace-scoped Argo CD instance")
 			ocVersion := getOCPVersion()
 			Expect(ocVersion).ToNot(BeEmpty())
-
 			if ocVersion < "4.20" {
 				Skip("skipping this test as OCP version is less than 4.20")
 				return
 			}
-
-			// skip on ANY 4.21+ cluster (inc CI)
-			if strings.Contains(ocVersion, ".ci") || strings.HasPrefix(ocVersion, "4.21") {
-				Skip("skipping this test on CI or 4.21+ clusters")
-				return
-			}
-
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
