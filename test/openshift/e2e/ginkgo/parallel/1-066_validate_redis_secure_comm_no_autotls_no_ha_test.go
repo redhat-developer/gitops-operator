@@ -21,16 +21,21 @@ import (
 	"os"
 	"time"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
-	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
-	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
+
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+
+	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
+	deplFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
+	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
+	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
+	statefulsetFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/statefulset"
+	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,7 +147,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("expecting redis-server to have desired container process command/arguments")
 
-			expectedString := "--save \"\" --appendonly no --requirepass " + "$(REDIS_PASSWORD)" + " --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no"
+			expectedString := "--save \"\" --appendonly no --aclfile /app/config/redis-auth/users.acl --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no"
 
 			if !fixture.IsUpstreamOperatorTests() {
 				// Downstream operator adds these arguments
@@ -175,5 +180,72 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
+		It("verify redis credential distribution", func() {
+
+			By("creating simple Argo CD instance")
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+
+			argoCD := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
+				Spec:       argov1beta1api.ArgoCDSpec{},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verify redis creds are correctly passed to pods")
+			const expectedMsg = "Loading Redis credentials from mounted directory: /app/config/redis-auth/"
+			expectedComponents := []string{
+				"statefulset/" + argoCD.Name + "-" + "application-controller",
+				"deployment/" + argoCD.Name + "-" + "repo-server",
+				"deployment/" + argoCD.Name + "-" + "server",
+			}
+			for _, component := range expectedComponents {
+				logOutput, err := osFixture.ExecCommandWithOutputParam(false, true,
+					"kubectl", "logs", component, "-n", ns.Name,
+				)
+				Expect(err).ToNot(HaveOccurred(), "Output: "+logOutput)
+				Expect(logOutput).To(ContainSubstring(expectedMsg))
+				// This is how redis disconnect manifests
+				Expect(logOutput).ToNot(ContainSubstring("manifest cache error"))
+				Expect(logOutput).ToNot(ContainSubstring("WRONGPASS"))
+
+				mountedFiles, err := osFixture.ExecCommandWithOutputParam(false, true,
+					"kubectl", "exec", component, "-n", ns.Name, "--", "ls", "-1", argoutil.RedisAuthMountPath,
+				)
+				Expect(err).ToNot(HaveOccurred(), "Output: "+logOutput)
+				Expect(mountedFiles).ToNot(ContainSubstring("users.acl"))
+			}
+
+			By("verifying redis password is correct")
+			redisInitialSecret := &corev1.Secret{}
+			redisPwdSecretKey := client.ObjectKey{
+				Name:      argoutil.GetSecretNameWithSuffix(argoCD, "redis-initial-password"),
+				Namespace: ns.Name,
+			}
+			Expect(k8sClient.Get(ctx, redisPwdSecretKey, redisInitialSecret)).Should(Succeed())
+			expectedRedisPwd := string(redisInitialSecret.Data["auth"])
+			Expect(expectedRedisPwd).ShouldNot(Equal(""))
+
+			redisPingOut, err := osFixture.ExecCommandWithOutputParam(false, false,
+				"kubectl", "exec", "-n", ns.Name, "-c", "redis", "deployment/argocd-redis", "--",
+				"redis-cli", "-a", expectedRedisPwd, "--no-auth-warning", "ping",
+			)
+
+			Expect(err).ToNot(HaveOccurred(), "Output: "+redisPingOut)
+			Expect(redisPingOut).NotTo(ContainSubstring("NOAUTH Authentication required"))
+			Expect(redisPingOut).To(ContainSubstring("PONG"))
+
+			By("verifying redis rejects unauthenticated requests")
+			redisPingOut, err = osFixture.ExecCommandWithOutputParam(false, false,
+				"kubectl", "exec", "-n", ns.Name, "-c", "redis", "deployment/argocd-redis", "--",
+				"redis-cli", "ping", // no auth provided
+			)
+
+			Expect(err).ToNot(HaveOccurred(), "Output: "+redisPingOut)
+			Expect(redisPingOut).To(ContainSubstring("NOAUTH Authentication required"))
+			Expect(redisPingOut).NotTo(ContainSubstring("PONG"))
+		})
 	})
 })
