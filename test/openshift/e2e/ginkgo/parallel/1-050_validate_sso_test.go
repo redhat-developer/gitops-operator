@@ -7,6 +7,7 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -30,6 +31,14 @@ func getOCPVersion() string {
 		}
 	}
 	return ""
+}
+
+func IsExternalAuthenticationEnabledOnCluster(ctx context.Context, c client.Client) bool {
+	var authConfig configv1.Authentication
+	if err := c.Get(ctx, types.NamespacedName{Name: "cluster"}, &authConfig); err != nil {
+		return false
+	}
+	return authConfig.Spec.Type == "OIDC"
 }
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -64,6 +73,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(ocVersion).ToNot(BeEmpty())
 			if ocVersion < "4.20" {
 				Skip("skipping this test as OCP version is less than 4.20")
+				return
+			}
+
+			if !IsExternalAuthenticationEnabledOnCluster(ctx, k8sClient) {
+				Skip("skipping this test as external authentication type is not OIDC on the cluster")
 				return
 			}
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
