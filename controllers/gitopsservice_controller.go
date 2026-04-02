@@ -73,6 +73,7 @@ var (
 
 const (
 	gitopsServicePrefix = "gitops-service-"
+	kamResourceName     = "kam"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -259,6 +260,8 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		Namespace: namespace,
 	}
 
+	r.cleanKAMResources(ctx, reqLogger)
+
 	if !r.DisableDefaultInstall {
 		// Create/reconcile the default Argo CD instance, unless default install is disabled
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
@@ -310,6 +313,44 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	} else {
 		return r.reconcilePlugin(instance, request)
 	}
+}
+
+// Detect the unsupported KAM components across Deployments , Routes , Services and deletes them to perform cleanup as KAM is no longer supported since 1.15
+func (r *ReconcileGitopsService) cleanKAMResources(ctx context.Context, reqLogger logr.Logger) {
+
+	// KAM Deployment
+	cleanupKAMDeployment := &appsv1.Deployment{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMDeployment); err == nil {
+		reqLogger.Info("Detected unsupported KAM Deployment, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, cleanupKAMDeployment); err != nil && !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Failed to delete KAM Deployment", "Name", kamResourceName, "Namespace", serviceNamespace)
+		}
+	} else if !errors.IsNotFound(err) {
+		reqLogger.Error(err, "Failed to retrieve KAM Deployment", "Name", kamResourceName, "Namespace", serviceNamespace)
+	}
+
+	// KAM Service
+	cleanupKAMService := &corev1.Service{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMService); err == nil {
+		reqLogger.Info("Detected unsupported KAM Service, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, cleanupKAMService); err != nil && !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Failed to delete KAM Service", "Name", kamResourceName, "Namespace", serviceNamespace)
+		}
+	} else if !errors.IsNotFound(err) {
+		reqLogger.Error(err, "Failed to retrieve KAM Service", "Name", kamResourceName, "Namespace", serviceNamespace)
+	}
+
+	// KAM Route
+	cleanupKAMRoute := &routev1.Route{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMRoute); err == nil {
+		reqLogger.Info("Detected unsupported KAM Route, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, cleanupKAMRoute); err != nil && !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Failed to delete KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+		}
+	} else if !errors.IsNotFound(err) {
+		reqLogger.Error(err, "Failed to retrieve KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+	}
+
 }
 
 func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error {
