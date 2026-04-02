@@ -169,6 +169,16 @@ metadata:
           }
         },
         {
+          "apiVersion": "argoproj.io/v1beta1",
+          "kind": "NamespaceManagement",
+          "metadata": {
+            "name": "namespacemanagement-sample"
+          },
+          "spec": {
+            "managedBy": "argocd-ns"
+          }
+        },
+        {
           "apiVersion": "pipelines.openshift.io/v1alpha1",
           "kind": "GitopsService",
           "metadata": {
@@ -180,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-03-04T06:59:29Z"
+    createdAt: "2026-04-01T16:54:16Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
