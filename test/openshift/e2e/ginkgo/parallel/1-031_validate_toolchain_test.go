@@ -19,9 +19,7 @@ package parallel
 import (
 	"context"
 	"os"
-
-	// "os"
-
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -35,6 +33,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/yaml"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -84,25 +83,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies that toolchain versions have the expected values", func() {
 
-			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
-			expected_kustomizeVersion := "v5.8.1"
-			expected_helmVersion := "v3.19.4"
-			expected_argocdVersion := "v3.3.2"
-
-			var expected_dexVersion string
-			var expected_redisVersion string
-
-			if os.Getenv("CI") == "prow" {
-				// when running against openshift-ci
-				expected_dexVersion = "v2.43.0"
-				expected_redisVersion = "8.2.3"
-
-			} else {
-				// when running against RC/ released version of gitops
-				expected_dexVersion = "v2.41.1"
-				expected_redisVersion = "7.2.11"
-			}
-
 			By("locating pods containing toolchain in openshift-gitops")
 
 			gitops_server_pod, err := getPodName("openshift-gitops-server")
@@ -142,6 +122,17 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// argocd-server: v2.13.1+af54ef8
 			Expect(err).NotTo(HaveOccurred())
 
+			// Extract the version from "argocd-server: v3.3.0+af54ef8" and strip the +<hash> suffix,
+			// since the test intent is to match the base version only (ContainSubstring was used previously for this reason).
+			argocdVersionLine := strings.TrimSpace(argocdVersion)
+			argocdVersionClean := argocdVersionLine
+			if idx := strings.LastIndex(argocdVersionLine, " "); idx != -1 {
+				argocdVersionClean = argocdVersionLine[idx+1:]
+			}
+			if idx := strings.Index(argocdVersionClean, "+"); idx != -1 {
+				argocdVersionClean = argocdVersionClean[:idx]
+			}
+
 			By("extracting the dex version from container")
 			dexVersionOutput, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+dex_pod+" -- dex version")
 			Expect(err).ToNot(HaveOccurred())
@@ -172,17 +163,39 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// After: v=6.2.7
 			Expect(err).NotTo(HaveOccurred())
 
-			By("verifying containers have expected toolchain versions")
+			By("collecting all toolchain versions")
 
-			Expect(kustomizeVersion).To(Equal(expected_kustomizeVersion))
-			Expect(helmVersion).To(Equal(expected_helmVersion))
-			Expect(dexVersion).To(Equal(expected_dexVersion))
+			collectedVersions := map[string]string{
+				"argocd":    argocdVersionClean,
+				"dex":       dexVersion,
+				"helm":      helmVersion,
+				"kustomize": kustomizeVersion,
+				"redis":     redisVersion,
+			}
 
-			// We are as argocdVersion contains v2.7.6+00c914a suffix addition to the version no.
-			// So, we are checking if expected_argocdVersion is substring of the actual version
-			Expect(argocdVersion).To(ContainSubstring(expected_argocdVersion))
+			snapshotPath := "../snapshots/valid_toolchain_versions_release.yaml"
 
-			Expect(redisVersion).To(Equal(expected_redisVersion))
+			if os.Getenv("CI") == "prow" {
+				snapshotPath = "../snapshots/valid_toolchain_versions_prow.yaml"
+			}
+
+			By("comparing collected versions against snapshot")
+
+			snapshotData, readErr := os.ReadFile(snapshotPath)
+			Expect(readErr).NotTo(HaveOccurred(), "snapshot file not found at %s; run with E2E_UPDATE_SNAPSHOTS=1 to create it", snapshotPath)
+
+			if os.Getenv("E2E_UPDATE_SNAPSHOTS") == "1" {
+				By("updating snapshot file with collected versions")
+				data, marshalErr := yaml.Marshal(collectedVersions)
+				Expect(marshalErr).NotTo(HaveOccurred())
+				Expect(os.MkdirAll(filepath.Dir(snapshotPath), 0755)).To(Succeed())
+				Expect(os.WriteFile(snapshotPath, data, 0644)).To(Succeed())
+			}
+
+			var snapshotVersions map[string]string
+			Expect(yaml.Unmarshal(snapshotData, &snapshotVersions)).To(Succeed())
+
+			Expect(collectedVersions).To(Equal(snapshotVersions))
 
 		})
 
