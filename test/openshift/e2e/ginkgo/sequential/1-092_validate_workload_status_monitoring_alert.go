@@ -2,8 +2,8 @@ package sequential
 
 import (
 	"context"
+	"encoding/json"
 	"os/exec"
-	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -48,8 +48,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		It("validates monitoring setup, alert rule creation, and teardown", func() {
 			const (
-				// picking a valid image that exists to avoid ImagePullBackOff
-				// but should fail to run as an ApplicationSet controller
+				// picking image that exists to avoid ImagePullBackOff but should fail to run as an ApplicationSet controller
 				invalidImage        = "quay.io/libpod/alpine:latest"
 				prometheusRuleName  = "argocd-component-status-alert"
 				clusterInstanceName = "openshift-gitops"
@@ -64,13 +63,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			appSetDeplCluster := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: clusterInstanceName + "-applicationset-controller", Namespace: nsCluster.Name},
 			}
+			appSetDeplNamespaced := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-applicationset-controller", Namespace: nsNamespaced.Name},
+			}
 			uwmConfigMap := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster-monitoring-config", Namespace: "openshift-monitoring"},
 				Data:       map[string]string{"config.yaml": "enableUserWorkload: true\n"},
 			}
 
 			By("labeling the namespace for monitoring")
-			// Prometheus will only scrape User Workload namespaces that have this label
+			// prometheus will only scrape user workload namespaces that have this label
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(nsNamespaced), nsNamespaced)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -85,11 +87,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			existingCM := &corev1.ConfigMap{}
 			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(uwmConfigMap), existingCM)
 
-			DeferCleanup(func() {
-				_ = k8sClient.Delete(ctx, uwmConfigMap)
-			})
+			cmExisted := (err == nil)
+			var originalData map[string]string
 
-			if err == nil {
+			if cmExisted {
+				originalData = existingCM.Data
 				existingCM.Data = uwmConfigMap.Data
 				Expect(k8sClient.Update(ctx, existingCM)).To(Succeed(), "Failed to update existing UWM ConfigMap")
 			} else if errors.IsNotFound(err) {
@@ -98,19 +100,30 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(err).NotTo(HaveOccurred(), "Failed to fetch UWM ConfigMap")
 			}
 
+			DeferCleanup(func() {
+				By("restoring or deleting cluster monitoring config")
+				if cmExisted {
+					revertCM := &corev1.ConfigMap{}
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(uwmConfigMap), revertCM)).To(Succeed())
+					revertCM.Data = originalData
+					Expect(k8sClient.Update(ctx, revertCM)).To(Succeed())
+				} else {
+					_ = k8sClient.Delete(ctx, uwmConfigMap)
+				}
+			})
+
 			By("modifying both ArgoCD instances to enable monitoring and break the AppSet image")
 			argoCDCluster := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: clusterInstanceName, Namespace: nsCluster.Name},
 			}
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDCluster), argoCDCluster)).To(Succeed())
 
-			// Restore even if the test fails halfway through
+			// restore even if the test fails halfway
 			DeferCleanup(func() {
 				By("restoring the default image and disabling monitoring on cluster Argo CD instance (Cleanup)")
 				_ = k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDCluster), argoCDCluster)
 				argocdFixture.Update(argoCDCluster, func(ac *argov1beta1api.ArgoCD) {
 					ac.Spec.ApplicationSet.Image = ""
-					ac.Spec.Monitoring.DisableMetrics = ptr.To(true)
 					ac.Spec.Monitoring.Enabled = false
 				})
 			})
@@ -139,6 +152,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying the ApplicationSet deployments are present")
 			Eventually(appSetDeplCluster).Should(k8sFixture.ExistByName())
+			Eventually(appSetDeplNamespaced).Should(k8sFixture.ExistByName())
 
 			By("verifying the workload degradation alerts are actively firing in Prometheus")
 			Eventually(func() bool {
@@ -148,17 +162,36 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					GinkgoWriter.Printf("Failed to query Prometheus: %v\n", err)
 					return false
 				}
-				out := string(outBytes)
 
-				// check both default and the custom instance alerts are firing
-				hasDefaultAlert := strings.Contains(out, "openshift-gitops-applicationset-controller") &&
-					strings.Contains(out, "ApplicationSetControllerNotReady") &&
-					strings.Contains(out, "firing")
+				// parse the json response
+				type promResponse struct {
+					Data struct {
+						Alerts []struct {
+							Labels map[string]string `json:"labels"`
+							State  string            `json:"state"`
+						} `json:"alerts"`
+					} `json:"data"`
+				}
 
-				hasCustomAlert := strings.Contains(out, "argocd-applicationset-controller") &&
-					strings.Contains(out, nsNamespaced.Name) &&
-					strings.Contains(out, "ApplicationSetControllerNotReady") &&
-					strings.Contains(out, "firing")
+				var resp promResponse
+				if err := json.Unmarshal(outBytes, &resp); err != nil {
+					GinkgoWriter.Printf("Failed to unmarshal JSON: %v\n", err)
+					return false
+				}
+
+				hasDefaultAlert := false
+				hasCustomAlert := false
+
+				for _, alert := range resp.Data.Alerts {
+					if alert.Labels["alertname"] == "ApplicationSetControllerNotReady" && alert.State == "firing" {
+						if alert.Labels["namespace"] == "openshift-gitops" {
+							hasDefaultAlert = true
+						}
+						if alert.Labels["namespace"] == nsNamespaced.Name {
+							hasCustomAlert = true
+						}
+					}
+				}
 
 				return hasDefaultAlert && hasCustomAlert
 			}, "15m", "30s").Should(BeTrue(), "Expected ApplicationSetControllerNotReady alerts to reach 'firing' state for both instances")
@@ -168,18 +201,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCDCluster, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet.Image = ""
 				ac.Spec.Monitoring.Enabled = false
-				ac.Spec.Monitoring.DisableMetrics = ptr.To(true)
 			})
 
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDNamespaced), argoCDNamespaced)).To(Succeed())
 			argocdFixture.Update(argoCDNamespaced, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet.Image = ""
 				ac.Spec.Monitoring.Enabled = false
-				ac.Spec.Monitoring.DisableMetrics = ptr.To(true)
 			})
-
-			By("deleting cluster monitoring config")
-			Expect(k8sClient.Delete(ctx, uwmConfigMap)).To(Succeed())
 
 			By("verifying PrometheusRules are deleted")
 			Eventually(ruleCluster, "5m").Should(k8sFixture.NotExistByName(), "Cluster PrometheusRule should be deleted")
