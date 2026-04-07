@@ -76,7 +76,7 @@ const (
 	// PodSecurityLabelSyncLabel enables OpenShift to manage pod-security.kubernetes.io/* on the namespace.
 	PodSecurityLabelSyncLabel      = "security.openshift.io/scc.podSecurityLabelSync"
 	PodSecurityLabelSyncLabelValue = "true"
-	kamResourceName     = "kam"
+	kamResourceName                = "kam"
 )
 
 // SetupWithManager sets up the controller with the Manager.
