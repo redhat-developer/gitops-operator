@@ -30,9 +30,9 @@ const (
 	// InfraNodeLabelSelector is a nodeSelector for infrastructure nodes in Openshift
 	InfraNodeLabelSelector = "node-role.kubernetes.io/infra"
 	// Default console plugin image
-	DefaultConsoleImage = "quay.io/redhat-developer/gitops-console-plugin"
+	DefaultConsoleImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-rhel9"
 	// Default console plugin version
-	DefaultConsoleVersion = "v0.1.0"
+	DefaultConsoleVersion = "main"
 	// Default console plugin installation OCP version
 	DefaultDynamicPluginStartOCPVersion = "4.15.0"
 	// ImagePullPolicyEnvVar is the environment variable for configuring image pull policy
