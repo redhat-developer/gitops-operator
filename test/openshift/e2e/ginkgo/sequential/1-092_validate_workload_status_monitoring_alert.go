@@ -17,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -130,14 +129,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argocdFixture.Update(argoCDCluster, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{Image: invalidImage}
-				ac.Spec.Monitoring = argov1beta1api.ArgoCDMonitoringSpec{Enabled: true, DisableMetrics: ptr.To(false)}
+				ac.Spec.Monitoring = argov1beta1api.ArgoCDMonitoringSpec{Enabled: true}
 			})
 
 			argoCDNamespaced := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: nsNamespaced.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{Image: invalidImage},
-					Monitoring:     argov1beta1api.ArgoCDMonitoringSpec{Enabled: true, DisableMetrics: ptr.To(false)},
+					Monitoring:     argov1beta1api.ArgoCDMonitoringSpec{Enabled: true},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCDNamespaced)).To(Succeed())
