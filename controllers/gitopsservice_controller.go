@@ -61,7 +61,7 @@ var logs = logf.Log.WithName("controller_gitopsservice")
 // defaults must some somewhere else..
 var (
 	port                            int32  = 8080
-	backendImage                    string = "quay.io/redhat-developer/gitops-backend:v0.0.1"
+	backendImage                    string = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-rhel9:main"
 	backendImageEnvName                    = "BACKEND_IMAGE"
 	serviceName                            = "cluster"
 	insecureEnvVar                         = "INSECURE"
