@@ -12,36 +12,6 @@ spec:
   template:
     spec:
       containers:
-      - name: kube-rbac-proxy
-        image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
-        args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080
-        - --tls-cert-file=/etc/tls/private/tls.crt
-        - --tls-private-key-file=/etc/tls/private/tls.key
-        - --logtostderr=true
-        - --allow-paths=/metrics
-        - --http2-disable
-        ports:
-        - containerPort: 8443
-          protocol: TCP
-          name: metrics
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 1m
-            memory: 15Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-        volumeMounts:
-        - mountPath: /etc/tls/private
-          name: kube-rbac-proxy-tls
-          readOnly: true
       - name: manager
         args:
         - "--health-probe-bind-address=:8081"
