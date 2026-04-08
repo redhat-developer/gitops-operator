@@ -873,7 +873,7 @@ spec:
                 - name: LABEL_SELECTOR
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
-                image: quay.io/nittalaakhil/openshift-gitops-operator:v0.0.3
+                image: quay.io/redhat-developer/gitops-operator:latest
                 livenessProbe:
                   httpGet:
                     path: /healthz
