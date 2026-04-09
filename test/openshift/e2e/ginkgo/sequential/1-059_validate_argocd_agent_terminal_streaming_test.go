@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -51,7 +52,7 @@ import (
 // This test validates that terminal streaming works through the ArgoCD agent architecture
 // on OpenShift. It exercises the full terminal flow:
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	Context("1-054_validate_argocd_agent_terminal_streaming", func() {
+	Context("1-059_validate_argocd_agent_terminal_streaming", func() {
 		var (
 			k8sClient       client.Client
 			ctx             context.Context
@@ -218,9 +219,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoEndpoint := serverRoute.Spec.Host
 			GinkgoWriter.Printf("ArgoCD server Route host: %s\n", argoEndpoint)
 
-			password := agentFixture.GetInitialAdminSecretPassword(argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal, k8sClient)
-			argoClient := argocdClient.NewArgoClient(argoEndpoint, "admin", password)
-			Expect(argoClient.Login()).To(Succeed())
+			password := argocdFixture.GetInitialAdminSecretPassword(argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal, k8sClient)
+			_, sessionToken, closer, err := argocdFixture.CreateArgoCDAPIClient(ctx, argoEndpoint, password)
+			Expect(err).ToNot(HaveOccurred())
+			defer closer.Close()
 
 			// Find the application pod which we want to open a terminal session for.
 			By("Find a running pod in the application namespace")
@@ -257,14 +259,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			var session *argocdClient.TerminalClient
 			Eventually(func() error {
 				var err error
-				session, err = argoClient.ExecTerminal(application, managedAgentApplicationNamespace, podName, containerName)
+				session, err = argocdClient.ExecTerminal(argoEndpoint, sessionToken, application, managedAgentApplicationNamespace, podName, containerName)
 				return err
 			}, "30s", "5s").Should(Succeed(), "failed to open terminal session")
 			defer session.Close()
 
 			// Send a resize message first, this is required by the shell to render the
 			// output content accordingly.
-			err := session.SendResize(80, 24)
+			err = session.SendResize(80, 24)
 			Expect(err).ToNot(HaveOccurred(), "failed to send resize")
 
 			// Wait for shell to initialize by checking for any output

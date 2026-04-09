@@ -516,7 +516,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should deploy ArgoCD principal and agent instances in both modes and verify they are working as expected", func() {
 
 			By("Deploy principal and verify it starts successfully")
-			deployPrincipal(ctx, k8sClient, registerCleanup)
+			deployPrincipal(ctx, k8sClient, registerCleanup, false)
 
 			By("Deploy managed agent and verify it starts successfully")
 			deployAgent(ctx, k8sClient, registerCleanup, argov1beta1api.AgentModeManaged)
@@ -609,7 +609,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 // This function deploys the principal ArgoCD instance and waits for it to be ready.
 // It creates the required secrets for the principal and verifies that the principal deployment is in Ready state.
 // It also verifies that the principal logs contain the expected messages.
-func deployPrincipal(ctx context.Context, k8sClient client.Client, registerCleanup func(func()), enableServerRoute ...bool) {
+func deployPrincipal(ctx context.Context, k8sClient client.Client, registerCleanup func(func()), enableServerRoute bool) {
 	GinkgoHelper()
 
 	nsPrincipal, cleanup := fixture.CreateNamespaceWithCleanupFunc(namespaceAgentPrincipal)
@@ -624,7 +624,7 @@ func deployPrincipal(ctx context.Context, k8sClient client.Client, registerClean
 		waitForLoadBalancer = false
 	}
 
-	if len(enableServerRoute) > 0 && enableServerRoute[0] {
+	if enableServerRoute {
 		argoCDInstance.Spec.Server.Route = argov1beta1api.ArgoCDRouteSpec{
 			Enabled: true,
 		}
