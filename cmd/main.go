@@ -70,6 +70,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers/argocd/openshift"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//+kubebuilder:scaffold:imports
 )
@@ -148,8 +149,9 @@ func main() {
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	metricsServerOptions := metricsserver.Options{
-		BindAddress: metricsAddr,
-		TLSOpts:     []func(*tls.Config){disableHTTP2},
+		BindAddress:    metricsAddr,
+		TLSOpts:        []func(*tls.Config){disableHTTP2},
+		FilterProvider: filters.WithAuthenticationAndAuthorization,
 	}
 
 	// Set default manager options
