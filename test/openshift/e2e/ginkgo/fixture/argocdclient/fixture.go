@@ -17,7 +17,6 @@ limitations under the License.
 package argocdclient
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
@@ -33,72 +32,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type ArgoRestClient struct {
-	endpoint string
-	username string
-	password string
-	token    string
-	client   *http.Client
-}
-
-// NewArgoClient returns a new client for Argo CD's REST API
-func NewArgoClient(endpoint, username, password string) *ArgoRestClient {
-	ac := &ArgoRestClient{
-		endpoint: endpoint,
-		username: username,
-		password: password,
-		client: &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, // #nosec G402
-				},
-			},
-		},
-	}
-	return ac
-}
-
-// Login creates a new Argo CD session
-func (c *ArgoRestClient) Login() error {
-	// Get session token from API
-	authStr := fmt.Sprintf(`{"username": "%s", "password": "%s"}`, c.username, c.password)
-	payload := io.NopCloser(bytes.NewReader([]byte(authStr)))
-	res, err := c.client.Do(&http.Request{
-		Method:        http.MethodPost,
-		URL:           &url.URL{Scheme: "https", Host: c.endpoint, Path: "/api/v1/session"},
-		Body:          payload,
-		Header:        http.Header{"Content-Type": []string{"application/json"}},
-		ContentLength: int64(len(authStr)),
-	})
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = res.Body.Close()
-	}()
-	if res.StatusCode != 200 {
-		return fmt.Errorf("expected HTTP 200, got %d", res.StatusCode)
-	}
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	type tokenResponse struct {
-		Token string `json:"token"`
-	}
-	token := &tokenResponse{}
-	err = json.Unmarshal(body, token)
-	if err != nil {
-		return err
-	}
-	if token.Token == "" {
-		return errors.New("empty token received")
-	}
-	c.token = token.Token
-	return nil
-}
-
 // TerminalClient represents a test client for terminal WebSocket connections.
 type TerminalClient struct {
 	wsConn   *websocket.Conn
@@ -111,15 +44,10 @@ type TerminalClient struct {
 // ExecTerminal opens a terminal session to a pod via WebSocket.
 // This replicates the behavior of the ArgoCD UI when a user opens a terminal session to an application.
 // ArgoCD decides which shell to use based on the configured allowed shells.
-func (c *ArgoRestClient) ExecTerminal(app *v1alpha1.Application, namespace, podName, container string) (*TerminalClient, error) {
-	if err := c.ensureToken(); err != nil {
-		return nil, err
-	}
-
-	// Build the exec URL
+func ExecTerminal(endpoint, token string, app *v1alpha1.Application, namespace, podName, container string) (*TerminalClient, error) {
 	u := &url.URL{
 		Scheme: "wss",
-		Host:   c.endpoint,
+		Host:   endpoint,
 		Path:   "/terminal",
 	}
 
@@ -132,18 +60,15 @@ func (c *ArgoRestClient) ExecTerminal(app *v1alpha1.Application, namespace, podN
 	q.Set("namespace", namespace)
 	u.RawQuery = q.Encode()
 
-	// Create WebSocket dialer with TLS config
 	dialer := websocket.Dialer{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true, // #nosec G402
 		},
 	}
 
-	// Set token as cookie - ArgoCD expects auth token in argocd.token cookie
 	headers := http.Header{}
-	headers.Set("Cookie", fmt.Sprintf("argocd.token=%s", c.token))
+	headers.Set("Cookie", fmt.Sprintf("argocd.token=%s", token))
 
-	// Connect to WebSocket
 	wsConn, resp, err := dialer.Dial(u.String(), headers)
 	if err != nil {
 		if resp != nil {
@@ -158,18 +83,9 @@ func (c *ArgoRestClient) ExecTerminal(app *v1alpha1.Application, namespace, podN
 		wsConn: wsConn,
 	}
 
-	// Start reading output in background
 	go session.readOutput()
 
 	return session, nil
-}
-
-// ensureToken makes sure we have a valid authentication token
-func (c *ArgoRestClient) ensureToken() error {
-	if c.token == "" {
-		return c.Login()
-	}
-	return nil
 }
 
 // terminalMessage is the JSON message format used by ArgoCD terminal WebSocket

@@ -568,13 +568,3 @@ func buildDefaultSANs(serviceName, namespace string) []string {
 		fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
 	}
 }
-
-// GetInitialAdminSecretPassword reads the admin password from the ArgoCD instance's cluster secret
-func GetInitialAdminSecretPassword(argocdCRName, secretNS string, k8sClient client.Client) string {
-	secret := &corev1.Secret{}
-	Expect(k8sClient.Get(context.Background(), types.NamespacedName{
-		Name:      fmt.Sprintf("%s-cluster", argocdCRName),
-		Namespace: secretNS,
-	}, secret)).To(Succeed())
-	return string(secret.Data["admin.password"])
-}
