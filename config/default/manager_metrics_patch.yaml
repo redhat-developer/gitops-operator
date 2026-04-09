@@ -1,5 +1,6 @@
-# This patch inject a sidecar container which is a HTTP proxy for the
-# controller manager, it performs RBAC authorization against the Kubernetes API using SubjectAccessReviews.
+# This patch configures the manager to serve metrics securely using
+# controller-runtime's built-in authn/authz (replacing the deprecated
+# kube-rbac-proxy sidecar).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
