@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
@@ -86,7 +86,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("adding DYNAMIC_PLUGIN_START_OCP_VERSION to CSV operator Deployment env var list")
 
-			clusterserviceversionFixture.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
+			clusterserviceversion.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
 
 				envList := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 				envList = append(envList, corev1.EnvVar{Name: "DYNAMIC_PLUGIN_START_OCP_VERSION", Value: ocVersion})
