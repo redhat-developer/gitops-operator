@@ -24,7 +24,6 @@ bases:
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 - ../prometheus
 
-patchesStrategicMerge:
 # Protect the /metrics endpoint with controller-runtime authn/authz.
 # If you comment out manager_metrics_patch.yaml, also comment out metrics_service.yaml,
 # metrics_role.yaml, metrics_role_binding.yaml, and metrics_reader_clusterrole.yaml
