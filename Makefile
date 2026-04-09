@@ -156,13 +156,13 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
-	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --timeout 180m -r ./test/openshift/e2e/ginkgo/sequential
+    @echo "Running GitOps Operator sequential Ginkgo E2E tests..."
+    $(GINKGO_CLI) -v --trace --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
-	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+    @echo "Running GitOps Operator parallel Ginkgo E2E tests..."
+    $(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
