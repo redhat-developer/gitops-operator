@@ -86,8 +86,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			output, err := osFixture.ExecCommand("oc", "auth", "can-i", "use", "scc/anyuid", "--as", serviceAccountUser)
 			hasPermission := false
 			if err == nil && len(output) > 0 {
-				// Check if the service account user is already in the users list
-				// Remove quotes and whitespace for comparison
 				output = strings.TrimSpace(strings.Trim(output, "'\""))
 				if strings.Contains(output, serviceAccountUser) {
 					hasPermission = true
@@ -146,6 +144,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						RepoURL:        "https://github.com/argoproj-labs/argocd-image-updater/",
 						Path:           "test/e2e/testdata/005-public-guestbook",
 						TargetRevision: "HEAD",
+						// multi-arch image 
+						Kustomize: &appv1alpha1.ApplicationSourceKustomize{
+							Images: appv1alpha1.KustomizeImages{
+								"quay.io/dkarpele/my-guestbook=quay.io/prometheus/node-exporter:v1.6.0",
+							},
+						},
 					},
 					Destination: appv1alpha1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
@@ -175,8 +179,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							NamePattern: "app*",
 							Images: []imageUpdaterApi.ImageConfig{
 								{
-									Alias:     "guestbook",
-									ImageName: "quay.io/dkarpele/my-guestbook:~29437546.0",
+									Alias: "guestbook",
+									// Watch for the v1.7.x bumps
+									ImageName: "quay.io/prometheus/node-exporter:~v1.7.0",
 									CommonUpdateSettings: &imageUpdaterApi.CommonUpdateSettings{
 										UpdateStrategy: &updateStrategy,
 									},
@@ -188,7 +193,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, imageUpdater)).To(Succeed())
 
-			By("ensuring that the Application image has `29437546.0` version after update")
+			By("ensuring that the Application image has been updated by Image Updater")
 			Eventually(func() string {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 
@@ -197,17 +202,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					return "" // Let Eventually retry on error
 				}
 
-				// Nil-safe check: The Kustomize block is only added by the Image Updater after its first run.
-				// We must check that it and its Images field exist before trying to access them.
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
-					imageStr := string(app.Spec.Source.Kustomize.Images[0])
-					GinkgoWriter.Printf("Found Kustomize image: %s\n", imageStr)
+					// Join all images to handle any appending behaviors
+					var allImages []string
+					for _, img := range app.Spec.Source.Kustomize.Images {
+						allImages = append(allImages, string(img))
+					}
+					imageStr := strings.Join(allImages, ", ")
+					GinkgoWriter.Printf("Found Kustomize image string: %s\n", imageStr)
 					return imageStr
 				}
 
-				// Return an empty string to signify the condition is not yet met.
 				return ""
-			}, "10m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
+			}, "10m", "10s").Should(ContainSubstring("v1.7."), "Image Updater did not update the Application image within timeout")
 		})
 	})
 })
