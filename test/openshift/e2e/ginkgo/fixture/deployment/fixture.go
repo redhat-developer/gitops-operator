@@ -274,6 +274,16 @@ func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	})
 }
 
+func HaveAllReplicasReady() matcher.GomegaMatcher {
+	return fetchDeployment(func(depl *appsv1.Deployment) bool {
+		GinkgoWriter.Println("Deployment", depl.Name, "- HaveAllReplicasReady:", "replicas:", depl.Status.Replicas, "ready:", depl.Status.ReadyReplicas, "updated:", depl.Status.UpdatedReplicas)
+		return depl.Generation == depl.Status.ObservedGeneration &&
+			depl.Status.Replicas > 0 &&
+			depl.Status.ReadyReplicas == depl.Status.Replicas &&
+			depl.Status.UpdatedReplicas == depl.Status.Replicas
+	})
+}
+
 func HaveUpdatedReplicas(updatedReplicas int) matcher.GomegaMatcher {
 	return fetchDeployment(func(depl *appsv1.Deployment) bool {
 		GinkgoWriter.Println("Deployment HaveUpdatedReplicas:", "expected: ", updatedReplicas, "actual: ", depl.Status.UpdatedReplicas)

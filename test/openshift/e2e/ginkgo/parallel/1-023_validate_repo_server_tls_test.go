@@ -28,6 +28,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -117,6 +118,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				})
 
 			}).Should(BeTrue())
+
+			By("waiting for argocd-server deployment rollout to complete after verifyTLS change")
+			serverDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: nsTest_1_23_custom.Name}}
+			Eventually(serverDepl, "3m", "5s").Should(deplFixture.HaveAllReplicasReady())
 
 			By("ensuring we can deploy to the namespace via the ArgoCD instance")
 			app := &argocdv1alpha1.Application{
