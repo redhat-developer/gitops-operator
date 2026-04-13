@@ -347,7 +347,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			Expect(container.Env).To(ContainElement(And(
-				HaveField("Name", agent.EnvRedisPassword),
+				HaveField("Name", "REDIS_PASSWORD"),
 				HaveField("ValueFrom.SecretKeyRef", Not(BeNil())),
 			)), "REDIS_PASSWORD should be set with valueFrom.secretKeyRef")
 

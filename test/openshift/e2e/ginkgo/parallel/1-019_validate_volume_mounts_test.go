@@ -76,6 +76,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{Name: "plugins-home", MountPath: "/home/argocd"},
 				{Name: "argocd-cmd-params-cm", MountPath: "/home/argocd/params"},
 				{Name: "tmp", MountPath: "/tmp"},
+				{Name: "redis-initial-pass", MountPath: "/app/config/redis-auth/"},
 			}))
 
 			Expect(argocdServerDepl.Spec.Template.Spec.Volumes).To(Equal([]corev1.Volume{
@@ -130,6 +131,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
 				},
+				{
+					Name: "redis-initial-pass",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName:  "argocd-redis-initial-password",
+							DefaultMode: ptr.To(int32(420)),
+							Items: []corev1.KeyToPath{
+								{Key: "auth", Path: "auth"},
+								{Key: "auth_username", Path: "auth_username"},
+							},
+						},
+					},
+				},
 			}))
 
 			By("verifying volumemounts and volumes of Argo CD Repo server")
@@ -145,6 +159,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{Name: "argocd-repo-server-tls", MountPath: "/app/config/reposerver/tls"},
 				{Name: "argocd-operator-redis-tls", MountPath: "/app/config/reposerver/tls/redis"},
 				{Name: "plugins", MountPath: "/home/argocd/cmp-server/plugins"},
+				{Name: "redis-initial-pass", MountPath: "/app/config/redis-auth/"},
 				{Name: "tmp", MountPath: "/tmp"},
 			}))
 
@@ -204,6 +219,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					},
 				},
 				{
+					Name: "redis-initial-pass",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName:  "argocd-redis-initial-password",
+							DefaultMode: ptr.To(int32(420)),
+							Items: []corev1.KeyToPath{
+								{Key: "auth", Path: "auth"},
+								{Key: "auth_username", Path: "auth_username"},
+							},
+						},
+					},
+				},
+				{
 					Name: "tmp", VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
@@ -221,6 +249,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{Name: "argocd-home", MountPath: "/home/argocd"},
 				{Name: "argocd-cmd-params-cm", MountPath: "/home/argocd/params"},
 				{Name: "argocd-application-controller-tmp", MountPath: "/tmp"},
+				{Name: "redis-initial-pass", MountPath: "/app/config/redis-auth/"},
 			}))
 
 			Expect(applControllerSS.Spec.Template.Spec.Volumes).To(Equal([]corev1.Volume{
@@ -262,6 +291,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{
 					Name: "argocd-application-controller-tmp", VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "redis-initial-pass",
+					VolumeSource: corev1.VolumeSource{
+						Secret: &corev1.SecretVolumeSource{
+							SecretName:  "argocd-redis-initial-password",
+							DefaultMode: ptr.To(int32(420)),
+							Items: []corev1.KeyToPath{
+								{Key: "auth", Path: "auth"},
+								{Key: "auth_username", Path: "auth_username"},
+							},
+						},
 					},
 				},
 			}))

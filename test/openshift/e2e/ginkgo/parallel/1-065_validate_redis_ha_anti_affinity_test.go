@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "10m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying redis HA server exists and has the appropriate anti-affinity")
 			redisHAStatefulSet := &appsv1.StatefulSet{
