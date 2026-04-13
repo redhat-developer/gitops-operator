@@ -258,13 +258,11 @@ func main() {
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:        client,
-		Scheme:        mgr.GetScheme(),
-		LabelSelector: labelSelectorFlag,
-		K8sClient:     k8sClient,
-		LocalUsers: &argocdprovisioner.LocalUsersInfo{
-			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
-		},
+		Client:            client,
+		Scheme:            mgr.GetScheme(),
+		LabelSelector:     labelSelectorFlag,
+		K8sClient:         k8sClient,
+		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")

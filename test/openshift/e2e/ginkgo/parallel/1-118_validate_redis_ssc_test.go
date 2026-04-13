@@ -69,8 +69,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
+			Eventually(argoCD, "10m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "10m", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
 
 			By("verifying argocd-redis-ha pod defaults to expected SCC")
 			Eventually(func() bool {

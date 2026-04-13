@@ -168,12 +168,10 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		K8sClient: k8sClient,
-		LocalUsers: &argocdprovisioner.LocalUsersInfo{
-			TokenRenewalTimers: map[string]*argocdprovisioner.TokenRenewalTimer{},
-		},
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		K8sClient:  k8sClient,
+		LocalUsers: argocdprovisioner.NewLocalUsersInfo(),
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
