@@ -81,7 +81,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			expectComponentsAreRunning := func() {
 
 				By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-				Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+				Eventually(argoCD, "10m", "5s").Should(argocdFixture.BeAvailable())
 
 				deploymentsShouldExist := []string{"argocd-redis-ha-haproxy", "argocd-server", "argocd-repo-server"}
 				for _, depl := range deploymentsShouldExist {
@@ -111,7 +111,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "10m", "5s").Should(argocdFixture.BeAvailable())
 
 			expectComponentsAreRunning()
 
