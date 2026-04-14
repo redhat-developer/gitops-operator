@@ -787,7 +787,7 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 				Principal: &argov1beta1api.PrincipalSpec{
 					Enabled:  ptr.To(true),
 					Auth:     "mtls:CN=([^,]+)",
-					LogLevel: "info",
+					LogLevel: "debug",
 					Image:    common.ArgoCDAgentPrincipalDefaultImageName,
 					Namespace: &argov1beta1api.PrincipalNamespaceSpec{
 						AllowedNamespaces: []string{
@@ -833,7 +833,7 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 				Agent: &argov1beta1api.AgentSpec{
 					Enabled:  ptr.To(true),
 					Creds:    "mtls:any",
-					LogLevel: "info",
+					LogLevel: "debug",
 					Image:    common.ArgoCDAgentAgentDefaultImageName,
 					Client: &argov1beta1api.AgentClientSpec{
 						PrincipalServerAddress: "", // will be set in the test
