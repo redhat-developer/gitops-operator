@@ -63,8 +63,7 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
 		case cr.Name + "-repo-server":
 
 			prodImage := o.Spec.Template.Spec.Containers[0].Image
-			usingReleasedImages := strings.Contains(prodImage, "registry.redhat.io/openshift-gitops-1/argocd-rhel")
-			if cr.Spec.Repo.SystemCATrust != nil && usingReleasedImages {
+			if cr.Spec.Repo.SystemCATrust != nil {
 				updateSystemCATrustBuilding(cr, o, prodImage, logv)
 			}
 		}
@@ -154,7 +153,8 @@ done
 echo "User defined trusted CA files:"
 ls /etc/pki/ca-trust/source/anchors/
 
-update-ca-trust
+# Specifying the explicit location to turn on the container-aware behavior
+update-ca-trust extract --output /etc/pki/ca-trust/extracted
 
 echo "Trusted anchors:"
 trust list
