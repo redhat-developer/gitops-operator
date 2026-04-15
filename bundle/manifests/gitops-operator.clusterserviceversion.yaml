@@ -190,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-04-13T13:27:20Z"
+    createdAt: "2026-04-15T08:33:53Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -859,7 +859,7 @@ spec:
               containers:
               - args:
                 - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
                 command:
                 - /usr/local/bin/manager
@@ -873,7 +873,7 @@ spec:
                 - name: LABEL_SELECTOR
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
-                image: quay.io/redhat-developer/gitops-operator:latest
+                image: quay.io/nittalaakhil/openshift-gitops-operator:v0.0.2
                 livenessProbe:
                   httpGet:
                     path: /healthz
