@@ -2,6 +2,7 @@ package clusterserviceversion
 
 import (
 	"context"
+	"strings"
 
 	. "github.com/onsi/gomega"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
@@ -27,5 +28,16 @@ func Update(obj *olmv1alpha1.ClusterServiceVersion, modify func(*olmv1alpha1.Clu
 		return k8sClient.Update(context.Background(), obj)
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
 
+func Get(ctx context.Context, k8sClient client.Client) *olmv1alpha1.ClusterServiceVersion {
+	var csvList olmv1alpha1.ClusterServiceVersionList
+	Expect(k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator"))).To(Succeed())
+	for idx := range csvList.Items {
+		idxCSV := csvList.Items[idx]
+		if strings.Contains(idxCSV.Name, "gitops-operator") {
+			return &idxCSV
+		}
+	}
+	return nil
 }

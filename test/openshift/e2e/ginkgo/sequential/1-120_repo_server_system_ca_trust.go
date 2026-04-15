@@ -27,6 +27,7 @@ import (
 
 	"github.com/onsi/gomega/gcustom"
 	matcher "github.com/onsi/gomega/types"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -51,15 +52,10 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
 	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var (
-	// The differences between the upstream image using Ubuntu, and the downstream one using rhel.
-	image        = "" // argocd-operator default
-	imageVersion = "" // argocd-operator default
-	caBundlePath = "/etc/ssl/certs/ca-certificates.crt"
-
 	trustedHelmAppSource = &appv1alpha1.ApplicationSource{
 		RepoURL:        "https://stefanprodan.github.io/podinfo",
 		Chart:          "podinfo",
@@ -74,14 +70,17 @@ var (
 		Helm:           &appv1alpha1.ApplicationSourceHelm{Values: "service:\n          type: ClusterIP"},
 	}
 
-	k8sClient client.Client
-	ctx       context.Context
+	k8sClient    client.Client
+	ctx          context.Context
+	ns           *corev1.Namespace
+	cleanupNs    func()
+	image        string
+	imageVersion string
 
 	clusterSupportsClusterTrustBundles bool
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-
 	Context("1-120_repo_server_system_ca_trust", func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
@@ -91,24 +90,18 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			clusterSupportsClusterTrustBundles = detectClusterTrustBundleSupport(k8sClient, ctx)
 
-			if fixture.EnvLocalRun() {
-				Skip("skipping test as LOCAL_RUN env is set.")
-			}
-
-			if !fixture.EnvNonOLM() {
-				image = "registry.redhat.io/openshift-gitops-1/argocd-rhel8"
-				imageVersion = "sha256:8a0544c14823492165550d83a6d8ba79dd632b46144d3fdcb543793726111d76"
-				caBundlePath = "/etc/ssl/certs/ca-bundle.crt"
-			}
+			// The differences between the upstream image using Ubuntu, and the downstream one using rhel.
+			image, imageVersion = getArgoCDComponentImageAndVersion()
 		})
 
 		AfterEach(func() {
+			fixture.OutputDebugOnFail(ns)
+			cleanupNs()
 			purgeCtbs()
 		})
 
 		It("ensures that missing Secret aborts startup", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with missing Secret")
 			argoCD := argoCDSpec(ns, argov1beta1api.ArgoCDRepoSpec{
@@ -130,8 +123,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			// Create a bundle with 2 CA certs in it. Ubuntu's update-ca-certificates issues a warning, but apparently it works
 			// It is desirable to test with multiple certs in one bundle because OpenShift permits it
@@ -171,8 +163,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("ensures that CMs and Secrets are trusted in repo-server and plugins", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
 			Expect(k8sClient.Create(ctx, cmCert)).To(Succeed())
@@ -220,8 +211,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(ns, argov1beta1api.ArgoCDRepoSpec{
@@ -253,8 +243,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("ensures that empty trust keeps image certs in place", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(ns, argov1beta1api.ArgoCDRepoSpec{
@@ -268,8 +257,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("ensures that Secrets and ConfigMaps get reconciled", func() {
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
 			argoCD := argoCDSpec(ns, argov1beta1api.ArgoCDRepoSpec{
@@ -360,8 +348,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			combinedCtb := createCtbFromCerts(getCACert("github.com"), getCACert("github.io"))
 			_ = k8sClient.Delete(ctx, combinedCtb) // Exists only in case of previous failures, must be deleted before argo starts!
@@ -413,8 +400,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			// Use random label value not to collide with leftover CTBs fom other tests
 			labelVal := rand.String(5)
@@ -804,7 +790,9 @@ func getTrustedCertCount(rsPod *corev1.Pod) int {
 	command := []string{
 		"kubectl", "-n", rsPod.Namespace, "exec",
 		"-c", "argocd-repo-server", rsPod.Name, "--",
-		"cat", caBundlePath,
+		"bash", "-c",
+		// Ubuntu or RHEL location
+		"cat /etc/ssl/certs/ca-certificates.crt || cat /etc/ssl/certs/ca-bundle.crt",
 	}
 
 	var out string
@@ -908,4 +896,23 @@ func purgeCtbs() {
 		expr := client.MatchingLabels{"argocd-operator-test": "repo_server_system_ca_trust"}
 		Expect(k8sClient.DeleteAllOf(ctx, &certificatesv1beta1.ClusterTrustBundle{}, expr)).To(Succeed())
 	}
+}
+
+// getArgoCDComponentImageAndVersion ensures rhel based image is used for testing this.
+// If this is installed as a full-blown operator, use its images.
+// If not, inject bleeding-edge pre-release rhel-based images.
+func getArgoCDComponentImageAndVersion() (string, string) {
+	csv := clusterserviceversion.Get(ctx, k8sClient)
+	if csv != nil {
+		for _, image := range csv.Spec.RelatedImages {
+			if image.Name == "argocd_image" {
+				By("Detected operator image " + image.Image + ". Using it")
+				return "", ""
+			}
+		}
+	}
+
+	defImage := "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/argocd-rhel9"
+	By("Injecting rhel image " + defImage)
+	return defImage, "main"
 }
