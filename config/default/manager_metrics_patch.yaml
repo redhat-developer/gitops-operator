@@ -1,6 +1,3 @@
-# This patch configures the manager to serve metrics securely using
-# controller-runtime's built-in authn/authz (replacing the deprecated
-# kube-rbac-proxy sidecar).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -18,6 +15,13 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=:8443"
         - "--leader-elect"
+        ports:
+        - name: metrics
+          containerPort: 8443
+          protocol: TCP
+        - name: health
+          containerPort: 8081
+          protocol: TCP
       volumes:
         # Secret created by the service CA operator.
         # We assume that the Kubernetes service exposing the application's pods has the
