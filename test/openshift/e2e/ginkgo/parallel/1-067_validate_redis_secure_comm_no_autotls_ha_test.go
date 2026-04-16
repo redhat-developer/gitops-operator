@@ -185,7 +185,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			expectedSentinelConfig := []string{
 				"port 0",
 				"tls-port 26379",
-				// Dynamic changes to the config file can result in doublequptes added unpredictably
+				// Dynamic changes to the config file can result in doublequotes added unpredictably
 				`tls-cert-file "?/app/config/redis/tls/tls.crt"?`,
 				`tls-ca-cert-file "?/app/config/redis/tls/tls.crt"?`,
 				`tls-key-file "?/app/config/redis/tls/tls.key"?`,
