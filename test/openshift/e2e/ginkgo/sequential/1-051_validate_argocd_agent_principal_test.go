@@ -390,10 +390,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
 
-			Expect(container.Env).To(ContainElement(And(
+			Expect(container.Env).NotTo(ContainElement(
 				HaveField("Name", "REDIS_PASSWORD"),
-				HaveField("ValueFrom.SecretKeyRef", Not(BeNil())),
-			)), "REDIS_PASSWORD should be set with valueFrom.secretKeyRef")
+			), "REDIS_PASSWORD should not be set")
 
 			By("Disable principal")
 

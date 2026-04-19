@@ -50,9 +50,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying REDIS_PASSWORD env var is no longer set (replaced by redis-initial-pass volume mount)")
 			container := ss.Spec.Template.Spec.Containers[0]
-			for _, env := range container.Env {
-				Expect(env.Name).NotTo(Equal("REDIS_PASSWORD"))
-			}
+			Expect(container.Env).NotTo(ContainElement(
+				HaveField("Name", "REDIS_PASSWORD"),
+			), "REDIS_PASSWORD should not be set")
 
 			By("verifying redis-initial-pass volume mount is present")
 			hasRedisAuthMount := false
