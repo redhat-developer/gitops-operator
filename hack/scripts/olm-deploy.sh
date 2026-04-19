@@ -5,7 +5,7 @@ trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
 
-SUBSCRIPTION_NAME="gitops-operator"
+SUBSCRIPTION_NAME="openshift-gitops-operator"
 OPERATOR_NAMESPACE="openshift-gitops-operator"
 VERSION="$(git describe --tags --dirty | sed 's/^v//')-$(date '+%Y%m%d-%H%M%S')"
 
@@ -79,7 +79,7 @@ metadata:
   namespace: $OPERATOR_NAMESPACE
 spec:
   channel: latest
-  name: $SUBSCRIPTION_NAME
+  name: gitops-operator
   installPlanApproval: Automatic
   source: devel-gitops-service-source
   sourceNamespace: openshift-marketplace
