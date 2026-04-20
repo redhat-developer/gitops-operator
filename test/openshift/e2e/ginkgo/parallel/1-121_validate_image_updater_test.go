@@ -143,8 +143,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Spec: appv1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj-labs/argocd-image-updater/",
-						Path:           "test/e2e/testdata/005-public-guestbook",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						Path:           "test/examples/image-updater",
 						TargetRevision: "HEAD",
 					},
 					Destination: appv1alpha1.ApplicationDestination{
@@ -176,7 +176,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Images: []imageUpdaterApi.ImageConfig{
 								{
 									Alias:     "guestbook",
-									ImageName: "quay.io/dkarpele/my-guestbook:~29437546.0",
+									ImageName: "quay.io/devtools_gitops/guestbook_go:~29437546.0",
 									CommonUpdateSettings: &imageUpdaterApi.CommonUpdateSettings{
 										UpdateStrategy: &updateStrategy,
 									},
@@ -207,7 +207,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				// Return an empty string to signify the condition is not yet met.
 				return ""
-			}, "10m", "10s").Should(Equal("quay.io/dkarpele/my-guestbook:29437546.0"), "Image Updater did not update the Application image within timeout")
+			}, "10m", "10s").Should(Equal("quay.io/devtools_gitops/guestbook_go:29437546.0"), "Image Updater did not update the Application image within timeout")
 		})
 	})
 })
