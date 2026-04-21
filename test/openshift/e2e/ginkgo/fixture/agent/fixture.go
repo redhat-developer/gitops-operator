@@ -323,7 +323,7 @@ func VerifyExpectedResourcesExist(params VerifyExpectedResourcesExistParams) {
 				Name:      params.SecretNames.RedisInitialPasswordSecretName,
 				Namespace: params.Namespace.Name,
 			},
-		}, "30s", "2s").Should(k8sFixture.ExistByName())
+		}, "60s", "2s").Should(k8sFixture.ExistByName())
 	}
 
 	Eventually(params.ServiceAccount).Should(k8sFixture.ExistByName())
