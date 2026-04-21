@@ -22,11 +22,3 @@ spec:
         - name: health
           containerPort: 8081
           protocol: TCP
-      volumes:
-        # Secret created by the service CA operator.
-        # We assume that the Kubernetes service exposing the application's pods has the
-        # "service.beta.openshift.io/serving-cert-secret-name: kube-rbac-proxy-tls"
-        # annotation.
-        - name: kube-rbac-proxy-tls
-          secret:
-            secretName: kube-rbac-proxy-tls

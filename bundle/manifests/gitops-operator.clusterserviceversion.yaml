@@ -190,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-04-15T08:51:59Z"
+    createdAt: "2026-04-21T13:41:53Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -909,10 +909,6 @@ spec:
                 runAsNonRoot: true
               serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
-              volumes:
-              - name: kube-rbac-proxy-tls
-                secret:
-                  secretName: kube-rbac-proxy-tls
       permissions:
       - rules:
         - apiGroups:
