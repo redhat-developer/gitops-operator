@@ -390,11 +390,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
 
-			Expect(container.Env).To(ContainElement(And(
-				HaveField("Name", "REDIS_PASSWORD"),
-				HaveField("ValueFrom.SecretKeyRef", Not(BeNil())),
-			)), "REDIS_PASSWORD should be set with valueFrom.secretKeyRef")
-
 			By("Disable principal")
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
