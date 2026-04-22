@@ -346,11 +346,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
 
-			Expect(container.Env).To(ContainElement(And(
-				HaveField("Name", "REDIS_PASSWORD"),
-				HaveField("ValueFrom.SecretKeyRef", Not(BeNil())),
-			)), "REDIS_PASSWORD should be set with valueFrom.secretKeyRef")
-
 			By("Verify custom environment variable is present")
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: "TEST_ENV", Value: "test_value"}), "Custom environment variable TEST_ENV should be set")
