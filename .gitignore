@@ -31,3 +31,4 @@ kuttl-test.json
 # ignore vendor
 vendor/
 .vscode/
+.DS_Store
