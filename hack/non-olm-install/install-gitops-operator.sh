@@ -253,16 +253,6 @@ spec:
         openshift.io/scc: restricted-v2
     spec:
       containers:
-      - name: kube-rbac-proxy
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          seccompProfile:
-            type: RuntimeDefault
       - name: manager
         securityContext:
           allowPrivilegeEscalation: false
