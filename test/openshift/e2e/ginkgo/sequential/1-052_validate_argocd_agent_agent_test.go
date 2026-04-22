@@ -395,7 +395,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 				ac.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 				ac.Spec.ArgoCDAgent.Agent.LogFormat = "json"
-				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 				ac.Spec.ArgoCDAgent.Agent.Client.KeepAliveInterval = "60s"
 				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = ptr.To(true)
@@ -425,7 +425,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 				}, "120s", "5s").Should(BeTrue(), "Agent deployment should have the updated image")
 
 			By("Verify environment variables are updated correctly")
