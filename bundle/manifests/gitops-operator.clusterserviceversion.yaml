@@ -190,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-04-14T12:37:41Z"
+    createdAt: "2026-04-21T13:41:53Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -859,7 +859,7 @@ spec:
               containers:
               - args:
                 - --health-probe-bind-address=:8081
-                - --metrics-bind-address=127.0.0.1:8080
+                - --metrics-bind-address=:8443
                 - --leader-elect
                 command:
                 - /usr/local/bin/manager
@@ -885,6 +885,12 @@ spec:
                 - containerPort: 9443
                   name: webhook-server
                   protocol: TCP
+                - containerPort: 8443
+                  name: metrics
+                  protocol: TCP
+                - containerPort: 8081
+                  name: health
+                  protocol: TCP
                 readinessProbe:
                   httpGet:
                     path: /readyz
@@ -899,44 +905,10 @@ spec:
                     - ALL
                   readOnlyRootFilesystem: true
                   runAsNonRoot: true
-              - args:
-                - --secure-listen-address=0.0.0.0:8443
-                - --upstream=http://127.0.0.1:8080
-                - --tls-cert-file=/etc/tls/private/tls.crt
-                - --tls-private-key-file=/etc/tls/private/tls.key
-                - --logtostderr=true
-                - --allow-paths=/metrics
-                - --http2-disable
-                image: registry.redhat.io/openshift4/ose-kube-rbac-proxy:v4.15
-                name: kube-rbac-proxy
-                ports:
-                - containerPort: 8443
-                  name: metrics
-                  protocol: TCP
-                resources:
-                  limits:
-                    cpu: 500m
-                    memory: 128Mi
-                  requests:
-                    cpu: 1m
-                    memory: 15Mi
-                securityContext:
-                  allowPrivilegeEscalation: false
-                  capabilities:
-                    drop:
-                    - ALL
-                volumeMounts:
-                - mountPath: /etc/tls/private
-                  name: kube-rbac-proxy-tls
-                  readOnly: true
               securityContext:
                 runAsNonRoot: true
               serviceAccountName: openshift-gitops-operator-controller-manager
               terminationGracePeriodSeconds: 10
-              volumes:
-              - name: kube-rbac-proxy-tls
-                secret:
-                  secretName: kube-rbac-proxy-tls
       permissions:
       - rules:
         - apiGroups:

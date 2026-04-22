@@ -441,7 +441,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.ArgoCDAgent.Principal.LogFormat = "json"
 				ac.Spec.ArgoCDAgent.Principal.Server.KeepAliveMinInterval = "60s"
 				ac.Spec.ArgoCDAgent.Principal.Server.EnableWebSocket = ptr.To(true)
-				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 				ac.Spec.ArgoCDAgent.Principal.Namespace.AllowedNamespaces = []string{"agent-managed", "agent-autonomous"}
 				ac.Spec.ArgoCDAgent.Principal.Namespace.EnableNamespaceCreate = ptr.To(true)
@@ -488,7 +488,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 				}, "120s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
 
 			By("verify that deployment is in Ready state")
