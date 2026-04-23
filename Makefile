@@ -152,44 +152,25 @@ test: manifests generate fmt vet ## Run unit tests.
 
 
 .PHONY: e2e-tests-ginkgo
-e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs kuttl e2e sequential and parallel tests
+e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs Ginkgo e2e sequential and parallel tests
 
 .PHONY: e2e-tests-sequential-ginkgo
-e2e-tests-sequential-ginkgo: ginkgo ## Runs kuttl e2e sequential tests
+e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
 	$(GINKGO_CLI) -v --trace --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
 
-.PHONY: e2e-tests-parallel-ginkgo ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
+.PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
 	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
-	CI=prow make e2e-tests-sequential-ginkgo ## Runs kuttl e2e sequentail tests
-#	@echo "Running GitOps Operator sequential E2E tests..."
-#	. ./scripts/run-kuttl-tests.sh  sequential
+	CI=prow make e2e-tests-sequential-ginkgo ## Runs Ginkgo e2e sequential tests
 
-.PHONY: e2e-tests-parallel ## Runs kuttl e2e parallel tests, (Defaults to 5 runs at a time)
+.PHONY: e2e-tests-parallel ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel:
 	CI=prow make e2e-tests-parallel-ginkgo
-	# @echo "Running GitOps Operator parallel E2E tests..."
-	# . ./scripts/run-kuttl-tests.sh  parallel
-
-.PHONY: e2e-non-olm-tests-sequential
-e2e-non-olm-tests-sequential: ## Runs kuttl non-olm e2e sequentail tests
-	@echo "Running Non-OLM GitOps Operator sequential E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t sequential
-
-.PHONY: e2e-non-olm-tests-parallel ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-non-olm-tests-parallel:
-	@echo "Running Non-OLM GitOps Operator parallel E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t parallel
-
-.PHONY: e2e-non-olm-tests-all ## Runs kuttl non-olm e2e parallel tests, (Defaults to 5 runs at a time)
-e2e-non-olm-tests-all:
-	@echo "Running Non-OLM GitOps Operator E2E tests..."
-	. ./hack/scripts/run-non-olm-kuttl-test.sh -t all
 
 ##@ Build
 
