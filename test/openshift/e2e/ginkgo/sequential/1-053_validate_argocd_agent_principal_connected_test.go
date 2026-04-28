@@ -35,6 +35,7 @@ import (
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -366,6 +367,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			cancellableContext, cancelFunc := context.WithCancel(context.Background())
 			defer cancelFunc()
 
+			injectedRedisPwd, err := osFixture.ExecCommandWithOutputParam(
+				false, false,
+				"kubectl", "exec", "deployment/argocd-hub-agent-principal", "-n", namespaceAgentPrincipal,
+				"--", "cat", "/app/config/redis-auth/auth",
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(injectedRedisPwd)).ToNot(BeEmpty())
+
+			principalEnv, err := osFixture.ExecCommandWithOutputParam(
+				false, false,
+				"kubectl", "exec", "deployment/argocd-hub-agent-principal", "-n", namespaceAgentPrincipal,
+				"--", "cat", "/proc/1/environ",
+			)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(principalEnv).To(ContainSubstring("REDIS_CREDS_DIR_PATH=/app/config/redis-auth/"))
+			Expect(principalEnv).NotTo(ContainSubstring("REDIS_PASSWORD"))
+
 			resourceTreeURL := "https://" + argoEndpoint + "/api/v1/stream/applications/" + appOnPrincipal.Name + "/resource-tree?appNamespace=" + appOnPrincipal.Namespace
 
 			// Wait for successful connection to resource tree event source API, on principal Argo CD
@@ -472,6 +490,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(func() bool {
 				for {
 					// drain channel looking for name of new pod
+					GinkgoWriter.Println("Awaiting message")
 					select {
 					case msg := <-msgChan:
 						GinkgoWriter.Println("Processing message:", msg)
@@ -502,7 +521,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 			}
 			Expect(matchFound).To(BeTrue())
-
 		}
 
 		// This test verifies that:
