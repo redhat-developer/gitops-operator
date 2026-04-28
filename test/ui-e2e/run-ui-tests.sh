@@ -20,7 +20,7 @@ if ! oc whoami > /dev/null 2>&1; then
 fi
 
 #find the URLs for console and argocd 
-echo "🔍 Discovering component URLs..."
+echo "Discovering component URLs..."
 export ARGOCD_URL=$(oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{"https://"}{.spec.host}')
 export CONSOLE_URL=$(oc whoami --show-console)
 
