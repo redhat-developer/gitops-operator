@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [ -f .env ]; then
+  echo "Loading variables from .env file..."
+  set -a  #export all variables
+  source .env
+  set +a  # stop automatically exporting
+fi
+
 #making sure we are in the correct dir
 cd "$(dirname "$0")" || exit 1
 
