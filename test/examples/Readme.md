@@ -2,7 +2,7 @@
 
 This directory contains examples for testing gitops operator.
 
-We used to use some of our personal github profiles in Kuttl testing repository as a repoURL. We decided to centralized location for storing them in gitops-operator repo and eliminate the dependency of personal account of a developer or QE. 
+We used to use some of our personal GitHub profiles in older E2E fixtures as a `repoURL`. We centralized these examples in the gitops-operator repo to avoid depending on a developer or QE personal account. 
 
 ## How these examples are used?
 

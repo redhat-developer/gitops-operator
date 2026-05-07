@@ -1,7 +1,0 @@
----
-apiVersion: argoproj.io/v1alpha1
-kind: RolloutManager
-metadata:
-  name: example-rollout-manager
-status:
-  phase: Available

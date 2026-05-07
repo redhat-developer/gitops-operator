@@ -83,7 +83,7 @@ if [ "$E2E_SKIP_OPERATOR_INSTALLATION" = false ]; then
    install_operator_resources
 fi
 
-header "Running kuttl e2e tests"
+header "Running Ginkgo e2e tests"
 make e2e-tests-sequential || failed=1
 
 if [[ "$IGNORE_PARALLEL_TESTS" = "false" ]]; then

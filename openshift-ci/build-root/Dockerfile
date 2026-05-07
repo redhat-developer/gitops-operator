@@ -3,16 +3,11 @@
 FROM quay.io/devtools_gitops/go-toolset:1.25.5
 USER root
 
-ARG KUBECTL_KUTTL_VERSION=0.12.1
 ARG OPERATOR_SDK_VERSION=1.35.0
 
 # Install kubectl tool which is used in e2e-tests
 RUN curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
      chmod +x /usr/local/bin/kubectl
-
-# Install kubectl-kuttl tool which is used in e2e-tests
-RUN curl -sSL -o /usr/local/bin/kubectl-kuttl https://github.com/kudobuilder/kuttl/releases/download/v${KUBECTL_KUTTL_VERSION}/kubectl-kuttl_${KUBECTL_KUTTL_VERSION}_linux_x86_64 && \
-     chmod +x /usr/local/bin/kubectl-kuttl
 
 # Install argocd cli tool which is used in e2e-tests
 RUN curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 && \
