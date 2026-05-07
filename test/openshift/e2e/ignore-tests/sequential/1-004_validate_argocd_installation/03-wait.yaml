@@ -1,5 +1,0 @@
-# Wait for the Operator to reconcile
-apiVersion: kuttl.dev/v1beta1
-kind: TestStep
-commands:
-- script: sleep 5

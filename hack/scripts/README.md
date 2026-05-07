@@ -1,18 +1,13 @@
-### Non OLM based operator e2e kuttl test
+### Non-OLM operator: Ginkgo E2E tests
 
-`run-non-olm-kuttl-test.sh` is a bash script utility, that can be used to run the end to end test for Openshift GitOps Operator without using the `Operator Lifecycle Manager (OLM)`. 
+When the operator is installed without OLM (for example via a plain `Deployment` in `openshift-gitops-operator`), run the OpenShift E2E suite with `NON_OLM=true` so tests that require a `Subscription` or productized images are skipped.
 
-### Usage
+From the repository root:
 
-The `run-non-olm-kuttl-test.sh` script needs to be run with argument specifying the test suite to be run with .
+```bash
+NON_OLM=true make e2e-tests-sequential-ginkgo
+# and/or
+NON_OLM=true make e2e-tests-parallel-ginkgo
+```
 
-run-non-olm-kuttl-test.sh [ -t sequential|parallel|all ] 
-
-Example 
-
-`./run-non-olm-kuttl-test.sh -t parallel` will run the entire parallel test suite. By default it will run all the tests.
-
-The  directories that are not needed for the nightly operator are excluded before running the tests.
-If you want to add more excluded tests, you can do so by using an environment variable called `EXCLUDED_TESTS` like so,
-
-`export EXCLUDED_TESTS="1-031_validate_toolchain 1-085_validate_dynamic_plugin_installation 1-038_validate_productized_images"`
+See `test/openshift/e2e/README.md` for full options (`LOCAL_RUN`, `SKIP_HA_TESTS`, and so on).

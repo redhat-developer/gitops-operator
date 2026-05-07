@@ -62,7 +62,7 @@ You can skip non-local-supported tests by setting `LOCAL_RUN=true`:
 ```bash
 LOCAL_RUN=true  make e2e-tests-sequential-ginkgo
 # and/or
-LOCAL_RUN=true  make e2e-tests-sequential-parallel
+LOCAL_RUN=true  make e2e-tests-parallel-ginkgo
 ```
 
 
@@ -224,7 +224,7 @@ defer cleanupFunc()
 ### `01-create-or-update-resource.yaml`
 
 Example:
-In kuttl, this would create (or modify an existing) `ArgoCD` CR to have dex sso provider using openShiftOAuth.
+In a Kuttl test, this would create (or modify an existing) `ArgoCD` CR to use the Dex SSO provider with `openShiftOAuth`.
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD
