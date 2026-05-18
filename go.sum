@@ -37,10 +37,10 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuW
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67 h1:gFasfvlbOfrwzd7JaVTlnRgE7pDMFC+lQwt07gGGrbY=
 github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67/go.mod h1:WPyZkNHZjir/OTt8mrRwcUZKe1euHrHPJsRv1Wp/F/0=
-github.com/argoproj-labs/argocd-image-updater v1.1.1 h1:7YDaR3WX2NMsDKp0wN7TRaRRHaVHQ94tSybi2P99MGk=
-github.com/argoproj-labs/argocd-image-updater v1.1.1/go.mod h1:gMHiNrGNwNSt4ljf0ykcnmNvXBk/NJ+Z17AnZVe7V7I=
-github.com/argoproj-labs/argocd-operator v0.17.0-rc1.0.20260304133241-fd7fd59a2b0b h1:HxyuUUBlSPwKWSvLHnCibtR4Yz3Z6qpEm5wSi3a5oIw=
-github.com/argoproj-labs/argocd-operator v0.17.0-rc1.0.20260304133241-fd7fd59a2b0b/go.mod h1:J1/kP2zzXbKU5Austr4Eg3qAilMtRyQX8yu0/ALUzD0=
+github.com/argoproj-labs/argocd-image-updater v1.1.2 h1:z7zXF30lGap5DqHdVRPWd6qtOKXh1czl5WL0iEXi3lE=
+github.com/argoproj-labs/argocd-image-updater v1.1.2/go.mod h1:EpwMlbWGInyqkRhCWAD18bvgNdk/s7SUSEXtM+K9ApE=
+github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260518131435-06c061854329 h1:7vGjsnB0TqTzc/D7QnJi4MJCK+iQ9wIyCcoxZmCnoD8=
+github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260518131435-06c061854329/go.mod h1:RsIjcwxr7Koxg+/cVVUTzccpPojMmQ/zH9pl1nvYGRI=
 github.com/argoproj/argo-cd/v3 v3.3.9 h1:5etMk6bD18iIiSeRo/5zTsp6Bwn6heoVeHIeA3++SSI=
 github.com/argoproj/argo-cd/v3 v3.3.9/go.mod h1:Qh80AE4vFLe5jhdI7qYareRc7YOTLDQsDEq7ghvs0Qc=
 github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d h1:iUJYrbSvpV9n8vyl1sBt1GceM60HhHfnHxuzcm5apDg=
