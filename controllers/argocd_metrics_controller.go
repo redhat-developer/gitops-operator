@@ -397,8 +397,8 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 		return nil
 	}
 
-	if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != desiredMetricsServerName {
-		existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName = desiredMetricsServerName
+	if existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName != &desiredMetricsServerName {
+		existingServiceMonitor.Spec.Endpoints[0].TLSConfig.ServerName = &desiredMetricsServerName
 		return r.Client.Update(context.TODO(), existingServiceMonitor)
 	}
 
