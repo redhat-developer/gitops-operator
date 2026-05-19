@@ -1,6 +1,6 @@
 # Dockerfile to bootstrap build and test in openshift-ci
 
-FROM quay.io/devtools_gitops/go-toolset:1.25.5
+FROM quay.io/devtools_gitops/go-toolset:1.25.9
 USER root
 
 ARG OPERATOR_SDK_VERSION=1.35.0
