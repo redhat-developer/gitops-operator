@@ -5,8 +5,8 @@ go 1.25.9
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67
 	github.com/argoproj-labs/argocd-image-updater v1.1.2
-	github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260518131435-06c061854329
-	github.com/argoproj/argo-cd/v3 v3.3.9
+	github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260520050648-ab2d14774530
+	github.com/argoproj/argo-cd/v3 v3.3.10
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
@@ -153,9 +153,9 @@ require (
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
-	go.opentelemetry.io/otel v1.40.0 // indirect
-	go.opentelemetry.io/otel/metric v1.40.0 // indirect
-	go.opentelemetry.io/otel/trace v1.40.0 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
+	go.opentelemetry.io/otel/metric v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
