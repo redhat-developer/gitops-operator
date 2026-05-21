@@ -166,9 +166,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater",
-					Namespace: namespace,
+					Namespace: ns.Name,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
+					Namespace: &namespace,
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
 						{
 							NamePattern: "app*",
