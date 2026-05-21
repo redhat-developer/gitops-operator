@@ -2,34 +2,31 @@
 FROM golang:1.26.2 as builder
 
 WORKDIR /workspace
-
-COPY argocd-operator /workspace/argocd-operator
-
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
-
-# Cache dependencies
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
-# Copy the Go source
+# Copy the go source
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY common/ common/
 COPY version/ version/
 
-# Build explicitly for linux/amd64
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager ./cmd/main.go
+# Build - Use TARGETARCH to build for the correct architecture
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -o manager ./cmd/main.go
 
-# Use distroless as minimal base image
-FROM --platform=linux/amd64 gcr.io/distroless/static:nonroot
-
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot
 WORKDIR /
-
 COPY --from=builder /workspace/manager /usr/local/bin/manager
 
-# Install redis artifacts
+# install redis artifacts
 COPY build/redis /var/lib/redis
 
 USER 65532:65532

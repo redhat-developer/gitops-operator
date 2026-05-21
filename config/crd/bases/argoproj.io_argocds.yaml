@@ -1314,6 +1314,15 @@ spec:
                     description: Sharding contains the options for the Application
                       Controller sharding configuration.
                     properties:
+                      algorithm:
+                        description: DistributionAlgorithm determines what algorithm
+                          will be used for distribution of shards. Valid options are
+                          legacy, round-robin, and consistent-hashing
+                        enum:
+                        - legacy
+                        - round-robin
+                        - consistent-hashing
+                        type: string
                       clustersPerShard:
                         description: ClustersPerShard defines the maximum number of
                           clusters managed by each argocd shard
@@ -12195,6 +12204,10 @@ spec:
                                 - "1.3"
                                 type: string
                             type: object
+                            x-kubernetes-validations:
+                            - message: minVersion must be less than or equal to maxVersion
+                              rule: '!has(self.minVersion) || !has(self.maxVersion)
+                                || self.minVersion <= self.maxVersion'
                         type: object
                     type: object
                 type: object
@@ -12233,6 +12246,7 @@ spec:
                   CmdParams specifies command-line parameters for the Argo CD components.
                   The only keys currently supported for this parameter are:
                   - controller.resource.health.persist
+                  - applicationsetcontroller.enable.tokenref.strict.mode — when ApplicationSet-in-any-namespace is active, the operator defaults this to "true"
                 type: object
               configManagementPlugins:
                 description: 'Deprecated: ConfigManagementPlugins field is no longer
@@ -14063,6 +14077,15 @@ spec:
                     description: Sharding contains the options for the Application
                       Controller sharding configuration.
                     properties:
+                      algorithm:
+                        description: DistributionAlgorithm determines what algorithm
+                          will be used for distribution of shards. Valid options are
+                          legacy, round-robin, and consistent-hashing
+                        enum:
+                        - legacy
+                        - round-robin
+                        - consistent-hashing
+                        type: string
                       clustersPerShard:
                         description: ClustersPerShard defines the maximum number of
                           clusters managed by each argocd shard
@@ -18198,6 +18221,10 @@ spec:
                         - "1.3"
                         type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: minVersion must be less than or equal to maxVersion
+                      rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
+                        <= self.maxVersion'
                 required:
                 - enabled
                 type: object
@@ -18984,6 +19011,10 @@ spec:
                         - "1.3"
                         type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: minVersion must be less than or equal to maxVersion
+                      rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
+                        <= self.maxVersion'
                   version:
                     description: Version is the Redis container image tag.
                     type: string
@@ -22590,6 +22621,10 @@ spec:
                         - "1.3"
                         type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: minVersion must be less than or equal to maxVersion
+                      rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
+                        <= self.maxVersion'
                   verifytls:
                     description: VerifyTLS defines whether repo server API should
                       be accessed using strict TLS validation
@@ -28292,6 +28327,10 @@ spec:
                         - "1.3"
                         type: string
                     type: object
+                    x-kubernetes-validations:
+                    - message: minVersion must be less than or equal to maxVersion
+                      rule: '!has(self.minVersion) || !has(self.maxVersion) || self.minVersion
+                        <= self.maxVersion'
                   volumeMounts:
                     description: VolumeMounts adds volumeMounts to the Argo CD Server
                       container.

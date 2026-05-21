@@ -18,7 +18,13 @@ rules:
   - services
   - services/finalizers
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -91,20 +97,19 @@ rules:
   resources:
   - daemonsets
   - deployments
+  - podtemplates
   - replicasets
   - statefulsets
   verbs:
-  - '*'
-- apiGroups:
-  - apps
-  resources:
-  - deployments/finalizers
-  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
   - update
+  - watch
 - apiGroups:
   - apps
-  resourceNames:
-  - argocd-operator
   resources:
   - deployments/finalizers
   verbs:
@@ -118,20 +123,7 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - apps
-  resources:
-  - podtemplates
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - apps.openshift.io
-  - route.openshift.io
   resources:
   - '*'
   verbs:
@@ -142,13 +134,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - argocd-image-updater.argoproj.io
-  resources:
-  - imageupdaters
-  - imageupdaters/finalizers
-  verbs:
-  - '*'
 - apiGroups:
   - argoproj.io
   resources:
@@ -158,6 +143,8 @@ rules:
   - clusteranalysistemplates
   - experiments
   - experiments/finalizers
+  - namespacemanagements
+  - namespacemanagements/status
   - rollouts
   - rollouts/finalizers
   - rollouts/scale
@@ -179,29 +166,6 @@ rules:
   - argocds
   - argocds/finalizers
   - argocds/status
-  verbs:
-  - '*'
-- apiGroups:
-  - argoproj.io
-  resources:
-  - argocdexports
-  - argocdexports/finalizers
-  - argocdexports/status
-  - namespacemanagements/finalizers
-  - notificationsconfigurations
-  - notificationsconfigurations/finalizers
-  verbs:
-  - '*'
-- apiGroups:
-  - argoproj.io
-  resources:
-  - namespacemanagements
-  - namespacemanagements/status
-  verbs:
-  - '*'
-- apiGroups:
-  - argoproj.io
-  resources:
   - rolloutmanagers
   verbs:
   - create
@@ -211,6 +175,13 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - notificationsconfigurations
+  - notificationsconfigurations/finalizers
+  verbs:
+  - '*'
 - apiGroups:
   - argoproj.io
   resources:
@@ -230,21 +201,25 @@ rules:
   resources:
   - horizontalpodautoscalers
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - batch
   resources:
   - cronjobs
   - jobs
   verbs:
-  - '*'
-- apiGroups:
-  - certificates.k8s.io
-  resources:
-  - clustertrustbundles
-  verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - config.openshift.io
@@ -327,7 +302,13 @@ rules:
   - prometheusrules
   - servicemonitors
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - networking.istio.io
   resources:
@@ -343,11 +324,6 @@ rules:
   - networking.k8s.io
   resources:
   - ingresses
-  verbs:
-  - '*'
-- apiGroups:
-  - networking.k8s.io
-  resources:
   - networkpolicies
   verbs:
   - create
@@ -414,7 +390,16 @@ rules:
   - clusterrolebindings
   - clusterroles
   verbs:
-  - '*'
+  - bind
+  - create
+  - delete
+  - deletecollection
+  - escalate
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -431,10 +416,17 @@ rules:
 - apiGroups:
   - route.openshift.io
   resources:
+  - '*'
   - routes
   - routes/custom-host
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - split.smi-spec.io
   resources:
@@ -452,7 +444,13 @@ rules:
   - templateinstances
   - templates
   verbs:
-  - '*'
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - traefik.containo.us
   resources:

@@ -162,10 +162,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
+			namespace := ns.Name
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater",
-					Namespace: ns.Name,
+					Namespace: namespace,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
