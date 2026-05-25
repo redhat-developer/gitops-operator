@@ -1,6 +1,6 @@
 module github.com/redhat-developer/gitops-operator
 
-go 1.26.3
+go 1.26.2
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.9-0.20260416124436-25ad7d58a5c7
