@@ -20,8 +20,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
