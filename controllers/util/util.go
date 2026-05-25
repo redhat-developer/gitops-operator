@@ -26,6 +26,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,8 +40,9 @@ const (
 )
 
 var (
-	consoleAPIFound = false
-	routeAPIFound   = false
+	consoleAPIFound    = false
+	routeAPIFound      = false
+	monitoringAPIFound = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -80,6 +82,9 @@ func InspectCluster() error {
 	if err := verifyRouteAPI(); err != nil {
 		return err
 	}
+	if err := verifyMonitoringAPI(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -117,6 +122,22 @@ func verifyRouteAPI() error {
 	}
 	routeAPIFound = found
 	return nil
+}
+
+func verifyMonitoringAPI() error {
+	found, err := argoutil.VerifyAPI(
+		monitoringv1.SchemeGroupVersion.Group,
+		monitoringv1.SchemeGroupVersion.Version,
+	)
+	if err != nil {
+		return err
+	}
+	monitoringAPIFound = found
+	return nil
+}
+
+func IsMonitoringAPIFound() bool {
+	return monitoringAPIFound
 }
 
 func ProxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {

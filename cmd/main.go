@@ -208,6 +208,10 @@ func main() {
 		registerComponentOrExit(mgr, routev1.AddToScheme)
 	}
 
+	if util.IsMonitoringAPIFound() {
+		registerComponentOrExit(mgr, monitoringv1.AddToScheme)
+	}
+
 	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)

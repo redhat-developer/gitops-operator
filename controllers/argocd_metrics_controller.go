@@ -28,6 +28,7 @@ import (
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -82,6 +83,11 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 	var logs = logf.Log.WithName("controller_argocd_metrics")
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling ArgoCD Metrics")
+
+	if !util.IsMonitoringAPIFound() {
+		reqLogger.V(1).Info("monitoring.coreos.com API not available, skipping metrics reconciliation")
+		return reconcile.Result{}, nil
+	}
 
 	namespace := corev1.Namespace{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: request.Namespace}, &namespace)
