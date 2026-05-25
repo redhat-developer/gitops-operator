@@ -338,7 +338,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+
+			if fixture.EnvCI() || fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+				Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			} else {
+				Expect(container.Image).To(HavePrefix("registry.redhat.io/openshift-gitops-1/argocd-agent-rhel9"))
+			}
 
 			By("Verify environment variables are set correctly")
 
