@@ -52,6 +52,40 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 }
 
+func TestRouteAPIFound(t *testing.T) {
+	t.Run("Route API not found by default", func(t *testing.T) {
+		defer SetRouteAPIFound(false)
+		SetRouteAPIFound(false)
+		if IsRouteAPIFound() {
+			t.Fatal("expected Route API to not be found")
+		}
+	})
+	t.Run("SetRouteAPIFound sets the value", func(t *testing.T) {
+		defer SetRouteAPIFound(false)
+		SetRouteAPIFound(true)
+		if !IsRouteAPIFound() {
+			t.Fatal("expected Route API to be found after SetRouteAPIFound(true)")
+		}
+	})
+}
+
+func TestConsoleAPIFound(t *testing.T) {
+	t.Run("Console API not found by default", func(t *testing.T) {
+		defer SetConsoleAPIFound(false)
+		SetConsoleAPIFound(false)
+		if IsConsoleAPIFound() {
+			t.Fatal("expected Console API to not be found")
+		}
+	})
+	t.Run("SetConsoleAPIFound sets the value", func(t *testing.T) {
+		defer SetConsoleAPIFound(false)
+		SetConsoleAPIFound(true)
+		if !IsConsoleAPIFound() {
+			t.Fatal("expected Console API to be found after SetConsoleAPIFound(true)")
+		}
+	})
+}
+
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {

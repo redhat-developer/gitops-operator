@@ -133,7 +133,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	if err := util.InspectCluster(); err != nil {
-		setupLog.Info("unable to inspect cluster")
+		setupLog.Error(err, "unable to inspect cluster")
 	}
 
 	disableHTTP2 := func(c *tls.Config) {
@@ -198,18 +198,56 @@ func main() {
 		client = mgr.GetClient()
 	}
 
-	registerComponentOrExit(mgr, console.AddToScheme)
-	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
+	// Setup Scheme for OpenShift Console if available (verified by InspectCluster)
+	if util.IsConsoleAPIFound() {
+		registerComponentOrExit(mgr, console.AddToScheme)
+	}
+
+	// Setup Scheme for OpenShift Route if available (verified by InspectCluster)
+	if util.IsRouteAPIFound() {
+		registerComponentOrExit(mgr, routev1.AddToScheme)
+	}
+
 	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
 	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
 	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
-	registerComponentOrExit(mgr, configv1.AddToScheme)
+
+	// Setup Scheme for OpenShift Config if available
+	if found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version); err != nil {
+		setupLog.Error(err, "unable to verify Config API")
+		os.Exit(1)
+	} else if found {
+		registerComponentOrExit(mgr, configv1.AddToScheme)
+	}
+
 	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
-	registerComponentOrExit(mgr, templatev1.AddToScheme)
-	registerComponentOrExit(mgr, appsv1.AddToScheme)
-	registerComponentOrExit(mgr, oauthv1.AddToScheme)
+
+	// Setup Scheme for OpenShift Template if available
+	if found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version); err != nil {
+		setupLog.Error(err, "unable to verify Template API")
+		os.Exit(1)
+	} else if found {
+		registerComponentOrExit(mgr, templatev1.AddToScheme)
+	}
+
+	// Setup Scheme for OpenShift Apps if available
+	if found, err := argoutil.VerifyAPI(appsv1.GroupName, appsv1.GroupVersion.Version); err != nil {
+		setupLog.Error(err, "unable to verify Apps API")
+		os.Exit(1)
+	} else if found {
+		registerComponentOrExit(mgr, appsv1.AddToScheme)
+	}
+
+	// Setup Scheme for OpenShift OAuth if available
+	if found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version); err != nil {
+		setupLog.Error(err, "unable to verify OAuth API")
+		os.Exit(1)
+	} else if found {
+		registerComponentOrExit(mgr, oauthv1.AddToScheme)
+	}
+
 	registerComponentOrExit(mgr, crdv1.AddToScheme)
 
 	// Start webhook only if ENABLE_CONVERSION_WEBHOOK is set
@@ -229,12 +267,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ReconcileArgoCDRoute{
-		Client: client,
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Argo CD route")
-		os.Exit(1)
+	if util.IsRouteAPIFound() {
+		if err = (&controllers.ReconcileArgoCDRoute{
+			Client: client,
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Argo CD route")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("Route API not found, skipping ReconcileArgoCDRoute controller setup")
 	}
 
 	if err = (&controllers.ArgoCDMetricsReconciler{

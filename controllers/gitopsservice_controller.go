@@ -27,6 +27,7 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argoutil "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -101,15 +102,20 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		reqLogger.Error(err, "Failed to create GitOps service instance")
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	bldr := ctrl.NewControllerManagedBy(mgr).
 		For(&pipelinesv1alpha1.GitopsService{}, builder.WithPredicates(pred)).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
-		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
-		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
+		Owns(&corev1.Service{}, builder.WithPredicates(pred))
+
+	if util.IsRouteAPIFound() {
+		bldr = bldr.Owns(&routev1.Route{}, builder.WithPredicates(pred))
+	}
+
+	return bldr.
 		Watches(
 			&corev1.Namespace{},
 			&handler.EnqueueRequestForObject{},
@@ -216,7 +222,12 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
 
-	// Fetch the GitopsService instance
+	// Fetch the GitopsService instance if on OpenShift cluster
+	if !argoutil.IsOpenShiftCluster() {
+		reqLogger.Info("Skip GitopsService reconcile: Not an OpenShift cluster")
+		return reconcile.Result{}, nil
+	}
+
 	instance := &pipelinesv1alpha1.GitopsService{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)
 	if err != nil {
@@ -344,14 +355,16 @@ func (r *ReconcileGitopsService) cleanKAMResources(ctx context.Context, reqLogge
 	}
 
 	// KAM Route
-	cleanupKAMRoute := &routev1.Route{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMRoute); err == nil {
-		reqLogger.Info("Detected unsupported KAM Route, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
-		if err := r.Client.Delete(ctx, cleanupKAMRoute); err != nil && !errors.IsNotFound(err) {
-			reqLogger.Error(err, "Failed to delete KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+	if util.IsRouteAPIFound() {
+		cleanupKAMRoute := &routev1.Route{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMRoute); err == nil {
+			reqLogger.Info("Detected unsupported KAM Route, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
+			if err := r.Client.Delete(ctx, cleanupKAMRoute); err != nil && !errors.IsNotFound(err) {
+				reqLogger.Error(err, "Failed to delete KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+			}
+		} else if !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Failed to retrieve KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
 		}
-	} else if !errors.IsNotFound(err) {
-		reqLogger.Error(err, "Failed to retrieve KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
 	}
 
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,6 +40,7 @@ const (
 
 var (
 	consoleAPIFound = false
+	routeAPIFound   = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -75,6 +77,9 @@ func InspectCluster() error {
 	if err := verifyConsoleAPI(); err != nil {
 		return err
 	}
+	if err := verifyRouteAPI(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -93,6 +98,24 @@ func verifyConsoleAPI() error {
 		return err
 	}
 	consoleAPIFound = found
+	return nil
+}
+
+func IsRouteAPIFound() bool {
+	return routeAPIFound
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetRouteAPIFound(found bool) {
+	routeAPIFound = found
+}
+
+func verifyRouteAPI() error {
+	found, err := argoutil.VerifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	routeAPIFound = found
 	return nil
 }
 
