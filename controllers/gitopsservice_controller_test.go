@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -47,6 +48,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+func TestMain(m *testing.M) {
+	util.SetOpenShiftClusterFound(true)
+	util.SetMonitoringAPIFound(true)
+	os.Exit(m.Run())
+}
 
 func TestImageFromEnvVariable(t *testing.T) {
 	ns := types.NamespacedName{Name: "test", Namespace: "test"}

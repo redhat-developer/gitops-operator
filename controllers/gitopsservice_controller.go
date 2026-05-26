@@ -27,7 +27,6 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	argoutil "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -221,12 +220,6 @@ type ReconcileGitopsService struct {
 func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
-
-	// Fetch the GitopsService instance if on OpenShift cluster
-	if !argoutil.IsOpenShiftCluster() {
-		reqLogger.Info("Skip GitopsService reconcile: Not an OpenShift cluster")
-		return reconcile.Result{}, nil
-	}
 
 	instance := &pipelinesv1alpha1.GitopsService{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)

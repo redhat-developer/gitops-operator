@@ -69,6 +69,23 @@ func TestRouteAPIFound(t *testing.T) {
 	})
 }
 
+func TestOpenShiftClusterFound(t *testing.T) {
+	t.Run("OpenShift cluster not found by default", func(t *testing.T) {
+		defer SetOpenShiftClusterFound(false)
+		SetOpenShiftClusterFound(false)
+		if IsOpenShiftCluster() {
+			t.Fatal("expected OpenShift cluster to not be found")
+		}
+	})
+	t.Run("SetOpenShiftClusterFound sets the value", func(t *testing.T) {
+		defer SetOpenShiftClusterFound(false)
+		SetOpenShiftClusterFound(true)
+		if !IsOpenShiftCluster() {
+			t.Fatal("expected OpenShift cluster to be found after SetOpenShiftClusterFound(true)")
+		}
+	})
+}
+
 func TestConsoleAPIFound(t *testing.T) {
 	t.Run("Console API not found by default", func(t *testing.T) {
 		defer SetConsoleAPIFound(false)

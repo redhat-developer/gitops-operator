@@ -40,9 +40,10 @@ const (
 )
 
 var (
-	consoleAPIFound    = false
-	routeAPIFound      = false
-	monitoringAPIFound = false
+	consoleAPIFound       = false
+	routeAPIFound         = false
+	monitoringAPIFound    = false
+	openShiftClusterFound = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -76,10 +77,13 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 }
 
 func InspectCluster() error {
-	if err := verifyConsoleAPI(); err != nil {
+	if err := verifyOpenShiftCluster(); err != nil {
 		return err
 	}
 	if err := verifyRouteAPI(); err != nil {
+		return err
+	}
+	if err := verifyConsoleAPI(); err != nil {
 		return err
 	}
 	if err := verifyMonitoringAPI(); err != nil {
@@ -88,13 +92,21 @@ func InspectCluster() error {
 	return nil
 }
 
-func IsConsoleAPIFound() bool {
-	return consoleAPIFound
+func IsOpenShiftCluster() bool {
+	return openShiftClusterFound
 }
 
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetConsoleAPIFound(found bool) {
-	consoleAPIFound = found
+func verifyOpenShiftCluster() error {
+	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	openShiftClusterFound = found
+	return nil
+}
+
+func IsConsoleAPIFound() bool {
+	return consoleAPIFound
 }
 
 func verifyConsoleAPI() error {
@@ -108,11 +120,6 @@ func verifyConsoleAPI() error {
 
 func IsRouteAPIFound() bool {
 	return routeAPIFound
-}
-
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetRouteAPIFound(found bool) {
-	routeAPIFound = found
 }
 
 func verifyRouteAPI() error {

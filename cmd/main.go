@@ -208,6 +208,7 @@ func main() {
 		registerComponentOrExit(mgr, routev1.AddToScheme)
 	}
 
+	// Setup Scheme for Prometheus Operator if available (verified by InspectCluster)
 	if util.IsMonitoringAPIFound() {
 		registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	}
@@ -218,14 +219,10 @@ func main() {
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
 
 	// Setup Scheme for OpenShift Config if available
-	if found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version); err != nil {
-		setupLog.Error(err, "unable to verify Config API")
-		os.Exit(1)
-	} else if found {
+	if util.IsOpenShiftCluster() {
 		registerComponentOrExit(mgr, configv1.AddToScheme)
 	}
 
-	registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
 
 	// Setup Scheme for OpenShift Template if available
@@ -262,13 +259,17 @@ func main() {
 		}
 	}
 
-	if err = (&controllers.ReconcileGitopsService{
-		Client:                client,
-		Scheme:                mgr.GetScheme(),
-		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
-		os.Exit(1)
+	if util.IsOpenShiftCluster() {
+		if err = (&controllers.ReconcileGitopsService{
+			Client:                client,
+			Scheme:                mgr.GetScheme(),
+			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("OpenShift Cluster not found, skipping ReconcileGitopsService controller setup")
 	}
 
 	if util.IsRouteAPIFound() {
@@ -283,13 +284,18 @@ func main() {
 		setupLog.Info("Route API not found, skipping ReconcileArgoCDRoute controller setup")
 	}
 
-	if err = (&controllers.ArgoCDMetricsReconciler{
-		Client: client,
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
-		os.Exit(1)
+	if util.IsMonitoringAPIFound() {
+		if err = (&controllers.ArgoCDMetricsReconciler{
+			Client: client,
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
+			os.Exit(1)
+		}
+	} else {
+		setupLog.Info("Monitoring API not found, skipping Argo CD metrics controller setup")
 	}
+
 	// Check the label selector format eg. "foo=bar"
 	if _, err := labels.Parse(labelSelectorFlag); err != nil {
 		setupLog.Error(err, "error parsing the labelSelector '%s'.", labelSelectorFlag)
