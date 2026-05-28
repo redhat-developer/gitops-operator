@@ -2,16 +2,29 @@ import { test, expect } from '@playwright/test';
 import { execSync } from 'node:child_process';
 
 test('Log into Argo CD as local admin', async ({ browser }) => {
-  const rawOutput = execSync(
-    'oc extract secret/openshift-gitops-cluster -n openshift-gitops --keys=admin.password --to=-'
-  ).toString();
+  let rawOutput: string;
+  let routeUrl: string;
+
+  try {
+    rawOutput = execSync(
+      'oc extract secret/openshift-gitops-cluster -n openshift-gitops --keys=admin.password --to=-',
+      { timeout: 15000, stdio: 'pipe' }
+    ).toString();
+  } catch (error) {
+    throw new Error("Failed to extract admin password. Please check your cluster connection and oc CLI.");
+  }
   
   //get credentials
   const password = rawOutput.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'))[0];
 
-  const routeUrl = execSync(
-    'oc get route openshift-gitops-server -n openshift-gitops -o jsonpath="{.spec.host}"'
-  ).toString().trim();
+  try {
+    routeUrl = execSync(
+      'oc get route openshift-gitops-server -n openshift-gitops -o jsonpath="{.spec.host}"',
+      { timeout: 15000, stdio: 'pipe' }
+    ).toString().trim();
+  } catch (error) {
+    throw new Error("Failed to fetch Argo CD route. Please check your cluster connection and oc CLI.");
+  }
 
   //Fresh context to avoid any cached state issues
   const context = await browser.newContext({ 
@@ -24,7 +37,7 @@ test('Log into Argo CD as local admin', async ({ browser }) => {
   const loginUrl = `https://${routeUrl}/login?dex=none`;
   await page.goto(loginUrl, { waitUntil: 'load' });
 
-  const userField = page.getByRole('textbox').first();
+  const userField = page.getByLabel(/username/i);
   await userField.waitFor({ state: 'visible', timeout: 20000 });
 
   //Fill and Sign In
