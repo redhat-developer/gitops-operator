@@ -32,21 +32,24 @@ test('Log into Argo CD as local admin', async ({ browser }) => {
     ignoreHTTPSErrors: true 
   });
   
-  //Navigate and wait for the page to be loaded
-  const page = await context.newPage();
-  const loginUrl = `https://${routeUrl}/login?dex=none`;
-  await page.goto(loginUrl, { waitUntil: 'load' });
+  try {
+      //Navigate and wait for the page to be loaded
+      const page = await context.newPage();
+      const loginUrl = `https://${routeUrl}/login?dex=none`;
+      await page.goto(loginUrl, { waitUntil: 'load' });
 
-  const userField = page.getByLabel(/username/i);
-  await userField.waitFor({ state: 'visible', timeout: 20000 });
+      const userField = page.getByLabel(/username/i);
+      await userField.waitFor({ state: 'visible', timeout: 20000 });
 
-  //Fill and Sign In
-  await userField.fill('admin');
-  await page.locator('input[type="password"]').fill(password);
-  await page.getByRole('button', { name: /sign in/i }).click();
+      //Fill and Sign In
+      await userField.fill('admin');
+      await page.locator('input[type="password"]').fill(password);
+      await page.getByRole('button', { name: /sign in/i }).click();
 
-  //Verify we're logged in
-  await expect(page.locator('.sidebar, [data-testid="sidebar"]').first()).toBeVisible({ timeout: 20000 });
-
-  await context.close();
-});
+      //Verify we're logged in
+      await expect(page.locator('.sidebar, [data-testid="sidebar"]').first()).toBeVisible({ timeout: 20000 });
+    } finally {
+      // This guarantees the context closes even if an assertion fails above!
+      await context.close();
+    }
+  });
