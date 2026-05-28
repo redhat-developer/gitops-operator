@@ -12,10 +12,19 @@ export class LoginPage {
     await this.page.goto('/');
   }
 
-  async loginViaOpenShift(user: string, pass: string, idp: string = 'kube:admin') {
-    //click the SSO button on the Argo CD landing page
+  async loginViaOpenShift(user?: string, pass?: string, idp: string = 'kube:admin') {
     const ssoButton = this.page.getByText(/LOG IN VIA OPENSHIFT/i);
-    await ssoButton.waitFor({ state: 'visible', timeout: 10000 });
+    const newAppButton = this.page.getByRole('button', { name: /NEW APP/i });
+
+    //wait dynamically for either the login screen OR the dashboard to render
+    await ssoButton.or(newAppButton).first().waitFor({ state: 'visible', timeout: 20000 });
+
+    //if we landed straight on the dashboard, the cluster was already fully authenticated
+    if (await newAppButton.isVisible()) {
+      return;
+    }
+
+    //otherwise, click the SSO button on the Argo CD landing page
     await ssoButton.click();
 
     //handle the OpenShift IDP selection screen if it appears
@@ -27,11 +36,18 @@ export class LoginPage {
         //if it's not there then OpenShift likely defaulted to another
     }
 
-    //fil out the OpenShift credentials 
-    await this.page.getByLabel(/Username/i).waitFor({ state: 'visible' });
-    await this.page.getByLabel(/Username/i).fill(user);
-    await this.page.getByLabel(/Password/i).fill(pass);
-    await this.page.getByRole('button', { name: /Log in/i }).click();
+    //check if manual login is actually required
+    const usernameInput = this.page.getByLabel(/Username/i);
+    const needsLogin = await usernameInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+
+    if (needsLogin && user && pass) {
+        //fill out the OpenShift credentials
+        await usernameInput.fill(user);
+        await this.page.getByLabel(/Password/i).fill(pass);
+        await this.page.getByRole('button', { name: /Log in/i }).click();
+      } else if (needsLogin) {
+        throw new Error('Login required but credentials (user/pass) not provided');
+      }
 
     //Auth Handle the Allow Permissions screen
     try {
