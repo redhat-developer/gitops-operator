@@ -52,6 +52,7 @@ import (
 func TestMain(m *testing.M) {
 	util.SetOpenShiftClusterFound(true)
 	util.SetMonitoringAPIFound(true)
+	util.SetRouteAPIFound(true)
 	os.Exit(m.Run())
 }
 

@@ -18,14 +18,19 @@ package util
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +49,10 @@ var (
 	routeAPIFound         = false
 	monitoringAPIFound    = false
 	openShiftClusterFound = false
+	templateAPIFound      = false
+	appsAPIFound          = false
+	oauthAPIFound         = false
+	olmAPIFound           = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -80,16 +89,25 @@ func InspectCluster() error {
 	if err := verifyOpenShiftCluster(); err != nil {
 		return err
 	}
-	if err := verifyRouteAPI(); err != nil {
-		return err
+	if !openShiftClusterFound {
+		return nil
 	}
-	if err := verifyConsoleAPI(); err != nil {
-		return err
+
+	var errs []error
+	for _, check := range []func() error{
+		verifyRouteAPI,
+		verifyConsoleAPI,
+		verifyMonitoringAPI,
+		verifyTemplateAPI,
+		verifyAppsAPI,
+		verifyOAuthAPI,
+		verifyOLMAPI,
+	} {
+		if err := check(); err != nil {
+			errs = append(errs, err)
+		}
 	}
-	if err := verifyMonitoringAPI(); err != nil {
-		return err
-	}
-	return nil
+	return stderrors.Join(errs...)
 }
 
 func IsOpenShiftCluster() bool {
@@ -145,6 +163,58 @@ func verifyMonitoringAPI() error {
 
 func IsMonitoringAPIFound() bool {
 	return monitoringAPIFound
+}
+
+func IsTemplateAPIFound() bool {
+	return templateAPIFound
+}
+
+func verifyTemplateAPI() error {
+	found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	templateAPIFound = found
+	return nil
+}
+
+func IsAppsAPIFound() bool {
+	return appsAPIFound
+}
+
+func verifyAppsAPI() error {
+	found, err := argoutil.VerifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	appsAPIFound = found
+	return nil
+}
+
+func IsOAuthAPIFound() bool {
+	return oauthAPIFound
+}
+
+func verifyOAuthAPI() error {
+	found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	oauthAPIFound = found
+	return nil
+}
+
+func IsOLMAPIFound() bool {
+	return olmAPIFound
+}
+
+func verifyOLMAPI() error {
+	found, err := argoutil.VerifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	olmAPIFound = found
+	return nil
 }
 
 func ProxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {

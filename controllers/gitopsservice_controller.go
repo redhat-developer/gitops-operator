@@ -221,6 +221,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
 
+	// Fetch the GitopsService instance
 	instance := &pipelinesv1alpha1.GitopsService{}
 	err := r.Client.Get(ctx, types.NamespacedName{Name: serviceName}, instance)
 	if err != nil {

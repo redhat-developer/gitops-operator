@@ -213,8 +213,12 @@ func main() {
 		registerComponentOrExit(mgr, monitoringv1.AddToScheme)
 	}
 
-	registerComponentOrExit(mgr, operatorsv1.AddToScheme)
-	registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
+	// Setup Scheme for OLM if available (verified by InspectCluster)
+	if util.IsOLMAPIFound() {
+		registerComponentOrExit(mgr, operatorsv1.AddToScheme)
+		registerComponentOrExit(mgr, operatorsv1alpha1.AddToScheme)
+	}
+
 	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
 
@@ -225,27 +229,18 @@ func main() {
 
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
 
-	// Setup Scheme for OpenShift Template if available
-	if found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version); err != nil {
-		setupLog.Error(err, "unable to verify Template API")
-		os.Exit(1)
-	} else if found {
+	// Setup Scheme for OpenShift Template if available (verified by InspectCluster)
+	if util.IsTemplateAPIFound() {
 		registerComponentOrExit(mgr, templatev1.AddToScheme)
 	}
 
-	// Setup Scheme for OpenShift Apps if available
-	if found, err := argoutil.VerifyAPI(appsv1.GroupName, appsv1.GroupVersion.Version); err != nil {
-		setupLog.Error(err, "unable to verify Apps API")
-		os.Exit(1)
-	} else if found {
+	// Setup Scheme for OpenShift Apps if available (verified by InspectCluster)
+	if util.IsAppsAPIFound() {
 		registerComponentOrExit(mgr, appsv1.AddToScheme)
 	}
 
-	// Setup Scheme for OpenShift OAuth if available
-	if found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version); err != nil {
-		setupLog.Error(err, "unable to verify OAuth API")
-		os.Exit(1)
-	} else if found {
+	// Setup Scheme for OpenShift OAuth if available (verified by InspectCluster)
+	if util.IsOAuthAPIFound() {
 		registerComponentOrExit(mgr, oauthv1.AddToScheme)
 	}
 
