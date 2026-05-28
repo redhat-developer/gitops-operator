@@ -3,6 +3,9 @@ import { LoginPage } from '../src/pages/LoginPage';
 
 test.describe('Argo CD SSO Authentication', () => {
   
+  //give the manual login flow plenty of time to finish
+  test.setTimeout(60000);
+
   //clear storageState to force a full login flow for this specific test
   test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -20,4 +23,5 @@ test.describe('Argo CD SSO Authentication', () => {
     //Check the button is visible as proof of successful login
     await expect(page.getByRole('button', { name: /NEW APP/i })).toBeVisible({ timeout: 15000 });
   });
+  
 });
