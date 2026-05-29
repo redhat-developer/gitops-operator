@@ -45,14 +45,14 @@ const (
 )
 
 var (
-	consoleAPIFound       = false
-	routeAPIFound         = false
-	monitoringAPIFound    = false
-	openShiftClusterFound = false
-	templateAPIFound      = false
-	appsAPIFound          = false
-	oauthAPIFound         = false
-	olmAPIFound           = false
+	consoleAPIFound    = false
+	routeAPIFound      = false
+	monitoringAPIFound = false
+	configAPIFound     = false
+	templateAPIFound   = false
+	appsAPIFound       = false
+	oauthAPIFound      = false
+	olmAPIFound        = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -86,22 +86,28 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 }
 
 func InspectCluster() error {
-	if err := verifyOpenShiftCluster(); err != nil {
+	var errs []error
+	if err := verifyOLMAPI(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := verifyMonitoringAPI(); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := verifyConfigAPI(); err != nil {
+		errs = append(errs, err)
 		return err
 	}
-	if !openShiftClusterFound {
+	if !configAPIFound {
 		return nil
 	}
 
-	var errs []error
 	for _, check := range []func() error{
 		verifyRouteAPI,
 		verifyConsoleAPI,
-		verifyMonitoringAPI,
 		verifyTemplateAPI,
 		verifyAppsAPI,
 		verifyOAuthAPI,
-		verifyOLMAPI,
 	} {
 		if err := check(); err != nil {
 			errs = append(errs, err)
@@ -110,16 +116,18 @@ func InspectCluster() error {
 	return stderrors.Join(errs...)
 }
 
-func IsOpenShiftCluster() bool {
-	return openShiftClusterFound
+// used as a shortcut to check if the cluster is an OpenShift cluster
+func IsConfigAPIFound() bool {
+	return configAPIFound
 }
 
-func verifyOpenShiftCluster() error {
+// verify if the Config.Openshift.io API is found
+func verifyConfigAPI() error {
 	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
-	openShiftClusterFound = found
+	configAPIFound = found
 	return nil
 }
 

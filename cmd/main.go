@@ -223,7 +223,7 @@ func main() {
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
 
 	// Setup Scheme for OpenShift Config if available
-	if util.IsOpenShiftCluster() {
+	if util.IsConfigAPIFound() {
 		registerComponentOrExit(mgr, configv1.AddToScheme)
 	}
 
@@ -254,17 +254,13 @@ func main() {
 		}
 	}
 
-	if util.IsOpenShiftCluster() {
-		if err = (&controllers.ReconcileGitopsService{
-			Client:                client,
-			Scheme:                mgr.GetScheme(),
-			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
-		}).SetupWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
-			os.Exit(1)
-		}
-	} else {
-		setupLog.Info("OpenShift Cluster not found, skipping ReconcileGitopsService controller setup")
+	if err = (&controllers.ReconcileGitopsService{
+		Client:                client,
+		Scheme:                mgr.GetScheme(),
+		DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
+		os.Exit(1)
 	}
 
 	if util.IsRouteAPIFound() {
