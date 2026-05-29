@@ -197,6 +197,7 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups="batch",resources=jobs,verbs=create;get;list;watch;update;patch;delete
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources=leases,verbs=create;get;update
 //+kubebuilder:rbac:groups="elbv2.k8s.aws",resources=targetgroupbindings,verbs=list;get
+//+kubebuilder:rbac:groups="eks.amazonaws.com",resources=targetgroupbindings,verbs=list;get
 //+kubebuilder:rbac:groups="extensions",resources=ingresses,verbs=create;get;list;watch;patch
 //+kubebuilder:rbac:groups="getambassador.io",resources=ambassadormappings;mappings,verbs=create;watch;get;update;list;delete
 //+kubebuilder:rbac:groups="networking.istio.io",resources=destinationrules;virtualservices,verbs=watch;get;update;patch;list
