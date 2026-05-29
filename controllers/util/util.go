@@ -96,7 +96,7 @@ func InspectCluster() error {
 
 	if err := verifyConfigAPI(); err != nil {
 		errs = append(errs, err)
-		return err
+		return stderrors.Join(errs...)
 	}
 	if !configAPIFound {
 		return nil
