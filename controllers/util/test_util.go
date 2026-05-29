@@ -17,8 +17,8 @@ limitations under the License.
 package util
 
 // *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetOpenShiftClusterFound(found bool) {
-	openShiftClusterFound = found
+func SetConfigAPIFound(found bool) {
+	configAPIFound = found
 }
 
 func SetMonitoringAPIFound(found bool) {
