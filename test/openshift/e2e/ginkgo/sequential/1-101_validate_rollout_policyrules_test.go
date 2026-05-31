@@ -139,7 +139,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						Verbs:     []string{"get"},
 					},
 					{
-						APIGroups: []string{"elbv2.k8s.aws"},
+						APIGroups: []string{"elbv2.k8s.aws", "eks.amazonaws.com"},
 						Resources: []string{"targetgroupbindings"},
 						Verbs:     []string{"list", "get"},
 					},
