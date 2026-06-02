@@ -74,7 +74,7 @@ func BeAvailableWithCustomSleepTime(sleepTime time.Duration) matcher.GomegaMatch
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 
 		if argocd.Status.Phase != "Available" {
-			GinkgoWriter.Println("ArgoCD status is not yet Available")
+			GinkgoWriter.Println("ArgoCD status: ", "expected: Available / actual: ", argocd.Status.Phase)
 			return false
 		}
 		GinkgoWriter.Println("ArgoCD status is now", argocd.Status.Phase)
