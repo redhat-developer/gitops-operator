@@ -194,7 +194,6 @@ func EnsureSequentialCleanSlateWithError() error {
 		// Otherwise, expected error if it doesn't exist.
 	}
 
-
 	// Finally, wait for default openshift-gitops instance to be ready.
 	// Replace the fail handler for the time we fait for the ArgoCD instance to be ready, so that we can output debug information on failure.
 	RegisterFailHandler(func(message string, callerSkip ...int) {
