@@ -194,16 +194,15 @@ func EnsureSequentialCleanSlateWithError() error {
 		// Otherwise, expected error if it doesn't exist.
 	}
 
-	// Finally, wait for default openshift-gitops instance to be ready
-	failures := InterceptGomegaFailures(func() { // so we can run diagnostics
-        Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
-    })
-    if len(failures) > 0 {
-        OutputDebugOnFail(defaultOpenShiftGitOpsArgoCD.Namespace)
 
-        Fail(strings.Join(failures, "\n"))
-    }
-
+	// Finally, wait for default openshift-gitops instance to be ready.
+	// Replace the fail handler for the time we fait for the ArgoCD instance to be ready, so that we can output debug information on failure.
+	RegisterFailHandler(func(message string, callerSkip ...int) {
+		OutputDebugOnFail(defaultOpenShiftGitOpsArgoCD.Namespace)
+		Fail(message, callerSkip...)
+	})
+	Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
+	RegisterFailHandler(Fail) // Reset handler back
 	return nil
 }
 
