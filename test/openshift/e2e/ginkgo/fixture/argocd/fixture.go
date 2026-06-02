@@ -74,10 +74,27 @@ func BeAvailableWithCustomSleepTime(sleepTime time.Duration) matcher.GomegaMatch
 	return HavePhase("Available")
 }
 
-func HavePhase(phase string) matcher.GomegaMatcher {
+func HavePhase(expected string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HaveArgocdPhase:", "expected:", phase, "/ actual:", argocd.Status.Phase)
-		return argocd.Status.Phase == phase
+		GinkgoWriter.Println("HaveArgocdPhase:", "expected:", expected, "/ actual:", argocd.Status.Phase)
+		if expected == "Available" {
+			for _, condition := range argocd.Status.Conditions {
+				if condition.Status == metav1.ConditionFalse {
+					GinkgoWriter.Println("  - ", condition.Type, condition.Status, condition.Reason, condition.Message)
+				}
+			}
+
+			GinkgoWriter.Println("    Components: ",
+				"Redis:", argocd.Status.Redis,
+				"Repo:", argocd.Status.Repo,
+				"Server: ", argocd.Status.Server,
+				"ApplicationController: ", argocd.Status.ApplicationController,
+				"ApplicationSetController: ", argocd.Status.ApplicationSetController,
+				"NotificationsController: ", argocd.Status.NotificationsController,
+				"SSO: ", argocd.Status.SSO,
+			)
+		}
+		return argocd.Status.Phase == expected
 	})
 }
 
