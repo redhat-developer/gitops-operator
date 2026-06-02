@@ -71,21 +71,12 @@ func BeAvailableWithCustomSleepTime(sleepTime time.Duration) matcher.GomegaMatch
 	// - I'm not aware of a way to do this without a sleep statement, but when we have something better we should do that instead.
 	time.Sleep(sleepTime)
 
-	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-
-		if argocd.Status.Phase != "Available" {
-			GinkgoWriter.Println("ArgoCD status: ", "expected: Available / actual: ", argocd.Status.Phase)
-			return false
-		}
-		GinkgoWriter.Println("ArgoCD status is now", argocd.Status.Phase)
-
-		return true
-	})
+	return HavePhase("Available")
 }
 
 func HavePhase(phase string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HavePhase:", "expected:", phase, "/ actual:", argocd.Status.Phase)
+		GinkgoWriter.Println("HaveArgocdPhase:", "expected:", phase, "/ actual:", argocd.Status.Phase)
 		return argocd.Status.Phase == phase
 	})
 }
