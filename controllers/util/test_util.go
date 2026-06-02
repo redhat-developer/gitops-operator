@@ -1,0 +1,56 @@
+/*
+Copyright 2021.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package util
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetConfigAPIFound(found bool) {
+	configAPIFound = found
+}
+
+func SetMonitoringAPIFound(found bool) {
+	monitoringAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetConsoleAPIFound(found bool) {
+	consoleAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetRouteAPIFound(found bool) {
+	routeAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetTemplateAPIFound(found bool) {
+	templateAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetAppsAPIFound(found bool) {
+	appsAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetOAuthAPIFound(found bool) {
+	oauthAPIFound = found
+}
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+func SetOLMAPIFound(found bool) {
+	olmAPIFound = found
+}
