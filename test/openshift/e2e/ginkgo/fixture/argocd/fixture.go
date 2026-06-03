@@ -78,21 +78,21 @@ func HavePhase(expected string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 		GinkgoWriter.Println("HaveArgocdPhase:", "expected:", expected, "/ actual:", argocd.Status.Phase)
 		if expected == "Available" {
-			for _, condition := range argocd.Status.Conditions {
-				if condition.Status == metav1.ConditionFalse {
-					GinkgoWriter.Println("  - ", condition.Type, condition.Status, condition.Reason, condition.Message)
-				}
-			}
-
-			GinkgoWriter.Println("    Components: ",
+			GinkgoWriter.Println("  Components: ",
 				"Redis:", argocd.Status.Redis,
 				"Repo:", argocd.Status.Repo,
 				"Server: ", argocd.Status.Server,
-				"ApplicationController: ", argocd.Status.ApplicationController,
-				"ApplicationSetController: ", argocd.Status.ApplicationSetController,
-				"NotificationsController: ", argocd.Status.NotificationsController,
-				"SSO: ", argocd.Status.SSO,
+				"ApplicationController:", argocd.Status.ApplicationController,
+				"ApplicationSetController:", argocd.Status.ApplicationSetController,
+				"NotificationsController:", argocd.Status.NotificationsController,
+				"SSO:", argocd.Status.SSO,
 			)
+
+			for _, condition := range argocd.Status.Conditions {
+				if condition.Status == metav1.ConditionFalse {
+					GinkgoWriter.Printf("    %s/%s: %s\n", condition.Type, condition.Reason, condition.Message)
+				}
+			}
 		}
 		return argocd.Status.Phase == expected
 	})
