@@ -57,6 +57,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
 
   // Save the auth state
   await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 15000 });
+  await expect(page).toHaveURL(/.*dashboards.*/, { timeout: 15000 });
   await page.context().storageState({ path: authFile });
 
 });
