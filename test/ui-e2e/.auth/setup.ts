@@ -56,6 +56,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   await page.getByRole('button', { name: /Log in/i }).click();
 
   // Save the auth state
-  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 15000 });
   await page.context().storageState({ path: authFile });
+
 });

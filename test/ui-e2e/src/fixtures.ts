@@ -13,7 +13,20 @@ export const test = base.extend<MyFixtures>({
   page: async ({ page }, use) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.loginViaOpenShift();
+    
+    // 1. Grab variables from the environment
+    const user = process.env.CLUSTER_USER || 'kubeadmin';
+    const pass = process.env.CLUSTER_PASSWORD;
+    const idp = process.env.IDP || 'kube:admin';
+
+    // 2. Fail loudly if the password is missing
+    if (!pass) {
+      throw new Error('CLUSTER_PASSWORD environment variable is missing. Cannot authenticate.');
+    }
+
+    // 3. Pass them into the login method
+    await loginPage.loginViaOpenShift(user, pass, idp);
+    
     await use(page);
   },
 
@@ -41,9 +54,9 @@ export const test = base.extend<MyFixtures>({
       headers: { 'Content-Type': 'application/json' }
     });
     
-    //ignore if missing or rbac locked
-    if (response.status() === 404 || response.status() === 403) {
-      if (response.status() === 403) console.log('warning: delete forbidden (RBAC) on this cluster; skipping cleanup');
+    // 4. Update the teardown to only ignore 404s, treating 403s as failures
+    if (response.status() === 404) {
+      return; 
     } else {
       expect(response.status()).toBeLessThan(400);
     }
