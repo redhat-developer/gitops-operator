@@ -211,6 +211,9 @@ require (
 )
 
 replace (
+	// TODO delme
+	github.com/argoproj-labs/argocd-operator => github.com/olivergondza/argocd-operator v0.14.0-rc1.0.20260603093734-bb71720500ab
+
 	// v3.4.2 declares gitops-engine at a pseudo-version where go.mod
 	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
 	// Downstream consumers must resolve it themselves; pin to the v3.4.2 commit.
