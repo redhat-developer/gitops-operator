@@ -4,6 +4,7 @@ FROM quay.io/devtools_gitops/go-toolset:1.24.6
 USER root
 
 ARG KUBECTL_KUTTL_VERSION=0.12.1
+ARG KUSTOMIZE_VERSION=5.7.0
 ARG OPERATOR_SDK_VERSION=1.35.0
 
 # Install kubectl tool which is used in e2e-tests
@@ -19,8 +20,9 @@ RUN curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/relea
      chmod +x /usr/local/bin/argocd
 
 # Install Kustomize
-RUN wget https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh && \
-    bash install_kustomize.sh /usr/local/bin && rm install_kustomize.sh
+RUN wget -q https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh && \
+    bash install_kustomize.sh "${KUSTOMIZE_VERSION}" /usr/local/bin && \
+    rm install_kustomize.sh
 
 # Install operator-sdk
 RUN curl -L -o /usr/local/bin/operator-sdk https://github.com/operator-framework/operator-sdk/releases/download/v${OPERATOR_SDK_VERSION}/operator-sdk_linux_amd64 && \
