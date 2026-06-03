@@ -76,7 +76,7 @@ export class ApplicationsPage {
     await this.createButton.click();
   }
 
-  async syncApplication(appName: string) {
+  async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
     //search for app
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
 
@@ -86,7 +86,7 @@ export class ApplicationsPage {
     
     //slideout panel 
     const resourcesSection = this.page.locator('.argo-form-row').filter({ hasText: 'SYNCHRONIZE RESOURCES' });
-    await expect(resourcesSection).toContainText('spring-petclinic', { timeout: 15000 });
+    await expect(resourcesSection).toContainText(expectedResource, { timeout: 15000 });
 
     const validationWarning = resourcesSection.getByText('Select at least one resource');
 
