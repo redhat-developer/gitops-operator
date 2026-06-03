@@ -195,13 +195,14 @@ func EnsureSequentialCleanSlateWithError() error {
 	}
 
 	// Finally, wait for default openshift-gitops instance to be ready.
-	// Replace the fail handler for the time we fait for the ArgoCD instance to be ready, so that we can output debug information on failure.
-	RegisterFailHandler(func(message string, callerSkip ...int) {
-		OutputDebugOnFail(defaultOpenShiftGitOpsArgoCD.Namespace)
-		Fail(message, callerSkip...)
+	failure := InterceptGomegaFailure(func() {
+		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
 	})
-	Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
-	RegisterFailHandler(Fail) // Reset handler back
+	// Output debug information on argo startup failure
+	if failure != nil {
+		OutputDebug(defaultOpenShiftGitOpsArgoCD.Namespace)
+		Fail(failure.Error())
+	}
 	return nil
 }
 
@@ -841,6 +842,13 @@ var testReportMap = map[string]testReportEntry{} // acquire testReportLock befor
 // - Will output debug information on namespaces specified as parameters.
 // - Namespace parameter may be a string, *Namespace, or Namespace
 func OutputDebugOnFail(namespaceParams ...any) {
+	if !CurrentSpecReport().Failed() || os.Getenv("SKIP_DEBUG_OUTPUT") == "true" {
+		return
+	}
+	OutputDebug(namespaceParams...)
+}
+
+func OutputDebug(namespaceParams ...any) {
 
 	// Convert parameter to string of namespace name:
 	// - You can specify Namespace, *Namespae, or string, and we will convert it to string namespace
@@ -866,11 +874,6 @@ func OutputDebugOnFail(namespaceParams ...any) {
 	}
 
 	csr := CurrentSpecReport()
-
-	if !csr.Failed() || os.Getenv("SKIP_DEBUG_OUTPUT") == "true" {
-		return
-	}
-
 	testName := strings.Join(csr.ContainerHierarchyTexts, " ")
 	testReportLock.Lock()
 	defer testReportLock.Unlock()
