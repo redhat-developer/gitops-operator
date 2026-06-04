@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -64,6 +65,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	tlspkg "github.com/openshift/controller-runtime-common/pkg/tls"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
@@ -131,7 +133,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
+	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
 	if err := util.InspectCluster(); err != nil {
 		setupLog.Error(err, "unable to inspect cluster")
 	}
@@ -142,15 +145,35 @@ func main() {
 		}
 		c.NextProtos = []string{"http/1.1"}
 	}
+	var profile configv1.TLSProfileSpec
+	var err error
+	tlsOpts := []func(*tls.Config){disableHTTP2}
+	if util.IsConfigAPIFound() {
+		bootstrapClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{
+			Scheme: scheme,
+		})
+		profile, err = tlspkg.FetchAPIServerTLSProfile(ctx, bootstrapClient)
+		if err != nil {
+			setupLog.Error(err, "unable to fetch cluster TLS profile")
+			os.Exit(1)
+		}
+
+		tlsConfigFn, unsupported := tlspkg.NewTLSConfigFromProfile(profile)
+		if len(unsupported) > 0 {
+			setupLog.Info("TLS profile contains unsupported Go cipher suites", "ciphers", unsupported)
+		}
+
+		tlsOpts = append(tlsOpts, tlsConfigFn)
+	}
 	webhookServerOptions := webhook.Options{
-		TLSOpts: []func(config *tls.Config){disableHTTP2},
+		TLSOpts: tlsOpts,
 		Port:    9443,
 	}
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:    metricsAddr,
-		TLSOpts:        []func(*tls.Config){disableHTTP2},
+		TLSOpts:        tlsOpts,
 		FilterProvider: filters.WithAuthenticationAndAuthorization,
 	}
 
@@ -198,6 +221,28 @@ func main() {
 		client = mgr.GetClient()
 	}
 
+	if util.IsConfigAPIFound() {
+		watcher := &tlspkg.SecurityProfileWatcher{
+			Client:                mgr.GetClient(),
+			InitialTLSProfileSpec: profile,
+			OnProfileChange: func(_ context.Context, oldProfile, newProfile configv1.TLSProfileSpec) {
+				if reflect.DeepEqual(oldProfile, newProfile) {
+					return
+				}
+				setupLog.Info(
+					"cluster TLS profile changed, restarting operator",
+					"oldProfileMinVersion", oldProfile.MinTLSVersion,
+					"newProfileMinVersion", newProfile.MinTLSVersion,
+				)
+				cancel()
+			},
+		}
+
+		if err := watcher.SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to setup TLS security profile watcher")
+			os.Exit(1)
+		}
+	}
 	// Setup Scheme for OpenShift Console if available (verified by InspectCluster)
 	if util.IsConsoleAPIFound() {
 		registerComponentOrExit(mgr, console.AddToScheme)
@@ -314,6 +359,10 @@ func main() {
 		K8sClient:         k8sClient,
 		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
+		CentralTlsConfigProfile: argocdprovisioner.TlsConfigProfile{
+			MinVersion: profile.MinTLSVersion,
+			Ciphers:    profile.Ciphers,
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
@@ -362,7 +411,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
