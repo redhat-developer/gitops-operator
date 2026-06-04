@@ -96,10 +96,12 @@ async syncApplication(appName: string, expectedResource: string = 'spring-petcli
 
     //click 'all' to ensure all resource checkboxes are ticked across all Argo CD versions
     const allLink = this.page.getByRole('link', { name: 'all', exact: true });
-    if (await allLink.isVisible()) {
-        await allLink.click();
+    try {
+      await allLink.waitFor({ state: 'visible', timeout: 3000 });
+      await allLink.click();
+    } catch (error) {
+      //all link didn't appear within 3 sec
     }
-    
     //click the main sync button
     await this.page.getByRole('button', { name: /^synchronize$/i }).first().click();
 
