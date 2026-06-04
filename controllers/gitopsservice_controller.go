@@ -216,6 +216,7 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups="argoproj.io",resources=namespacemanagements;namespacemanagements/status,verbs=create;get;list;watch;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups="config.openshift.io",resources=ingresses,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create
+//+kubebuilder:rbac:groups="config.openshift.io",resources=apiservers,verbs=get;list;watch
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
