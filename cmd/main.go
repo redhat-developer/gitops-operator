@@ -149,6 +149,7 @@ func main() {
 	var err error
 	tlsOpts := []func(*tls.Config){disableHTTP2}
 	if util.IsConfigAPIFound() {
+		utilruntime.Must(configv1.Install(scheme))
 		bootstrapClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{
 			Scheme: scheme,
 		})
