@@ -20,14 +20,20 @@ export class ApplicationsPage {
 
     this.appNameInput = page.getByLabel('Application Name', { exact: true });
     this.projectInput = page.locator('[qe-id="application-create-field-project"]');
-    this.repoUrlInput = page.locator('.argo-form-row').filter({ hasText: 'Repository URL' }).locator('input').first();
-    this.pathInput = page.locator('.argo-form-row').filter({ hasText: 'Path' }).locator('input').first();
     
+    //src
+    this.repoUrlInput = page.locator('[qe-id="application-create-field-repository-url"]')
+                            .or(page.getByPlaceholder(/github\.com/i)).first();
+    
+    this.pathInput = page.locator('[qe-id="application-create-field-path"]')
+                         .or(page.getByText('Path').locator('..').locator('input')).first();
     //dest
-    this.clusterUrlInput = page.locator('.argo-form-row').filter({ hasText: 'Cluster URL' }).locator('input').first();
-    this.namespaceInput = page.locator('.argo-form-row')
-                              .filter({ has: page.getByText('Namespace', { exact: true }) })
-                              .locator('input').first();
+    this.clusterUrlInput = page.locator('[qe-id="application-create-field-cluster-url"]')
+                               .or(page.getByText('Cluster URL', { exact: true }).locator('..').locator('input')).first();
+    
+    this.namespaceInput = page.locator('[qe-id="application-create-field-namespace"]')
+                              .or(page.getByText('Namespace', { exact: true }).locator('..').locator('input')).first();
+                              
   }
 
   async navigate() {
@@ -76,7 +82,7 @@ export class ApplicationsPage {
     await this.createButton.click();
   }
 
-  async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
+async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
     //search for app
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
 
@@ -85,25 +91,20 @@ export class ApplicationsPage {
     await appContainer.getByText('Sync', { exact: true }).click();
     
     //slideout panel 
-    const resourcesSection = this.page.locator('.argo-form-row').filter({ hasText: 'SYNCHRONIZE RESOURCES' });
-    await expect(resourcesSection).toContainText(expectedResource, { timeout: 15000 });
+    // Wait for the manifests to fetch from Git and render on the panel
+    await expect(this.page.getByText(expectedResource).first()).toBeVisible({ timeout: 15000 });
 
-    const validationWarning = resourcesSection.getByText('Select at least one resource');
-
-    //click 'all' until the UI registers it 
-    await expect(async () => {
-      if (await validationWarning.isVisible()) {
-      
-        //clickable anchor tag
-        const allLink = resourcesSection.getByRole('link', { name: 'all', exact: true });
+    //click 'all' to ensure all resource checkboxes are ticked across all Argo CD versions
+    const allLink = this.page.getByRole('link', { name: 'all', exact: true });
+    if (await allLink.isVisible()) {
         await allLink.click();
-        //wait for re-render and hide the text
-        await expect(validationWarning).toBeHidden({ timeout: 5000 });
-      }
-    }).toPass({ timeout: 15000 });
+    }
     
     //click the main sync button
-    await this.page.getByRole('button', { name: /^synchronize$/i }).click();
+    await this.page.getByRole('button', { name: /^synchronize$/i }).first().click();
+
+    //wait for the panel to  close 
+    await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: 10000 });
   }
 
   async verifyStatus(appName: string) {
