@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -248,8 +248,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Project: "default",
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    true,
-							SelfHeal: true,
+							Prune:    ptr.To(true),
+							SelfHeal: ptr.To(true),
 						},
 					},
 				},

@@ -38,6 +38,7 @@ rules:
   - ""
   resources:
   - pods/eviction
+  - serviceaccounts/token
   verbs:
   - create
 - apiGroups:
