@@ -359,7 +359,7 @@ func main() {
 		K8sClient:         k8sClient,
 		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
-		CentralTlsConfigProfile: argocdprovisioner.TlsConfigProfile{
+		CentralTLSConfigProfile: argocdprovisioner.TLSConfigProfile{
 			MinVersion: profile.MinTLSVersion,
 			Ciphers:    profile.Ciphers,
 		},
