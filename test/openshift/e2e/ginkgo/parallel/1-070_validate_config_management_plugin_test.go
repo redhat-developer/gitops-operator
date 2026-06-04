@@ -20,8 +20,8 @@ import (
 	"context"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"

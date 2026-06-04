@@ -20,8 +20,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -162,14 +162,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
-			namespace := ns.Name
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater",
 					Namespace: ns.Name,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
-					Namespace: &namespace,
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
 						{
 							NamePattern: "app*",
