@@ -19,7 +19,6 @@ package parallel
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -86,40 +85,31 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("validating that the Dex Client Secret was copied from dex serviceaccount token secret to argocd-secret, by the operator")
 			Eventually(func() error {
-				// Get the service account and find its token secret
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dexServiceAccount), dexServiceAccount)
-				if err != nil {
-					return err
-				}
+				// The operator now creates an Opaque secret with a deterministic name for the Dex token
+				// (via TokenRequest API) instead of using auto-generated kubernetes.io/service-account-token secrets.
+				// The secret name follows the pattern: <argocd-name>-<dex-sa-name>-token
+				dexTokenSecretName := "example-argocd-argocd-dex-server-token" // #nosec G101 -- This is a Kubernetes secret name, not a credential
 
-				// Find the token secret from the service account secrets
-				var tokenSecretName string
-				for _, secret := range dexServiceAccount.Secrets {
-					if secret.Name != "" && strings.Contains(secret.Name, "token") {
-						tokenSecretName = secret.Name
-						break
-					}
-				}
-
-				if tokenSecretName == "" {
-					return fmt.Errorf("no token secret found for service account %s", dexServiceAccount.Name)
-				}
-
-				// Get the token secret and extract the token
-				tokenSecret := &corev1.Secret{
+				// Get the Dex token secret and extract the token
+				dexTokenSecret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      tokenSecretName,
+						Name:      dexTokenSecretName,
 						Namespace: namespace.Name,
 					},
 				}
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret)
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dexTokenSecret), dexTokenSecret)
 				if err != nil {
 					return err
 				}
 
-				expectedClientSecret, exists := tokenSecret.Data["token"]
+				expectedClientSecret, exists := dexTokenSecret.Data["token"]
 				if !exists {
-					return fmt.Errorf("token not found in secret %s", tokenSecretName)
+					return fmt.Errorf("token not found in secret %s", dexTokenSecretName)
+				}
+
+				// Verify the secret also contains an expiry field
+				if _, exists := dexTokenSecret.Data["expiry"]; !exists {
+					return fmt.Errorf("expiry not found in secret %s", dexTokenSecretName)
 				}
 
 				// Get the argocd-secret and extract the oidc.dex.clientSecret
