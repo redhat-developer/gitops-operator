@@ -18,7 +18,6 @@ package parallel
 
 import (
 	"context"
-	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -90,22 +89,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("validating that the Dex Client Secret was copied from dex serviceaccount token secret in to argocd-secret, by the operator")
 
-			// To verify the behavior we should first get the token secret name of the dex service account.
+			// The operator now creates an Opaque secret with a deterministic name for the Dex token
+			// (via TokenRequest API) instead of using auto-generated kubernetes.io/service-account-token secrets.
+			// The secret name follows the pattern: <argocd-name>-<dex-sa-name>-token
+			dexTokenSecretName := "example-argocd-argocd-dex-server-token" // #nosec G101 -- This is a Kubernetes secret name, not a credential
 
-			var secretName string
-			for _, secretData := range serviceAccount.Secrets {
-
-				if strings.Contains(secretData.Name, "token") {
-					secretName = secretData.Name
-				}
-			}
-			Expect(secretName).ToNot(BeEmpty())
-
-			// Extract the clientSecret
-			secretReferencedFromServiceAccount := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: ns.Name}}
-			Eventually(secretReferencedFromServiceAccount).Should(k8sFixture.ExistByName())
-			tokenFromSASecret := secretReferencedFromServiceAccount.Data["token"]
-			Expect(tokenFromSASecret).ToNot(BeEmpty())
+			// Extract the clientSecret from the Dex token secret
+			dexTokenSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: dexTokenSecretName, Namespace: ns.Name}}
+			Eventually(dexTokenSecret, "30s", "2s").Should(k8sFixture.ExistByName())
+			tokenFromDexSecret := dexTokenSecret.Data["token"]
+			Expect(tokenFromDexSecret).ToNot(BeEmpty())
+			// Verify the secret also contains an expiry field
+			Expect(dexTokenSecret.Data["expiry"]).ToNot(BeEmpty())
 
 			// actualClientSecret is the value of the secret in argocd-secret where argocd-operator should copy the secret from
 			argocdSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: ns.Name}}
@@ -113,7 +108,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			actualClientSecret := argocdSecret.Data["oidc.dex.clientSecret"]
 
-			Expect(string(actualClientSecret)).To(Equal(string(tokenFromSASecret)), "Dex Client Secret for OIDC is not valid")
+			Expect(string(actualClientSecret)).To(Equal(string(tokenFromDexSecret)), "Dex Client Secret for OIDC is not valid")
 
 		})
 
