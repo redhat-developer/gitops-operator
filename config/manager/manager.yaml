@@ -36,8 +36,10 @@ spec:
           value: openshift-gitops
         - name: OPERATOR_NAME
           value: gitops-operator
-        - name : LABEL_SELECTOR
+        - name: LABEL_SELECTOR
           value: ""
+        - name: DISABLE_CLUSTER_TLS_PROFILE
+          value: "false"
         image: controller:latest
         livenessProbe:
           httpGet:

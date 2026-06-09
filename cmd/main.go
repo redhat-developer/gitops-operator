@@ -96,6 +96,7 @@ func main() {
 
 	var enableHTTP2 = false
 	var skipControllerNameValidation = true
+	var disableClusterTLSProfile = false
 
 	var labelSelectorFlag string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -105,7 +106,7 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
-
+	flag.BoolVar(&disableClusterTLSProfile, "disable-cluster-tls-profile", false, "Disable use of the cluster TLS security profile")
 	//Configure log level
 	logLevelStr := strings.ToLower(os.Getenv("LOG_LEVEL"))
 	logLevel := zapcore.InfoLevel
@@ -131,7 +132,9 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
+	if strings.EqualFold(os.Getenv("DISABLE_CLUSTER_TLS_PROFILE"), "true") {
+		disableClusterTLSProfile = true
+	}
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
 	defer cancel()
@@ -148,7 +151,7 @@ func main() {
 	var profile configv1.TLSProfileSpec
 	var err error
 	tlsOpts := []func(*tls.Config){disableHTTP2}
-	if util.IsConfigAPIFound() {
+	if util.IsConfigAPIFound() && !disableClusterTLSProfile {
 		utilruntime.Must(configv1.Install(scheme))
 		bootstrapClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{
 			Scheme: scheme,
@@ -222,7 +225,7 @@ func main() {
 		client = mgr.GetClient()
 	}
 
-	if util.IsConfigAPIFound() {
+	if util.IsConfigAPIFound() && !disableClusterTLSProfile {
 		watcher := &tlspkg.SecurityProfileWatcher{
 			Client:                mgr.GetClient(),
 			InitialTLSProfileSpec: profile,
@@ -238,7 +241,6 @@ func main() {
 				cancel()
 			},
 		}
-
 		if err := watcher.SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to setup TLS security profile watcher")
 			os.Exit(1)
@@ -361,8 +363,9 @@ func main() {
 		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
 		CentralTLSConfigProfile: argocdprovisioner.TLSConfigProfile{
-			MinVersion: profile.MinTLSVersion,
-			Ciphers:    profile.Ciphers,
+			DisableClusterTLSProfile: disableClusterTLSProfile,
+			MinVersion:               profile.MinTLSVersion,
+			Ciphers:                  profile.Ciphers,
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
