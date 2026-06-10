@@ -22,6 +22,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
@@ -30,6 +31,9 @@ import (
 )
 
 func TestArgoCD(t *testing.T) {
+	util.SetConfigAPIFound(true)
+	defer util.SetConfigAPIFound(false)
+
 	scheme := runtime.NewScheme()
 	_ = argoapp.AddToScheme(scheme)
 	_ = configv1.AddToScheme(scheme)
@@ -199,6 +203,9 @@ func TestArgoCD(t *testing.T) {
 }
 
 func TestDexConfiguration(t *testing.T) {
+	util.SetConfigAPIFound(true)
+	defer util.SetConfigAPIFound(false)
+
 	scheme := runtime.NewScheme()
 	_ = argoapp.AddToScheme(scheme)
 	_ = configv1.AddToScheme(scheme)
@@ -222,4 +229,20 @@ func TestDexConfiguration(t *testing.T) {
 		DefaultPolicy: &testDefaultArgoCDRole,
 	}
 	assert.DeepEqual(t, testArgoCD.Spec.RBAC, testRBAC)
+}
+
+func TestSSOSkippedOnNonOpenShift(t *testing.T) {
+	util.SetConfigAPIFound(false)
+
+	scheme := runtime.NewScheme()
+	_ = argoapp.AddToScheme(scheme)
+	_ = configv1.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		Build()
+
+	testArgoCD, _ := NewCR("openshift-gitops", "openshift-gitops", fakeClient)
+
+	assert.Assert(t, testArgoCD.Spec.SSO == nil, "SSO should be nil on non-OpenShift clusters")
 }
