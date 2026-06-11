@@ -1,4 +1,4 @@
-import { test as setup } from '@playwright/test';
+import { test as setup, expect } from '@playwright/test';
 
 const authFile = '.auth/storageState.json';
 
@@ -13,21 +13,17 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   console.log(`Navigating to OpenShift Console: ${targetUrl}`);
   await page.goto(targetUrl); 
 
-  //set locators 
+  // Set locators 
   const idpScreenText = page.getByText(/Log in with/i);
   const usernameInput = page.getByLabel(/Username/i)
     .or(page.locator('input[name="username"]'))
     .or(page.getByPlaceholder(/Username/i));
 
-  //wait for the IDP screen OR the Username field to appear
-  try {
-    await Promise.race([
-      idpScreenText.waitFor({ state: 'visible', timeout: 15000 }),
-      usernameInput.waitFor({ state: 'visible', timeout: 15000 })
-    ]);
-  } catch (e) {
-    console.log("Timed out waiting for OpenShift login page to render.");
-  }
+  // Fail loudly if the page is dead so we don't get weird errors later
+  await expect(
+    idpScreenText.or(usernameInput).first(), 
+    "OpenShift login page failed to load. Check cluster health and URL."
+  ).toBeVisible({ timeout: 20000 });
 
   const idpName = process.env.IDP || 'kube:admin'; 
   const user = process.env.CLUSTER_USER || 'kubeadmin';
@@ -35,7 +31,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   if (await idpScreenText.isVisible()) {
     console.log(`IDP selection screen detected. Selecting provider: "${idpName}"`);
     
-    // look for the specific IDP 
+    // Look for the specific IDP 
     const idpLink = page.getByRole('link', { name: new RegExp(idpName, 'i') });
     
     await idpLink.waitFor({ state: 'visible', timeout: 5000 });
@@ -44,7 +40,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
     console.log("No IDP screen detected (or already selected), proceeding to credentials...");
   }
 
-  // fill in the Credentials
+  // Fill in the credentials
   await usernameInput.waitFor({ state: 'visible', timeout: 10000 });
   await usernameInput.fill(user); 
 
@@ -59,7 +55,9 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   await passwordInput.fill(process.env.CLUSTER_PASSWORD);
   await page.getByRole('button', { name: /Log in/i }).click();
 
-  //save the auth state
-  await page.waitForLoadState('networkidle');
+  // Save the auth state
+  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 15000 });
+  await expect(page).toHaveURL(/(console|k8s|overview|dashboards)/i, { timeout: 15000 });
   await page.context().storageState({ path: authFile });
+
 });
