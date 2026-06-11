@@ -590,6 +590,7 @@ spec:
         - apiGroups:
           - config.openshift.io
           resources:
+          - apiservers
           - authentications
           - clusterversions
           - ingresses

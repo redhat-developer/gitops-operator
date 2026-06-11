@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -46,6 +47,7 @@ import (
 	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	templatev1 "github.com/openshift/api/template/v1"
+	tlspkg "github.com/openshift/controller-runtime-common/pkg/tls"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -131,6 +133,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
 
 	if err := util.InspectCluster(); err != nil {
 		setupLog.Error(err, "unable to inspect cluster")
@@ -142,15 +146,40 @@ func main() {
 		}
 		c.NextProtos = []string{"http/1.1"}
 	}
+
+	restConfig := ctrl.GetConfigOrDie()
+	// Register config.openshift.io APIs before creating bootstrap client
+	utilruntime.Must(configv1.Install(scheme))
+	bootstrapClient, err := crclient.New(restConfig, crclient.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to create bootstrap client")
+		os.Exit(1)
+	}
+	var profile configv1.TLSProfileSpec
+	profile, err = tlspkg.FetchAPIServerTLSProfile(ctx, bootstrapClient)
+	if err != nil {
+		setupLog.Error(err, "unable to fetch cluster TLS profile")
+		os.Exit(1)
+	}
+	tlsOpts := []func(*tls.Config){disableHTTP2}
+	tlsConfigFn, unsupported := tlspkg.NewTLSConfigFromProfile(profile)
+	if len(unsupported) > 0 {
+		setupLog.Info("TLS profile contains unsupported Go cipher suites", "ciphers", unsupported)
+	}
+
+	tlsOpts = append(tlsOpts, tlsConfigFn)
+
 	webhookServerOptions := webhook.Options{
-		TLSOpts: []func(config *tls.Config){disableHTTP2},
+		TLSOpts: tlsOpts,
 		Port:    9443,
 	}
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	metricsServerOptions := metricsserver.Options{
 		BindAddress:    metricsAddr,
-		TLSOpts:        []func(*tls.Config){disableHTTP2},
+		TLSOpts:        tlsOpts,
 		FilterProvider: filters.WithAuthenticationAndAuthorization,
 	}
 
@@ -180,15 +209,35 @@ func main() {
 		}
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), options)
+	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
+	watcher := &tlspkg.SecurityProfileWatcher{
+		Client:                mgr.GetClient(),
+		InitialTLSProfileSpec: profile,
+		OnProfileChange: func(_ context.Context, oldProfile, newProfile configv1.TLSProfileSpec) {
+			if reflect.DeepEqual(oldProfile, newProfile) {
+				return
+			}
+			setupLog.Info("cluster TLS profile changed, restarting operator",
+				"oldProfileMinVersion", oldProfile.MinTLSVersion,
+				"newProfileMinVersion", newProfile.MinTLSVersion)
+
+			cancel()
+		},
+	}
+
+	if err := watcher.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to setup TLS security profile watcher")
+		os.Exit(1)
+	}
+
 	var client crclient.Client
 	if strings.ToLower(os.Getenv("MEMORY_OPTIMIZATION_ENABLED")) != "false" {
-		liveClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+		liveClient, err := crclient.New(restConfig, crclient.Options{Scheme: mgr.GetScheme()})
 		if err != nil {
 			setupLog.Error(err, "unable to create live client")
 			os.Exit(1)
@@ -309,6 +358,10 @@ func main() {
 		K8sClient:         k8sClient,
 		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
+		CentralTlsConfigProfile: argocdprovisioner.TlsConfigProfile{
+			MinVersion: profile.MinTLSVersion,
+			Ciphers:    profile.Ciphers,
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
@@ -357,7 +410,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
