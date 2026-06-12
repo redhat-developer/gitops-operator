@@ -121,6 +121,11 @@ func IsConfigAPIFound() bool {
 	return configAPIFound
 }
 
+// used as a shortcut to check if the cluster is an OpenShift cluster
+func IsOpenShiftCluster() bool {
+	return configAPIFound
+}
+
 // verify if the Config.Openshift.io API is found
 func verifyConfigAPI() error {
 	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
