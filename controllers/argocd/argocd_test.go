@@ -233,6 +233,7 @@ func TestDexConfiguration(t *testing.T) {
 
 func TestSSOSkippedOnNonOpenShift(t *testing.T) {
 	util.SetConfigAPIFound(false)
+	defer util.SetConfigAPIFound(true)
 
 	scheme := runtime.NewScheme()
 	_ = argoapp.AddToScheme(scheme)
