@@ -116,9 +116,14 @@ func InspectCluster() error {
 	return stderrors.Join(errs...)
 }
 
-// used as a shortcut to check if the cluster is an OpenShift cluster
+// used as a shortcut to check if the Config.Openshift.io API is found
 func IsConfigAPIFound() bool {
 	return configAPIFound
+}
+
+// used as a shortcut to check if the cluster is an OpenShift cluster
+func IsOpenShiftCluster() bool {
+	return IsConfigAPIFound()
 }
 
 // verify if the Config.Openshift.io API is found
