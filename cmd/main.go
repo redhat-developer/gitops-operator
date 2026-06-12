@@ -224,13 +224,9 @@ func main() {
 
 	// Setup Scheme for OpenShift Config if available
 	// Disables default Argo CD instance if the cluster doesn't contain OpenShift config API
-	var disableDefault bool
-	disableDefault = strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true"
+
 	if util.IsConfigAPIFound() {
 		registerComponentOrExit(mgr, configv1.AddToScheme)
-	} else {
-		setupLog.Info("Non-OpenShift cluster detected, disabling default Argo CD instance")
-		disableDefault = true
 	}
 
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
@@ -264,13 +260,14 @@ func main() {
 		if err = (&controllers.ReconcileGitopsService{
 			Client:                client,
 			Scheme:                mgr.GetScheme(),
-			DisableDefaultInstall: disableDefault,
+			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 			os.Exit(1)
 		}
 	} else {
-		setupLog.Info("Non-OpenShift cluster detected, skipping GitopsService controller setup")
+		setupLog.Info("skipping GitopsService controller setup", "reason", "OpenShift Config API not available")
+
 	}
 
 	if util.IsRouteAPIFound() {
