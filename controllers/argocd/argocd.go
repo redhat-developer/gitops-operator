@@ -94,7 +94,7 @@ func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
 }
 
 func getArgoSSOSpec(client client.Client) *argoapp.ArgoCDSSOSpec {
-	if !util.IsConfigAPIFound() {
+	if !util.IsOpenShiftCluster() {
 		log.Info("non-OpenShift cluster detected, skipping SSO/Dex configuration")
 		return nil
 	}
