@@ -18,13 +18,20 @@ package util
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
+	oauthv1 "github.com/openshift/api/oauth/v1"
+	routev1 "github.com/openshift/api/route/v1"
+	templatev1 "github.com/openshift/api/template/v1"
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,7 +45,14 @@ const (
 )
 
 var (
-	consoleAPIFound = false
+	consoleAPIFound    = false
+	routeAPIFound      = false
+	monitoringAPIFound = false
+	configAPIFound     = false
+	templateAPIFound   = false
+	appsAPIFound       = false
+	oauthAPIFound      = false
+	olmAPIFound        = false
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -72,19 +86,53 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 }
 
 func InspectCluster() error {
-	if err := verifyConsoleAPI(); err != nil {
+	var errs []error
+	if err := verifyOLMAPI(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := verifyMonitoringAPI(); err != nil {
+		errs = append(errs, err)
+	}
+
+	if err := verifyConfigAPI(); err != nil {
+		errs = append(errs, err)
+		return stderrors.Join(errs...)
+	}
+	if !configAPIFound {
+		return nil
+	}
+
+	for _, check := range []func() error{
+		verifyRouteAPI,
+		verifyConsoleAPI,
+		verifyTemplateAPI,
+		verifyAppsAPI,
+		verifyOAuthAPI,
+	} {
+		if err := check(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return stderrors.Join(errs...)
+}
+
+// used as a shortcut to check if the cluster is an OpenShift cluster
+func IsConfigAPIFound() bool {
+	return configAPIFound
+}
+
+// verify if the Config.Openshift.io API is found
+func verifyConfigAPI() error {
+	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
+	if err != nil {
 		return err
 	}
+	configAPIFound = found
 	return nil
 }
 
 func IsConsoleAPIFound() bool {
 	return consoleAPIFound
-}
-
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetConsoleAPIFound(found bool) {
-	consoleAPIFound = found
 }
 
 func verifyConsoleAPI() error {
@@ -93,6 +141,87 @@ func verifyConsoleAPI() error {
 		return err
 	}
 	consoleAPIFound = found
+	return nil
+}
+
+func IsRouteAPIFound() bool {
+	return routeAPIFound
+}
+
+func verifyRouteAPI() error {
+	found, err := argoutil.VerifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	routeAPIFound = found
+	return nil
+}
+
+func verifyMonitoringAPI() error {
+	found, err := argoutil.VerifyAPI(
+		monitoringv1.SchemeGroupVersion.Group,
+		monitoringv1.SchemeGroupVersion.Version,
+	)
+	if err != nil {
+		return err
+	}
+	monitoringAPIFound = found
+	return nil
+}
+
+func IsMonitoringAPIFound() bool {
+	return monitoringAPIFound
+}
+
+func IsTemplateAPIFound() bool {
+	return templateAPIFound
+}
+
+func verifyTemplateAPI() error {
+	found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	templateAPIFound = found
+	return nil
+}
+
+func IsAppsAPIFound() bool {
+	return appsAPIFound
+}
+
+func verifyAppsAPI() error {
+	found, err := argoutil.VerifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	appsAPIFound = found
+	return nil
+}
+
+func IsOAuthAPIFound() bool {
+	return oauthAPIFound
+}
+
+func verifyOAuthAPI() error {
+	found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	oauthAPIFound = found
+	return nil
+}
+
+func IsOLMAPIFound() bool {
+	return olmAPIFound
+}
+
+func verifyOLMAPI() error {
+	found, err := argoutil.VerifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	olmAPIFound = found
 	return nil
 }
 

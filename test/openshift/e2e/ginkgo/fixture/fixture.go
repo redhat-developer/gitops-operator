@@ -194,9 +194,15 @@ func EnsureSequentialCleanSlateWithError() error {
 		// Otherwise, expected error if it doesn't exist.
 	}
 
-	// Finally, wait for default openshift-gitops instance to be ready
-	Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
-
+	// Finally, wait for default openshift-gitops instance to be ready.
+	failure := InterceptGomegaFailure(func() {
+		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
+	})
+	// Output debug information on argo startup failure
+	if failure != nil {
+		OutputDebug(defaultOpenShiftGitOpsArgoCD.Namespace)
+		Fail(failure.Error())
+	}
 	return nil
 }
 
@@ -836,6 +842,13 @@ var testReportMap = map[string]testReportEntry{} // acquire testReportLock befor
 // - Will output debug information on namespaces specified as parameters.
 // - Namespace parameter may be a string, *Namespace, or Namespace
 func OutputDebugOnFail(namespaceParams ...any) {
+	if !CurrentSpecReport().Failed() || os.Getenv("SKIP_DEBUG_OUTPUT") == "true" {
+		return
+	}
+	OutputDebug(namespaceParams...)
+}
+
+func OutputDebug(namespaceParams ...any) {
 
 	// Convert parameter to string of namespace name:
 	// - You can specify Namespace, *Namespae, or string, and we will convert it to string namespace
@@ -861,11 +874,6 @@ func OutputDebugOnFail(namespaceParams ...any) {
 	}
 
 	csr := CurrentSpecReport()
-
-	if !csr.Failed() || os.Getenv("SKIP_DEBUG_OUTPUT") == "true" {
-		return
-	}
-
 	testName := strings.Join(csr.ContainerHierarchyTexts, " ")
 	testReportLock.Lock()
 	defer testReportLock.Unlock()

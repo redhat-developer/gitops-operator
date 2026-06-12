@@ -7,7 +7,7 @@ import (
 
 	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
@@ -15,6 +15,7 @@ import (
 	appprojectFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/appproject"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	clusterroleFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterrole"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
@@ -44,6 +45,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		BeforeEach(func() {
 
 			fixture.EnsureSequentialCleanSlate()
+
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES",
+				"openshift-gitops, argocd-e2e-cluster-config, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, appset-target-ns")
+
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -61,8 +66,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("verifying that ArgoCD CR '.spec.applicationset.sourcenamespaces' and '.spec.sourcenamespaces' correctly control role/rolebindings within the managed namespaces", func() {
-
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config, appset-argocd, appset-old-ns, appset-new-ns")
 
 			By("0) create namespaces: appset-argocd, appset-old-ns, appset-new-ns")
 
@@ -746,8 +749,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("0) create namespaces: appset-argocd, team-1, team-2, team-frontend, team-backend, other-ns")
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config, appset-argocd")
-
 			appset_wildcard_argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
 			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
 
@@ -981,8 +982,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		It("verifies ApplicationSet clusterrole rules and creates appset/app in another namespace", func() {
 
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config, appset-argocd-clusterrole,appset-target-ns")
-
 			By("creating Argo CD namespace and target source namespace")
 			argoNamespace, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd-clusterrole")
 			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
@@ -1192,6 +1191,93 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Cleaning up the ApplicationSet")
 			Expect(k8sClient.Delete(ctx, appset)).To(Succeed())
 			Eventually(appset).Should(k8sFixture.NotExistByName())
+		})
+
+		It("defaults tokenRef strict mode to true when applicationSet sourceNamespaces are configured", func() {
+			appsetArgocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			targetNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-target-ns")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			argoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tokenref-strict-true",
+					Namespace: appsetArgocdNS.Name,
+				},
+				Spec: v1beta1.ArgoCDSpec{
+					ApplicationSet: &v1beta1.ArgoCDApplicationSet{
+						SourceNamespaces: []string{targetNS.Name},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			cmdParamsCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDCmdParamsConfigMapName,
+					Namespace: argoCD.Namespace,
+				},
+			}
+			Eventually(cmdParamsCM, "3m", "5s").Should(configmapFixture.HaveStringDataKeyValue(common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey, "true"))
+		})
+
+		It("defaults tokenRef strict mode to false when applicationSet sourceNamespaces are empty on create", func() {
+			appsetArgocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			argoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tokenref-strict-false-empty",
+					Namespace: appsetArgocdNS.Name,
+				},
+				Spec: v1beta1.ArgoCDSpec{
+					ApplicationSet: &v1beta1.ArgoCDApplicationSet{
+						SourceNamespaces: []string{},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			cmdParamsCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDCmdParamsConfigMapName,
+					Namespace: argoCD.Namespace,
+				},
+			}
+			Eventually(cmdParamsCM, "3m", "5s").Should(configmapFixture.HaveStringDataKeyValue(common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey, "false"))
+		})
+
+		It("spec.cmdParams overrides tokenRef strict mode default", func() {
+			appsetArgocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			targetNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-target-ns")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			argoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tokenref-strict-optout",
+					Namespace: appsetArgocdNS.Name,
+				},
+				Spec: v1beta1.ArgoCDSpec{
+					ApplicationSet: &v1beta1.ArgoCDApplicationSet{
+						SourceNamespaces: []string{targetNS.Name},
+					},
+					CmdParams: map[string]string{
+						common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey: "false",
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			cmdParamsCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDCmdParamsConfigMapName,
+					Namespace: argoCD.Namespace,
+				},
+			}
+			Eventually(cmdParamsCM, "3m", "5s").Should(configmapFixture.HaveStringDataKeyValue(common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey, "false"))
 		})
 
 	})

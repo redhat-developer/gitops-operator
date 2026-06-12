@@ -437,6 +437,7 @@ spec:
             - get
             - update
         - apiGroups:
+          - eks.amazonaws.com
           - elbv2.k8s.aws
           resources:
             - targetgroupbindings

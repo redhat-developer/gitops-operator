@@ -263,6 +263,19 @@ spec:
                 description: NamespaceScoped lets you specify if RolloutManager has
                   to watch a namespace or the whole cluster
                 type: boolean
+              networkPolicy:
+                description: |-
+                  NetworkPolicy controls whether the operator should create NetworkPolicy resources.
+                  if empty, the default is to create network policies
+                properties:
+                  enabled:
+                    default: true
+                    description: |-
+                      Enabled defines whether NetworkPolicy resources should be created for this instance.
+                      When enabled, the operator will reconcile NetworkPolicies for components.
+                      When disabled, the operator will remove any previously-created NetworkPolicies.
+                    type: boolean
+                type: object
               nodePlacement:
                 description: NodePlacement defines NodeSelectors and Taints for Rollouts
                   workloads

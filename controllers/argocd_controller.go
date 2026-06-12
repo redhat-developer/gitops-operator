@@ -71,8 +71,9 @@ func isConsoleLinkDisabled() bool {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ReconcileArgoCDRoute) SetupWithManager(mgr ctrl.Manager) error {
-	// Watch for changes to argocd-server route in the default argocd instance namespace
-	// The ConsoleLink holds the route URL and should be regenerated when route is updated
+	if !util.IsRouteAPIFound() {
+		return nil
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&routev1.Route{}, builder.WithPredicates(filterPredicate(filterArgoCDRoute))).

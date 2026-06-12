@@ -101,15 +101,20 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		reqLogger.Error(err, "Failed to create GitOps service instance")
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	bldr := ctrl.NewControllerManagedBy(mgr).
 		For(&pipelinesv1alpha1.GitopsService{}, builder.WithPredicates(pred)).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&rbacv1.ClusterRole{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
-		Owns(&corev1.Service{}, builder.WithPredicates(pred)).
-		Owns(&routev1.Route{}, builder.WithPredicates(pred)).
+		Owns(&corev1.Service{}, builder.WithPredicates(pred))
+
+	if util.IsRouteAPIFound() {
+		bldr = bldr.Owns(&routev1.Route{}, builder.WithPredicates(pred))
+	}
+
+	return bldr.
 		Watches(
 			&corev1.Namespace{},
 			&handler.EnqueueRequestForObject{},
@@ -197,6 +202,7 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups="batch",resources=jobs,verbs=create;get;list;watch;update;patch;delete
 //+kubebuilder:rbac:groups="coordination.k8s.io",resources=leases,verbs=create;get;update
 //+kubebuilder:rbac:groups="elbv2.k8s.aws",resources=targetgroupbindings,verbs=list;get
+//+kubebuilder:rbac:groups="eks.amazonaws.com",resources=targetgroupbindings,verbs=list;get
 //+kubebuilder:rbac:groups="extensions",resources=ingresses,verbs=create;get;list;watch;patch
 //+kubebuilder:rbac:groups="getambassador.io",resources=ambassadormappings;mappings,verbs=create;watch;get;update;list;delete
 //+kubebuilder:rbac:groups="networking.istio.io",resources=destinationrules;virtualservices,verbs=watch;get;update;patch;list
@@ -209,6 +215,7 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups="apiregistration.k8s.io",resources="apiservices",verbs=get;list
 //+kubebuilder:rbac:groups="argoproj.io",resources=namespacemanagements;namespacemanagements/status,verbs=create;get;list;watch;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups="config.openshift.io",resources=ingresses,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
@@ -344,14 +351,16 @@ func (r *ReconcileGitopsService) cleanKAMResources(ctx context.Context, reqLogge
 	}
 
 	// KAM Route
-	cleanupKAMRoute := &routev1.Route{}
-	if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMRoute); err == nil {
-		reqLogger.Info("Detected unsupported KAM Route, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
-		if err := r.Client.Delete(ctx, cleanupKAMRoute); err != nil && !errors.IsNotFound(err) {
-			reqLogger.Error(err, "Failed to delete KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+	if util.IsRouteAPIFound() {
+		cleanupKAMRoute := &routev1.Route{}
+		if err := r.Client.Get(ctx, types.NamespacedName{Name: kamResourceName, Namespace: serviceNamespace}, cleanupKAMRoute); err == nil {
+			reqLogger.Info("Detected unsupported KAM Route, deleting", "Name", kamResourceName, "Namespace", serviceNamespace)
+			if err := r.Client.Delete(ctx, cleanupKAMRoute); err != nil && !errors.IsNotFound(err) {
+				reqLogger.Error(err, "Failed to delete KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
+			}
+		} else if !errors.IsNotFound(err) {
+			reqLogger.Error(err, "Failed to retrieve KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
 		}
-	} else if !errors.IsNotFound(err) {
-		reqLogger.Error(err, "Failed to retrieve KAM Route", "Name", kamResourceName, "Namespace", serviceNamespace)
 	}
 
 }

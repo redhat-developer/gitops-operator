@@ -38,6 +38,7 @@ rules:
   - ""
   resources:
   - pods/eviction
+  - serviceaccounts/token
   verbs:
   - create
 - apiGroups:
@@ -263,6 +264,7 @@ rules:
   - get
   - update
 - apiGroups:
+  - eks.amazonaws.com
   - elbv2.k8s.aws
   resources:
   - targetgroupbindings

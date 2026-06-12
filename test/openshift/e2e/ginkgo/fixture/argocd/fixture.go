@@ -71,22 +71,30 @@ func BeAvailableWithCustomSleepTime(sleepTime time.Duration) matcher.GomegaMatch
 	// - I'm not aware of a way to do this without a sleep statement, but when we have something better we should do that instead.
 	time.Sleep(sleepTime)
 
-	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-
-		if argocd.Status.Phase != "Available" {
-			GinkgoWriter.Println("ArgoCD status is not yet Available")
-			return false
-		}
-		GinkgoWriter.Println("ArgoCD status is now", argocd.Status.Phase)
-
-		return true
-	})
+	return HavePhase("Available")
 }
 
-func HavePhase(phase string) matcher.GomegaMatcher {
+func HavePhase(expected string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
-		GinkgoWriter.Println("HavePhase:", "expected:", phase, "/ actual:", argocd.Status.Phase)
-		return argocd.Status.Phase == phase
+		GinkgoWriter.Println("HaveArgocdPhase:", "expected:", expected, "/ actual:", argocd.Status.Phase)
+		if expected == "Available" {
+			GinkgoWriter.Println("  Components: ",
+				"Redis:", argocd.Status.Redis,
+				"Repo:", argocd.Status.Repo,
+				"Server: ", argocd.Status.Server,
+				"ApplicationController:", argocd.Status.ApplicationController,
+				"ApplicationSetController:", argocd.Status.ApplicationSetController,
+				"NotificationsController:", argocd.Status.NotificationsController,
+				"SSO:", argocd.Status.SSO,
+			)
+
+			for _, condition := range argocd.Status.Conditions {
+				if condition.Status == metav1.ConditionFalse {
+					GinkgoWriter.Printf("    %s/%s: %s\n", condition.Type, condition.Reason, condition.Message)
+				}
+			}
+		}
+		return argocd.Status.Phase == expected
 	})
 }
 

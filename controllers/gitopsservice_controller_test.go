@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -47,6 +48,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+func TestMain(m *testing.M) {
+	util.SetConfigAPIFound(true)
+	util.SetMonitoringAPIFound(true)
+	util.SetRouteAPIFound(true)
+	util.SetOLMAPIFound(true)
+	os.Exit(m.Run())
+}
 
 func TestImageFromEnvVariable(t *testing.T) {
 	ns := types.NamespacedName{Name: "test", Namespace: "test"}
@@ -927,6 +936,8 @@ func TestCleanKAMResources_ServiceExist(t *testing.T) {
 // Route exist
 func TestCleanKAMResources_RouteExist(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	defer util.SetRouteAPIFound(util.IsRouteAPIFound())
+	util.SetRouteAPIFound(true)
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 	kamRoute := &routev1.Route{
@@ -947,6 +958,8 @@ func TestCleanKAMResources_RouteExist(t *testing.T) {
 // All Resources exist
 func TestCleanKAMResources_AllResourcesExist(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	defer util.SetRouteAPIFound(util.IsRouteAPIFound())
+	util.SetRouteAPIFound(true)
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 	kamDeploy := &appsv1.Deployment{
