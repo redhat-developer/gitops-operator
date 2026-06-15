@@ -231,9 +231,9 @@ func TestDexConfiguration(t *testing.T) {
 	assert.DeepEqual(t, testArgoCD.Spec.RBAC, testRBAC)
 }
 
+// kubernetes environment test, no defer required as the Config API is false by default
 func TestSSOSkippedOnNonOpenShift(t *testing.T) {
 	util.SetConfigAPIFound(false)
-	defer util.SetConfigAPIFound(true)
 
 	scheme := runtime.NewScheme()
 	_ = argoapp.AddToScheme(scheme)
