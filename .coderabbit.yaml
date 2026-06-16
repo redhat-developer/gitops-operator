@@ -1,0 +1,9 @@
+inheritance: true
+knowledge_base:
+  linked_repositories:
+    - repository: 'argoproj-labs/argocd-operator'
+      instructions: >
+        argocd-operator is a dependency for gitops-operator. Not all E2E tests that are in argocd-operator are in gitops-operator, and vice versa. When new tests are added to this repository, while reviewing:
+        - check if these tests are specific to openshift
+        - if these tests are not specific to openshift, check if these are being tested in argocd-operator too
+        - if it is not specific to openshift and not being tested in argocd-operator, remind user that a sibling PR in argocd-operator may be needed.
