@@ -26,6 +26,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -93,6 +94,31 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 			}
 			Expect(match).To(BeTrue(), "StatefulSet should have expected ARGOCD_CONTROLLER_REPLICAS")
+
+			By("ensuring algorithm can be set")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.Sharding = argov1beta1api.ArgoCDApplicationControllerShardSpec{
+					Enabled:               true,
+					Replicas:              3,
+					DistributionAlgorithm: "round-robin",
+				}
+			})
+
+			By("checking if ARGOCD_CONTROLLER_SHARDING_ALGORITHM env var is set in the app controller StatefulSet")
+			Eventually(statefulSet).Should(k8sFixture.ExistByName())
+			Eventually(statefulSet, "60s", "5s").Should(statefulset.HaveContainerWithEnvVar("ARGOCD_CONTROLLER_SHARDING_ALGORITHM", "round-robin", 0), "Statefulset should have expected ARGOCD_CONTROLLER_SHARDING_ALGORITHM to be round-robin")
+
+			By("unset algorithm and ensure that it is not set")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.Sharding = argov1beta1api.ArgoCDApplicationControllerShardSpec{
+					Enabled:  true,
+					Replicas: 3,
+				}
+			})
+
+			By("checking if ARGOCD_CONTROLLER_SHARDING_ALGORITHM env var is not set in app controller StatefulSet")
+			Eventually(statefulSet).Should(k8sFixture.ExistByName())
+			Eventually(statefulSet, "60s", "5s").ShouldNot(statefulset.HaveContainerWithEnvVar("ARGOCD_CONTROLLER_SHARDING_ALGORITHM", "round-robin", 0), "Statefulset should not have ARGOCD_CONTROLLER_SHARDING_ALGORITHM")
 
 			By("disabling sharding")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
