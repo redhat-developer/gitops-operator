@@ -116,12 +116,12 @@ func InspectCluster() error {
 	return stderrors.Join(errs...)
 }
 
-// used as a shortcut to check if the Config.Openshift.io API is found
+// IsConfigAPIFound return true if the CRD config.openshift.io is available in the cluster and false otherwise.
 func IsConfigAPIFound() bool {
 	return configAPIFound
 }
 
-// used as a shortcut to check if the cluster is an OpenShift cluster
+// IsOpenShiftCluster uses IsConfigAPIFound to check if the cluster is an OpenShift cluster.
 func IsOpenShiftCluster() bool {
 	return IsConfigAPIFound()
 }
@@ -136,6 +136,7 @@ func verifyConfigAPI() error {
 	return nil
 }
 
+// IsConsoleAPIFound return true if the CRD console.openshift.io is available in the cluster.
 func IsConsoleAPIFound() bool {
 	return consoleAPIFound
 }
@@ -149,6 +150,7 @@ func verifyConsoleAPI() error {
 	return nil
 }
 
+// IsRouteAPIFound return true if the CRD route.openshift.io is available in the cluster.
 func IsRouteAPIFound() bool {
 	return routeAPIFound
 }
@@ -174,10 +176,12 @@ func verifyMonitoringAPI() error {
 	return nil
 }
 
+// IsMonitoringAPIFound return true if the CRD monitoring.coreos.com is available in the cluster.
 func IsMonitoringAPIFound() bool {
 	return monitoringAPIFound
 }
 
+// IsTemplateAPIFound return true if the CRD template.openshift.io is available in the cluster.
 func IsTemplateAPIFound() bool {
 	return templateAPIFound
 }
@@ -191,6 +195,7 @@ func verifyTemplateAPI() error {
 	return nil
 }
 
+// IsAppsAPIFound return true if the CRD apps.openshift.io is available in the cluster.
 func IsAppsAPIFound() bool {
 	return appsAPIFound
 }
@@ -204,6 +209,7 @@ func verifyAppsAPI() error {
 	return nil
 }
 
+// IsOAuthAPIFound return true if the CRD oauth.openshift.io is available in the cluster.
 func IsOAuthAPIFound() bool {
 	return oauthAPIFound
 }
@@ -217,6 +223,7 @@ func verifyOAuthAPI() error {
 	return nil
 }
 
+// IsOLMAPIFound return true if the CRD operators.coreos.com is available in the cluster.
 func IsOLMAPIFound() bool {
 	return olmAPIFound
 }

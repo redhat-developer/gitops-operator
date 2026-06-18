@@ -224,7 +224,6 @@ func main() {
 
 	// Setup Scheme for OpenShift Config if available
 	// Disables default Argo CD instance if the cluster doesn't contain OpenShift config API
-
 	if util.IsConfigAPIFound() {
 		registerComponentOrExit(mgr, configv1.AddToScheme)
 	}
@@ -267,7 +266,6 @@ func main() {
 		}
 	} else {
 		setupLog.Info("skipping GitopsService controller setup", "reason", "OpenShift Config API not available")
-
 	}
 
 	if util.IsRouteAPIFound() {
