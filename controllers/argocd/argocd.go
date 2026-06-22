@@ -21,12 +21,16 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argoappController "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/yaml"
 )
+
+var log = logf.Log.WithName("controller_argocd")
 
 var (
 	defaultAdminPolicy = "g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin\n"
@@ -90,7 +94,12 @@ func getArgoDexSpec() *argoapp.ArgoCDDexSpec {
 }
 
 func getArgoSSOSpec(client client.Client) *argoapp.ArgoCDSSOSpec {
-	if argoappController.IsOpenShiftCluster() && argoappController.IsExternalAuthenticationEnabledOnCluster(context.TODO(), client) {
+	if !util.IsOpenShiftCluster() {
+		log.Info("non-OpenShift cluster detected, skipping SSO/Dex configuration")
+		return nil
+	}
+	if argoappController.IsExternalAuthenticationEnabledOnCluster(context.TODO(), client) {
+		log.Info("external authentication enabled on cluster, skipping SSO/Dex configuration")
 		return nil
 	}
 	return &argoapp.ArgoCDSSOSpec{
