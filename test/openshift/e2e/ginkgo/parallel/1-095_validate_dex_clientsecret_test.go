@@ -88,21 +88,26 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			serviceAccount := &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: dexSAName, Namespace: ns.Name}}
 			Eventually(serviceAccount).Should(k8sFixture.ExistByName())
 
-			By("verifying no non-expiring kubernetes.io/service-account-token Secret exists for the Dex SA (absence must hold for a short window, not only at one instant)")
+			By("verifying no additional non-expiring kubernetes.io/service-account-token Secrets exist for the Dex SA beyond platform-created ones (OCP <4.16 creates one for image registry)")
 			Consistently(func() bool {
 				secretList := &corev1.SecretList{}
 				if err := k8sClient.List(ctx, secretList, client.InNamespace(ns.Name)); err != nil {
 					return false
 				}
+
+				tokenCount := 0
 				for _, s := range secretList.Items {
 					if s.Type == corev1.SecretTypeServiceAccountToken &&
 						strings.HasPrefix(s.Name, dexSAName+"-token-") &&
 						s.Annotations[corev1.ServiceAccountNameKey] == dexSAName {
-						return false
+						tokenCount++
 					}
 				}
-				return true
-			}, "20s", "4s").Should(BeTrue(), "no legacy kubernetes.io/service-account-token Secret for the Dex SA should appear while reconciles continue")
+
+				// Allow max 1 token (platform-created on OCP 4.14/4.15), but operator shouldn't create more
+				// On OCP 4.16+, tokenCount will be 0 as no automatic tokens are created
+				return tokenCount <= 1
+			}, "20s", "4s").Should(BeTrue(), "operator should not create additional legacy kubernetes.io/service-account-token Secrets beyond platform-created ones")
 
 			By("verifying argocd-cm ConfigMap is not leaking oidc dex client secret")
 			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
