@@ -156,6 +156,10 @@ func main() {
 		bootstrapClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{
 			Scheme: scheme,
 		})
+		if err != nil {
+			setupLog.Error(err, "unable to create bootstrap client")
+			os.Exit(1)
+		}
 		profile, err = tlspkg.FetchAPIServerTLSProfile(ctx, bootstrapClient)
 		if err != nil {
 			setupLog.Error(err, "unable to fetch cluster TLS profile")
