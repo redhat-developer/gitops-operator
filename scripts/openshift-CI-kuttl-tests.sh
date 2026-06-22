@@ -11,7 +11,7 @@ cleanup_on_failure() {
     oc get pods -n openshift-gitops-operator -o yaml
     echo ""
     echo "Operator pod log"
-    oc logs deployment/openshift-gitops-operator-controller-manager -n openshift-gitops-operator
+    oc logs deployment/openshift-gitops-operator-controller-manager -n openshift-gitops-operator -c manager
     echo ""
     echo "Events in openshift-gitops-operator"
     oc get events -n openshift-gitops-operator
@@ -43,7 +43,9 @@ TMP_DIR=$(mktemp -d)
 cp $KUBECONFIG $TMP_DIR/kubeconfig
 chmod 640 $TMP_DIR/kubeconfig
 export KUBECONFIG=$TMP_DIR/kubeconfig
-cp $KUBECONFIG /go/src/github.com/redhat-developer/gitops-operator/kubeconfig
+GITOPS_OPERATOR_KUBECONFIG_DEST="${GITOPS_OPERATOR_KUBECONFIG_DEST:-/go/src/github.com/redhat-developer/gitops-operator/kubeconfig}"
+mkdir -p "$(dirname "${GITOPS_OPERATOR_KUBECONFIG_DEST}")"
+cp $KUBECONFIG "${GITOPS_OPERATOR_KUBECONFIG_DEST}"
 
 # Ensuring proper installation
 pod=openshift-gitops-operator-controller-manager && oc get pods `oc get pods --all-namespaces | grep $pod | head -1 | awk '{print $2}'` -n openshift-gitops-operator -o yaml
@@ -51,7 +53,7 @@ subscription=gitops-operator- && oc get subscription `oc get subscription --all-
 oc wait --for=condition=Ready -n openshift-gitops pod --timeout=15m  -l 'app.kubernetes.io/name in (cluster,openshift-gitops-application-controller,openshift-gitops-applicationset-controller,openshift-gitops-dex-server,openshift-gitops-redis,openshift-gitops-repo-server,openshift-gitops-server)' 
 
 # Check argocd instance creation
-oc create ns test-argocd
+oc get ns test-argocd >/dev/null 2>&1 || oc create ns test-argocd
 cat << EOF | oc apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCD

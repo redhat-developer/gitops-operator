@@ -1,0 +1,68 @@
+[
+  {
+    "name": "GitOps Operator Parallel E2E Tests 1-086_validate_applicationset_extra_command_args validates that extra command arguments are added to the ApplicationSet controller deployment",
+    "labels": {},
+    "resources": {
+      "isolation": {}
+    },
+    "source": "openshift:payload:gitops-operator",
+    "codeLocations": [
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-086_validate_applicationset_extra_command_args.go:20",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-086_validate_applicationset_extra_command_args.go:22",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-086_validate_applicationset_extra_command_args.go:32",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-086_validate_applicationset_extra_command_args.go:38",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-086_validate_applicationset_extra_command_args.go:43"
+    ],
+    "lifecycle": "blocking",
+    "environmentSelector": {}
+  },
+  {
+    "name": "GitOps Operator Parallel E2E Tests 1-098_validate_dex_clientsecret_deprecated validates that dex client secret is properly copied from service account token to argocd-secret",
+    "labels": {},
+    "resources": {
+      "isolation": {}
+    },
+    "source": "openshift:payload:gitops-operator",
+    "codeLocations": [
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-098_validate_dex_clientsecret_deprecated.go:36",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-098_validate_dex_clientsecret_deprecated.go:38",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-098_validate_dex_clientsecret_deprecated.go:45",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-098_validate_dex_clientsecret_deprecated.go:52"
+    ],
+    "lifecycle": "blocking",
+    "environmentSelector": {}
+  },
+  {
+    "name": "GitOps Operator Parallel E2E Tests 1-121_validate_custom_labels_rollouts ensures that custom labels set by the operator are added to Argo Rollouts resources",
+    "labels": {},
+    "resources": {
+      "isolation": {}
+    },
+    "source": "openshift:payload:gitops-operator",
+    "codeLocations": [
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-121_validate_custom_labels_rollouts.go:34",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-121_validate_custom_labels_rollouts.go:36",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-121_validate_custom_labels_rollouts.go:43",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-121_validate_custom_labels_rollouts.go:49"
+    ],
+    "lifecycle": "blocking",
+    "environmentSelector": {}
+  },
+  {
+    "name": "GitOps Operator Parallel E2E Tests 1-122_validate_user_defined_appproject verifies creating and configuring a user-defined AppProject instance with target namespaces and Application CR referencing it",
+    "labels": {},
+    "resources": {
+      "isolation": {}
+    },
+    "source": "openshift:payload:gitops-operator",
+    "codeLocations": [
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-122_validate_user_defined_appproject.go:38",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-122_validate_user_defined_appproject.go:40",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-122_validate_user_defined_appproject.go:50",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-122_validate_user_defined_appproject.go:57",
+      "/home/dfrazzet/github/gitops-operator/test/openshift/e2e/ginkgo/parallel/1-122_validate_user_defined_appproject.go:73"
+    ],
+    "lifecycle": "blocking",
+    "environmentSelector": {}
+  }
+]

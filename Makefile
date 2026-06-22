@@ -209,6 +209,10 @@ e2e-non-olm-tests-all:
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager ./cmd/main.go
 
+.PHONY: gitops-operator-tests-ext
+gitops-operator-tests-ext: ## Build OpenShift Tests Extension binary for parallel E2E tests.
+	GO_COMPLIANCE_POLICY="exempt_all" go build -C cmd/gitops-operator-tests-ext -o ../../bin/gitops-operator-tests-ext .
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
