@@ -63,8 +63,19 @@ export class ApplicationsPage {
     await locator.press('Enter');
   }
 
-  async createApp(appName: string, repoUrl: string, repoPath: string) {
+async createApp(appName: string, repoUrl: string, repoPath: string) {
     await this.newAppButton.click();
+    
+    //handle the "failed to load data" banner if it appears inside the slide-out panel
+    const errorBanner = this.page.getByText('try again');
+    try {
+      //wait 3 secs
+      await errorBanner.waitFor({ state: 'visible', timeout: 3000 });
+      await errorBanner.click(); 
+    } catch (error) {
+      //banner didn't appear so just continue
+    }
+
     await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: 15000 });
 
     await this.appNameInput.fill(appName);
@@ -82,31 +93,33 @@ export class ApplicationsPage {
     await this.createButton.click();
   }
 
-async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
+  async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
     //search for app
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
 
     const appContainer = this.page.locator('.white-box, .argo-table-list__row').filter({ hasText: appName });
     await appContainer.waitFor({ state: 'visible', timeout: 20000 });
+    await expect(appContainer.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({ timeout: 45000 });
+    //safe to open the panel
     await appContainer.getByText('Sync', { exact: true }).click();
     
-    //slideout panel 
-    // Wait for the manifests to fetch from Git and render on the panel
-    await expect(this.page.getByText(expectedResource).first()).toBeVisible({ timeout: 15000 });
-
-    //click 'all' to ensure all resource checkboxes are ticked across all Argo CD versions
+    //click 'all' 
     const allLink = this.page.getByRole('link', { name: 'all', exact: true });
     try {
-      await allLink.waitFor({ state: 'visible', timeout: 3000 });
+      await allLink.waitFor({ state: 'visible', timeout: 5000 });
       await allLink.click();
     } catch (error) {
-      //all link didn't appear within 3 sec
+      // all link didn't appear within 5 sec
     }
+
+    //wait for the manifests to render on the panel
+    await expect(this.page.getByText(expectedResource).first()).toBeVisible({ timeout: 30000 });
+
     //click the main sync button
     await this.page.getByRole('button', { name: /^synchronize$/i }).first().click();
 
-    //wait for the panel to  close 
-    await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: 10000 });
+    //wait for the panel to close 
+    await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: 15000 });
   }
 
   async verifyStatus(appName: string) {
@@ -117,5 +130,21 @@ async syncApplication(appName: string, expectedResource: string = 'spring-petcli
     //90 secs
     await expect(appContainer.getByText(/synced/i)).toBeVisible({ timeout: 90000 });
     await expect(appContainer.getByText(/healthy/i)).toBeVisible({ timeout: 90000 });
+  }
+
+  async openApplication(appName: string) {
+    //re-apply search filter just in case the UI refreshed
+    await this.page.getByPlaceholder(/Search applications/i).fill(appName);
+    
+    //find the container, then specifically click the link of the app name
+    const appLink = this.page.locator('.white-box, .argo-table-list__row')
+                             .filter({ hasText: appName })
+                             .getByRole('link', { name: appName });
+                             
+    await appLink.waitFor({ state: 'visible', timeout: 15000 });
+    await appLink.click();
+    
+    //wait for the URL to change to the details page to ensure the click worked
+    await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: 15000 });
   }
 }

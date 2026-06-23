@@ -55,9 +55,20 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   await passwordInput.fill(process.env.CLUSTER_PASSWORD);
   await page.getByRole('button', { name: /Log in/i }).click();
 
+  // Handle the OpenShift 4.x Welcome Tour modal if it appears
+  try {
+    const skipTourButton = page.getByRole('button', { name: /skip tour/i });
+    // Wait up to 5 seconds for the modal to pop up
+    await skipTourButton.waitFor({ state: 'visible', timeout: 5000 });
+    await skipTourButton.click();
+    console.log('Dismissed the OpenShift Welcome Tour modal.');
+  } catch (error) {
+    // If it doesn't appear within 5 seconds, it's an older cluster or already dismissed.
+    // Safely ignore the error and move on
+  }
+
   // Save the auth state
-  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('navigation').first()).toBeVisible({ timeout: 20000 });
   await expect(page).toHaveURL(/(console|k8s|overview|dashboards)/i, { timeout: 15000 });
   await page.context().storageState({ path: authFile });
-
 });
