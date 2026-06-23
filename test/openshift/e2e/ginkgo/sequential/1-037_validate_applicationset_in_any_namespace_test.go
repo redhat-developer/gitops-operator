@@ -47,7 +47,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES",
-				"openshift-gitops, argocd-e2e-cluster-config, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, appset-target-ns")
+				"openshift-gitops, argocd-e2e-cluster-config, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, appset-target-ns, appset-argocd-err, appset-target-err")
 
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
@@ -56,7 +56,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		AfterEach(func() {
 
 			fixture.OutputDebugOnFail("appset-argocd", "appset-old-ns", "appset-new-ns", "appset-namespace-scoped", "target-ns-1-037",
-				"team-1", "team-2", "team-frontend", "team-backend", "team-3", "other-ns", "appset-argocd-clusterrole", "appset-target-ns")
+				"team-1", "team-2", "team-frontend", "team-backend", "team-3", "other-ns", "appset-argocd-clusterrole", "appset-target-ns",
+				"appset-argocd-err", "appset-target-err")
 
 			// Clean up namespaces created
 			for _, namespaceCleanupFunction := range cleanupFunctions {
@@ -600,6 +601,106 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(appset_new_nsNS, "2m", "5s").ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "appset-argocd"))
 			Consistently(appset_new_nsNS, "10s", "1s").ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "appset-argocd"))
 
+		})
+
+		It("verifies that ApplicationSet reconcile is blocked when namespace list fails and retry adds --applicationset-namespaces after RBAC restore", func() {
+			if fixture.EnvLocalRun() {
+				Skip("Skipping RBAC test for LOCAL_RUN - operator runs locally without cluster ClusterRole")
+			}
+
+			By("finding operator deployment")
+			operatorDeployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops-operator-controller-manager",
+					Namespace: "openshift-gitops-operator",
+				},
+			}
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(operatorDeployment), operatorDeployment); err != nil {
+				var nsList corev1.NamespaceList
+				Expect(k8sClient.List(ctx, &nsList)).To(Succeed())
+				found := false
+				for i := range nsList.Items {
+					dep := &appsv1.Deployment{}
+					if getErr := k8sClient.Get(ctx, client.ObjectKey{Namespace: nsList.Items[i].Name, Name: "openshift-gitops-operator-controller-manager"}, dep); getErr == nil {
+						operatorDeployment = dep
+						found = true
+						break
+					}
+				}
+				if !found {
+					Skip("Operator deployment not found - test requires operator running in cluster")
+				}
+			}
+
+			By("revoking operator list namespaces permission from every bound operator ClusterRole")
+			saName := operatorDeployment.Spec.Template.Spec.ServiceAccountName
+			if saName == "" {
+				saName = "default"
+			}
+			operatorClusterRoleSnapshots := snapshotsForOperatorNamespacesListPermission(
+				ctx, k8sClient, operatorDeployment.Namespace, saName, fixture.EnvNonOLM())
+			if len(operatorClusterRoleSnapshots) == 0 {
+				Skip("No operator-managed ClusterRole with namespaces list permission found")
+			}
+
+			var revokedClusterRoleSnapshots []operatorClusterRoleRulesSnapshot
+			defer func() {
+				if len(revokedClusterRoleSnapshots) == 0 {
+					return
+				}
+				restoreOperatorClusterRoleRulesSnapshots(revokedClusterRoleSnapshots)
+			}()
+			for _, snapshot := range operatorClusterRoleSnapshots {
+				clusterRole := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: snapshot.name}}
+				modifiedRules := snapshot.modifiedRules
+				clusterroleFixture.Update(clusterRole, func(cr *rbacv1.ClusterRole) { cr.Rules = modifiedRules })
+				revokedClusterRoleSnapshots = append(revokedClusterRoleSnapshots, snapshot)
+			}
+
+			By("creating Argo CD with ApplicationSet and source namespaces")
+			argocdNS, cleanupArgocd := fixture.CreateNamespaceWithCleanupFunc("appset-argocd-err")
+			cleanupFunctions = append(cleanupFunctions, cleanupArgocd)
+			targetNS, cleanupTarget := fixture.CreateNamespaceWithCleanupFunc("appset-target-err")
+			cleanupFunctions = append(cleanupFunctions, cleanupTarget)
+			argoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example",
+					Namespace: argocdNS.Name,
+				},
+				Spec: v1beta1.ArgoCDSpec{
+					SourceNamespaces: []string{targetNS.Name},
+					ApplicationSet: &v1beta1.ArgoCDApplicationSet{
+						SourceNamespaces: []string{targetNS.Name},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			appsetDeployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "example-applicationset-controller",
+					Namespace: argoCD.Namespace,
+				},
+			}
+
+			By("verifying ApplicationSet deployment is not created while namespace list fails (blocked reconcile)")
+			Consistently(appsetDeployment, "30s", "2s").Should(k8sFixture.NotExistByName())
+
+			By("restoring operator list namespaces permission")
+			restoreOperatorClusterRoleRulesSnapshots(revokedClusterRoleSnapshots)
+			revokedClusterRoleSnapshots = nil
+
+			By("triggering Argo CD reconcile after RBAC restore")
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				if ac.Annotations == nil {
+					ac.Annotations = map[string]string{}
+				}
+				ac.Annotations["e2e-test-reconcile-trigger"] = "true"
+			})
+
+			By("verifying retry creates deployment with --applicationset-namespaces")
+			Eventually(appsetDeployment, "2m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(appsetDeployment).Should(deploymentFixture.HaveContainerCommandSubstring("--applicationset-namespaces "+targetNS.Name, 0))
 		})
 
 		It("verifies that ArgoCD sourcenamespaces resources are cleaned up automatically", func() {
@@ -1282,3 +1383,143 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	})
 })
+
+const nonOLMManagerClusterRoleName = "manager-role"
+
+type operatorClusterRoleRulesSnapshot struct {
+	name          string
+	originalRules []rbacv1.PolicyRule
+	modifiedRules []rbacv1.PolicyRule
+}
+
+func removeListVerbFromNamespacesRules(rules []rbacv1.PolicyRule) ([]rbacv1.PolicyRule, bool) {
+	var modifiedRules []rbacv1.PolicyRule
+	removedListFromNamespaces := false
+
+	for _, rule := range rules {
+		var namespaceResources, otherResources []string
+		for _, resource := range rule.Resources {
+			if resource == "namespaces" {
+				namespaceResources = append(namespaceResources, resource)
+			} else {
+				otherResources = append(otherResources, resource)
+			}
+		}
+		if len(namespaceResources) == 0 {
+			modifiedRules = append(modifiedRules, rule)
+			continue
+		}
+
+		hasList := false
+		for _, verb := range rule.Verbs {
+			if verb == "list" {
+				hasList = true
+				break
+			}
+		}
+		if !hasList {
+			modifiedRules = append(modifiedRules, rule)
+			continue
+		}
+		removedListFromNamespaces = true
+
+		var namespaceVerbs []string
+		for _, verb := range rule.Verbs {
+			if verb != "list" {
+				namespaceVerbs = append(namespaceVerbs, verb)
+			}
+		}
+		if len(namespaceVerbs) > 0 {
+			modifiedRules = append(modifiedRules, rbacv1.PolicyRule{
+				APIGroups:       rule.APIGroups,
+				Resources:       []string{"namespaces"},
+				Verbs:           namespaceVerbs,
+				ResourceNames:   rule.ResourceNames,
+				NonResourceURLs: rule.NonResourceURLs,
+			})
+		}
+		if len(otherResources) > 0 {
+			modifiedRules = append(modifiedRules, rbacv1.PolicyRule{
+				APIGroups:       rule.APIGroups,
+				Resources:       otherResources,
+				Verbs:           rule.Verbs,
+				ResourceNames:   rule.ResourceNames,
+				NonResourceURLs: rule.NonResourceURLs,
+			})
+		}
+	}
+
+	return modifiedRules, removedListFromNamespaces
+}
+
+func isOperatorManagedClusterRole(clusterRole *rbacv1.ClusterRole, nonOLMInstall bool) bool {
+	if nonOLMInstall {
+		return clusterRole.Name == nonOLMManagerClusterRoleName
+	}
+
+	return clusterRole.Labels["olm.managed"] == "true" &&
+		strings.HasPrefix(clusterRole.Labels["olm.owner"], "openshift-gitops-operator")
+}
+
+func snapshotsForOperatorNamespacesListPermission(ctx context.Context, k8sClient client.Client, serviceAccountNamespace, serviceAccountName string, nonOLMInstall bool) []operatorClusterRoleRulesSnapshot {
+	var crbList rbacv1.ClusterRoleBindingList
+	Expect(k8sClient.List(ctx, &crbList)).To(Succeed())
+
+	seenClusterRoles := map[string]bool{}
+	var snapshots []operatorClusterRoleRulesSnapshot
+
+	for i := range crbList.Items {
+		crb := &crbList.Items[i]
+		if crb.RoleRef.Kind != "ClusterRole" {
+			continue
+		}
+		if seenClusterRoles[crb.RoleRef.Name] {
+			continue
+		}
+
+		matchesServiceAccount := false
+		for _, subject := range crb.Subjects {
+			if subject.Kind == rbacv1.ServiceAccountKind &&
+				subject.Namespace == serviceAccountNamespace &&
+				subject.Name == serviceAccountName {
+				matchesServiceAccount = true
+				break
+			}
+		}
+		if !matchesServiceAccount {
+			continue
+		}
+
+		clusterRole := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: crb.RoleRef.Name}}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterRole), clusterRole); err != nil {
+			continue
+		}
+		if !isOperatorManagedClusterRole(clusterRole, nonOLMInstall) {
+			continue
+		}
+
+		modifiedRules, removedListFromNamespaces := removeListVerbFromNamespacesRules(clusterRole.Rules)
+		if !removedListFromNamespaces {
+			continue
+		}
+
+		originalRules := make([]rbacv1.PolicyRule, len(clusterRole.Rules))
+		copy(originalRules, clusterRole.Rules)
+		snapshots = append(snapshots, operatorClusterRoleRulesSnapshot{
+			name:          clusterRole.Name,
+			originalRules: originalRules,
+			modifiedRules: modifiedRules,
+		})
+		seenClusterRoles[clusterRole.Name] = true
+	}
+
+	return snapshots
+}
+
+func restoreOperatorClusterRoleRulesSnapshots(snapshots []operatorClusterRoleRulesSnapshot) {
+	for _, snapshot := range snapshots {
+		clusterRole := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: snapshot.name}}
+		originalRules := snapshot.originalRules
+		clusterroleFixture.Update(clusterRole, func(cr *rbacv1.ClusterRole) { cr.Rules = originalRules })
+	}
+}
