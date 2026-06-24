@@ -58,7 +58,12 @@ export class ApplicationsPage {
       await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
       await errorBanner.click(); 
     } catch (error) {
-      //banner didn't appear so just continue
+      //ignore if the banner timed out (wasn't present)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        //banner didn't appear so just continue
+      } else {
+        throw error;
+      }
     }
     
     await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.default });
@@ -84,7 +89,12 @@ export class ApplicationsPage {
       await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
       await errorBanner.click(); 
     } catch (error) {
-      //banner didn't appear so just continue
+      //ignore if the banner timed out (wasn't present)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        // banner didn't appear so just continue
+      } else {
+        throw error;
+      }
     }
 
     await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: TIMEOUTS.default });
@@ -125,7 +135,12 @@ export class ApplicationsPage {
       await allLink.waitFor({ state: 'visible', timeout: TIMEOUTS.modal });
       await allLink.click();
     } catch (error) {
-      //'all' link didn't appear which is normal for this version so do nothing.
+      //ignore if the link timed out (absent in older versions)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        //'all' link didn't appear which is normal for this version so do nothing.
+      } else {
+        throw error;
+      }
     }
     
     //wait for the manifests to render on the panel (generous timeout for slower FIPS clusters)

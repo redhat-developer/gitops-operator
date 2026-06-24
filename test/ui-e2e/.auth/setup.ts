@@ -35,7 +35,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
     console.log(`IDP selection screen detected. Selecting provider: "${idpName}"`);
     
     //look for the specific IDP 
-    const idpLink = page.getByRole('link', { name: new RegExp(idpName, 'i') });
+    const idpLink = page.getByRole('link', { name: idpName, exact: true });
     
     await idpLink.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
     await idpLink.click();
@@ -58,7 +58,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   await passwordInput.fill(process.env.CLUSTER_PASSWORD);
   await page.getByRole('button', { name: /Log in/i }).click();
 
-  //handle the OpenShift 4.x Welcome Tour modal if it appears
+//handle the OpenShift 4.x Welcome Tour modal if it appears
   try {
     const skipTourButton = page.getByRole('button', { name: /skip tour/i });
     //wait up to 5 seconds for the modal to pop up
@@ -66,9 +66,13 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
     await skipTourButton.click();
     console.log('Dismissed the OpenShift Welcome Tour modal.');
   } catch (error) {
-    //if it doesn't appear within 5 seconds, it's an older cluster or already dismissed
-    //safely ignore the error and move on
-    console.debug('welcome tour modal did not appear, continuing...');
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      //safely ignore the timeout and move on
+      console.log('welcome tour modal did not appear, continuing...');
+    } else {
+      //throw any other unexpected errors 
+      throw error;
+    }
   }
 
   //save the auth state

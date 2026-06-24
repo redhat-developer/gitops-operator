@@ -30,7 +30,6 @@ export const test = base.extend<MyFixtures>({
     await use(page);
   },
 
-  // 🚀 Cleaned up 'request' from the parameters, just using 'page' now
   managedApp: [ async ({ page }, use) => {
     const appName = `e2e-app-${Date.now()}`;
     const appsPage = new ApplicationsPage(page);
@@ -51,7 +50,7 @@ export const test = base.extend<MyFixtures>({
     //teardown 
     console.log(`[teardown] deleting ${appName} via api`);
     
-    // 🚀 REVERTED: Back to page.request so we keep our UI login cookies!
+    //page.request
     const deleteResponse = await page.request.delete(`/api/v1/applications/${appName}?cascade=true`, {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -67,21 +66,24 @@ export const test = base.extend<MyFixtures>({
       console.log(`[teardown] waiting for background cleanup of ${appName} to finish...`);
       await expect.poll(async () => {
         try {
-          // 🚀 REVERTED: Back to page.request, but KEEPING the try/catch shield!
           const checkResponse = await page.request.get(`/api/v1/applications/${appName}`);
           const status = checkResponse.status();
           
-          // 🚀 ACCEPT BOTH: 404 (Not Found) or 403 (Forbidden due to RBAC project scoping)
+          //404 (Not Found) or 403 (Forbidden due to RBAC project scoping)
           return status === 404 || status === 403;
         } catch (error) {
-          // If the OpenShift router blips or drops the socket, swallow it and keep polling
-          return false; 
+          //router blips or drops the socket swallow it and keep polling
+          if (error instanceof Error && (error.message.includes('hang up') || error.message.includes('RESET') || error.message.includes('closed'))) {
+            return false; 
+          }
+          //fail fast
+          throw error;
         }
       }, {
         message: `Waiting for ${appName} to completely delete from the cluster.`,
         timeout: 60000, 
         intervals: [2000, 5000, 10000], 
-      }).toBeTruthy(); // 🚀 Changed to check if our boolean logic returns true
+      }).toBeTruthy();
       
       console.log(`[teardown] ${appName} successfully removed from the cluster.`);
     }

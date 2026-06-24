@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 
 async function globalSetup() {
-  console.log('🧹 Running pre-flight cleanup...');
+  console.log(' * Running pre-flight cleanup...');
 
   try {
     console.log('   -> Sweeping ghost applications...');
@@ -12,9 +12,9 @@ async function globalSetup() {
     //no hangs on dead controllers
     execSync('oc delete all -l app=spring-petclinic -n openshift-gitops --wait=false', { stdio: 'ignore' });
 
-    console.log('✨ Cluster sanitized. Starting test suite.');
+    console.log('* Cluster sanitized. Starting test suite.');
   } catch (error) {
-    console.log('✨ Cluster is clean. Starting test suite.');
+    console.log('* Cluster is clean. Starting test suite.');
   }
 }
 
