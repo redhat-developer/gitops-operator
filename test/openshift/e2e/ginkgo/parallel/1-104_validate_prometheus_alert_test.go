@@ -35,7 +35,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				},
 			}
 			Eventually(sm).Should(k8sFixture.ExistByName())
-
+			serverName := "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc"
 			Expect(sm.Spec.Endpoints).To(Equal([]monitoringv1.Endpoint{{
 				BearerTokenSecret: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -57,7 +57,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								Key: "service-ca.crt",
 							},
 						},
-						ServerName: "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc",
+						ServerName: &serverName,
 					},
 				},
 			}}))
