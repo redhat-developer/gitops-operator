@@ -128,9 +128,11 @@ export class ApplicationsPage {
 
     //now it is safe to open the panel
     await appContainer.getByText('Sync', { exact: true }).click();
+
+    const slideOutPanel = this.page.locator('.sliding-panel').filter({ visible: true });
     
-    //click 'all' first to ensure all resource checkboxes are ticked across newer Argo CD versions
-    const allLink = this.page.getByRole('link', { name: 'all', exact: true });
+    // 🚀 SWAPPED: this.page is now slideOutPanel
+    const allLink = slideOutPanel.getByRole('link', { name: 'all', exact: true });
     try {
       await allLink.waitFor({ state: 'visible', timeout: TIMEOUTS.modal });
       await allLink.click();
@@ -143,11 +145,11 @@ export class ApplicationsPage {
       }
     }
     
-    //wait for the manifests to render on the panel (generous timeout for slower FIPS clusters)
-    await expect(this.page.getByText(expectedResource).first()).toBeVisible({ timeout: TIMEOUTS.render });
+    // 🚀 SWAPPED: this.page is now slideOutPanel
+    await expect(slideOutPanel.getByText(expectedResource).first()).toBeVisible({ timeout: TIMEOUTS.render });
 
-    //click the main sync button
-    await this.page.getByRole('button', { name: /^synchronize$/i }).first().click();
+    // 🚀 SWAPPED: this.page is now slideOutPanel
+    await slideOutPanel.getByRole('button', { name: /^synchronize$/i }).first().click();
 
     //wait for the panel to close 
     await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: TIMEOUTS.panel });
@@ -174,8 +176,8 @@ export class ApplicationsPage {
     
     //find the container, then specifically click the link of the app name
     const appLink = this.page.locator('.white-box, .argo-table-list__row')
-                             .filter({ hasText: appName })
-                             .getByRole('link', { name: appName });
+                         .filter({ has: this.page.getByText(appName, { exact: true }) })
+                         .getByRole('link', { name: appName, exact: true });
                              
     await appLink.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
     await appLink.click();

@@ -68,7 +68,7 @@ All executions are driven via the ./run-ui-tests.sh wrapper script. This wrapper
 | `--headed` | Launches the visible Chromium browser UI. Excellent for local debugging. |
 | `--trace on` | Records a granular execution trace (DOM snapshots, network calls, actions) for visual triage. |
 | `--reporter=list` | Switches stdout to a clean line-by-line format, ideal for monitoring real-time execution steps. |
-| `--env=<ci|pipeline>` | Overrides the local setup to simulate automation. It forces headless execution, performs a clean `npm ci`, and installs required browser binaries dynamically. |
+| --env=<ci\|pipeline> | Overrides the local setup to simulate automation. It forces headless execution, performs a clean `npm ci`, and installs required browser binaries dynamically. |
 
 ### Visual Debugging (Trace Viewer)
 

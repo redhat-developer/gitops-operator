@@ -23,7 +23,8 @@ export class ApplicationDetailsPage {
     //wait tree to be visible
     await expect(this.resourceTreeContainer).toBeVisible({ timeout: 20000 });
     //wait for healthy status
-    await expect(this.page.getByText('Healthy', { exact: true }).first()).toBeVisible({ timeout: 30000 });
+  await expect(this.resourceTreeContainer.getByText('Healthy', { exact: true }).first()).toBeVisible({ timeout: 30000 });  
+
   }
 
   async clickResourceNode(kind: string, name: string) {

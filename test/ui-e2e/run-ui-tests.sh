@@ -12,15 +12,15 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+#making sure we are in the correct dir
+cd "$(dirname "$0")" || exit 1
+
 if [ -f .env ]; then
   echo "Loading variables from .env file..."
   set -a  #export all variables
   source .env
   set +a  #stop auto export
 fi
-
-#making sure we are in the correct dir
-cd "$(dirname "$0")" || exit 1
 
 #username (might be something different for rosa - can be overwritten with export CLUSTER_USER)
 export CLUSTER_USER=${CLUSTER_USER:-"kubeadmin"}
@@ -67,18 +67,24 @@ rm -f .auth/storageState.json || true
 echo " Starting Playwright tests..."
 
 # 2. Execute based on the environment
-if [[ "$ENV" == "ci" ]] || [[ "$ENV" == "pipeline" ]]; then
+if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
     echo "Running headlessly in automation ($ENV)..."
     npm ci
-    
-    # Prevent sudo jump-scares for local Mac users simulating CI
-    if [[ "$(uname -s)" == "Darwin" ]]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
         npx playwright install chromium
     else
         npx playwright install chromium --with-deps
     fi
     
-    npx playwright test "${TEST_ARGS[@]}" --reporter=list
+    #headed from args
+    FILTERED_ARGS=()
+    for arg in "${TEST_ARGS[@]}"; do
+        if [[ "$arg" != "--headed" ]]; then
+            FILTERED_ARGS+=("$arg")
+        fi
+    done
+    
+    npx playwright test "${FILTERED_ARGS[@]}" --reporter=list
     
 else
     echo "Running Locally..."
