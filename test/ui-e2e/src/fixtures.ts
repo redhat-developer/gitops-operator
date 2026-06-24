@@ -5,7 +5,6 @@ import { ApplicationsPage } from './pages/ApplicationsPage';
 //define custom fixture types
 type MyFixtures = {
   managedApp: string;
-  argoVersion: string;
 };
 
 export const test = base.extend<MyFixtures>({
@@ -30,33 +29,6 @@ export const test = base.extend<MyFixtures>({
     
     await use(page);
   },
-
-  //get target argocd version
-  argoVersion: async ({ page }, use) => {
-      try {
-        //get version
-        const response = await page.request.get('/api/version');
-        
-        if (!response.ok()) {
-          throw new Error(`API returned status: ${response.status()}`);
-        }
-
-        const data = await response.json();
-        const fullVersion = data.Version || 'Unknown';
-        
-        //extract the major.minor version (e.g., "v2.10.1" -> "2.10")
-        const match = fullVersion.match(/v(\d+\.\d+)/);
-        const version = match ? match[1] : '3.0';
-        
-        //for debugging/CI logs
-        console.log(`TARGETING ARGO CD VERSION: ${fullVersion}`);
-
-        await use(version);
-      } catch (error) {
-        console.warn(`\n[warn] Failed to fetch Argo CD version from API. Defaulting to 3.0. Reason: ${error instanceof Error ? error.message : 'Unknown'}\n`);
-        await use('3.0'); // Default to 3.0
-      }
-    },
 
   managedApp: [ async ({ page }, use) => {
     const appName = `e2e-app-${Date.now()}`;
