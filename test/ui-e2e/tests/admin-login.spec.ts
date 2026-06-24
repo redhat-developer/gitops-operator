@@ -17,6 +17,10 @@ test('Log into Argo CD as local admin', async ({ browser }) => {
   //get credentials
   const password = rawOutput.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'))[0];
 
+  if (!password || password.length < 8) {
+    throw new Error("Extracted password appears invalid. Please verify the secret format in the OpenShift cluster.");
+  }
+  
   try {
     routeUrl = execSync(
       'oc get route openshift-gitops-server -n openshift-gitops -o jsonpath="{.spec.host}"',
