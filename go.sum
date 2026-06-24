@@ -39,8 +39,8 @@ github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aa
 github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67/go.mod h1:WPyZkNHZjir/OTt8mrRwcUZKe1euHrHPJsRv1Wp/F/0=
 github.com/argoproj-labs/argocd-image-updater v1.1.2 h1:z7zXF30lGap5DqHdVRPWd6qtOKXh1czl5WL0iEXi3lE=
 github.com/argoproj-labs/argocd-image-updater v1.1.2/go.mod h1:EpwMlbWGInyqkRhCWAD18bvgNdk/s7SUSEXtM+K9ApE=
-github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260520050648-ab2d14774530 h1:lRRwPjNFq4Ho52720p0Vn73RzJbIYMcre3nZ84uwcuU=
-github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260520050648-ab2d14774530/go.mod h1:AlQPFgHsfi3ibtAuRvV2Gxn8rkFe9eunqzBb8AMS2nk=
+github.com/argoproj-labs/argocd-operator v0.18.1-0.20260623132437-a55bef98e6b0 h1:5XiareFhTw2fJtFHD01CsW5l57ZGqGpidLkStna8f5w=
+github.com/argoproj-labs/argocd-operator v0.18.1-0.20260623132437-a55bef98e6b0/go.mod h1:AlQPFgHsfi3ibtAuRvV2Gxn8rkFe9eunqzBb8AMS2nk=
 github.com/argoproj/argo-cd/v3 v3.3.10 h1:3QE36lhN/0ntjwl2TH13xL23w2J2AaXgC0Dxn0469h4=
 github.com/argoproj/argo-cd/v3 v3.3.10/go.mod h1:LdPjAnIFbx0khaB6vLsOKrGoSWeJ8kzOt//jF1ltCPg=
 github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d h1:iUJYrbSvpV9n8vyl1sBt1GceM60HhHfnHxuzcm5apDg=

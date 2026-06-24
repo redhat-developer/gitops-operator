@@ -5,7 +5,7 @@ go 1.25.9
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67
 	github.com/argoproj-labs/argocd-image-updater v1.1.2
-	github.com/argoproj-labs/argocd-operator v0.18.0-rc1.0.20260520050648-ab2d14774530
+	github.com/argoproj-labs/argocd-operator v0.18.1-0.20260623132437-a55bef98e6b0
 	github.com/argoproj/argo-cd/v3 v3.3.10
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.3
