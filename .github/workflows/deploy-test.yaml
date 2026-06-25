@@ -46,7 +46,8 @@ jobs:
 
       - name: Verify Controller Manager deployment is available
         run: |
+          kubectl get deployment -n openshift-gitops-operator
+          kubectl describe deployment -n openshift-gitops-operator
           kubectl wait --for=condition=available --timeout=120s \
             deployment/openshift-gitops-operator-controller-manager \
             -n openshift-gitops-operator
-          kubectl get pods -n openshift-gitops-operator
