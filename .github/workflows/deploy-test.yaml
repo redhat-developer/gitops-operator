@@ -28,7 +28,9 @@ jobs:
 
       - name: Build manager image
         run: |
-          docker build -t ${{ env.IMG }} .
+          # comment out prometheus from config/default/kustomization.yaml
+          sed -i 's|^- ../prometheus|#- ../prometheus|' config/default/kustomization.yaml
+          make build IMG=${{ env.IMG }}
 
       - name: Load image into kind
         run: |
