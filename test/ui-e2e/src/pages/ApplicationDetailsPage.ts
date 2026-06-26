@@ -22,9 +22,13 @@ export class ApplicationDetailsPage {
   async verifyResourceTreeLoaded() {
     //wait tree to be visible
     await expect(this.resourceTreeContainer).toBeVisible({ timeout: 20000 });
-    //wait for healthy status
-  await expect(this.resourceTreeContainer.getByText('Healthy', { exact: true }).first()).toBeVisible({ timeout: 30000 });  
-
+    
+    const appHealthBlock = this.page.locator('div')
+      .filter({ has: this.page.getByText('APP HEALTH', { exact: true }) })
+      .filter({ hasText: /Healthy/i })
+      .last();
+      
+    await expect(appHealthBlock).toBeVisible({ timeout: 30000 });
   }
 
   async clickResourceNode(kind: string, name: string) {

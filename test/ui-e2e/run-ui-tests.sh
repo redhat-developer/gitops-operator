@@ -66,6 +66,23 @@ rm -f .auth/storageState.json || true
 #run Playwright 
 echo " Starting Playwright tests..."
 
+echo " "
+#get the installed gitops  version 
+GITOPS_VERSION=$(oc get csv -n openshift-gitops -o jsonpath='{.items[?(@.spec.displayName=="Red Hat OpenShift GitOps")].spec.version}' 2>/dev/null)
+if [ -z "$GITOPS_VERSION" ]; then
+    GITOPS_VERSION="Unknown"
+fi
+
+#get Argo CD version 
+ARGO_API_VERSION=$(curl -s -k "$ARGOCD_URL/api/version" | grep -o '"Version":"[^"]*"' | cut -d'"' -f4)
+if [ -z "$ARGO_API_VERSION" ]; then
+    ARGO_API_VERSION="Unknown"
+fi
+
+echo " TARGETING GITOPS VERSION:  v$GITOPS_VERSION"
+echo " TARGETING ARGO CD VERSION: $ARGO_API_VERSION"
+echo " "
+
 # 2. Execute based on the environment
 if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
     echo "Running headlessly in automation ($ENV)..."

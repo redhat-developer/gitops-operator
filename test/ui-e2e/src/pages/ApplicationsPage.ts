@@ -122,16 +122,14 @@ export class ApplicationsPage {
     const appContainer = this.page.locator('.white-box, .argo-table-list__row').filter({ hasText: appName });
     await appContainer.waitFor({ state: 'visible', timeout: TIMEOUTS.load });
     
-    //critical cross-version fix: wait for Argo CD to finish its initial Git clone
-    //if we open the Sync panel before this happens, the resources list will be empty!
     await expect(appContainer.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({ timeout: TIMEOUTS.sync });
 
-    //now it is safe to open the panel
+    //safe to open the panel now
     await appContainer.getByText('Sync', { exact: true }).click();
 
     const slideOutPanel = this.page.locator('.sliding-panel').filter({ visible: true });
     
-    // 🚀 SWAPPED: this.page is now slideOutPanel
+    //slideOutPanel
     const allLink = slideOutPanel.getByRole('link', { name: 'all', exact: true });
     try {
       await allLink.waitFor({ state: 'visible', timeout: TIMEOUTS.modal });
@@ -144,11 +142,9 @@ export class ApplicationsPage {
         throw error;
       }
     }
-    
-    // 🚀 SWAPPED: this.page is now slideOutPanel
+
     await expect(slideOutPanel.getByText(expectedResource).first()).toBeVisible({ timeout: TIMEOUTS.render });
 
-    // 🚀 SWAPPED: this.page is now slideOutPanel
     await slideOutPanel.getByRole('button', { name: /^synchronize$/i }).first().click();
 
     //wait for the panel to close 
