@@ -93,7 +93,7 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-
+	var secureMetrics = false
 	var enableHTTP2 = false
 	var skipControllerNameValidation = true
 	var disableClusterTLSProfile = false
@@ -107,6 +107,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
 	flag.BoolVar(&disableClusterTLSProfile, "disable-cluster-tls-profile", false, "Disable use of the cluster TLS security profile")
+	flag.BoolVar(&secureMetrics, "metrics-secure", secureMetrics, "If the metrics endpoint should be served securely.")
+
 	//Configure log level
 	logLevelStr := strings.ToLower(os.Getenv("LOG_LEVEL"))
 	logLevel := zapcore.InfoLevel
@@ -179,11 +181,7 @@ func main() {
 	}
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
-	metricsServerOptions := metricsserver.Options{
-		BindAddress:    metricsAddr,
-		TLSOpts:        tlsOpts,
-		FilterProvider: filters.WithAuthenticationAndAuthorization,
-	}
+	metricsServerOptions := buildMetricsServerOptions(metricsAddr, secureMetrics, []func(*tls.Config){disableHTTP2})
 
 	// Set default manager options
 	options := ctrl.Options{
@@ -471,4 +469,19 @@ func initK8sClient() (*kubernetes.Clientset, error) {
 	}
 
 	return k8sClient, nil
+}
+
+func buildMetricsServerOptions(metricsAddr string, secureMetrics bool, tlsOpts []func(*tls.Config)) metricsserver.Options {
+	opts := metricsserver.Options{
+		SecureServing: secureMetrics,
+		BindAddress:   metricsAddr,
+		TLSOpts:       tlsOpts,
+	}
+
+	if secureMetrics {
+		opts.FilterProvider = filters.WithAuthenticationAndAuthorization
+		opts.CertDir = "/tmp/k8s-metrics-server/serving-certs"
+	}
+
+	return opts
 }
