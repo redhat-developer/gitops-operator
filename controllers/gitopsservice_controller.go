@@ -95,10 +95,15 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 
+	// check if the gitops service instance already exists, do nothing if exists, create if it doesn't
 	gitopsServiceRef := newGitopsService()
 	err := r.Client.Create(context.TODO(), gitopsServiceRef)
 	if err != nil {
-		reqLogger.Error(err, "Failed to create GitOps service instance")
+		if errors.IsAlreadyExists(err) {
+			reqLogger.Info("GitOps service instance already exists, skipping creation")
+		} else {
+			reqLogger.Error(err, "Failed to create GitOps service instance")
+		}
 	}
 
 	bldr := ctrl.NewControllerManagedBy(mgr).
