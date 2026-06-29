@@ -249,6 +249,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", namespace)
+			ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
 			err = r.Client.Create(ctx, namespaceRef)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -257,9 +258,13 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return reconcile.Result{}, err
 		}
 	} else {
-		needsUpdate, updateNameSpace := ensurePodSecurityLabels(namespaceRef)
+		needsUpdate := false
+		labelUpdate, namespaceRef := ensurePodSecurityLabels(namespaceRef)
+		needsUpdate = needsUpdate || labelUpdate
+		annotationUpdate, namespaceRef := ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+		needsUpdate = needsUpdate || annotationUpdate
 		if needsUpdate {
-			err = r.Client.Update(context.TODO(), updateNameSpace)
+			err = r.Client.Update(context.TODO(), namespaceRef)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -417,6 +422,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
+			ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra)
 			err = r.Client.Create(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -446,9 +452,13 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		needsUpdate, updateNameSpace := ensurePodSecurityLabels(argocdNS)
+		needsUpdate := false
+		labelUpdate, argocdNS := ensurePodSecurityLabels(argocdNS)
+		needsUpdate = needsUpdate || labelUpdate
+		annotationUpdate, argocdNS := ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra)
+		needsUpdate = needsUpdate || annotationUpdate
 		if needsUpdate {
-			err = r.Client.Update(context.TODO(), updateNameSpace)
+			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
@@ -461,16 +471,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		return reconcile.Result{}, err
 	}
 
-	//to add infra nodeselector to default argocd pods
-	if instance.Spec.RunOnInfra {
-		if defaultArgoCDInstance.Spec.NodePlacement == nil {
-			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-				NodeSelector: common.InfraNodeSelector(),
-			}
-		} else {
-			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
-		}
-	}
 	if len(instance.Spec.NodeSelector) > 0 {
 		if defaultArgoCDInstance.Spec.NodePlacement == nil {
 			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
@@ -672,9 +672,6 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 		// Set GitopsService instance as the owner and controller
 		if err := controllerutil.SetControllerReference(instance, deploymentObj, r.Scheme); err != nil {
 			return reconcile.Result{}, err
-		}
-		if instance.Spec.RunOnInfra {
-			deploymentObj.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
 		}
 		if len(instance.Spec.NodeSelector) > 0 {
 			deploymentObj.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(deploymentObj.Spec.Template.Spec.NodeSelector, instance.Spec.NodeSelector)
@@ -1020,6 +1017,24 @@ func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespa
 	if namespace.Labels[PodSecurityLabelSyncLabel] != PodSecurityLabelSyncLabelValue {
 		namespace.Labels[PodSecurityLabelSyncLabel] = PodSecurityLabelSyncLabelValue
 		return true, namespace
+	}
+	return false, namespace
+}
+
+func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra bool) (bool, *corev1.Namespace) {
+	if namespace.Annotations == nil {
+		namespace.Annotations = make(map[string]string)
+	}
+	if runOnInfra {
+		if namespace.Annotations[common.InfraNodeSelectorAnnotation] != common.InfraNodeSelectorAnnotationValue {
+			namespace.Annotations[common.InfraNodeSelectorAnnotation] = common.InfraNodeSelectorAnnotationValue
+			return true, namespace
+		}
+	} else {
+		if _, exists := namespace.Annotations[common.InfraNodeSelectorAnnotation]; exists {
+			delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
+			return true, namespace
+		}
 	}
 	return false, namespace
 }

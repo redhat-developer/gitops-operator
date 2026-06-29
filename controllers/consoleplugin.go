@@ -347,9 +347,6 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 
 	newPluginDeployment.Spec.Template.Spec.NodeSelector = argocommon.DefaultNodeSelector()
 
-	if cr.Spec.RunOnInfra {
-		newPluginDeployment.Spec.Template.Spec.NodeSelector[common.InfraNodeLabelSelector] = ""
-	}
 	if len(cr.Spec.NodeSelector) > 0 {
 		newPluginDeployment.Spec.Template.Spec.NodeSelector = argocdutil.AppendStringMap(newPluginDeployment.Spec.Template.Spec.NodeSelector, cr.Spec.NodeSelector)
 	}
