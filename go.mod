@@ -4,10 +4,10 @@ go 1.26.2
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.9-0.20260505092152-3e07addcb2cb
-	github.com/argoproj-labs/argocd-image-updater v1.2.1
-	github.com/argoproj-labs/argocd-operator v0.19.0-rc2.0.20260623160938-69eaeafc6d90
+	github.com/argoproj-labs/argocd-image-updater v1.2.2
+	github.com/argoproj-labs/argocd-operator v0.19.0-rc2.0.20260630041249-888474273eba
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
-	github.com/argoproj/argo-cd/v3 v3.4.2
+	github.com/argoproj/argo-cd/v3 v3.4.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
@@ -214,7 +214,7 @@ replace (
 	// v3.4.2 declares gitops-engine at a pseudo-version where go.mod
 	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
 	// Downstream consumers must resolve it themselves; pin to the v3.4.2 commit.
-	github.com/argoproj/argo-cd/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260512203152-0dc6b1b57dd5
+	github.com/argoproj/argo-cd/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260618084203-443415b5527a
 	// This replace block is from Argo CD v3.4.2 go.mod
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
