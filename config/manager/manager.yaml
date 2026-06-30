@@ -69,6 +69,6 @@ spec:
       volumes:
       - name: metrics-certs
         secret:
-          secretName: gitops-operator-metrics-tls
+          secretName: openshift-gitops-operator-metrics-tls
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
