@@ -267,7 +267,7 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: bundle
-bundle: operator-sdk propagate-manifests manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
@@ -283,13 +283,13 @@ bundle-push: ## Push the bundle image.
 
 ARGOCD_OPERATOR_BRANCH ?= master
 
-# To run propagate-manifests target with the default argocd-operator master brach:
+# To run propagate-manifests target with the default argocd-operator master branch:
 #  make propagate-manifests
 # To run propagate-manifests target with a custom argocd-operator branch or tag:
 #  ARGOCD_OPERATOR_BRANCH=release-0.19 make propagate-manifests
 .PHONY: propagate-manifests
 propagate-manifests: ## compare and propagate manifests from argocd-operator repo
-	./hack/propagate.sh --skip-make --from-branch $(ARGOCD_OPERATOR_BRANCH)
+	./hack/propagate.sh --from-branch $(ARGOCD_OPERATOR_BRANCH)
 
 .PHONY: opm
 OPM = ./bin/opm
