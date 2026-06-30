@@ -181,7 +181,7 @@ func main() {
 	}
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
-	metricsServerOptions := buildMetricsServerOptions(metricsAddr, secureMetrics, []func(*tls.Config){disableHTTP2})
+	metricsServerOptions := buildMetricsServerOptions(metricsAddr, secureMetrics, tlsOpts)
 
 	// Set default manager options
 	options := ctrl.Options{
