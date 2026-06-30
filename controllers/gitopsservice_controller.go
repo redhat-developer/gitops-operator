@@ -1036,7 +1036,7 @@ func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra b
 			return true, namespace
 		}
 	} else {
-		if _, exists := namespace.Annotations[common.InfraNodeSelectorAnnotation]; exists {
+		if namespace.Annotations[common.InfraNodeSelectorAnnotation] == common.InfraNodeSelectorAnnotationValue {
 			delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
 			return true, namespace
 		}
