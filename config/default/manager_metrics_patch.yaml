@@ -15,6 +15,7 @@ spec:
         - "--health-probe-bind-address=:8081"
         - "--metrics-bind-address=:8443"
         - "--leader-elect"
+        - "--metrics-secure=true"
         ports:
         - name: metrics
           containerPort: 8443

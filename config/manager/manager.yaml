@@ -27,7 +27,8 @@ spec:
       securityContext:
         runAsNonRoot: true
       containers:
-      - command:
+      - name: manager
+        command:
           - /usr/local/bin/manager
         env:
         - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
@@ -45,7 +46,6 @@ spec:
             port: 8081
           initialDelaySeconds: 15
           periodSeconds: 20
-        name: manager
         readinessProbe:
           httpGet:
             path: /readyz
@@ -60,5 +60,13 @@ spec:
               - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+        volumeMounts:
+        - name: metrics-certs
+          mountPath: /tmp/k8s-metrics-server/serving-certs
+          readOnly: true
+      volumes:
+      - name: metrics-certs
+        secret:
+          secretName: openshift-gitops-operator-metrics-tls
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10
