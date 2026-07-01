@@ -26,11 +26,14 @@ jobs:
         with:
           cluster_name: gitops-test
 
-      - name: Disable webhook and prometheus for non-OCP cluster
+      - name: Disable webhook and conversion for non-OCP cluster
         run: |
           sed -i 's|^- ../webhook|#- ../webhook|' config/default/kustomization.yaml
-          sed -i 's|^- manager_webhook_patch.yaml|#- manager_webhook_patch.yaml|' config/default/kustomization.yaml
-          sed -i 's|^- ../prometheus|#- ../prometheus|' config/default/kustomization.yaml
+          sed -i 's|^- patches/webhook_in_argocds.yaml|#- patches/webhook_in_argocds.yaml|' config/crd/kustomization.yaml
+          sed -i 's|^- patches/cainjection_in_argocds.yaml|#- patches/cainjection_in_argocds.yaml|' config/crd/kustomization.yaml
+          echo "=== Verify sed applied ==="
+          grep -n 'webhook\|prometheus' config/default/kustomization.yaml
+          grep -n 'patches/' config/crd/kustomization.yaml
   
       - name: Build manager image
         run: |
@@ -52,7 +55,7 @@ jobs:
         run: |
           kubectl get deployment -n openshift-gitops-operator
           kubectl describe deployment -n openshift-gitops-operator
-          kubectl wait --for=condition=available --timeout=120s \
+          kubectl wait --for=condition=available --timeout=300s \
             deployment/openshift-gitops-operator-controller-manager \
             -n openshift-gitops-operator
 
@@ -107,3 +110,41 @@ jobs:
             -l 'app.kubernetes.io/name in (argocd-application-controller,argocd-redis,argocd-repo-server,argocd-server)'
           echo "All ArgoCD components are ready."
           kubectl get pods -n test-argocd
+
+      - name: Collect operator debug info on failure
+        if: failure()
+        run: |
+          echo "=== Deployment status ==="
+          kubectl get deployment -n openshift-gitops-operator -o wide || true
+          echo ""
+          echo "=== Pod status ==="
+          kubectl get pods -n openshift-gitops-operator -o wide || true
+          echo ""
+          echo "=== Pod descriptions ==="
+          kubectl describe pods -n openshift-gitops-operator || true
+          echo ""
+          echo "=== Controller manager logs ==="
+          kubectl logs deployment/openshift-gitops-operator-controller-manager \
+            -n openshift-gitops-operator --all-containers=true --tail=200 || true
+          echo ""
+          echo "=== Events in operator namespace ==="
+          kubectl get events -n openshift-gitops-operator --sort-by='.lastTimestamp' || true
+          echo ""
+          echo "=== CRD conversion config ==="
+          kubectl get crd argocds.argoproj.io -o jsonpath='{.spec.conversion}' || true
+          echo ""
+
+      - name: Collect ArgoCD debug info on failure
+        if: failure()
+        run: |
+          echo "=== ArgoCD resources ==="
+          kubectl get argocds -n test-argocd -o yaml 2>/dev/null || true
+          echo ""
+          echo "=== Pods in test-argocd ==="
+          kubectl get pods -n test-argocd -o wide 2>/dev/null || true
+          echo ""
+          echo "=== Pod descriptions in test-argocd ==="
+          kubectl describe pods -n test-argocd 2>/dev/null || true
+          echo ""
+          echo "=== Events in test-argocd ==="
+          kubectl get events -n test-argocd --sort-by='.lastTimestamp' 2>/dev/null || true
