@@ -28,6 +28,7 @@ jobs:
 
       - name: Disable webhook and conversion for non-OCP cluster
         run: |
+          sed -i 's|^- ../prometheus|#- ../prometheus|' config/default/kustomization.yaml
           sed -i 's|^- ../webhook|#- ../webhook|' config/default/kustomization.yaml
           sed -i 's|^- patches/webhook_in_argocds.yaml|#- patches/webhook_in_argocds.yaml|' config/crd/kustomization.yaml
           sed -i 's|^- patches/cainjection_in_argocds.yaml|#- patches/cainjection_in_argocds.yaml|' config/crd/kustomization.yaml
