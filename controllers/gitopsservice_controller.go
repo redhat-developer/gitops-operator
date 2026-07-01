@@ -263,12 +263,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return reconcile.Result{}, err
 		}
 	} else {
-		needsUpdate := false
-		labelUpdate, namespaceRef := ensurePodSecurityLabels(namespaceRef)
-		needsUpdate = needsUpdate || labelUpdate
-		annotationUpdate, namespaceRef := ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
-		needsUpdate = needsUpdate || annotationUpdate
-		if needsUpdate {
+		if ensureNamespaceConfig(namespaceRef, instance.Spec.RunOnInfra) {
 			err = r.Client.Update(context.TODO(), namespaceRef)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -457,12 +452,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		needsUpdate := false
-		labelUpdate, argocdNS := ensurePodSecurityLabels(argocdNS)
-		needsUpdate = needsUpdate || labelUpdate
-		annotationUpdate, argocdNS := ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra)
-		needsUpdate = needsUpdate || annotationUpdate
-		if needsUpdate {
+		if ensureNamespaceConfig(argocdNS, instance.Spec.RunOnInfra) {
 			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -1013,6 +1003,15 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 			},
 		},
 	}
+}
+
+func ensureNamespaceConfig(namespace *corev1.Namespace, runOnInfra bool) bool {
+	changed := false
+	labelUpdate, _ := ensurePodSecurityLabels(namespace)
+	changed = changed || labelUpdate
+	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra)
+	changed = changed || annotationUpdate
+	return changed
 }
 
 func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
