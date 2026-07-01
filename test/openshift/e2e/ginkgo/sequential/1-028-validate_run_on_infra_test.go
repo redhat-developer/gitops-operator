@@ -151,6 +151,31 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
 			)
 
+			serverDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
+			Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			repoServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-repo-server", Namespace: "openshift-gitops"}}
+			Eventually(repoServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			dexServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-dex-server", Namespace: "openshift-gitops"}}
+			Eventually(dexServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			redisServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}
+			Eventually(redisServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			appControllerSS = &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}}
+			Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
 			// This is required, otherwise StatefulSet will be stuck for every subsequent test. This was ported from kuttl (but we delete the SS rather than updating its replicas)
 			appControllerSS = &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}}
 
