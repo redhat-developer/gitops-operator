@@ -118,6 +118,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			}).Should(BeTrue())
 
+			Eventually(argoCDTest_1_23_custom, "5m", "5s").Should(argocdFixture.BeAvailable())
+
 			By("ensuring we can deploy to the namespace via the ArgoCD instance")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "guestbook", Namespace: nsTest_1_23_custom.Name},
