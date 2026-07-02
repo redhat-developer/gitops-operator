@@ -50,7 +50,8 @@ jobs:
 
       - name: Deploy operator
         run: |
-          make deploy IMG=${{ env.IMG }}
+          echo "manifests: $(KUSTOMIZE) build config/default"
+          make deploy IMG=${{ env.IMG }} | tee /tmp/deploy.log
 
       - name: Verify Controller Manager deployment is available
         run: |
