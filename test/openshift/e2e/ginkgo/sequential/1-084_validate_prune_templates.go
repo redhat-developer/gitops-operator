@@ -11,9 +11,11 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -47,6 +49,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			ns.Labels["argocd.argoproj.io/managed-by"] = "openshift-gitops"
 			Expect(k8sClient.Update(ctx, ns)).To(Succeed())
+
+			By("waiting for the operator to create rolebindings in the managed namespace")
+			argoCDServerRB := &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-argocd-server", Namespace: ns.Name},
+			}
+			Eventually(argoCDServerRB).Should(k8sFixture.ExistByName())
+
 		})
 
 		AfterEach(func() {
