@@ -263,7 +263,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 			return reconcile.Result{}, err
 		}
 	} else {
-		if ensureNamespaceConfig(namespaceRef, instance.Spec.RunOnInfra) {
+		if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
 			err = r.Client.Update(context.TODO(), namespaceRef)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -452,7 +452,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		if ensureNamespaceConfig(argocdNS, instance.Spec.RunOnInfra) {
+		if ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra) {
 			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -1005,7 +1005,7 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 	}
 }
 
-func ensureNamespaceConfig(namespace *corev1.Namespace, runOnInfra bool) bool {
+func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool) bool {
 	changed := false
 	labelUpdate, _ := ensurePodSecurityLabels(namespace)
 	changed = changed || labelUpdate
