@@ -3,7 +3,8 @@ name: Build, Deploy and Test on kind
 on:
   pull_request:
     branches:
-      - '*'
+      - "master"
+      - "v*"
 
 env:
   IMG: gitops-operator:test
@@ -26,6 +27,7 @@ jobs:
         with:
           cluster_name: gitops-test
 
+      # TODO: check if porting is required for non-OCP clusters
       - name: Disable webhook and conversion for non-OCP cluster
         run: |
           sed -i 's|^- ../prometheus|#- ../prometheus|' config/default/kustomization.yaml
