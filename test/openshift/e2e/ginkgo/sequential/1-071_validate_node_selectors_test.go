@@ -6,10 +6,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -90,14 +92,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Value:  "reserved"}}
 			})
 
-			By("ensuring Deployments and StatefulSets pick up the change to nodeSelector and tolerations")
+			By("ensuring the openshift-gitops namespace has the infra node-selector annotation")
+			openshiftGitopsNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops"}}
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.HaveAnnotation(common.InfraNodeSelectorAnnotation, common.InfraNodeSelectorAnnotationValue))
+
+			By("ensuring Deployments and StatefulSets still have the custom nodeSelector and tolerations")
 
 			for _, deploymentName := range deploymentNameList {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: "openshift-gitops"}}
 				Eventually(depl).Should(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"kubernetes.io/os":              "linux",
-					"key1":                          "value1",
-					"node-role.kubernetes.io/infra": "",
+					"kubernetes.io/os": "linux",
+					"key1":             "value1",
 				}))
 				Eventually(depl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{{
 					Effect: "NoSchedule",
@@ -107,9 +112,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			Eventually(appControllerSS).Should(statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
-				"kubernetes.io/os":              "linux",
-				"key1":                          "value1",
-				"node-role.kubernetes.io/infra": "",
+				"kubernetes.io/os": "linux",
+				"key1":             "value1",
 			}))
 			Eventually(appControllerSS).Should(statefulsetFixture.HaveTolerations([]corev1.Toleration{{
 				Effect: "NoSchedule",
@@ -125,14 +129,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				gs.Spec.NodeSelector = nil
 			})
 
-			By("ensuring Deployments and StatefulSets have the nodeSelector and tolerations removed")
+			By("ensuring the openshift-gitops namespace no longer has the infra annotation")
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.NotHaveAnnotation(common.InfraNodeSelectorAnnotation))
+
+			By("ensuring Deployments and StatefulSets have the custom nodeSelector and tolerations removed")
 
 			for _, deploymentName := range deploymentNameList {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: "openshift-gitops"}}
 				Eventually(depl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"kubernetes.io/os":              "linux",
-					"key1":                          "value1",
-					"node-role.kubernetes.io/infra": "",
+					"kubernetes.io/os": "linux",
+					"key1":             "value1",
 				}))
 				Eventually(depl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{{
 					Effect: "NoSchedule",
@@ -142,9 +148,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
-				"kubernetes.io/os":              "linux",
-				"key1":                          "value1",
-				"node-role.kubernetes.io/infra": "",
+				"kubernetes.io/os": "linux",
+				"key1":             "value1",
 			}))
 			Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTolerations([]corev1.Toleration{{
 				Effect: "NoSchedule",
