@@ -29,6 +29,8 @@ import (
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -146,11 +148,62 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(gitopsServerDepl).Should(k8sFixture.NotExistByName())
 
+			By("verifying the backend resources created by the operator no longer exist")
+			backendDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendDepl).Should(k8sFixture.NotExistByName())
+
+			backendSvc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendSvc).Should(k8sFixture.NotExistByName())
+
+			backendSA := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-service-cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendSA).Should(k8sFixture.NotExistByName())
+
+			backendCR := &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{Name: "gitops-service-cluster"},
+			}
+			Eventually(backendCR).Should(k8sFixture.NotExistByName())
+
+			backendCRB := &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "gitops-service-cluster"},
+			}
+			Eventually(backendCRB).Should(k8sFixture.NotExistByName())
+
+			By("verifying openshift-gitops namespace still exists, as the operator must not delete a namespace that may contain resources it did not create")
+			openshiftGitopsNS := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "openshift-gitops",
+				},
+			}
+			Consistently(openshiftGitopsNS, "30s", "5s").Should(k8sFixture.ExistByName())
+
 			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
 			fixture.RestoreSubcriptionToDefault()
 
+			By("verifying ArgoCD CR is recreated")
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying the backend resources are recreated")
+			Eventually(backendDepl, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendSvc, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendSA, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendCR, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendCRB, "3m", "5s").Should(k8sFixture.ExistByName())
 
 			By("verifying deployment and statefulset have expected number of replicas, including the repo server which should have 2")
 			deploymentsToVerify := []string{
