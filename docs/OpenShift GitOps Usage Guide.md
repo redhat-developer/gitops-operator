@@ -121,7 +121,7 @@ When installing the OpenShift GitOps operator to ROSA/OSD, cluster administrator
 
 To disable the default ‘ready-to-use’ installation of Argo CD: as an admin, update the existing Subscription Object for Gitops Operator and add `DISABLE_DEFAULT_ARGOCD_INSTANCE = true` to the spec.
 
-**Warning**: setting this option to true will cause the existing Argo CD install in the *openshift-gitops* namespace to be deleted. Argo CD instances in other namespaces should not be affected.
+**Warning**: setting this option to true will cause the existing Argo CD instance **and the `openshift-gitops` namespace** to be deleted. This completely removes the default installation. Argo CD instances in other namespaces should not be affected.
 
    On OpenShift Console, go to 
 
@@ -222,7 +222,7 @@ Updating the following environment variables in the existing Subscription Object
   <tr>
     <td>DISABLE_DEFAULT_ARGOCD_INSTANCE</td>
     <td>false</td>
-    <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace.</td>
+    <td>When set to `true`, will disable the default 'ready-to-use' installation of Argo CD in `openshift-gitops` namespace. This prevents the creation of the `openshift-gitops` namespace and ArgoCD instance. If the namespace already exists, it will be deleted along with the ArgoCD instance.</td>
   </tr>
   <tr>
     <td>SERVER_CLUSTER_ROLE</td>

@@ -258,29 +258,6 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create namespace if it doesn't already exist
-	namespaceRef := newRestrictedNamespace(namespace)
-	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Namespace", "Name", namespace)
-			ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
-			err = r.Client.Create(ctx, namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	} else {
-		if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
-			err = r.Client.Update(context.TODO(), namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
 	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: namespace,
@@ -293,22 +270,62 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 
 	if !r.DisableDefaultInstall {
-		// Create/reconcile the default Argo CD instance, unless default install is disabled
+		// Create namespace if it doesn't already exist (only when default install is enabled)
+		namespaceRef := newRestrictedNamespace(namespace)
+		err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Namespace", "Name", namespace)
+				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+				err = r.Client.Create(ctx, namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		} else {
+			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
+				err = r.Client.Update(context.TODO(), namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		// Create/reconcile the default Argo CD instance
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
 			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
 		}
+
+		// Reconcile backend service
+		if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+			return result, err
+		}
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
-		// deleting it if necessary
+		// deleting it (along with the namespace it lives in) if necessary
 		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
+
+		// The namespace is not created when default install is disabled, so only reconcile the
+		// backend if the namespace already exists and is not being deleted.
+		namespaceRef := newRestrictedNamespace(namespace)
+		err := r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
+		if err == nil {
+			if namespaceRef.DeletionTimestamp == nil {
+				if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+					return result, err
+				}
+			}
+		} else if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
 	}
 
-	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
-		return result, err
-	}
-
+	// The console plugin is decoupled from the default Argo CD instance, so it is reconciled into
+	// its own namespace regardless of whether the default install is disabled.
 	if r.PluginNamespace != namespace {
 		pluginNS := &corev1.Namespace{}
 		err = r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, pluginNS)
@@ -440,6 +457,13 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 	} else if !errors.IsNotFound(err) {
 		// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
 		return err
+	}
+
+	// Also delete the namespace when DISABLE_DEFAULT_ARGOCD_INSTANCE is true
+	if err := r.Client.Delete(context.TODO(), argocdNS); err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete openshift-gitops namespace: %w", err)
+		}
 	}
 
 	return nil
