@@ -6,7 +6,7 @@ For understanding the differences between [Argo CD Community Operator](https://g
 
 **Note**: Installing GitOps operator on OpenShift will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials. On Non-OpenShift cluster no default argocd instance is created.
 
-The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource.
+The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource. With this set, the `openshift-gitops` namespace is not created. If it already exists, the operator deletes the resources it created there, but leaves the namespace itself in place, since it may hold resources you created yourself, cleaning those up and removing the namespace is up to you.
 
 To disable the default instance, edit the Subscription and add the following:
 
