@@ -29,6 +29,7 @@ import (
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -145,9 +146,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(gitopsServerDepl).Should(k8sFixture.NotExistByName())
 
+			By("verifying openshift-gitops namespace no longer exists")
+			openshiftGitopsNS := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "openshift-gitops",
+				},
+			}
+			Eventually(openshiftGitopsNS).Should(k8sFixture.NotExistByName())
+
 			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
 			fixture.RestoreSubcriptionToDefault()
 
+			By("verifying openshift-gitops namespace is recreated")
+			Eventually(openshiftGitopsNS, "3m", "5s").Should(k8sFixture.ExistByName())
+
+			By("verifying ArgoCD CR is recreated")
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
