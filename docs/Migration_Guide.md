@@ -6,7 +6,7 @@ For understanding the differences between [Argo CD Community Operator](https://g
 
 **Note**: Installing GitOps operator will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials.
 
-The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource.
+The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource. With this set, the `openshift-gitops` namespace is not created. If it already exists, the operator deletes the resources it created there, but leaves the namespace itself in place, since it may hold resources you created yourself, cleaning those up and removing the namespace is up to you.
 
 To disable the default instance, edit the Subscription and add the following:
 
@@ -69,7 +69,7 @@ Post migration the above environment variables has to be copied to GitOps operat
 
 **Note**:
 GitOps operator supports the below additional environment variables
-`DISABLE_DEFAULT_ARGOCD_INSTANCE`: Disables the installation of default instance in openshift-gitops namespace.
+`DISABLE_DEFAULT_ARGOCD_INSTANCE`: Disables the installation of default instance in openshift-gitops namespace. This prevents the creation of the `openshift-gitops` namespace and ArgoCD instance. If they already exist, the operator deletes only the resources it created in the namespace, the namespace itself and anything else in it is left for you to clean up.
 
 `ARGOCD_CLUSTER_CONFIG_NAMESPACES`: Argo CD is granted permissions to manage specific cluster-scoped resources which include
 platform operators, optional OLM operators, user management, etc. Argo CD is not granted cluster-admin. You can find the complete
