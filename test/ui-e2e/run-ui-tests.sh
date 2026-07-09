@@ -87,7 +87,7 @@ echo " "
 if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
     echo "Running headlessly in automation ($ENV)..."
     
-    # CodeRabbit hard-fails
+    #coderabbit hard-fails
     npm ci || { echo "Error: npm ci failed."; exit 1; }
     
     if [ "$(uname -s)" = "Darwin" ]; then
