@@ -40,7 +40,7 @@ import (
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-125_validate_ownership_agent_principal", func() {
+	Context("1-125_validate_role_ownership_agent_principal", func() {
 
 		var (
 			k8sClient                client.Client
@@ -67,15 +67,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			principalMetricsServiceFmt    = "%s-agent-principal-metrics"
 			principalRedisProxyServiceFmt = "%s-agent-principal-redisproxy"
 			principalHealthzServiceFmt    = "%s-agent-principal-healthz"
-			clusterRoleName               = "argocd-principal-argocd-principal-agent-principal"
-			clusterRoleBindingName        = "argocd-principal-argocd-principal-agent-principal"
-			nsScopedArgoCDName            = "argocd-principal-argocd"
-			// Secret names
-			agentJWTSecretName              = "argocd-agent-jwt"
-			agentPrincipalTLSSecretName     = "argocd-agent-principal-tls"
-			agentRootCASecretName           = "argocd-agent-ca"
-			agentClientTLSSecretName        = "argocd-agent-client-tls"
-			agentResourceProxyTLSSecretName = "argocd-agent-resource-proxy-tls"
+			clusterRoleName        = "argocd-principal-argocd-principal-agent-principal"
+			clusterRoleBindingName = "argocd-principal-argocd-principal-agent-principal"
+			nsScopedArgoCDName     = "argocd-principal-argocd"
 		)
 
 		BeforeEach(func() {
@@ -205,6 +199,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Namespace: ns.Name,
 				},
 			}
+
 		})
 
 		AfterEach(func() {

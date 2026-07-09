@@ -40,10 +40,8 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	const (
-		clusterRoleName          = "argocd-agent-argocd-agent-agent-agent"
-		clusterRoleBindingName   = "argocd-agent-argocd-agent-agent-agent"
-		agentClientTLSSecretName = "argocd-agent-client-tls"
-		agentRootCASecretName    = "argocd-agent-ca"
+		clusterRoleName        = "argocd-agent-argocd-agent-agent-agent"
+		clusterRoleBindingName = "argocd-agent-argocd-agent-agent-agent"
 	)
 
 	Context("1-125_validate_role_ownership_agent_agent", func() {
