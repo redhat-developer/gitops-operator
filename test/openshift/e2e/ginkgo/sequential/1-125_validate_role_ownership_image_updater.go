@@ -19,7 +19,6 @@ import (
 	"context"
 	"strings"
 
-	imageUpdaterApi "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
 	. "github.com/onsi/ginkgo/v2"
@@ -42,12 +41,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-125_validate_role_ownership_image_updater", func() {
 
 		var (
-			ctx           context.Context
-			k8sClient     client.Client
-			ns            *corev1.Namespace
-			cleanupFunc   func()
-			imageUpdater  *imageUpdaterApi.ImageUpdater
-			defaultArgocd *argov1beta1api.ArgoCD
+			ctx         context.Context
+			k8sClient   client.Client
+			ns          *corev1.Namespace
+			cleanupFunc func()
 		)
 		const (
 			imageUpdaterControllerClusterRoleName        = "image-updater-image-updater-argocd-image-updater-controller"
@@ -60,15 +57,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			if defaultArgocd != nil && defaultArgocd.Spec.ImageUpdater.Enabled {
-				defaultArgocd.Spec.ImageUpdater.Enabled = false
-			}
-			if imageUpdater != nil {
-				By("deleting ImageUpdater CR")
-				Expect(k8sClient.Delete(ctx, imageUpdater)).To(Succeed())
-				Eventually(imageUpdater).Should(k8sFixture.NotExistByName())
-			}
-
 			if cleanupFunc != nil {
 				cleanupFunc()
 			}
@@ -155,7 +143,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 			}
 			if !hasPermission {
-				_, err := osFixture.ExecCommand("oc", "adm", "policy", "add-scc-to-user", "anyuid", "-z", "default", "-n", ns.Name)
+				_, err := osFixture.ExecCommand("oc", "adm", "policy", "add-scc-to-user", "anyuid", "-z", "default", "-n", ns1.Name)
 				Expect(err).NotTo(HaveOccurred(), "Failed to add anyuid SCC to default service account")
 			}
 

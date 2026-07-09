@@ -45,11 +45,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			applicationControllerClusterRoleName           = "openshift-gitops-openshift-gitops-argocd-application-controller"
 			applicationSetControllerClusterRoleName        = "openshift-gitops-openshift-gitops-argocd-applicationset-controller"
 			serverClusterRoleName                          = "openshift-gitops-openshift-gitops-argocd-server"
-			imageUpdaterControllerClusterRoleName          = "openshift-gitops-openshift-gitops-argocd-image-updater-controller"
 			applicationControllerClusterRoleBindingName    = "openshift-gitops-openshift-gitops-argocd-application-controller"
 			applicationSetControllerClusterRoleBindingName = "openshift-gitops-openshift-gitops-argocd-applicationset-controller"
 			serverClusterRoleBindingName                   = "openshift-gitops-openshift-gitops-argocd-server"
-			imageUpdaterControllerClusterRoleBindingName   = "openshift-gitops-openshift-gitops-argocd-image"
 		)
 
 		BeforeEach(func() {

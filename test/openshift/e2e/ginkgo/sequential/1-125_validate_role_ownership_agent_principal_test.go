@@ -67,9 +67,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			principalMetricsServiceFmt    = "%s-agent-principal-metrics"
 			principalRedisProxyServiceFmt = "%s-agent-principal-redisproxy"
 			principalHealthzServiceFmt    = "%s-agent-principal-healthz"
-			clusterRoleName        = "argocd-principal-argocd-principal-agent-principal"
-			clusterRoleBindingName = "argocd-principal-argocd-principal-agent-principal"
-			nsScopedArgoCDName     = "argocd-principal-argocd"
+			clusterRoleName               = "argocd-principal-argocd-principal-agent-principal"
+			clusterRoleBindingName        = "argocd-principal-argocd-principal-agent-principal"
+			nsScopedArgoCDName            = "argocd-principal-argocd"
 		)
 
 		BeforeEach(func() {
@@ -315,6 +315,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			roleBinding.Namespace = nsScoped.Name
 			principalDeployment.Namespace = nsScoped.Name
 			principalRoute.Namespace = nsScoped.Name
+			principalNetworkPolicy.Namespace = nsScoped.Name
 
 			By("Create namespace-scoped ArgoCD instance with principal")
 
