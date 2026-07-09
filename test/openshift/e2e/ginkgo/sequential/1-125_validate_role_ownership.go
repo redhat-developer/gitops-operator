@@ -61,32 +61,32 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("checking that the default ClusterRole and clusterroleBinding for the ArgoCD Application Controller and Server exists")
 			defaultControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-application-controller",
+					Name: applicationControllerClusterRoleName,
 				},
 			}
 			defaultApplicationSetControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-applicationset-controller",
+					Name: applicationSetControllerClusterRoleName,
 				},
 			}
 			defaultServerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-server",
+					Name: serverClusterRoleName,
 				},
 			}
 			defaultControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-application-controller",
+					Name: applicationControllerClusterRoleBindingName,
 				},
 			}
 			defaultApplicationSetControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-applicationset-controller",
+					Name: applicationSetControllerClusterRoleBindingName,
 				},
 			}
 			defaultServerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-server",
+					Name: serverClusterRoleBindingName,
 				},
 			}
 			Eventually(defaultControllerClusterRole).Should(k8sFixture.ExistByName())
@@ -176,32 +176,32 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("checking that the default ClusterRole for the ArgoCD Application Controller still exists")
 			newControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-application-controller",
+					Name: applicationControllerClusterRoleName,
 				},
 			}
 			newApplicationSetControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-applicationset-controller",
+					Name: applicationSetControllerClusterRoleName,
 				},
 			}
 			newServerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-server",
+					Name: serverClusterRoleName,
 				},
 			}
 			newControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-application-controller",
+					Name: applicationControllerClusterRoleBindingName,
 				},
 			}
 			newApplicationSetControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-applicationset-controller",
+					Name: applicationSetControllerClusterRoleBindingName,
 				},
 			}
 			newServerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-server",
+					Name: serverClusterRoleBindingName,
 				},
 			}
 			newImageUpdaterClusterRole := &rbacv1.ClusterRole{
