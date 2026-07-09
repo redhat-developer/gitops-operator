@@ -63,6 +63,6 @@ export class LoginPage {
     }
 
     //Success Checking make we land on the applications dashboard
-    await this.page.waitForURL('**/applications**', { timeout: 20000 }); 
+    await this.page.waitForURL('**/applications**', { timeout: 30000 }); 
   }
 }

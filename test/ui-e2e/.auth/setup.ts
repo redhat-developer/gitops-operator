@@ -61,7 +61,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   //handle the openshift welcome tour modal if it appears
   try {
     const skipTourButton = page.getByRole('button', { name: /skip tour/i });
-    //wait up to 5 seconds for the modal to pop up
+    //wait briefly for the modal to pop up
     await skipTourButton.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
     await skipTourButton.click();
     console.log('Dismissed the OpenShift Welcome Tour modal.');
