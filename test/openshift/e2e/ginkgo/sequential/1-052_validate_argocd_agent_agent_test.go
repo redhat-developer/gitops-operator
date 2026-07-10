@@ -624,7 +624,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("shouldn't create ClusterRole and ClusterRoleBinding for agent if spec.DefaultClusterScopedRoleDisabled is set", func() {
-			By("Create ArgoCD instance with principal enabled and DefaultClusterScopedRoleDisabled is true")
+			By("Create ArgoCD instance with agent enabled and DefaultClusterScopedRoleDisabled is true")
 			argoCD.Spec.DefaultClusterScopedRoleDisabled = true
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
