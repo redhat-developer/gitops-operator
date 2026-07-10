@@ -74,6 +74,8 @@ import (
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/argoproj-labs/argocd-operator/pkg/tlsprofile"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -364,7 +366,7 @@ func main() {
 		K8sClient:         k8sClient,
 		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
 		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
-		CentralTLSConfigProfile: argocdprovisioner.TLSConfigProfile{
+		CentralTLSConfigProfile: tlsprofile.TLSConfigProfile{
 			DisableClusterTLSProfile: disableClusterTLSProfile,
 			MinVersion:               profile.MinTLSVersion,
 			Ciphers:                  profile.Ciphers,
