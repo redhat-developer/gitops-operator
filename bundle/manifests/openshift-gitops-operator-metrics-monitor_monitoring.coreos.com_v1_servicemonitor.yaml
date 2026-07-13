@@ -6,9 +6,11 @@ metadata:
   name: openshift-gitops-operator-metrics-monitor
 spec:
   endpoints:
-  - bearerTokenSecret:
-      key: token
-      name: openshift-gitops-operator-metrics-monitor-bearer-token
+  - authorization:
+      credentials:
+        key: token
+        name: openshift-gitops-operator-metrics-monitor-bearer-token
+      type: Bearer
     interval: 30s
     path: /metrics
     port: metrics

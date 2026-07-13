@@ -164,6 +164,12 @@ var _ = BeforeSuite(func() {
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = (&controllers.OperatorMetricsTokenReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	k8sClient, err := initK8sClient()
 	Expect(err).ToNot(HaveOccurred())
 

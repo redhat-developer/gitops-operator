@@ -1,6 +1,8 @@
 package parallel
 
 import (
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -37,11 +39,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(sm).Should(k8sFixture.ExistByName())
 			serverName := "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc"
 			Expect(sm.Spec.Endpoints).To(Equal([]monitoringv1.Endpoint{{
-				BearerTokenSecret: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
+				Authorization: &monitoringv1.SafeAuthorization{
+					Type: "Bearer",
+					Credentials: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
+						},
+						Key: "token",
 					},
-					Key: "token",
 				},
 				Interval: monitoringv1.Duration("30s"),
 				Path:     "/metrics",
@@ -68,6 +73,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					"control-plane": "gitops-operator",
 				},
 			}))
+
+			bearerTokenSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops-operator-metrics-monitor-bearer-token",
+					Namespace: "openshift-gitops-operator",
+				},
+			}
+			Eventually(bearerTokenSecret).Should(k8sFixture.ExistByName())
+			Expect(bearerTokenSecret.Type).To(Equal(corev1.SecretTypeOpaque))
+			Expect(bearerTokenSecret.Data).To(HaveKey("token"))
+			Expect(bearerTokenSecret.Data).To(HaveKey("expiry"))
+
+			expiry, err := time.Parse(time.RFC3339, string(bearerTokenSecret.Data["expiry"]))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(expiry.After(time.Now())).To(BeTrue())
 		})
 	})
 })
