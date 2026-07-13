@@ -83,6 +83,27 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		}
 
 		It("verifies that toolchain versions have the expected values", func() {
+<<<<<<< HEAD
+=======
+
+			// create a new namespace
+			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-031-toolchain")
+			defer cleanupFunc()
+
+			//create a new argocd instance
+			argocdInstance := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops",
+					Namespace: ns.Name,
+				},
+				Spec: argov1beta1api.ArgoCDSpec{
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: "dex",
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), argocdInstance)).To(Succeed())
+>>>>>>> 2e909591 (remove debugging Fit from tests)
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
 			expected_kustomizeVersion := "v5.8.1"
