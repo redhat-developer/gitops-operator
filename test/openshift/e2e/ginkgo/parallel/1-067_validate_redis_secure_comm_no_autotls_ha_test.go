@@ -61,7 +61,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("ensures that redis HA can be enabled with tls with generated certificate", func() {
+		It("ensures that redis HA can be enabled with tls with generated certificate", Label("HA"), func() {
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
 
@@ -218,7 +218,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				"TLS .spec.template.spec.containers.command for argocd-application-controller statefulsets is wrong")
 		})
 
-		It("verify redis HA credential distribution", func() {
+		It("verify redis HA credential distribution", Label("HA"), func() {
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
 

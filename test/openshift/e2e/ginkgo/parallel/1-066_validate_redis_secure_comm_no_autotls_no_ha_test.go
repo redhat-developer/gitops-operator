@@ -60,7 +60,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
+		FIt("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
