@@ -297,7 +297,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			agentFixture.VerifyResourcesDeleted(principalResources)
 		}
 
-		It("should create argocd agent principal resources, but pod should fail to start as image does not exist", func() {
+		It("should create argocd agent principal resources, but pod should fail to start as image does not exist", Label("openshift"), func() {
 			// Change log level to trace and custom image name
 			argoCD.Spec.ArgoCDAgent.Principal.LogLevel = "trace"
 			argoCD.Spec.ArgoCDAgent.Principal.Image = "quay.io/user/argocd-agent:v1"
@@ -338,7 +338,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("should create argocd agent principal resources, and pod should start successfully with default image", func() {
+		It("should create argocd agent principal resources, and pod should start successfully with default image", Label("openshift"), func() {
+
 			// Add a custom environment variable to the principal server
 			argoCD.Spec.ArgoCDAgent.Principal.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -399,7 +400,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("Should reflect configuration changes from ArgoCD CR to the principal deployment", func() {
+		It("Should reflect configuration changes from ArgoCD CR to the principal deployment", Label("openshift"), func() {
+
 			By("Create ArgoCD instance")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Image = common.ArgoCDAgentPrincipalDefaultImageName
@@ -526,7 +528,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("should handle route enabled configuration correctly", func() {
+		It("should handle route enabled configuration correctly", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with route enabled")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Server.Route = argov1beta1api.ArgoCDAgentPrincipalRouteSpec{
@@ -610,7 +613,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("should handle service type ClusterIP configuration correctly", func() {
+		It("should handle service type ClusterIP configuration correctly", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with service type ClusterIP")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Server.Service = argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
@@ -634,7 +638,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(principalService.Spec.Type).To(Equal(corev1.ServiceTypeClusterIP))
 		})
 
-		It("should handle service type LoadBalancer configuration correctly", func() {
+		It("should handle service type LoadBalancer configuration correctly", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with service type LoadBalancer")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Server.Service = argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
@@ -658,7 +663,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(principalService.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
 		})
 
-		It("should handle service type updates correctly", func() {
+		It("should handle service type updates correctly", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with service type ClusterIP")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Server.Service = argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
@@ -699,7 +705,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "30s", "2s").Should(Equal(corev1.ServiceTypeLoadBalancer))
 		})
 
-		It("should deploy principal via namespace-scoped ArgoCD instance and verify cluster role and cluster role binding are not created", func() {
+		It("should deploy principal via namespace-scoped ArgoCD instance and verify cluster role and cluster role binding are not created", Label("openshift"), func() {
+
 			By("Create namespace-scoped ArgoCD instance")
 
 			// Create namespace for hosting namespace-scoped ArgoCD instance with principal
@@ -832,7 +839,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "60s", "2s").Should(BeTrue(), "ArgoCD should be deleted")
 		})
 
-		It("should create principal NetworkPolicy if principal is enabled", func() {
+		It("should create principal NetworkPolicy if principal is enabled", Label("openshift"), func() {
 			By("Create ArgoCD instance with principal enabled")
 
 			argoCD.Spec.ArgoCDAgent.Principal.Enabled = ptr.To(true)
@@ -895,7 +902,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(principalNetworkPolicy).Should(k8sFixture.NotExistByName())
 		})
 
-		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", func() {
+		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with principal enabled and prometheus enabled")
 
 			argoCD.Spec.Prometheus.Enabled = true
