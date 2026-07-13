@@ -81,6 +81,12 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# GINKGO_VERSION is the version of ginkgo to use.
+# Pick ginkgo version from go.mod file.
+# Update this command when ginkgo version is updated in go.mod file. 
+# example: go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v3
+GINKGO_VERSION := $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
+
 .PHONY: all
 all: build
 
@@ -247,7 +253,7 @@ kustomize: ## Download kustomize locally if necessary.
 GINKGO_CLI = $(shell pwd)/bin/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
-	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.29.0)
+	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION))
 
 
 # go-get-tool will 'go install' any package $2 and install it to $1.

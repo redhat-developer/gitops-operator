@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", Label("openshift"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
 
@@ -72,7 +72,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the CR value imagePullPolicy is applied", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the CR value imagePullPolicy is applied", Label("openshift"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace with imagePullPolicy set to Always")
 
