@@ -143,6 +143,26 @@ jobs:
           echo "All ArgoCD components are ready."
           kubectl get pods -n test-argocd
 
+      - name: Run e2e tests
+        run: |
+          make e2e-tests-parallel-ginkgo
+
+      - name: Run non-default e2e tests
+        run: |
+          make e2e-tests-sequential-ginkgo
+
+      - name: Collect e2e debug info on failure
+        if: failure()
+        run: |
+          echo "=== All pods across namespaces ==="
+          kubectl get pods -A -o wide || true
+          echo ""
+          echo "=== ArgoCD instances ==="
+          kubectl get argocds -A -o yaml 2>/dev/null || true
+          echo ""
+          echo "=== GitopsService ==="
+          kubectl get gitopsservices -A -o yaml 2>/dev/null || true
+
       - name: Collect operator debug info on failure
         if: failure()
         run: |
