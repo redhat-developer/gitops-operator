@@ -2,10 +2,13 @@ package controllers
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -240,18 +243,45 @@ func securityContextForPlugin() *corev1.SecurityContext {
 	}
 }
 
-var httpdConfig = fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
+func TLSVersionToPlugin(tlsVersion string) string {
+	versionMap := map[string]string{
+		"VersionTLS12": "TLSv1.2",
+		"VersionTLS13": "TLSv1.3",
+		"VersionTLS11": "TLSv1.1",
+		"VersionTLS10": "TLSv1",
+	}
+	if v, ok := versionMap[tlsVersion]; ok {
+		return v
+	}
+	return "" // default fallback
+}
+
+// buildHttpdConfig generates httpd.conf with dynamic TLS settings
+func (r *ReconcileGitopsService) buildHttpdConfig() string {
+	httpdConfigBase := fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
-
 <VirtualHost *:%d>
 	DocumentRoot /var/www/html/plugin
 	SSLEngine on
 	SSLCertificateFile "/etc/httpd-ssl/certs/tls.crt"
-	SSLCertificateKeyFile "/etc/httpd-ssl/private/tls.key"
-</VirtualHost>`, servicePort, servicePort)
+	SSLCertificateKeyFile "/etc/httpd-ssl/private/tls.key"`, servicePort, servicePort)
+	// Add SSLProtocol only if explicitly set
+	if TLSVersionToPlugin(r.TLSMinVersion) != "" {
+		httpdConfigBase += fmt.Sprintf("\n\tSSLProtocol %s", TLSVersionToPlugin(r.TLSMinVersion))
+	}
+	if TLSVersionToPlugin(r.TLSMinVersion) != "TLSv1.3" && strings.Join(r.TLSCiphers, ":") != "" {
+		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.TLSCiphers, ":"))
+	}
+	// Close VirtualHost
+	httpdConfigBase += "\n</VirtualHost>"
+	return httpdConfigBase
+}
 
-func pluginConfigMap() *corev1.ConfigMap {
+// pluginConfigMap creates the ConfigMap with dynamic httpd.conf
+func (r *ReconcileGitopsService) pluginConfigMap() *corev1.ConfigMap {
+	httpdConfig := r.buildHttpdConfig()
+
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      httpdConfigMapName,
@@ -337,7 +367,7 @@ func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
 	return sorted
 }
 
-func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy)
 
@@ -358,6 +388,13 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 	if len(cr.Spec.Tolerations) > 0 {
 		newPluginDeployment.Spec.Template.Spec.Tolerations = cr.Spec.Tolerations
 	}
+
+	// ADD THIS: Get ConfigMap and add hash to pod template annotations
+	configMapHash := getConfigMapHash(newPluginConfigMap)
+	if newPluginDeployment.Spec.Template.ObjectMeta.Annotations == nil {
+		newPluginDeployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	}
+	newPluginDeployment.Spec.Template.ObjectMeta.Annotations["httpd-cfg-hash"] = configMapHash
 
 	// Check if this Deployment already exists
 	existingPluginDeployment := &appsv1.Deployment{}
@@ -381,6 +418,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
 			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"], newSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"]) ||
 			!equality.Semantic.DeepEqual(sortContainers(existingSpecTemplate.Spec.Containers), sortContainers(newSpecTemplate.Spec.Containers)) ||
 			!equality.Semantic.DeepEqual(sortVolumes(existingSpecTemplate.Spec.Volumes), sortVolumes(newSpecTemplate.Spec.Volumes)) ||
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
@@ -396,6 +434,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
 			existingPluginDeployment.Spec.Selector = newPluginDeployment.Spec.Selector
 			existingSpecTemplate.Labels = newSpecTemplate.Labels
+			existingSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"] = newSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"]
 			existingSpecTemplate.Spec.SecurityContext = newSpecTemplate.Spec.SecurityContext
 			existingSpecTemplate.Spec.Containers = newSpecTemplate.Spec.Containers
 			existingSpecTemplate.Spec.Volumes = newSpecTemplate.Spec.Volumes
@@ -487,9 +526,18 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
+// getConfigMapHash returns MD5 hash of ConfigMap data for change detection
+func getConfigMapHash(cm *corev1.ConfigMap) string {
+	hash := md5.New()
+	for key, value := range cm.Data {
+		io.WriteString(hash, key)
+		io.WriteString(hash, value)
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))
+}
+
+func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginConfigMap := pluginConfigMap()
 
 	if err := controllerutil.SetControllerReference(instance, newPluginConfigMap, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -529,15 +577,18 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 		return reconcile.Result{}, nil
 	}
 
+	// Generate ConfigMap once
+	newPluginConfigMap := r.pluginConfigMap()
+
 	if result, err := r.reconcileService(instance, request); err != nil {
 		return result, err
 	}
 
-	if result, err := r.reconcileDeployment(instance, request); err != nil {
+	if result, err := r.reconcileDeployment(instance, request, newPluginConfigMap); err != nil {
 		return result, err
 	}
 
-	if result, err := r.reconcileConfigMap(instance, request); err != nil {
+	if result, err := r.reconcileConfigMap(instance, request, newPluginConfigMap); err != nil {
 		return result, err
 	}
 

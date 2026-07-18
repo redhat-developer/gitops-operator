@@ -146,6 +146,10 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
+	// TLSMinVersion is the minimum TLS version to use for the GitOps plugin.
+	TLSMinVersion string
+	// TLSCiphers is the list of supported TLS ciphers for the GitOps plugin.
+	TLSCiphers []string
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
