@@ -58,7 +58,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail("not-argocd-ns")
 		})
 
-		It("ensures that NotificationsConfiguration, Role, and RoleBinding are created in source namespaces when  notifications.sourceNamespaces is configured", Label("openshift"), func() {
+		It("ensures that NotificationsConfiguration, Role, and RoleBinding are created in source namespaces when  notifications.sourceNamespaces is configured", Label("notOnXKS"), func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
@@ -198,7 +198,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("ensures that resources are not created when namespace is not in SourceNamespaces", Label("openshift"), func() {
+		It("ensures that resources are not created when namespace is not in SourceNamespaces", Label("notOnXKS"), func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
@@ -393,7 +393,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("ensures that resources are not created when notifications are disabled", Label("openshift"), func() {
+		It("ensures that resources are not created when notifications are disabled", Label("notOnXKS"), func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
@@ -462,7 +462,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("ensures that notifications controller deployment command is updated when sourceNamespaces change", Label("openshift"), func() {
+		It("ensures that notifications controller deployment command is updated when sourceNamespaces change", Label("notOnXKS"), func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
@@ -543,7 +543,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("ensures that resources are created when notifications are enabled after being disabled", Label("openshift"), func() {
+		It("ensures that resources are created when notifications are enabled after being disabled", Label("notOnXKS"), func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")

@@ -19,7 +19,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates backend service permissions", Label("openshift"), func() {
+		It("validates backend service permissions", Label("notOnXKS"), func() {
 
 			By("verifying that various backend-related resources exist and have the expected values")
 
