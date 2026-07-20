@@ -100,7 +100,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			purgeCtbs()
 		})
 
-		It("ensures that missing Secret aborts startup", Label("openshift"), func() {
+		It("ensures that missing Secret aborts startup", Label("notOnXKS"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with missing Secret")
@@ -162,7 +162,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			)))
 		})
 
-		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("openshift"), func() {
+		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("notOnXKS"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
@@ -210,7 +210,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyCorrectlyConfiguredTrust(ns)
 		})
 
-		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("openshift"), func() {
+		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("notOnXKS"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -242,7 +242,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(trustedHelmApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeUnknown))
 		})
 
-		It("ensures that empty trust keeps image certs in place", Label("openshift"), func() {
+		It("ensures that empty trust keeps image certs in place", Label("notOnXKS"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -256,7 +256,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(repoServerSystemCaTrust(ns)).Should(trustCerts(BeNumerically(">", 100), Not(BeEmpty())))
 		})
 
-		It("ensures that Secrets and ConfigMaps get reconciled", Label("openshift"), func() {
+		It("ensures that Secrets and ConfigMaps get reconciled", Label("notOnXKS"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")

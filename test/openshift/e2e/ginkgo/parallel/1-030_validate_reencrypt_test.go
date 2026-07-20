@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", Label("openshift"), func() {
+		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", Label("notOnXKS"), func() {
 
 			By("creating namespace-scoped Argo CD instance with rencrypt Route")
 
