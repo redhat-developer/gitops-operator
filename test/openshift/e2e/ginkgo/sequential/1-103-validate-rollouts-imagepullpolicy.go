@@ -115,7 +115,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies subscription image pull policy is applied", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies subscription image pull policy is applied", Label("notOnXKS"), func() {
 			if fixture.EnvLocalRun() {
 				Skip("This test does not support local run, as when the controller is running locally there is no env var to modify")
 				return

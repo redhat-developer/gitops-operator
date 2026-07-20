@@ -1,4 +1,4 @@
-name: Build, Deploy and Test on kind
+name: Build, Deploy and Test on KinD
 
 on:
   pull_request:

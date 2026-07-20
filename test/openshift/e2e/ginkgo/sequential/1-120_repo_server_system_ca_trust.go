@@ -81,7 +81,7 @@ var (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	Context("1-120_repo_server_system_ca_trust", func() {
+	Context("1-120_repo_server_system_ca_trust", Label("notOnXKS"), func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 
