@@ -33,11 +33,11 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent/agent"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -392,7 +392,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 				ac.Spec.ArgoCDAgent.Agent.LogFormat = "json"
-				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 				ac.Spec.ArgoCDAgent.Agent.Client.KeepAliveInterval = "60s"
 				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = ptr.To(true)
@@ -421,7 +421,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 				}, "120s", "5s").Should(BeTrue(), "Agent deployment should have the updated image")
 
 			By("Verify environment variables are updated correctly")
