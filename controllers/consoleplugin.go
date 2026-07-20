@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -539,18 +540,20 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 // getConfigMapHash returns a deterministic SHA256 hash of ConfigMap data for change detection.
 func getConfigMapHash(cm *corev1.ConfigMap) string {
 	hash := sha256.New()
-
-	// Sort keys to ensure deterministic hashing regardless of Go map iteration order.
 	keys := make([]string, 0, len(cm.Data))
 	for key := range cm.Data {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		io.WriteString(hash, key)
-		io.WriteString(hash, cm.Data[key])
+		if _, err := io.WriteString(hash, key); err != nil {
+			panic(fmt.Sprintf("failed to hash configmap key: %v", err))
+		}
+		if _, err := io.WriteString(hash, cm.Data[key]); err != nil {
+			panic(fmt.Sprintf("failed to hash configmap value: %v", err))
+		}
 	}
-	return fmt.Sprintf("%x", hash.Sum(nil))
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
