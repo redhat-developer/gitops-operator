@@ -124,8 +124,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("logging in to the namespace-scoped ArgoCD instance via CLI with a per-test config file")
 			Eventually(func() bool {
 				output, loginErr := argocdFixture.RunArgoCDCLI(
-					"--config", cliConfigFile.Name(),
 					"login", routeHost,
+					"--config", cliConfigFile.Name(),
 					"--username", "admin",
 					"--password", adminPassword,
 					"--insecure",
