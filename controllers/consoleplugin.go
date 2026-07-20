@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -267,8 +267,15 @@ ServerRoot "/etc/httpd"
 	SSLCertificateFile "/etc/httpd-ssl/certs/tls.crt"
 	SSLCertificateKeyFile "/etc/httpd-ssl/private/tls.key"`, servicePort, servicePort)
 	// Add SSLProtocol only if explicitly set
-	if TLSVersionToPlugin(r.TLSMinVersion) != "" {
-		httpdConfigBase += fmt.Sprintf("\n\tSSLProtocol %s", TLSVersionToPlugin(r.TLSMinVersion))
+	switch r.TLSMinVersion {
+	case "VersionTLS10":
+		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1 +TLSv1.1 +TLSv1.2 +TLSv1.3"
+	case "VersionTLS11":
+		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1.1 +TLSv1.2 +TLSv1.3"
+	case "VersionTLS12":
+		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1.2 +TLSv1.3"
+	case "VersionTLS13":
+		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1.3"
 	}
 	if TLSVersionToPlugin(r.TLSMinVersion) != "TLSv1.3" && strings.Join(r.TLSCiphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.TLSCiphers, ":"))
@@ -429,6 +436,9 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
+			if existingSpecTemplate.ObjectMeta.Annotations == nil {
+				existingSpecTemplate.ObjectMeta.Annotations = make(map[string]string)
+			}
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
 			existingPluginDeployment.Labels = newPluginDeployment.Labels
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
@@ -526,12 +536,19 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 	return reconcile.Result{}, nil
 }
 
-// getConfigMapHash returns MD5 hash of ConfigMap data for change detection
+// getConfigMapHash returns a deterministic SHA256 hash of ConfigMap data for change detection.
 func getConfigMapHash(cm *corev1.ConfigMap) string {
-	hash := md5.New()
-	for key, value := range cm.Data {
+	hash := sha256.New()
+
+	// Sort keys to ensure deterministic hashing regardless of Go map iteration order.
+	keys := make([]string, 0, len(cm.Data))
+	for key := range cm.Data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
 		io.WriteString(hash, key)
-		io.WriteString(hash, value)
+		io.WriteString(hash, cm.Data[key])
 	}
 	return fmt.Sprintf("%x", hash.Sum(nil))
 }
@@ -563,7 +580,7 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 			reqLogger.Info("Reconciling plugin configMap", "Namespace", existingPluginConfigMap.Namespace, "Name", existingPluginConfigMap.Name)
 			existingPluginConfigMap.Data = newPluginConfigMap.Data
 			existingPluginConfigMap.Labels = newPluginConfigMap.Labels
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newPluginConfigMap)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPluginConfigMap)
 		}
 	}
 	return reconcile.Result{}, nil

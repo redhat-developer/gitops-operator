@@ -1934,7 +1934,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			ciphers:         []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
 			wantProtocol:    true,
 			wantCipherSuite: true,
-			protocol:        "TLSv1.2",
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 		},
 		{
@@ -1943,7 +1943,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			ciphers:         []string{"TLS_AES_128_GCM_SHA256"},
 			wantProtocol:    true,
 			wantCipherSuite: false,
-			protocol:        "TLSv1.3",
+			protocol:        "-all +TLSv1.3",
 		},
 		{
 			name:            "TLS 1.2 without cipher suites",
@@ -1951,7 +1951,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			ciphers:         nil,
 			wantProtocol:    true,
 			wantCipherSuite: false,
-			protocol:        "TLSv1.2",
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 		{
 			name:            "invalid TLS version with cipher suites",
@@ -2005,17 +2005,14 @@ func TestGetConfigMapHash(t *testing.T) {
 				"foo":    "bar",
 			},
 		}
-
 		cm2 := &corev1.ConfigMap{
 			Data: map[string]string{
 				"config": "value",
 				"foo":    "bar",
 			},
 		}
-
 		hash1 := getConfigMapHash(cm1)
 		hash2 := getConfigMapHash(cm2)
-
 		assert.Equal(t, hash1, hash2)
 	})
 	t.Run("different configmaps return different hashes", func(t *testing.T) {
@@ -2024,27 +2021,22 @@ func TestGetConfigMapHash(t *testing.T) {
 				"config": "value1",
 			},
 		}
-
 		cm2 := &corev1.ConfigMap{
 			Data: map[string]string{
 				"config": "value2",
 			},
 		}
-
 		hash1 := getConfigMapHash(cm1)
 		hash2 := getConfigMapHash(cm2)
-
 		assert.Assert(t, hash1 != hash2)
 	})
 	t.Run("empty configmap returns deterministic hash", func(t *testing.T) {
 		cm := &corev1.ConfigMap{
 			Data: map[string]string{},
 		}
-
 		hash := getConfigMapHash(cm)
-
-		// MD5 of an empty string.
-		assert.Equal(t, "d41d8cd98f00b204e9800998ecf8427e", hash)
+		// SHA256 of an empty string.
+		assert.Equal(t, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", hash)
 	})
 }
 
@@ -2055,14 +2047,12 @@ func TestReconcileDeployment_AddsHashAnnotation(t *testing.T) {
 	assert.NilError(t, appsv1.AddToScheme(scheme))
 	assert.NilError(t, corev1.AddToScheme(scheme))
 	assert.NilError(t, pipelinesv1alpha1.AddToScheme(scheme))
-
 	instance := &pipelinesv1alpha1.GitopsService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gitopsService,
 			Namespace: serviceNamespace,
 		},
 	}
-
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "plugin-config",
@@ -2072,39 +2062,14 @@ func TestReconcileDeployment_AddsHashAnnotation(t *testing.T) {
 			"httpd.conf": "config-v1",
 		},
 	}
-
-	r := &ReconcileGitopsService{
-		Client: fake.NewClientBuilder().
-			WithScheme(scheme).
-			WithObjects(instance).
-			Build(),
-		Scheme: scheme,
-	}
-
-	_, err := r.reconcileDeployment(
-		instance,
-		newRequest(serviceNamespace, gitopsService),
-		cm,
-	)
+	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme}
+	_, err := r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm)
 	assert.NilError(t, err)
-
 	deployment := &appsv1.Deployment{}
-	err = r.Client.Get(context.TODO(),
-		types.NamespacedName{
-			Name:      gitopsPluginName,
-			Namespace: serviceNamespace,
-		},
-		deployment,
-	)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assert.NilError(t, err)
-
 	expectedHash := getConfigMapHash(cm)
-
-	assert.Equal(
-		t,
-		expectedHash,
-		deployment.Spec.Template.Annotations["httpd-cfg-hash"],
-	)
+	assert.Equal(t, expectedHash, deployment.Spec.Template.Annotations["httpd-cfg-hash"])
 }
 
 func TestReconcileDeployment_UpdatesHashAnnotationWhenConfigChanges(t *testing.T) {
@@ -2114,61 +2079,29 @@ func TestReconcileDeployment_UpdatesHashAnnotationWhenConfigChanges(t *testing.T
 	assert.NilError(t, appsv1.AddToScheme(scheme))
 	assert.NilError(t, corev1.AddToScheme(scheme))
 	assert.NilError(t, pipelinesv1alpha1.AddToScheme(scheme))
-
 	instance := &pipelinesv1alpha1.GitopsService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gitopsService,
 			Namespace: serviceNamespace,
 		},
 	}
-
 	cm1 := &corev1.ConfigMap{
 		Data: map[string]string{
 			"httpd.conf": "config-v1",
 		},
 	}
-
 	cm2 := &corev1.ConfigMap{
 		Data: map[string]string{
 			"httpd.conf": "config-v2",
 		},
 	}
-
-	r := &ReconcileGitopsService{
-		Client: fake.NewClientBuilder().
-			WithScheme(scheme).
-			WithObjects(instance).
-			Build(),
-		Scheme: scheme,
-	}
-
-	_, err := r.reconcileDeployment(
-		instance,
-		newRequest(serviceNamespace, gitopsService),
-		cm1,
-	)
+	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme}
+	_, err := r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm1)
 	assert.NilError(t, err)
-
-	_, err = r.reconcileDeployment(
-		instance,
-		newRequest(serviceNamespace, gitopsService),
-		cm2,
-	)
+	_, err = r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm2)
 	assert.NilError(t, err)
-
 	deployment := &appsv1.Deployment{}
-	err = r.Client.Get(context.TODO(),
-		types.NamespacedName{
-			Name:      gitopsPluginName,
-			Namespace: serviceNamespace,
-		},
-		deployment,
-	)
+	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assert.NilError(t, err)
-
-	assert.Equal(
-		t,
-		getConfigMapHash(cm2),
-		deployment.Spec.Template.Annotations["httpd-cfg-hash"],
-	)
+	assert.Equal(t, getConfigMapHash(cm2), deployment.Spec.Template.Annotations["httpd-cfg-hash"])
 }
