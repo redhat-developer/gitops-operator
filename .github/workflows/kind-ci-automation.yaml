@@ -6,6 +6,9 @@ on:
       - "master"
       - "v*"
 
+permissions:
+  contents: read
+
 env:
   IMG: gitops-operator:test
   LOG_DIR: /tmp/kind-ci-artifacts
@@ -84,7 +87,7 @@ jobs:
 
       - name: Upload CI artifacts
         if: always()
-        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df2034c6ff2643ca6 # v4.3.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: kind-ci-artifacts-${{ github.run_id }}
           path: ${{ env.LOG_DIR }}/
