@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("Should validate namespace for new resources", Label("openshift"), func() {
+		It("Should validate namespace for new resources", Label("notOnXKS"), func() {
 
 			argoNamespace, cleanupArgoNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			sourceNamespace, cleanupSourceNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -163,7 +163,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("Should validate namespace for existing resources", Label("openshift"), func() {
+		It("Should validate namespace for existing resources", Label("notOnXKS"), func() {
 
 			argoNamespace, cleanupArgoNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			sourceNamespace, cleanupSourceNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

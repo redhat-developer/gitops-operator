@@ -33,15 +33,15 @@ var _ = Describe("Argo CD ConsoleLink controller", func() {
 		route := &routev1.Route{}
 		consoleLink := &console.ConsoleLink{}
 
-		It("Argocd route is present", Label("openshift"), func() {
+		It("Argocd route is present", Label("notOnXKS"), func() {
 			checkIfPresent(types.NamespacedName{Name: argoCDRouteName, Namespace: argoCDNamespace}, route)
 		})
 
-		It("ConsoleLink is created", Label("openshift"), func() {
+		It("ConsoleLink is created", Label("notOnXKS"), func() {
 			checkIfPresent(types.NamespacedName{Name: consoleLinkName}, consoleLink)
 		})
 
-		It("ConsoleLink and argocd route should match", Label("openshift"), func() {
+		It("ConsoleLink and argocd route should match", Label("notOnXKS"), func() {
 			Eventually(func() error {
 				err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: consoleLinkName}, consoleLink)
 				if err != nil {
