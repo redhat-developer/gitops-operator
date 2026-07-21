@@ -277,7 +277,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		}
 
-		It("should create argocd agent agent resources, but pod should not be expected to run successfully without principal", Label("notOnXKS"), func() {
+		It("should create argocd agent agent resources, but pod should not be expected to run successfully without principal", Label("openshfit"), func() {
 			// Change log level to trace and custom image name
 			argoCD.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 			argoCD.Spec.ArgoCDAgent.Agent.Image = "quay.io/user/argocd-agent:v1"
@@ -363,7 +363,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", Label("notOnXKS"), func() {
+		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", Label("openshfit"), func() {
 
 			By("Create ArgoCD instance")
 
@@ -577,7 +577,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "60s", "2s").Should(BeTrue(), "ArgoCD should be deleted")
 		})
 
-		It("should create and delete agent ServiceMonitor based on prometheus enabled flag", Label("notOnXKS"), func() {
+		It("should create and delete agent ServiceMonitor based on prometheus enabled flag", Label("openshfit"), func() {
 
 			By("Create ArgoCD instance with agent enabled and prometheus enabled")
 

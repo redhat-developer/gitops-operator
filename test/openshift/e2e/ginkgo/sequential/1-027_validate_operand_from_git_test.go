@@ -68,7 +68,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("notOnXKS"), func() {
+		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("openshfit"), func() {
 
 			openshiftgitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())

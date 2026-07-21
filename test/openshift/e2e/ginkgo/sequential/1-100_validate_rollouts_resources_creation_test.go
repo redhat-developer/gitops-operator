@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", Label("notOnXKS"), func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", Label("openshfit"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
 

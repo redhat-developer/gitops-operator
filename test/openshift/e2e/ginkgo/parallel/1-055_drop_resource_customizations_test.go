@@ -46,7 +46,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that resource customization is dropped in conversion from ArgoCD v1alpha1 to v1beta1", Label("notOnXKS"), func() {
+		It("verifies that resource customization is dropped in conversion from ArgoCD v1alpha1 to v1beta1", Label("openshfit"), func() {
 
 			By("creating simple namespace-scoped Argo CD instance via v1alpha1 API, with resourcecustomization and resourcehealthcheck")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

@@ -67,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				cleanupFunc()
 			}
 		})
-		It("ensures the conditions in status when external Authentication is enabled on clusters; above 4.20 by default in openshift is enabled", Label("notOnXKS"), func() {
+		It("ensures the conditions in status when external Authentication is enabled on clusters; above 4.20 by default in openshift is enabled", Label("openshfit"), func() {
 			By("creating simple namespace-scoped Argo CD instance")
 			ocVersion := getOCPVersion()
 			Expect(ocVersion).ToNot(BeEmpty())

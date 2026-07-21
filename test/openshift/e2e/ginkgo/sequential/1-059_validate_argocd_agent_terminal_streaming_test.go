@@ -157,7 +157,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			registerCleanup(cleanupFuncManagedApplication)
 		})
 
-		It("Should open a terminal session to a pod deployed via ArgoCD agent and execute commands", Label("notOnXKS"), func() {
+		It("Should open a terminal session to a pod deployed via ArgoCD agent and execute commands", Label("openshfit"), func() {
 
 			By("Deploy principal with server route enabled and verify it starts successfully")
 			deployPrincipal(ctx, k8sClient, registerCleanup, true)

@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies 4.9 CI failures", Label("notOnXKS"), func() {
+		It("verifies 4.9 CI failures", Label("openshfit"), func() {
 
 			sourceNS := fixture.CreateNamespace("source-ns")
 

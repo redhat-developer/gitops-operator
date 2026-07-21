@@ -79,7 +79,7 @@ var (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	Context("1-120_repo_server_system_ca_trust", Label("notOnXKS"), func() {
+	Context("1-120_repo_server_system_ca_trust", Label("openshfit"), func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 
@@ -98,7 +98,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			purgeCtbs()
 		})
 
-		It("ensures that missing Secret aborts startup", Label("notOnXKS"), func() {
+		It("ensures that missing Secret aborts startup", Label("openshfit"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with missing Secret")
@@ -160,7 +160,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			)))
 		})
 
-		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("notOnXKS"), func() {
+		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("openshfit"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
@@ -208,7 +208,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyCorrectlyConfiguredTrust(ns)
 		})
 
-		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("notOnXKS"), func() {
+		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("openshfit"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -240,7 +240,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(trustedHelmApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeUnknown))
 		})
 
-		It("ensures that empty trust keeps image certs in place", Label("notOnXKS"), func() {
+		It("ensures that empty trust keeps image certs in place", Label("openshfit"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -254,7 +254,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(repoServerSystemCaTrust(ns)).Should(trustCerts(BeNumerically(">", 100), Not(BeEmpty())))
 		})
 
-		It("ensures that Secrets and ConfigMaps get reconciled", Label("notOnXKS"), func() {
+		It("ensures that Secrets and ConfigMaps get reconciled", Label("openshfit"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
