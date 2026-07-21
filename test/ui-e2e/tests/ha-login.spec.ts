@@ -10,8 +10,8 @@ test.describe('HA Login Verification', () => {
   //force fresh login
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test.beforeAll(async () => {
-    test.setTimeout(600000); //10 mins for ha rollout
+  test.beforeAll(async ({}, testInfo) => {
+    testInfo.setTimeout(600000); //10 mins for ha rollout
     
     console.log('\n[setup] Enabling High Availability (HA) for Argo CD...');
     try {
@@ -54,8 +54,8 @@ test.describe('HA Login Verification', () => {
     }
   });
 
-  test.afterAll(async () => {
-    test.setTimeout(300000); //5 mins for teardown
+  test.afterAll(async ({}, testInfo) => {
+    testInfo.setTimeout(300000); //5 mins for teardown
 
     console.log('\n[teardown] Disabling High Availability (HA) to restore cluster state...');
     try {
