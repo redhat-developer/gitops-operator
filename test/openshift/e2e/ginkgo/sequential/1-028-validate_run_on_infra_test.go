@@ -7,11 +7,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -55,72 +57,34 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				})
 			}()
 
-			By("verifying the openshift-gitops resources have the run on infra labels and tolerations applied")
+			By("verifying the openshift-gitops namespace has the infra node-selector annotation")
+			openshiftGitopsNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops"}}
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.HaveAnnotation(common.InfraNodeSelectorAnnotation, common.InfraNodeSelectorAnnotationValue))
+
+			By("verifying the openshift-gitops resources have tolerations applied")
 			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
-			Eventually(clusterDepl).Should(
-				And(
-					deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					deploymentFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(clusterDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			serverDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
-			Eventually(serverDepl).Should(
-				And(
-					deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					deploymentFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(serverDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-repo-server", Namespace: "openshift-gitops"}}
-			Eventually(repoServerDepl).Should(
-				And(
-					deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					deploymentFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(repoServerDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			dexServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-dex-server", Namespace: "openshift-gitops"}}
-			Eventually(dexServerDepl).Should(
-				And(
-					deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					deploymentFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(dexServerDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			redisServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}
-			Eventually(redisServerDepl).Should(
-				And(
-					deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					deploymentFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(redisServerDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			appControllerSS := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}}
-			Eventually(appControllerSS).Should(
-				And(
-					statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
-						"node-role.kubernetes.io/infra": "",
-						"kubernetes.io/os":              "linux",
-					}),
-					statefulsetFixture.HaveTolerations([]corev1.Toleration{
-						{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
-				))
+			Eventually(appControllerSS).Should(statefulsetFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 			By("creating a simple namespace-scoped Argo CD instance in another namespace")
 
@@ -136,43 +100,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// verifyNotPresentInNamespace verifies that the various Argo CD resources in the namespace do not have 'run on infra' set
 			verifyNotPresentInNamespace := func(ns string) {
 
+				nsObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}
+				Eventually(nsObj).Should(namespaceFixture.NotHaveAnnotation(common.InfraNodeSelectorAnnotation))
+
 				serverDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: ns}}
-				Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"node-role.kubernetes.io/infra": "",
-					"kubernetes.io/os":              "linux",
-				}))
 				Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 					{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 				repoServer := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns}}
-				Eventually(repoServer).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"node-role.kubernetes.io/infra": "",
-					"kubernetes.io/os":              "linux",
-				}))
 				Eventually(repoServer).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 					{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 				dexServer := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-dex-server", Namespace: ns}}
-				Eventually(dexServer).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"node-role.kubernetes.io/infra": "",
-					"kubernetes.io/os":              "linux",
-				}))
 				Eventually(dexServer).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 					{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 				redisDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis", Namespace: ns}}
-				Eventually(redisDepl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"node-role.kubernetes.io/infra": "",
-					"kubernetes.io/os":              "linux",
-				}))
 				Eventually(redisDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 					{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
 				appControllerSS = &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns}}
-				Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
-					"node-role.kubernetes.io/infra": "",
-					"kubernetes.io/os":              "linux",
-				}))
 				Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTolerations([]corev1.Toleration{
 					{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}))
 
@@ -194,19 +141,40 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				gs.Spec.Tolerations = nil
 			})
 
-			By("verifying that the resources in openshift-gitops no longer have run on infra tolerations/label set")
+			By("verifying that the openshift-gitops namespace no longer has the infra annotation")
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.NotHaveAnnotation(common.InfraNodeSelectorAnnotation))
+
+			By("verifying that the resources in openshift-gitops no longer have run on infra tolerations set")
 
 			clusterDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
-			Eventually(clusterDepl).ShouldNot(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
-				"node-role.kubernetes.io/infra": "",
-				"kubernetes.io/os":              "linux",
-			}))
-
 			Eventually(clusterDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
 				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
 			)
 
-			verifyNotPresentInNamespace("openshift-gitops")
+			serverDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
+			Eventually(serverDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			repoServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-repo-server", Namespace: "openshift-gitops"}}
+			Eventually(repoServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			dexServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-dex-server", Namespace: "openshift-gitops"}}
+			Eventually(dexServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			redisServerDepl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}
+			Eventually(redisServerDepl).ShouldNot(deploymentFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
+
+			appControllerSS = &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}}
+			Eventually(appControllerSS).ShouldNot(statefulsetFixture.HaveTolerations([]corev1.Toleration{
+				{Key: "infra", Effect: "NoSchedule", Value: "reserved"}}),
+			)
 
 			// This is required, otherwise StatefulSet will be stuck for every subsequent test. This was ported from kuttl (but we delete the SS rather than updating its replicas)
 			appControllerSS = &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: "openshift-gitops"}}

@@ -37,9 +37,10 @@ export class LoginPage {
     }
 
     //check if manual login is actually required
-    const usernameInput = this.page.getByLabel(/Username/i)
+    const usernameInput = this.page.getByRole('textbox', { name: /Username/i })
                                    .or(this.page.locator('input[name="username"]'))
-                                   .or(this.page.getByPlaceholder(/Username/i));
+                                   .or(this.page.getByPlaceholder(/Username/i))
+                                   .first();
                                    
     const needsLogin = await usernameInput.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
 

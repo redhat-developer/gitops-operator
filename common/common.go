@@ -37,6 +37,10 @@ const (
 	DefaultDynamicPluginStartOCPVersion = "4.15.0"
 	// ImagePullPolicyEnvVar is the environment variable for configuring image pull policy
 	ImagePullPolicy = "IMAGE_PULL_POLICY"
+	// InfraNodeSelectorAnnotation is the OpenShift namespace annotation that applies a default node selector to all pods
+	InfraNodeSelectorAnnotation = "openshift.io/node-selector"
+	// InfraNodeSelectorAnnotationValue is the value for the infra node selector annotation
+	InfraNodeSelectorAnnotationValue = "node-role.kubernetes.io/infra="
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes

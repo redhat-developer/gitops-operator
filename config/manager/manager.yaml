@@ -70,5 +70,6 @@ spec:
       - name: metrics-certs
         secret:
           secretName: openshift-gitops-operator-metrics-tls
+          optional: true
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

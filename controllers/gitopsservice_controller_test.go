@@ -25,7 +25,6 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -628,21 +627,69 @@ func TestReconcile_InfrastructureNode(t *testing.T) {
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
 	assertNoError(t, err)
 
+	// Namespace should have infra node-selector annotation
+	ns := &corev1.Namespace{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, ns)
+	assertNoError(t, err)
+	assert.Equal(t, ns.Annotations[common.InfraNodeSelectorAnnotation], common.InfraNodeSelectorAnnotationValue)
+
+	// Backend deployment should NOT have infra NodeSelector in pod spec (namespace annotation handles it)
 	deployment := appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
 	assertNoError(t, err)
-	nSelector := common.InfraNodeSelector()
-	argoutil.AppendStringMap(nSelector, argocommon.DefaultNodeSelector())
-	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, argocommon.DefaultNodeSelector())
 	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
 
+	// ArgoCD instance should only have Tolerations in NodePlacement, not infra NodeSelector
 	argoCD := &argoapp.ArgoCD{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
 		argoCD)
 	assertNoError(t, err)
-	assert.DeepEqual(t, argoCD.Spec.NodePlacement.NodeSelector, common.InfraNodeSelector())
+	assert.Assert(t, argoCD.Spec.NodePlacement != nil)
+	assert.Assert(t, argoCD.Spec.NodePlacement.NodeSelector == nil)
 	assert.DeepEqual(t, argoCD.Spec.NodePlacement.Tolerations, deploymentDefaultTolerations())
+}
 
+func TestReconcile_InfrastructureNode_AnnotationRemoved(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			RunOnInfra: true,
+		},
+	}
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Verify annotation present
+	ns := &corev1.Namespace{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, ns)
+	assertNoError(t, err)
+	assert.Equal(t, ns.Annotations[common.InfraNodeSelectorAnnotation], common.InfraNodeSelectorAnnotationValue)
+
+	// Toggle RunOnInfra off
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, gitopsService)
+	assertNoError(t, err)
+	gitopsService.Spec.RunOnInfra = false
+	err = fakeClient.Update(context.TODO(), gitopsService)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	// Verify annotation removed
+	ns = &corev1.Namespace{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, ns)
+	assertNoError(t, err)
+	_, hasAnnotation := ns.Annotations[common.InfraNodeSelectorAnnotation]
+	assert.Assert(t, !hasAnnotation)
 }
 
 func TestReconcile_PSSLabels(t *testing.T) {

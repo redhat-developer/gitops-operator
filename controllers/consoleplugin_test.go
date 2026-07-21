@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"maps"
 	"testing"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
@@ -959,7 +958,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 	}
 }
 
-func TestPlugin_reconcileDeployment_changedInfraNodeSelector(t *testing.T) {
+func TestPlugin_reconcileDeployment_infraNodeSelectorNotInPodSpec(t *testing.T) {
 
 	gitopsService := &pipelinesv1alpha1.GitopsService{
 		ObjectMeta: metav1.ObjectMeta{
@@ -983,9 +982,8 @@ func TestPlugin_reconcileDeployment_changedInfraNodeSelector(t *testing.T) {
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, deployment)
 	assertNoError(t, err)
 
-	nSelector := common.InfraNodeSelector()
-	maps.Copy(nSelector, argocommon.DefaultNodeSelector())
-	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, nSelector)
+	// RunOnInfra no longer sets infra NodeSelector on pod spec — namespace annotation handles it
+	assert.DeepEqual(t, deployment.Spec.Template.Spec.NodeSelector, argocommon.DefaultNodeSelector())
 	assert.DeepEqual(t, deployment.Spec.Template.Spec.Tolerations, deploymentDefaultTolerations())
 }
 

@@ -56,9 +56,10 @@ All executions are driven via the ./run-ui-tests.sh wrapper script. This wrapper
 
 | Target | Command |
 | --- | --- |
-| **Run All Tests (Headless/CI Mode)** | `./run-ui-tests.sh --project=chromium` |
-| **Run All Tests (Headed + Visual Tracing)** | `./run-ui-tests.sh --project=chromium --headed --trace on` |
-| **Run a Specific Spec File** | `./run-ui-tests.sh tests/create-application.spec.ts --project=chromium --headed --trace on` |
+| **Run All Tests (Local Headless)** | `./run-ui-tests.sh --project=chromium` |
+| **Run All Tests (Local Headed + Trace)** | `./run-ui-tests.sh --project=chromium --headed --trace on` |
+| **Run All Tests (Simulate CI)** | `./run-ui-tests.sh --env=ci --project=chromium` |
+| **Run a Specific Spec File** | `./run-ui-tests.sh tests/resource-tree.spec.ts --project=chromium --headed` |
 
 ### Playwright Flags Reference
 
@@ -67,6 +68,7 @@ All executions are driven via the ./run-ui-tests.sh wrapper script. This wrapper
 | `--headed` | Launches the visible Chromium browser UI. Excellent for local debugging. |
 | `--trace on` | Records a granular execution trace (DOM snapshots, network calls, actions) for visual triage. |
 | `--reporter=list` | Switches stdout to a clean line-by-line format, ideal for monitoring real-time execution steps. |
+| --env=<ci\|pipeline> | Overrides the local setup to simulate automation. It forces headless execution, performs a clean `npm ci`, and installs required browser binaries dynamically. |
 
 ### Visual Debugging (Trace Viewer)
 
@@ -91,8 +93,9 @@ npx playwright show-trace test-results/create-application-chromium/trace.zip
 │   └── pages/            # Page Object Models (POM) isolating UI selectors from spec logic
 │       └── ApplicationsPage.ts
 ├── tests/                # Test specs organized by feature epic
-│   ├── login.spec.ts
-│   └── create-application.spec.ts
+│   ├── admin-login.spec.ts
+│   ├── create-application.spec.ts
+│   └── resource-tree.spec.ts
 ├── .env                  # Local runtime environment overrides (Git ignored)
 └── run-ui-tests.sh       # Context-aware orchestrator & URL discovery engine
 

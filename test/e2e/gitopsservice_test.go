@@ -22,13 +22,10 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
@@ -623,7 +620,6 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			gitopsService.Spec.RunOnInfra = true
-			nodeSelector := argoutil.AppendStringMap(gitopscommon.InfraNodeSelector(), common.DefaultNodeSelector())
 
 			err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 				updateErr := k8sClient.Update(context.TODO(), gitopsService)
@@ -636,26 +632,16 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			Eventually(func() bool {
-				deployment := &appsv1.Deployment{}
-
-				if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment); err != nil {
+				ns := &corev1.Namespace{}
+				if err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, ns); err != nil {
 					fmt.Println(err)
 					return false
 				}
 
-				if !reflect.DeepEqual(deployment.Spec.Template.Spec.NodeSelector, nodeSelector) {
-					fmt.Println("NodeSelectors are not equal")
+				if ns.Annotations == nil {
 					return false
 				}
-
-				argocd := &argoapp.ArgoCD{}
-
-				if err := k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd); err != nil {
-					fmt.Println(err)
-					return false
-				}
-
-				return reflect.DeepEqual(argocd.Spec.NodePlacement.NodeSelector, gitopscommon.InfraNodeSelector())
+				return ns.Annotations[gitopscommon.InfraNodeSelectorAnnotation] == gitopscommon.InfraNodeSelectorAnnotationValue
 
 			}, time.Second*180, time.Second*5).Should(BeTrue())
 
@@ -673,26 +659,18 @@ var _ = Describe("GitOpsServiceController", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() bool {
-				deployment := &appsv1.Deployment{}
-				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: argoCDNamespace}, deployment)
+				ns := &corev1.Namespace{}
+				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDNamespace}, ns)
 				if err != nil {
-					GinkgoWriter.Println("Unable to get Deployment", err)
+					GinkgoWriter.Println("Unable to get Namespace", err)
 					return false
 				}
 
-				if len(deployment.Spec.Template.Spec.NodeSelector) != 1 {
-					GinkgoWriter.Println("expected one nodeSelector in deployment")
-					return false
+				if ns.Annotations == nil {
+					return true
 				}
-
-				argocd := &argoapp.ArgoCD{}
-				err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: argoCDInstanceName, Namespace: argoCDNamespace}, argocd)
-				if err != nil {
-					GinkgoWriter.Println("Unable to get ArgoCD", err)
-					return false
-				}
-
-				return argocd.Spec.NodePlacement == nil
+				_, exists := ns.Annotations[gitopscommon.InfraNodeSelectorAnnotation]
+				return !exists
 			}, "3m", "5s").Should(BeTrue())
 
 		})

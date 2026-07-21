@@ -281,6 +281,16 @@ bundle-build: ## Build the bundle image.
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
+ARGOCD_OPERATOR_BRANCH ?= master
+
+# To run propagate-manifests target with the default argocd-operator master branch:
+#  make propagate-manifests
+# To run propagate-manifests target with a custom argocd-operator branch or tag:
+#  ARGOCD_OPERATOR_BRANCH=release-0.19 make propagate-manifests
+.PHONY: propagate-manifests
+propagate-manifests: ## compare and propagate manifests from argocd-operator repo
+	./hack/propagate.sh --from-branch $(ARGOCD_OPERATOR_BRANCH)
+
 .PHONY: opm
 OPM = ./bin/opm
 opm: ## Download opm locally if necessary.

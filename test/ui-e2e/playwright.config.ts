@@ -1,35 +1,40 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
 
 /**
  * Read environment variables from file.
  * https://github.com/motdotla/dotenv
  */
-
-// top of playwright.config.ts
-import dotenv from 'dotenv';
-import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
+  //register pre-flight script
+  globalSetup: require.resolve('./global.setup.ts'),
+  //global test timeout to 5 min
+  timeout: 5 * 60 * 1000,
+  
   testDir: './tests',
-  /* Run tests in files in parallel */
-  fullyParallel: true,
+  /* Turn off parallel execution inside files */
+  fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  
+  //stops parallel execution so they don't fight over the openshift-gitops namespace.
+  workers: 1, 
+
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['list'],
     ['html', { open: process.env.CI ? 'never' : 'on-failure' }]
   ],
 
-/* GLOBAL FOUNDATION: These apply to everything */
+  /* GLOBAL FOUNDATION: These apply to everything */
   use: {
     baseURL: process.env.ARGOCD_URL, 
     ignoreHTTPSErrors: true,
@@ -44,7 +49,8 @@ export default defineConfig({
       testMatch: '**/.auth/setup.ts',
       /* Only changes the URL for this specific project */
       use: {
-        baseURL: process.env.CONSOLE_URL,       },
+        baseURL: process.env.CONSOLE_URL,       
+      },
     },
 
     // Update chromium project
@@ -62,16 +68,7 @@ export default defineConfig({
       name: 'firefox',
       use: { 
         ...devices['Desktop Firefox'],
-        // storageState and dependencies here later if we want to run Firefox tests but for now just focus on Chromium
       },
     },
-    // ... webkit etc ...
   ],
-
-  /* Run your local dev server before starting the tests */
-  // webServer: {
-  //   command: 'npm run start',
-  //   url: 'http://localhost:3000',
-  //   reuseExistingServer: !process.env.CI,
-  // },
 });

@@ -28,6 +28,27 @@ func HaveLabel(key string, value string) matcher.GomegaMatcher {
 	})
 }
 
+func HaveAnnotation(key string, value string) matcher.GomegaMatcher {
+	return fetchNamespace(func(ns *corev1.Namespace) bool {
+		GinkgoWriter.Println("Namespace - HaveAnnotation: Key:", key, "Expected:", value, "/ Actual:", ns.Annotations[key])
+		if ns.Annotations == nil {
+			return false
+		}
+		return ns.Annotations[key] == value
+	})
+}
+
+func NotHaveAnnotation(key string) matcher.GomegaMatcher {
+	return fetchNamespace(func(ns *corev1.Namespace) bool {
+		GinkgoWriter.Println("Namespace - NotHaveAnnotation: Key:", key, "/ Present:", ns.Annotations[key])
+		if ns.Annotations == nil {
+			return true
+		}
+		_, exists := ns.Annotations[key]
+		return !exists
+	})
+}
+
 // Update will keep trying to update object until it succeeds, or times out.
 func Update(obj *corev1.Namespace, modify func(*corev1.Namespace)) {
 	k8sClient, _ := utils.GetE2ETestKubeClient()
