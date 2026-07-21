@@ -45,7 +45,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(nsNamespaced)
 		})
 
-		It("validates monitoring setup, alert rule creation, and teardown", Label("notOnXKS"), func() {
+		It("validates monitoring setup, alert rule creation, and teardown", Label("openshfit"), func() {
 			const (
 				// picking image that exists to avoid ImagePullBackOff but should fail to run as an ApplicationSet controller
 				invalidImage        = "quay.io/libpod/alpine:latest"

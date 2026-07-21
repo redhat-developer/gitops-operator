@@ -33,6 +33,7 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
         with:
           cluster_name: gitops-test
+          config: test/kind-config.yaml
 
       # TODO: check if porting is required for non-OCP clusters
       - name: Disable webhook and conversion for non-OCP cluster
@@ -61,7 +62,6 @@ jobs:
       - name: Deploy operator
         run: |
           set -o pipefail
-          echo "manifests: $(KUSTOMIZE) build config/default"
           make deploy IMG=${{ env.IMG }} 2>&1 | tee "${{ env.LOG_DIR }}/deploy.log"
 
       - name: Verify Controller Manager deployment is available

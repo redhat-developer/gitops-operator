@@ -18,7 +18,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that DISABLE_DEFAULT_ARGOCD_CONSOLELINK disables the ConsoleLink, and it tolerates improper values and can be re-enabled", Label("notOnXKS"), func() {
+		It("verifies that DISABLE_DEFAULT_ARGOCD_CONSOLELINK disables the ConsoleLink, and it tolerates improper values and can be re-enabled", Label("openshfit"), func() {
 
 			if fixture.EnvLocalRun() {
 				Skip("skipping as LOCAL_RUN is set, which implies we are running the operator locally. When running locally, there is no Subscription or Deployment upon which we can set the DISABLE_DEFAULT_ARGOCD_CONSOLELINK env var")

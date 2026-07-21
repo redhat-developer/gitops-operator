@@ -65,7 +65,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", Label("notOnXKS"), func() {
+		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", Label("openshfit"), func() {
 
 			By("creating a new namespace that is managed by openshift-gitops Argo CD instance")
 			nsTest_1_10_custom, nsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")

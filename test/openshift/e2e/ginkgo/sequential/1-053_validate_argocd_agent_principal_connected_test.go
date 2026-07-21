@@ -531,7 +531,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 4. Redis proxy can be accessed, and it contains data from child resources (e.g. pod), for both managed, and autonomous.
 		// 5. Resource proxy can be accessed, and it contains data from agent resources.
 		// This validates the core connectivity and basic workflow of agent-principal architecture, including RBAC, connection, and application propagation.
-		It("Should deploy ArgoCD principal and agent instances in both modes and verify they are working as expected", Label("notOnXKS"), func() {
+		It("Should deploy ArgoCD principal and agent instances in both modes and verify they are working as expected", Label("openshfit"), func() {
 
 			By("Deploy principal and verify it starts successfully")
 			deployPrincipal(ctx, k8sClient, registerCleanup, false)

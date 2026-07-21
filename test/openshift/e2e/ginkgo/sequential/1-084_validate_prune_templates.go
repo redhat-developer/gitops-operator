@@ -63,7 +63,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("validates that resources with duplicate GVKs can be pruned successfully with local sync", Label("notOnXKS"), func() {
+		It("validates that resources with duplicate GVKs can be pruned successfully with local sync", Label("openshfit"), func() {
 			By("creating a temp dir for git repo")
 			workDir, err := os.MkdirTemp("", "gitops-prune-test")
 			Expect(err).ToNot(HaveOccurred())

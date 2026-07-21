@@ -17,7 +17,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verifies ConsoleLink exists and has expected content", Label("notOnXKS"), func() {
+		It("verifies ConsoleLink exists and has expected content", Label("openshfit"), func() {
 
 			consoleLink := &consolev1.ConsoleLink{ObjectMeta: metav1.ObjectMeta{
 				Name: "argocd",

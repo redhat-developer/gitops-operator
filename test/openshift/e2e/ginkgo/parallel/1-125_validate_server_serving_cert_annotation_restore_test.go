@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("restores service.beta.openshift.io/serving-cert-secret-name when Route TLS returns from passthrough to default reencrypt", Label("notOnXKS"), func() {
+		It("restores service.beta.openshift.io/serving-cert-secret-name when Route TLS returns from passthrough to default reencrypt", Label("openshfit"), func() {
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
 
@@ -124,7 +124,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", Label("notOnXKS"), func() {
+		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", Label("openshfit"), func() {
 			certPem, keyPem, err := certFixture.GenerateCert()
 			Expect(err).NotTo(HaveOccurred())
 

@@ -35,7 +35,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("verifies openshift-gitops app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", Label("notOnXKS"), func() {
+		It("verifies openshift-gitops app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", Label("openshfit"), func() {
 
 			By("verifying openshift-gitops-application-controller StatefulSet has the expected value for HOME")
 			ss := &appsv1.StatefulSet{

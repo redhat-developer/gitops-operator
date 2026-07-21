@@ -41,7 +41,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates Redis HA and Non-HA", Label("notOnXKS"), func() {
+		It("validates Redis HA and Non-HA", Label("openshfit"), func() {
 
 			// This test enables HA, so it needs to be running on a cluster with at least 3 nodes
 			node.ExpectHasAtLeastXNodes(3)

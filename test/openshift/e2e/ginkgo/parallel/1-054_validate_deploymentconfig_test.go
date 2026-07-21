@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies a DeploymentConfig can be deployed by Argo CD", Label("notOnXKS"), func() {
+		It("verifies a DeploymentConfig can be deployed by Argo CD", Label("openshfit"), func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

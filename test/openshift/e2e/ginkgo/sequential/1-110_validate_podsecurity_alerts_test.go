@@ -28,7 +28,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift sets audit to restricted", Label("notOnXKS"), func() {
+		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift sets audit to restricted", Label("openshfit"), func() {
 			gitopsNS := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "openshift-gitops",

@@ -19,7 +19,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates backend service permissions", Label("notOnXKS"), func() {
+		It("validates backend service permissions", Label("openshfit"), func() {
 
 			By("checking the openshift-gitops namespace installed by default")
 			Eventually(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops"}}).Should(k8sFixture.ExistByName())

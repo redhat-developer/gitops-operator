@@ -30,7 +30,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", Label("notOnXKS"), func() {
+		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", Label("openshfit"), func() {
 
 			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
