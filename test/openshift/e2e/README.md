@@ -94,6 +94,56 @@ SKIP_HA_TESTS=true LOCAL_RUN=true  make e2e-tests-sequential-ginkgo
 
 
 
+## Test Labels
+
+Ginkgo [labels](https://onsi.github.io/ginkgo/#spec-labels) are used to categorize tests that are only supported on specific platforms or configurations. Labels allow the CI system to filter tests using `--label-filter` at runtime.
+
+**Important**: Labels should only be applied to tests that are restricted to a specific platform or configuration. Do NOT add labels to generic tests that can run on any Kubernetes cluster (OpenShift, KinD, EKS, etc.). If a test works everywhere, it should remain unlabelled.
+
+### Available labels
+
+| Label | Meaning | When to use |
+|-------|---------|-------------|
+| `openshfit` | Test requires OpenShift-specific features (Routes, ConsoleLinks, OLM Subscriptions, SCCs, etc.) and cannot run on vanilla Kubernetes (KinD, EKS, GKE, AKS). | Add when the test depends on OpenShift APIs or resources not available on non-OCP clusters. |
+| `HA` | Test requires a cluster with at least 3 worker nodes for HA (High Availability) validation. | Add when the test creates HA Redis StatefulSets or validates pod anti-affinity across nodes. |
+| `conversionWebhook` | Test requires the ArgoCD v1alpha1 ↔ v1beta1 conversion webhook to be running. | Add when the test exercises CRD conversion between API versions. |
+
+### How labels are used in CI
+
+- **OpenShift CI**: Runs all tests (no label filter), so all labelled and unlabelled tests execute.
+- **xKS/KinD CI** (`make e2e-xks-tests-sequential-ginkgo` / `make e2e-xks-tests-parallel-ginkgo`): Uses `--label-filter="!openshfit"` to exclude OpenShift-only tests. The `XKS_LABEL_FILTER` env var can further customize filtering (e.g., `XKS_LABEL_FILTER="!openshfit && !HA"`).
+
+### How to apply a label
+
+Add the `Label(...)` decorator to `It`, `Context`, or `Describe` nodes:
+
+```go
+// Single label — test requires OpenShift
+It("verifies ConsoleLink is created for ArgoCD route", Label("openshfit"), func() {
+    // ...
+})
+
+// Multiple labels — test requires OpenShift AND conversion webhook
+It("verifies v1beta1 to v1alpha1 conversion", Label("conversionWebhook", "openshfit"), func() {
+    // ...
+})
+
+// Label on Context — all specs inside inherit the label
+Context("1-120_repo_server_system_ca_trust", Label("openshfit"), func() {
+    It("ensures that missing Secret aborts startup", func() {
+        // ...
+    })
+})
+```
+
+### Guidelines
+
+- If your test uses OpenShift-specific resources (Routes, ConsoleLinks, SCCs, Subscriptions, CSVs, monitoring via prometheus-operator CRDs that are only present on OCP, etc.), add `Label("openshfit")`.
+- If your test requires 3+ nodes for HA validation, add `Label("HA")`.
+- If your test works on any conformant Kubernetes cluster, do NOT add any label.
+- When in doubt, leave the test unlabelled — it will run everywhere, which provides broader coverage.
+
+
 ## Test Code
 
 gitops-operator E2E tests are defined within `test/openshift/e2e/ginkgo`.

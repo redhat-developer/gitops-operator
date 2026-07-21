@@ -47,7 +47,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		}
 
-		It("verifies Argo CD metrics can be disabled and re-enabled", Label("notOnXKS"), func() {
+		It("verifies Argo CD metrics can be disabled and re-enabled", Label("openshfit"), func() {
 
 			By("verifying Argo CD metrics are enabled by default in openshift-gitops")
 

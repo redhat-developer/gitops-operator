@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies v1beta1 ArgoCD CR containing Dex SSO values can be converted to v1alpha1", Label("conversionWebhook", "notOnXKS"), func() {
+		It("verifies v1beta1 ArgoCD CR containing Dex SSO values can be converted to v1alpha1", Label("openshfit"), func() {
 
 			if fixture.EnvLocalRun() {
 				Skip("Conversion via webhook requires the operator to be running on the cluster, which is not the case for a local run")

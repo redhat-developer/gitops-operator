@@ -24,7 +24,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("ensuring that default openshift-gitops instance has expected default Argo CD server route, and that it is possible to modify the values on that default instance", Label("notOnXKS"), func() {
+		It("ensuring that default openshift-gitops instance has expected default Argo CD server route, and that it is possible to modify the values on that default instance", Label("openshfit"), func() {
 
 			By("verifying route of openshift-gitops Argo CD instance has expected values")
 			openshiftArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

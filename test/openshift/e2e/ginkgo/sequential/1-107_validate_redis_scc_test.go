@@ -32,7 +32,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that when Argo CD has HA enabled that the redis pods use restricted-v2 security policy", Label("notOnXKS"), func() {
+		It("verifies that when Argo CD has HA enabled that the redis pods use restricted-v2 security policy", Label("openshfit"), func() {
 
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)

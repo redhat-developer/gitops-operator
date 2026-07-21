@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("ensure that openshift-gitops Argo CD has correct default settings, and those settings can be changed which will affect the server Route", Label("notOnXKS"), func() {
+		It("ensure that openshift-gitops Argo CD has correct default settings, and those settings can be changed which will affect the server Route", Label("openshfit"), func() {
 
 			By("verifying Argo CD in openshift-gitops exists and has server route enabled")
 

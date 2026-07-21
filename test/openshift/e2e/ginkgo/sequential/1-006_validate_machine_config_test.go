@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("notOnXKS"), func() {
+		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("openshfit"), func() {
 
 			By("setting the repo server replicas to 2 on openshift-gitops Argo CD")
 			var err error
