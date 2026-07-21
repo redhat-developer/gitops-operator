@@ -604,11 +604,11 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 		return result, err
 	}
 
-	if result, err := r.reconcileDeployment(instance, request, newPluginConfigMap); err != nil {
+	if result, err := r.reconcileConfigMap(instance, request, newPluginConfigMap); err != nil {
 		return result, err
 	}
 
-	if result, err := r.reconcileConfigMap(instance, request, newPluginConfigMap); err != nil {
+	if result, err := r.reconcileDeployment(instance, request, newPluginConfigMap); err != nil {
 		return result, err
 	}
 
