@@ -109,6 +109,9 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
+	// Clean up old cluster-scoped role from 1-034
+	_ = k8sClient.Delete(ctx, &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "custom-argocd-role"}})
+
 	// don't wait for openshift-gitops ArgoCD to exist, if it is on xKS cluster
 	// wait for openshift-gitops ArgoCD to exist, if it doesn't already
 	if RunningOnOpenShift() {
@@ -170,9 +173,6 @@ func EnsureSequentialCleanSlateWithError() error {
 		}); err != nil {
 			return err
 		}
-
-		// Clean up old cluster-scoped role from 1-034
-		_ = k8sClient.Delete(ctx, &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "custom-argocd-role"}})
 
 		// Delete all existing RolloutManagers in openshift-gitops Namespace
 		var rolloutManagerList rolloutmanagerv1alpha1.RolloutManagerList
