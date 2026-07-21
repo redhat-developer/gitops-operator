@@ -78,6 +78,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-agent-principal-1-051")
+
 			ctx = context.Background()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-agent-principal-1-051")
 
