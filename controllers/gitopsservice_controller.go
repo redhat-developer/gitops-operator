@@ -150,6 +150,10 @@ type ReconcileGitopsService struct {
 	DisableDefaultInstall bool
 	//CentralTLSProfile contains MinVersion and CipherSuites
 	CentralTLSProfile configv1.TLSProfileSpec
+
+	// PluginNamespace is the namespace where console plugin resources (Deployment, Service, ConfigMap) are deployed.
+	// This is typically the operator's own namespace (e.g. "openshift-gitops-operator").
+	PluginNamespace string
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
@@ -299,6 +303,25 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
+	if r.PluginNamespace != namespace {
+		pluginNS := &corev1.Namespace{}
+		err = r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, pluginNS)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating plugin namespace", "Name", r.PluginNamespace)
+				pluginNS = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: r.PluginNamespace},
+				}
+				err = r.Client.Create(ctx, pluginNS)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
 	if dynamicPluginStartOCPVersion == "" {
 		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
@@ -330,9 +353,16 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
 		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
 		return reconcile.Result{}, nil
-	} else {
-		return r.reconcilePlugin(instance, request)
 	}
+
+	result, err := r.reconcilePlugin(instance, request)
+	if err != nil {
+		return result, err
+	}
+
+	r.cleanupOldPluginResources(ctx)
+
+	return result, nil
 }
 
 // Detect the unsupported KAM components across Deployments , Routes , Services and deletes them to perform cleanup as KAM is no longer supported since 1.15
