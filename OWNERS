@@ -5,12 +5,12 @@ approvers:
 - chetan-rns
 - jannfis
 - jgwest
-- jopit
 - anandf
 - varshab1210
 - svghadi
 - adamsaleh
 - trdoyle81
+- olivergondza
 
 reviewers:
 - wtam2018
@@ -25,3 +25,7 @@ reviewers:
 - adamsaleh
 - trdoyle81
 - Naveena-058
+- olivergondza
+
+emeritus_approvers:
+- jopit
