@@ -43,8 +43,8 @@ func addDynamicPluginEnv(csv *olmv1alpha1.ClusterServiceVersion, ocVersion strin
 	})
 }
 
-func verifyResourceConstraints(k8sClient client.Client, deplName string, expectedReq, expectedLim corev1.ResourceList) {
-	depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"}}
+func verifyResourceConstraints(k8sClient client.Client, deplName, namespace string, expectedReq, expectedLim corev1.ResourceList) {
+	depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: namespace}}
 	Eventually(func() corev1.ResourceRequirements {
 		_ = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(depl), depl)
 		containers := depl.Spec.Template.Spec.Containers
@@ -86,7 +86,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			addDynamicPluginEnv(csv, ocVersion)
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
@@ -150,8 +150,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				corev1.ResourceCPU:    resource.MustParse("300m"),
 				corev1.ResourceMemory: resource.MustParse("400Mi"),
 			}
-			verifyResourceConstraints(k8sClient, "gitops-plugin", expectedReq, expectedLim)
-			verifyResourceConstraints(k8sClient, "cluster", expectedReq, expectedLim)
+			verifyResourceConstraints(k8sClient, "gitops-plugin", "openshift-gitops-operator", expectedReq, expectedLim)
+			verifyResourceConstraints(k8sClient, "cluster", "openshift-gitops", expectedReq, expectedLim)
 		})
 
 		It("validates that GitOpsService can update resource constraints", func() {
@@ -167,7 +167,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			addDynamicPluginEnv(csv, ocVersion)
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
@@ -221,8 +221,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				corev1.ResourceCPU:    resource.MustParse("345m"),
 				corev1.ResourceMemory: resource.MustParse("456Mi"),
 			}
-			verifyResourceConstraints(k8sClient, "gitops-plugin", expectedReq, expectedLim)
-			verifyResourceConstraints(k8sClient, "cluster", expectedReq, expectedLim)
+			verifyResourceConstraints(k8sClient, "gitops-plugin", "openshift-gitops-operator", expectedReq, expectedLim)
+			verifyResourceConstraints(k8sClient, "cluster", "openshift-gitops", expectedReq, expectedLim)
 		})
 
 		It("validates gitops plugin and backend can have different resource constraints", func() {
@@ -238,7 +238,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			addDynamicPluginEnv(csv, ocVersion)
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
@@ -283,7 +283,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				})
 			}()
 			k8sClient, _ := utils.GetE2ETestKubeClient()
-			verifyResourceConstraints(k8sClient, "gitops-plugin",
+			verifyResourceConstraints(k8sClient, "gitops-plugin", "openshift-gitops-operator",
 				corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("223m"),
 					corev1.ResourceMemory: resource.MustParse("334Mi"),
@@ -293,7 +293,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					corev1.ResourceMemory: resource.MustParse("556Mi"),
 				},
 			)
-			verifyResourceConstraints(k8sClient, "cluster",
+			verifyResourceConstraints(k8sClient, "cluster", "openshift-gitops",
 				corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("123m"),
 					corev1.ResourceMemory: resource.MustParse("234Mi"),
