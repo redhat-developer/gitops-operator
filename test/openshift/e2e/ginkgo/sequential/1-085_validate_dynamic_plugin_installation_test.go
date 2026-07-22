@@ -97,21 +97,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying the plugin's Deployment, ConfigMap, Secret, Service, and other resources have expected values")
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
-			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops"}}
+			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops-operator"}}
 			Eventually(configMap).Should(k8sFixture.ExistByName())
 
 			Expect(configMap).To(
 				And(k8sFixture.HaveLabelWithValue("app", "gitops-plugin"),
 					k8sFixture.HaveLabelWithValue("app.kubernetes.io/part-of", "gitops-plugin")))
 
-			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "console-serving-cert", Namespace: "openshift-gitops"}}
+			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "console-serving-cert", Namespace: "openshift-gitops-operator"}}
 			Eventually(secret).Should(k8sFixture.ExistByName())
 
-			service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(service).Should(k8sFixture.ExistByName())
 
 			match := false
