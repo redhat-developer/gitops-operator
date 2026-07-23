@@ -22,7 +22,7 @@ import (
 )
 
 func TestPlugin(t *testing.T) {
-	testConsolePlugin := consolePlugin()
+	testConsolePlugin := consolePlugin(serviceNamespace)
 
 	testDisplayName := displayName
 	assert.Equal(t, testConsolePlugin.Spec.DisplayName, testDisplayName)

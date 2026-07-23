@@ -1066,8 +1066,9 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {
 	return &ReconcileGitopsService{
-		Client: client,
-		Scheme: scheme,
+		Client:          client,
+		Scheme:          scheme,
+		PluginNamespace: serviceNamespace,
 	}
 }
 
