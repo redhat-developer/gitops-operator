@@ -27,7 +27,6 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -812,10 +811,10 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 			Value: insecureEnvVarValue,
 		},
 	}
-	if argoutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
+	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
 		env = append(env, corev1.EnvVar{
 			Name:  "TLS_MIN_VERSION",
-			Value: argoutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
+			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
 		})
 	}
 
