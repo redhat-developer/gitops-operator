@@ -73,8 +73,8 @@ if [ -z "$GITOPS_VERSION" ]; then
     GITOPS_VERSION="Unknown"
 fi
 
-#get Argo CD version 
-ARGO_API_VERSION=$(curl -s -k "$ARGOCD_URL/api/version" | grep -o '"Version":"[^"]*"' | cut -d'"' -f4)
+#get Argo CD version (with CodeRabbit timeout fix)
+ARGO_API_VERSION=$(curl -s -k --max-time 10 "$ARGOCD_URL/api/version" | grep -o '"Version":"[^"]*"' | cut -d'"' -f4)
 if [ -z "$ARGO_API_VERSION" ]; then
     ARGO_API_VERSION="Unknown"
 fi
@@ -86,11 +86,14 @@ echo " "
 # 2. Execute based on the environment
 if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
     echo "Running headlessly in automation ($ENV)..."
-    npm ci
+    
+    #coderabbit hard-fails
+    npm ci || { echo "Error: npm ci failed."; exit 1; }
+    
     if [ "$(uname -s)" = "Darwin" ]; then
-        npx playwright install chromium
+        npx playwright install chromium || { echo "Error: Playwright browser install failed."; exit 1; }
     else
-        npx playwright install chromium --with-deps
+        npx playwright install chromium --with-deps || { echo "Error: Playwright browser install failed."; exit 1; }
     fi
     
     #headed from args
