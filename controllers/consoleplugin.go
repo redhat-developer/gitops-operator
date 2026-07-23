@@ -259,6 +259,7 @@ func TLSVersionToPlugin(tlsVersion string) string {
 
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
+	minVersionTLS := string(r.CentralTLSProfile.MinTLSVersion)
 	httpdConfigBase := fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
@@ -268,7 +269,7 @@ ServerRoot "/etc/httpd"
 	SSLCertificateFile "/etc/httpd-ssl/certs/tls.crt"
 	SSLCertificateKeyFile "/etc/httpd-ssl/private/tls.key"`, servicePort, servicePort)
 	// Add SSLProtocol only if explicitly set
-	switch r.TLSMinVersion {
+	switch minVersionTLS {
 	case "VersionTLS10":
 		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1 +TLSv1.1 +TLSv1.2 +TLSv1.3"
 	case "VersionTLS11":
@@ -278,8 +279,8 @@ ServerRoot "/etc/httpd"
 	case "VersionTLS13":
 		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1.3"
 	}
-	if TLSVersionToPlugin(r.TLSMinVersion) != "TLSv1.3" && strings.Join(r.TLSCiphers, ":") != "" {
-		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.TLSCiphers, ":"))
+	if TLSVersionToPlugin(minVersionTLS) != "TLSv1.3" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
+		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
 	}
 	// Close VirtualHost
 	httpdConfigBase += "\n</VirtualHost>"

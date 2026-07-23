@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
@@ -1913,50 +1914,59 @@ func TestTLSVersionToPlugin(t *testing.T) {
 
 func TestBuildHttpdConfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		minVersion      string
-		ciphers         []string
-		wantProtocol    bool
-		wantCipherSuite bool
-		protocol        string
-		cipherSuite     string
+		name              string
+		CentralTLSProfile configv1.TLSProfileSpec
+		wantProtocol      bool
+		wantCipherSuite   bool
+		protocol          string
+		cipherSuite       string
 	}{
 		{
-			name:            "no TLS version no ciphers",
-			minVersion:      "",
-			ciphers:         nil,
+			name: "no TLS version no ciphers",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "",
+				Ciphers:       nil,
+			},
 			wantProtocol:    false,
 			wantCipherSuite: false,
 		},
 		{
-			name:            "TLS 1.2 with cipher suites",
-			minVersion:      "VersionTLS12",
-			ciphers:         []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
+			name: "TLS 1.2 with cipher suites",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS12",
+				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
+			},
 			wantProtocol:    true,
 			wantCipherSuite: true,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 		},
 		{
-			name:            "TLS 1.3 ignores cipher suites",
-			minVersion:      "VersionTLS13",
-			ciphers:         []string{"TLS_AES_128_GCM_SHA256"},
+			name: "TLS 1.3 ignores cipher suites",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS13",
+				Ciphers:       []string{"TLS_AES_128_GCM_SHA256"},
+			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
 			protocol:        "-all +TLSv1.3",
 		},
 		{
-			name:            "TLS 1.2 without cipher suites",
-			minVersion:      "VersionTLS12",
-			ciphers:         nil,
+			name: "TLS 1.2 without cipher suites",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS12",
+				Ciphers:       nil,
+			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 		{
-			name:            "invalid TLS version with cipher suites",
-			minVersion:      "invalid",
-			ciphers:         []string{"ECDHE-RSA-AES256-GCM-SHA384"},
+			name: "invalid TLS version with cipher suites",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "invalid",
+				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384"},
+			},
 			wantProtocol:    false,
 			wantCipherSuite: true,
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384",
@@ -1966,8 +1976,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &ReconcileGitopsService{
-				TLSMinVersion: tt.minVersion,
-				TLSCiphers:    tt.ciphers,
+				CentralTLSProfile: configv1.TLSProfileSpec{},
 			}
 
 			cfg := r.buildHttpdConfig()

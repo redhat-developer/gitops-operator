@@ -54,6 +54,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	configv1 "github.com/openshift/api/config/v1"
 )
 
 var logs = logf.Log.WithName("controller_gitopsservice")
@@ -146,10 +148,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
-	// TLSMinVersion is the minimum TLS version to use for the GitOps plugin.
-	TLSMinVersion string
-	// TLSCiphers is the list of supported TLS ciphers for the GitOps plugin.
-	TLSCiphers []string
+	//CentralTLSProfile contains MinVersion and CipherSuites
+	CentralTLSProfile configv1.TLSProfileSpec
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
