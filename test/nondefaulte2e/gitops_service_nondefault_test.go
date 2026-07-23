@@ -45,17 +45,25 @@ var _ = Describe("GitOpsServiceNoDefaultInstall", func() {
 			},
 		}
 
-		It("Backend resources are created in 'openshift-gitops' namespace", func() {
-			resourceList := []helper.ResourceList{
-				{
-					Resource: &appsv1.Deployment{},
-					ExpectedResources: []string{
-						"cluster",
-					},
-				},
-			}
-			err := helper.WaitForResourcesByName(k8sClient, resourceList, existingArgoInstance.Namespace, time.Second*180)
-			Expect(err).NotTo(HaveOccurred())
+		It("openshift-gitops namespace should not be created when DISABLE_DEFAULT_ARGOCD_INSTANCE is true", func() {
+			// When DISABLE_DEFAULT_ARGOCD_INSTANCE is true, the namespace should not exist
+			Consistently(func() bool {
+				ns := &corev1.Namespace{}
+				err := k8sClient.Get(context.Background(),
+					types.NamespacedName{Name: existingArgoInstance.Namespace},
+					ns)
+				// Namespace should not exist
+				return kubeerrors.IsNotFound(err)
+			}, time.Second*30, interval).Should(BeTrue(), "openshift-gitops namespace should not exist when DISABLE_DEFAULT_ARGOCD_INSTANCE is true")
+		})
+
+		It("Backend deployment should not be created when DISABLE_DEFAULT_ARGOCD_INSTANCE is true", func() {
+			// Backend deployment should not exist (namespace doesn't exist)
+			deployment := &appsv1.Deployment{}
+			err := k8sClient.Get(context.Background(),
+				types.NamespacedName{Name: "cluster", Namespace: existingArgoInstance.Namespace},
+				deployment)
+			Expect(kubeerrors.IsNotFound(err)).To(BeTrue(), "Backend deployment 'cluster' should not exist when DISABLE_DEFAULT_ARGOCD_INSTANCE is true")
 		})
 
 		It("Default Argo CD instance should not be found", func() {

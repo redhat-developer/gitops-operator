@@ -252,86 +252,114 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create namespace if it doesn't already exist
-	namespaceRef := newRestrictedNamespace(namespace)
-	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Namespace", "Name", namespace)
-			ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
-			err = r.Client.Create(ctx, namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	} else {
-		if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
-			err = r.Client.Update(context.TODO(), namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
 	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: namespace,
 	}
 
-	r.cleanKAMResources(ctx, reqLogger)
-
 	if !r.DisableDefaultInstall {
-		// Create/reconcile the default Argo CD instance, unless default install is disabled
+		// Create namespace if it doesn't already exist (only when default install is enabled)
+		namespaceRef := newRestrictedNamespace(namespace)
+		err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Namespace", "Name", namespace)
+				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+				err = r.Client.Create(ctx, namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		} else {
+			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
+				err = r.Client.Update(context.TODO(), namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		r.cleanKAMResources(ctx, reqLogger)
+
+		// Create/reconcile the default Argo CD instance
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
 			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
 		}
+
+		// Reconcile backend service
+		if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+			return result, err
+		}
+
+		// Reconcile console plugin (only when default install is enabled)
+		dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
+		if dynamicPluginStartOCPVersion == "" {
+			dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
+		}
+
+		OCPVersion, err := util.GetClusterVersion(r.Client)
+		if err != nil {
+			log.Printf("Unable to get cluster version: %v", err)
+			return reconcile.Result{}, nil
+		}
+
+		v1, err := version.NewVersion(OCPVersion)
+		if err != nil {
+			log.Printf("Unable to retrieve current OCP version: %v", err)
+			return reconcile.Result{}, nil
+		}
+		realVersion := v1.Segments()
+		if len(realVersion) < 2 {
+			log.Printf("OCP version has fewer than 2 segments, skipping plugin reconciliation")
+			return reconcile.Result{}, nil
+		}
+		realMajorVersion := realVersion[0]
+		realMinorVersion := realVersion[1]
+
+		v2, err := version.NewVersion(dynamicPluginStartOCPVersion)
+		if err != nil {
+			return reconcile.Result{}, nil
+		}
+		startVersion := v2.Segments()
+		if len(startVersion) < 2 {
+			log.Printf("DYNAMIC_PLUGIN_START_OCP_VERSION has fewer than 2 segments, skipping plugin reconciliation")
+			return reconcile.Result{}, nil
+		}
+		startMajorVersion := startVersion[0]
+		startMinorVersion := startVersion[1]
+
+		if realMajorVersion >= startMajorVersion && (realMajorVersion > startMajorVersion || realMinorVersion >= startMinorVersion) {
+			// Reconcile plugin only if OCP version supports it
+			return r.reconcilePlugin(instance, request)
+		}
+		return reconcile.Result{}, nil
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
 		// deleting it if necessary
 		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
-	}
 
-	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
-		return result, err
-	}
-
-	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
-	if dynamicPluginStartOCPVersion == "" {
-		dynamicPluginStartOCPVersion = common.DefaultDynamicPluginStartOCPVersion
-	}
-
-	OCPVersion, err := util.GetClusterVersion(r.Client)
-	if err != nil {
-		log.Printf("Unable to get cluster version: %v", err)
+		// When default install is disabled, only reconcile backend if namespace exists and is not being deleted
+		namespaceRef := newRestrictedNamespace(namespace)
+		err := r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
+		if err == nil {
+			// Check if namespace is being deleted
+			if namespaceRef.DeletionTimestamp != nil {
+				// Namespace is being deleted, skip backend reconciliation
+				return reconcile.Result{}, nil
+			}
+			// Namespace exists and is not terminating, reconcile backend
+			if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+				return result, err
+			}
+		} else if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		// If namespace doesn't exist, skip backend reconciliation and plugin reconciliation
 		return reconcile.Result{}, nil
-	}
-
-	v1, err := version.NewVersion(OCPVersion)
-	if err != nil {
-		log.Printf("Unable to retrieve current OCP version: %v", err)
-		return reconcile.Result{}, nil
-	}
-	realVersion := v1.Segments()
-	realMajorVersion := realVersion[0]
-	realMinorVersion := realVersion[1]
-
-	v2, err := version.NewVersion(dynamicPluginStartOCPVersion)
-	if err != nil {
-		return reconcile.Result{}, nil
-	}
-	startVersion := v2.Segments()
-	startMajorVersion := startVersion[0]
-	startMinorVersion := startVersion[1]
-
-	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
-		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
-		return reconcile.Result{}, nil
-	} else {
-		return r.reconcilePlugin(instance, request)
 	}
 }
 
@@ -406,6 +434,13 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 	} else if !errors.IsNotFound(err) {
 		// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
 		return err
+	}
+
+	// Also delete the namespace when DISABLE_DEFAULT_ARGOCD_INSTANCE is true
+	if err := r.Client.Delete(context.TODO(), argocdNS); err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete openshift-gitops namespace: %w", err)
+		}
 	}
 
 	return nil
