@@ -27,6 +27,7 @@ import (
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdcontroller "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -54,6 +55,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	configv1 "github.com/openshift/api/config/v1"
 )
 
 var logs = logf.Log.WithName("controller_gitopsservice")
@@ -146,10 +149,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
-	// TLSMinVersion is the minimum TLS version to use for the GitOps plugin.
-	TLSMinVersion string
-	// TLSCiphers is the list of supported TLS ciphers for the GitOps plugin.
-	TLSCiphers []string
+	//CentralTLSProfile contains MinVersion and CipherSuites
+	CentralTLSProfile configv1.TLSProfileSpec
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
@@ -662,7 +663,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.TLSMinVersion, r.TLSCiphers)
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -800,20 +801,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func TLSVersionToBackend(tlsVersion string) string {
-	versionMap := map[string]string{
-		"VersionTLS12": "1.2",
-		"VersionTLS13": "1.3",
-		"VersionTLS11": "1.1",
-		"VersionTLS10": "1",
-	}
-	if v, ok := versionMap[tlsVersion]; ok {
-		return v
-	}
-	return "" // default fallback
-}
-
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, TLSMinVersion string, TLSCiphers []string) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -824,17 +812,17 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 			Value: insecureEnvVarValue,
 		},
 	}
-	if TLSVersionToBackend(TLSMinVersion) != "" {
+	if argoutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
 		env = append(env, corev1.EnvVar{
 			Name:  "TLS_MIN_VERSION",
-			Value: TLSVersionToBackend(TLSMinVersion),
+			Value: argoutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
 		})
 	}
 
-	if len(TLSCiphers) > 0 {
+	if len(CentralTLSProfile.Ciphers) > 0 {
 		env = append(env, corev1.EnvVar{
 			Name:  "TLS_CIPHER_SUITES",
-			Value: strings.Join(TLSCiphers, ":"),
+			Value: strings.Join(CentralTLSProfile.Ciphers, ":"),
 		})
 	}
 	podSpec := corev1.PodSpec{
