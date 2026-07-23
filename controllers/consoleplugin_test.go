@@ -1976,7 +1976,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &ReconcileGitopsService{
-				CentralTLSProfile: configv1.TLSProfileSpec{},
+				CentralTLSProfile: tt.CentralTLSProfile,
 			}
 
 			cfg := r.buildHttpdConfig()
