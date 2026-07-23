@@ -312,7 +312,7 @@ func main() {
 			Client:                client,
 			Scheme:                mgr.GetScheme(),
 			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
-			CentralTLSProfile:     configv1.TLSProfileSpec{},
+			CentralTLSProfile:     profile,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 			os.Exit(1)
