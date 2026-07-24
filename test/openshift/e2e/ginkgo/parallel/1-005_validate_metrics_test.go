@@ -19,7 +19,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verifies that default ServiceMonitors exist in openshift-gitops and PrometheusRule ArgoCDSyncAlert exists", func() {
+		It("verifies that default ServiceMonitors exist in openshift-gitops and PrometheusRule ArgoCDSyncAlert exists", Label("openshfit"), func() {
 
 			By("verifying openshift-gitops ServiceMonitor exists and has expected values")
 			openshiftGitOpsSM := &monitoringv1.ServiceMonitor{

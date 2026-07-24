@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
@@ -53,14 +54,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		// getPodName waits for there to exist a running pod with name 'name' in openshift-gitops
-		getPodName := func(name string) (string, error) {
+		getPodName := func(namespace, name string) (string, error) {
 
 			var podName string
 
 			if err := wait.PollUntilContextTimeout(context.Background(), time.Second*5, time.Minute*2, true, func(ctx context.Context) (done bool, err error) {
 
 				var podList corev1.PodList
-				if err := k8sClient.List(ctx, &podList, client.InNamespace("openshift-gitops")); err != nil {
+				if err := k8sClient.List(ctx, &podList, client.InNamespace(namespace)); err != nil {
 					GinkgoWriter.Println(err)
 					return false, nil
 				}
@@ -84,6 +85,24 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies that toolchain versions have the expected values", func() {
 
+			// create a new namespace
+			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-031-toolchain")
+			defer cleanupFunc()
+
+			//create a new argocd instance
+			argocdInstance := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops",
+					Namespace: ns.Name,
+				},
+				Spec: argov1beta1api.ArgoCDSpec{
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: "dex",
+					},
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), argocdInstance)).To(Succeed())
+
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
 			expected_kustomizeVersion := "v5.8.1"
 			expected_helmVersion := "v3.19.4"
@@ -105,25 +124,25 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("locating pods containing toolchain in openshift-gitops")
 
-			gitops_server_pod, err := getPodName("openshift-gitops-server")
+			gitops_server_pod, err := getPodName(ns.Name, "openshift-gitops-server")
 			Expect(err).ToNot(HaveOccurred())
-			dex_pod, err := getPodName("openshift-gitops-dex-server")
+			dex_pod, err := getPodName(ns.Name, "openshift-gitops-dex-server")
 			Expect(err).ToNot(HaveOccurred())
-			redis_pod, err := getPodName("openshift-gitops-redis")
+			redis_pod, err := getPodName(ns.Name, "openshift-gitops-redis")
 			Expect(err).ToNot(HaveOccurred())
 
-			serverRoute := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
+			serverRoute := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: ns.Name}}
 			Eventually(serverRoute).Should(k8sFixture.ExistByName())
 
 			By("extracting the kustomize version from container")
 
-			kustomizeVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+gitops_server_pod+" -- kustomize version")
+			kustomizeVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n"+ns.Name+" exec "+gitops_server_pod+" -- kustomize version")
 
 			Expect(err).NotTo(HaveOccurred())
 			kustomizeVersion = strings.TrimSpace(kustomizeVersion)
 
 			By("extracting the helm version from container")
-			helmVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+gitops_server_pod+" -- helm version")
+			helmVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n"+ns.Name+" exec "+gitops_server_pod+" -- helm version")
 			Expect(err).NotTo(HaveOccurred())
 
 			// output format:
@@ -136,14 +155,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// After: v3.15.4
 
 			By("extracting the argo cd server version from container")
-			argocdVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+gitops_server_pod+" -- argocd version --short --server "+serverRoute.Spec.Host+" --insecure | grep 'argocd-server'")
+			argocdVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n"+ns.Name+" exec "+gitops_server_pod+" -- argocd version --short --server "+serverRoute.Spec.Host+" --insecure | grep 'argocd-server'")
 			argocdVersion = strings.ReplaceAll(argocdVersion, "+unknown", "")
 			// output format:
 			// argocd-server: v2.13.1+af54ef8
 			Expect(err).NotTo(HaveOccurred())
 
 			By("extracting the dex version from container")
-			dexVersionOutput, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+dex_pod+" -- dex version")
+			dexVersionOutput, err := osFixture.ExecCommand("bash", "-c", "oc -n"+ns.Name+" exec "+dex_pod+" -- dex version")
 			Expect(err).ToNot(HaveOccurred())
 			// Output format:
 			// Defaulted container "dex" out of: dex, copyutil (init)
@@ -164,7 +183,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(dexVersion).ToNot(BeEmpty())
 
 			By("extracting the redis version from container")
-			redisVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n openshift-gitops exec "+redis_pod+" -- redis-server -v")
+			redisVersion, err := osFixture.ExecCommand("bash", "-c", "oc -n"+ns.Name+" exec "+redis_pod+" -- redis-server -v")
 			// output format: Redis server v=6.2.7 sha=00000000:0 malloc=jemalloc-5.1.0 bits=64 build=5d88ce217879027a
 			redisVersion = redisVersion[strings.Index(redisVersion, "v=")+2:]
 			// After: v=6.2.7 (...)

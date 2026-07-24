@@ -58,7 +58,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("verifying when HA is enabled that Argo CD starts successfully in HA mode, and that AutoTLS can be enabled", func() {
+		It("verifying when HA is enabled that Argo CD starts successfully in HA mode, and that AutoTLS can be enabled", Label("HA"), func() {
 
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)

@@ -62,7 +62,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verified the files collected for must gather are valid", func() {
+		It("verified the files collected for must gather are valid", Label("openshfit"), func() {
 			By("creating namespace-scoped Argo CD instance")
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()

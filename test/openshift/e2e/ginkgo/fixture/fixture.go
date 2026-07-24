@@ -60,14 +60,16 @@ func EnsureParallelCleanSlate() {
 
 	// Finally, wait for default openshift-gitops instance to be ready
 	// - Parallel tests should not write to any resources in 'openshift-gitops' namespace (sequential only), but they are allowed to read from them.
-	defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
-		ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
+	// default instance only runs on openshift clusters
+	if RunningOnOpenShift() {
+		defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
+		}
+		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(defaultOpenShiftGitOpsArgoCD), defaultOpenShiftGitOpsArgoCD)
+		Expect(err).ToNot(HaveOccurred())
+
+		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailableWithCustomSleepTime(3 * time.Second))
 	}
-	err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(defaultOpenShiftGitOpsArgoCD), defaultOpenShiftGitOpsArgoCD)
-	Expect(err).ToNot(HaveOccurred())
-
-	Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailableWithCustomSleepTime(3 * time.Second))
-
 	// Unlike sequential clean slate, parallel clean slate cannot assume that there are no other tests running. This limits our ability to clean up old test artifacts.
 }
 
@@ -107,101 +109,104 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
-	// wait for openshift-gitops ArgoCD to exist, if it doesn't already
-	defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
-		ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
-	}
-	Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8s.ExistByName())
-
-	// Ensure that default state of ArgoCD CR in openshift-gitops is restored
-	if err := updateWithoutConflict(defaultOpenShiftGitOpsArgoCD, func(obj client.Object) {
-		argocdObj, ok := obj.(*argov1beta1api.ArgoCD)
-		Expect(ok).To(BeTrue())
-
-		// HA should be disabled by default
-		argocdObj.Spec.HA.Enabled = false
-
-		// .spec.monitoring.disableMetrics should be nil by default
-		argocdObj.Spec.Monitoring.DisableMetrics = nil
-
-		// Ensure that api server route has not been disabled, nor exposed via different settings
-		argocdObj.Spec.Server.Route = argov1beta1api.ArgoCDRouteSpec{
-			Enabled: true,
-			TLS:     nil,
-			// TLS: &routev1.TLSConfig{
-			// 	Termination:                   routev1.TLSTerminationReencrypt,
-			// 	InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
-			// },
-		}
-
-		// Reset app controller processors to default
-		argocdObj.Spec.Controller.Processors = argov1beta1api.ArgoCDApplicationControllerProcessorsSpec{}
-
-		// Reset repo server replicas to default
-		argocdObj.Spec.Repo.Replicas = nil
-
-		// Reset source namespaces
-		argocdObj.Spec.SourceNamespaces = nil
-		argocdObj.Spec.ApplicationSet.SourceNamespaces = nil
-
-	}); err != nil {
-		return err
-	}
-
-	gitopsService := &gitopsoperatorv1alpha1.GitopsService{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
-	}
-	if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService); err != nil {
-		return err
-	}
-
-	// Ensure that run on infra is disabled: some tests will enable it
-	if err := updateWithoutConflict(gitopsService, func(obj client.Object) {
-		goObj, ok := obj.(*gitopsoperatorv1alpha1.GitopsService)
-		Expect(ok).To(BeTrue())
-
-		goObj.Spec.NodeSelector = nil
-		goObj.Spec.RunOnInfra = false
-		goObj.Spec.Tolerations = nil
-	}); err != nil {
-		return err
-	}
-
 	// Clean up old cluster-scoped role from 1-034
 	_ = k8sClient.Delete(ctx, &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "custom-argocd-role"}})
 
-	// Delete all existing RolloutManagers in openshift-gitops Namespace
-	var rolloutManagerList rolloutmanagerv1alpha1.RolloutManagerList
-	if err := k8sClient.List(ctx, &rolloutManagerList, client.InNamespace("openshift-gitops")); err != nil {
-		return err
-	}
-	for _, rm := range rolloutManagerList.Items {
-		if err := k8sClient.Delete(ctx, &rm); err != nil {
+	// don't wait for openshift-gitops ArgoCD to exist, if it is on xKS cluster
+	// wait for openshift-gitops ArgoCD to exist, if it doesn't already
+	if RunningOnOpenShift() {
+		defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
+		}
+		Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8s.ExistByName())
+
+		// Ensure that default state of ArgoCD CR in openshift-gitops is restored
+		if err := updateWithoutConflict(defaultOpenShiftGitOpsArgoCD, func(obj client.Object) {
+			argocdObj, ok := obj.(*argov1beta1api.ArgoCD)
+			Expect(ok).To(BeTrue())
+
+			// HA should be disabled by default
+			argocdObj.Spec.HA.Enabled = false
+
+			// .spec.monitoring.disableMetrics should be nil by default
+			argocdObj.Spec.Monitoring.DisableMetrics = nil
+
+			// Ensure that api server route has not been disabled, nor exposed via different settings
+			argocdObj.Spec.Server.Route = argov1beta1api.ArgoCDRouteSpec{
+				Enabled: true,
+				TLS:     nil,
+				// TLS: &routev1.TLSConfig{
+				// 	Termination:                   routev1.TLSTerminationReencrypt,
+				// 	InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+				// },
+			}
+
+			// Reset app controller processors to default
+			argocdObj.Spec.Controller.Processors = argov1beta1api.ArgoCDApplicationControllerProcessorsSpec{}
+
+			// Reset repo server replicas to default
+			argocdObj.Spec.Repo.Replicas = nil
+
+			// Reset source namespaces
+			argocdObj.Spec.SourceNamespaces = nil
+			argocdObj.Spec.ApplicationSet.SourceNamespaces = nil
+
+		}); err != nil {
 			return err
 		}
-	}
 
-	// Delete 'restricted-dropcaps' which is created by at least one test
-	scc := &securityv1.SecurityContextConstraints{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "restricted-dropcaps",
-		},
-	}
-	if err := k8sClient.Delete(ctx, scc); err != nil {
-		if !apierr.IsNotFound(err) {
+		gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		}
+		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService); err != nil {
 			return err
 		}
-		// Otherwise, expected error if it doesn't exist.
-	}
 
-	// Finally, wait for default openshift-gitops instance to be ready.
-	failure := InterceptGomegaFailure(func() {
-		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
-	})
-	// Output debug information on argo startup failure
-	if failure != nil {
-		OutputDebug(defaultOpenShiftGitOpsArgoCD.Namespace)
-		Fail(failure.Error())
+		// Ensure that run on infra is disabled: some tests will enable it
+		if err := updateWithoutConflict(gitopsService, func(obj client.Object) {
+			goObj, ok := obj.(*gitopsoperatorv1alpha1.GitopsService)
+			Expect(ok).To(BeTrue())
+
+			goObj.Spec.NodeSelector = nil
+			goObj.Spec.RunOnInfra = false
+			goObj.Spec.Tolerations = nil
+		}); err != nil {
+			return err
+		}
+
+		// Delete all existing RolloutManagers in openshift-gitops Namespace
+		var rolloutManagerList rolloutmanagerv1alpha1.RolloutManagerList
+		if err := k8sClient.List(ctx, &rolloutManagerList, client.InNamespace("openshift-gitops")); err != nil {
+			return err
+		}
+		for _, rm := range rolloutManagerList.Items {
+			if err := k8sClient.Delete(ctx, &rm); err != nil {
+				return err
+			}
+		}
+
+		// Delete 'restricted-dropcaps' which is created by at least one test
+		scc := &securityv1.SecurityContextConstraints{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "restricted-dropcaps",
+			},
+		}
+		if err := k8sClient.Delete(ctx, scc); err != nil {
+			if !apierr.IsNotFound(err) {
+				return err
+			}
+			// Otherwise, expected error if it doesn't exist.
+		}
+
+		// Finally, wait for default openshift-gitops instance to be ready.
+		failure := InterceptGomegaFailure(func() {
+			Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
+		})
+		// Output debug information on argo startup failure
+		if failure != nil {
+			OutputDebug(defaultOpenShiftGitOpsArgoCD.Namespace)
+			Fail(failure.Error())
+		}
 	}
 	return nil
 }
@@ -986,6 +991,22 @@ func RunningOnOpenShift() bool {
 		}
 	}
 	return openshiftAPIsFound > 5 // I picked 5 as an arbitrary number, could also just be 1
+}
+
+// IsOperatorRunningOnOLM returns true if the operator is running on OLM, false otherwise.
+func IsOperatorRunningOnOLM() bool {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	crdList := crdv1.CustomResourceDefinitionList{}
+	Expect(k8sClient.List(context.Background(), &crdList)).To(Succeed())
+
+	olmAPIsFound := 0
+	for _, crd := range crdList.Items {
+		if strings.Contains(crd.Spec.Group, "operators.coreos.com") {
+			olmAPIsFound++
+		}
+	}
+	return olmAPIsFound > 0
 }
 
 //nolint:unused

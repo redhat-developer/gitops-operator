@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensures that if one managed namespace is stuck in deleting state -- due to a finalizer -- it does not block other managed namespaces from being reconciled", func() {
+		It("ensures that if one managed namespace is stuck in deleting state -- due to a finalizer -- it does not block other managed namespaces from being reconciled", Label("openshfit"), func() {
 
 			By("creating an Argo CD instance that will manage other namespaces")
 			gitops_2242_ns_main, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("gitops-2242-ns-main")

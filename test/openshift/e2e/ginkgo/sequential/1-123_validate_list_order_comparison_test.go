@@ -117,7 +117,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(openshiftGitopsNamespace)
 		})
 
-		It("Should not trigger updates when only list order differs", func() {
+		It("Should not trigger updates when only list order differs", Label("openshfit"), func() {
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 			}
@@ -214,7 +214,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("Should trigger updates when actual changes are made", func() {
+		It("Should trigger updates when actual changes are made", Label("openshfit"), func() {
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 			}

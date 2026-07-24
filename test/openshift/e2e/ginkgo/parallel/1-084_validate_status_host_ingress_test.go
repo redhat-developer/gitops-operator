@@ -47,7 +47,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensures that when Argo CD Server is exposed via an Ingress, that the ingress is created and ArgoCD CR has the correct status information", func() {
+		It("ensures that when Argo CD Server is exposed via an Ingress, that the ingress is created and ArgoCD CR has the correct status information", Label("openshfit"), func() {
 
 			// This test supersedes '1-002_verify_hostname_with_ingress'
 

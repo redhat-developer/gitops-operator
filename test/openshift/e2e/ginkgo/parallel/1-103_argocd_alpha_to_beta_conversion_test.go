@@ -46,7 +46,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensures that creation of a v1alpha1 ArgoCD CR with SSO fields will be translated into a v1beta1 ArgoCD CR via webhook", func() {
+		It("ensures that creation of a v1alpha1 ArgoCD CR with SSO fields will be translated into a v1beta1 ArgoCD CR via webhook", Label("openshfit"), func() {
 			if fixture.EnvLocalRun() {
 				Skip("When LOCAL_RUN is set, the API upgrade webhook is not running, which is what this test tets. Thus this test should be skipped.")
 				return

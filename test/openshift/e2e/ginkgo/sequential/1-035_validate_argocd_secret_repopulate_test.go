@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies 'argocd-secret' secret is regenerated and we are able to login using that Secret", func() {
+		It("verifies 'argocd-secret' secret is regenerated and we are able to login using that Secret", Label("openshfit"), func() {
 
 			By("checking OpenShift GitOps ArgoCD instance is available")
 			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

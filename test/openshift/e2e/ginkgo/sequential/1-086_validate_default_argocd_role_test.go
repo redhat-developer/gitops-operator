@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", func() {
+		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", Label("openshfit"), func() {
 
 			By("verifying default ArgoCD in openshift-gitops is running and has defined expected RBAC values in ConfigMap argocd-rbac-cm")
 

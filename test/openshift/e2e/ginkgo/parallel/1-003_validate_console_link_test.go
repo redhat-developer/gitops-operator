@@ -17,7 +17,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verifies ConsoleLink exists and has expected content", func() {
+		It("verifies ConsoleLink exists and has expected content", Label("openshfit"), func() {
 
 			consoleLink := &consolev1.ConsoleLink{ObjectMeta: metav1.ObjectMeta{
 				Name: "argocd",
@@ -25,8 +25,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(consoleLink).Should(k8sFixture.ExistByName())
 			Expect(string(consoleLink.Spec.Location)).To(Equal("ApplicationMenu"))
 			Expect(consoleLink.Spec.Text).To(Equal("Cluster Argo CD"))
-
 		})
-
 	})
 })

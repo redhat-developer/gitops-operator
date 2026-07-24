@@ -37,7 +37,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verifies that openshift-gitops Argo CD has applicationset controller workload and service with expected values", func() {
+		It("verifies that openshift-gitops Argo CD has applicationset controller workload and service with expected values", Label("openshfit"), func() {
 
 			gitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())

@@ -81,7 +81,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("ensures that if one managed-by namespace is stuck in terminating, it does not prevent other managed-by namespaces from being managed or deployed to", func() {
+		It("ensures that if one managed-by namespace is stuck in terminating, it does not prevent other managed-by namespaces from being managed or deployed to", Label("openshfit"), func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, nsCleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

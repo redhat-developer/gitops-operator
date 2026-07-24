@@ -59,7 +59,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies that ArgoCD CR '.spec.sourceNamespaces' field wildcard-matching matches and manages only namespaces which match the wildcard", func() {
+		It("verifies that ArgoCD CR '.spec.sourceNamespaces' field wildcard-matching matches and manages only namespaces which match the wildcard", Label("openshfit"), func() {
 
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
 

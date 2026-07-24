@@ -66,7 +66,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifying that ArgoCD CR '.spec.applicationset.sourcenamespaces' and '.spec.sourcenamespaces' correctly control role/rolebindings within the managed namespaces", func() {
+		It("verifying that ArgoCD CR '.spec.applicationset.sourcenamespaces' and '.spec.sourcenamespaces' correctly control role/rolebindings within the managed namespaces", Label("openshfit"), func() {
 
 			By("0) create namespaces: appset-argocd, appset-old-ns, appset-new-ns")
 
@@ -846,7 +846,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(roleInTargetNS, "2m", "5s").Should(k8sFixture.NotExistByName())
 		})
 
-		It("verifies that wildcard patterns in .spec.applicationSet.sourceNamespaces correctly match and manage multiple namespaces", func() {
+		It("verifies that wildcard patterns in .spec.applicationSet.sourceNamespaces correctly match and manage multiple namespaces", Label("openshfit"), func() {
 
 			By("0) create namespaces: appset-argocd, team-1, team-2, team-frontend, team-backend, other-ns")
 
@@ -1081,7 +1081,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies ApplicationSet clusterrole rules and creates appset/app in another namespace", func() {
+		It("verifies ApplicationSet clusterrole rules and creates appset/app in another namespace", Label("openshfit"), func() {
 
 			By("creating Argo CD namespace and target source namespace")
 			argoNamespace, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd-clusterrole")
@@ -1294,7 +1294,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(appset).Should(k8sFixture.NotExistByName())
 		})
 
-		It("defaults tokenRef strict mode to true when applicationSet sourceNamespaces are configured", func() {
+		It("defaults tokenRef strict mode to true when applicationSet sourceNamespaces are configured", Label("openshfit"), func() {
 			appsetArgocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
 			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
 

@@ -19,7 +19,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("ensure the openshift-gitops default argo cd server route has expected TLS  Config values: insecure redirect and reencrypt, and the route ingress is sucessfully admitted", func() {
+		It("ensure the openshift-gitops default argo cd server route has expected TLS  Config values: insecure redirect and reencrypt, and the route ingress is sucessfully admitted", Label("openshfit"), func() {
 
 			By("ensuring that default openshift-gitops has expecter route settings and an admitted ingress")
 			openshiftGitOpsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that namespaces added to .spec.sourceNamespaces are managed by openshift-gitops Argo CD instance, except when those namespaces also have managed-by label. Both addition and removal of values from this field are tested", func() {
+		It("verifies that namespaces added to .spec.sourceNamespaces are managed by openshift-gitops Argo CD instance, except when those namespaces also have managed-by label. Both addition and removal of values from this field are tested", Label("openshfit"), func() {
 
 			By("1) create test-1-24-custom namespace managed by openshift-gitops instance")
 

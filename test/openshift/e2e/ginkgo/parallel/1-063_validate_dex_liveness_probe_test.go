@@ -30,8 +30,8 @@ import (
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
-
-	Context("1-063_validate_dex_liveness_probe_test", func() {
+	// TODO: make it XKS compatible
+	Context("1-063_validate_dex_liveness_probe_test", Label("openshfit"), Label("dex"), func() {
 
 		var (
 			k8sClient client.Client

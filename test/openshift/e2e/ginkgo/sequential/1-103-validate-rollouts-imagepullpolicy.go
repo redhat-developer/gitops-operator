@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", Label("openshfit"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
 
@@ -72,7 +72,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the CR value imagePullPolicy is applied", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the CR value imagePullPolicy is applied", Label("openshfit"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace with imagePullPolicy set to Always")
 
@@ -115,7 +115,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies subscription image pull policy is applied", func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies subscription image pull policy is applied", Label("openshfit"), func() {
 			if fixture.EnvLocalRun() {
 				Skip("This test does not support local run, as when the controller is running locally there is no env var to modify")
 				return

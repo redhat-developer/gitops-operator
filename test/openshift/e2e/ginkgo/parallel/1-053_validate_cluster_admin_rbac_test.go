@@ -35,7 +35,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("validates that openshift-gitops instance has expected .spec.RBAC.policy values", func() {
+		It("validates that openshift-gitops instance has expected .spec.RBAC.policy values", Label("openshfit"), func() {
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},

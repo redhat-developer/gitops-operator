@@ -30,7 +30,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifying Rollouts operator creates the expected policy rules", func() {
+		It("verifying Rollouts operator creates the expected policy rules", Label("openshfit"), func() {
 
 			By("creating cluster-scoped Argo Rollouts instance in openshift-gitops RolloutManager")
 			rm := &rolloutmanagerv1alpha1.RolloutManager{

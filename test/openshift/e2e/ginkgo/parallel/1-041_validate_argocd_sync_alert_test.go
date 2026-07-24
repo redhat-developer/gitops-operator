@@ -20,7 +20,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verifying PrometheusRule gitops-operator-argocd-alerts exists and has expected values", func() {
+		It("verifying PrometheusRule gitops-operator-argocd-alerts exists and has expected values", Label("openshfit"), func() {
 
 			By("checking OpenShift GitOps ArgoCD instance is available")
 

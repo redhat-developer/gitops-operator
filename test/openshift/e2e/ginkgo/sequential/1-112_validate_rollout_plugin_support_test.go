@@ -35,7 +35,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that custom traffic management and metrics plugins can be added to Argo Rollouts instance via RolloutManager CR", func() {
+		It("verifies that custom traffic management and metrics plugins can be added to Argo Rollouts instance via RolloutManager CR", Label("openshfit"), func() {
 
 			By("creating a new Argo Rollouts instance in openshift-gitops namespace, containing a custom traffic management plugin and a custom metrics plugin")
 			rm := &rolloutmanagerv1alpha1.RolloutManager{

@@ -73,7 +73,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that GitOpsService can take in custom resource constraints", func() {
+		It("validates that GitOpsService can take in custom resource constraints", Label("openshfit"), func() {
 			csv := clusterserviceversion.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
@@ -154,7 +154,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourceConstraints(k8sClient, "cluster", expectedReq, expectedLim)
 		})
 
-		It("validates that GitOpsService can update resource constraints", func() {
+		It("validates that GitOpsService can update resource constraints", Label("openshfit"), func() {
 			csv := clusterserviceversion.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
@@ -225,7 +225,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourceConstraints(k8sClient, "cluster", expectedReq, expectedLim)
 		})
 
-		It("validates gitops plugin and backend can have different resource constraints", func() {
+		It("validates gitops plugin and backend can have different resource constraints", Label("openshfit"), func() {
 			csv := clusterserviceversion.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()

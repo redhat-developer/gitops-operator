@@ -81,6 +81,15 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# GINKGO_VERSION is the version of ginkgo to use.
+# Pick ginkgo version from go.mod file.
+# Update this command when ginkgo version is updated in go.mod file. 
+# example: go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v3
+GINKGO_VERSION := $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2)
+
+# XKS_LABEL_FILTER is the label filter for XKS tests.
+XKS_LABEL_FILTER ?= "!openshfit"
+
 .PHONY: all
 all: build
 
@@ -172,6 +181,16 @@ e2e-tests-sequential:
 e2e-tests-parallel:
 	CI=prow make e2e-tests-parallel-ginkgo
 
+.PHONY: e2e-xks-tests-sequential-ginkgo
+e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
+	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
+	$(GINKGO_CLI) -v --trace --label-filter="$(XKS_LABEL_FILTER)" --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+
+.PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
+e2e-xks-tests-parallel-ginkgo: ginkgo
+	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter="$(XKS_LABEL_FILTER)" --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+
 ##@ Build
 
 .PHONY: build
@@ -247,7 +266,7 @@ kustomize: ## Download kustomize locally if necessary.
 GINKGO_CLI = $(shell pwd)/bin/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
-	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@v2.29.0)
+	$(call go-get-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_VERSION))
 
 
 # go-get-tool will 'go install' any package $2 and install it to $1.

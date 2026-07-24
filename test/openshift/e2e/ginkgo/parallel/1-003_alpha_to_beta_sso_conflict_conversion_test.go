@@ -48,10 +48,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies expected behaviour of ArgoCD CR when dex and keycloak are both specified in v1alpha1 API", func() {
+		It("verifies expected behaviour of ArgoCD CR when dex and keycloak are both specified in v1alpha1 API", Label("openshfit"), func() {
 
 			if fixture.EnvLocalRun() {
-				Skip("Conversion via webhook requires the operator to be running on the cluster, which is not the case for a local run")
+				Skip("Conversion via webhook requires the operator to be running on the openshift cluster, which is not the case for a local or on xKS cluster")
 				return
 			}
 

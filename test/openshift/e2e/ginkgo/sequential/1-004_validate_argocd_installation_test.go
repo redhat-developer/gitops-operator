@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that default openshift-gitops Argo CD instance becomes available after modifying .spec.controller.processors.operation value", func() {
+		It("verifies that default openshift-gitops Argo CD instance becomes available after modifying .spec.controller.processors.operation value", Label("openshfit"), func() {
 
 			By("verifying default openshift-gitops Argo CD instance is available")
 			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

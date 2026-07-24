@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-126_validate_servicemonitor_metrics_config", func() {
+	Context("1-126_validate_servicemonitor_metrics_config", Label("openshfit"), func() {
 
 		var (
 			k8sClient client.Client

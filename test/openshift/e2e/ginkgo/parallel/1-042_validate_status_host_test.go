@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that .status.host of ArgoCD matches .spec.host of Route, and status is updated when Route is removed", func() {
+		It("verifies that .status.host of ArgoCD matches .spec.host of Route, and status is updated when Route is removed", Label("openshfit"), func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

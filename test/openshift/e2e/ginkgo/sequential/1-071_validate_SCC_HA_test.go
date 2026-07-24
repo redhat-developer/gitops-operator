@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates SCC and ensure HA Argo CD starts as expected", func() {
+		It("creates SCC and ensure HA Argo CD starts as expected", Label("openshfit"), func() {
 
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
