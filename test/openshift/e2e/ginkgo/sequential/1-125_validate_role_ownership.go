@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that the role bug is fixed", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 
 			By("checking that the default ClusterRole and clusterroleBinding for the ArgoCD Application Controller and Server exists")
 			defaultControllerClusterRole := &rbacv1.ClusterRole{
@@ -111,7 +111,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(defaultArgocd, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("creating new ArgoCD instance to trigger the check")
+			By("creating new namespace scoped ArgoCD instance to create the condition where clusterrole and clusterrolebinding are deleted by namespaced scoped resources")
 			ns, nsCleanup := fixture.CreateNamespaceWithCleanupFunc("gitops")
 			defer nsCleanup()
 
@@ -126,62 +126,62 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("checking that the default ClusterRole for the ArgoCD Application Controller still exists")
-			newControllerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationControllerClusterRoleName,
 				},
 			}
-			newApplicationSetControllerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileApplicationSetControllerCR := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationSetControllerClusterRoleName,
 				},
 			}
-			newServerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileServerCR := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: serverClusterRoleName,
 				},
 			}
-			newControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileControllerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationControllerClusterRoleBindingName,
 				},
 			}
-			newApplicationSetControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileApplicationSetControllerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationSetControllerClusterRoleBindingName,
 				},
 			}
-			newServerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileServerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: serverClusterRoleBindingName,
 				},
 			}
 
-			Eventually(newControllerClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(newApplicationSetControllerClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(newServerClusterRole).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileControllerClusterRole).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileApplicationSetControllerCR).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileServerCR).Should(k8sFixture.ExistByName())
 
-			Eventually(newControllerClusterRoleBinding).Should(k8sFixture.ExistByName())
-			Eventually(newApplicationSetControllerClusterRoleBinding).Should(k8sFixture.ExistByName())
-			Eventually(newServerClusterRoleBinding).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileControllerCRB).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileApplicationSetControllerCRB).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileServerCRB).Should(k8sFixture.ExistByName())
 
-			By("fetching UID of the clusterrole after reconciliation")
-			afterControllerReconcileUid := newControllerClusterRole.GetUID()
-			afterApplicationSetControllerReconcileUid := newApplicationSetControllerClusterRole.GetUID()
-			afterServerReconcileUid := newServerClusterRole.GetUID()
+			By("fetching UID of the clusterrole and clusterRoleBinding after reconciliation")
+			afterReconcileControllerUid := afterReconcileControllerClusterRole.GetUID()
+			afterReconcileApplicationSetControllerUid := afterReconcileApplicationSetControllerCR.GetUID()
+			afterReconcileServerUid := afterReconcileServerCR.GetUID()
 
-			afterControllerRoleBindingReconcileUid := newControllerClusterRoleBinding.GetUID()
-			afterApplicationSetControllerRoleBindingReconcileUid := newApplicationSetControllerClusterRoleBinding.GetUID()
-			afterServerRoleBindingReconcileUid := newServerClusterRoleBinding.GetUID()
+			afterReconcileControllerRBUid := afterReconcileControllerCRB.GetUID()
+			afterReconcileApplicationSetControllerRBUid := afterReconcileApplicationSetControllerCRB.GetUID()
+			afterReconcileServerRBUid := afterReconcileServerCRB.GetUID()
 
 			By("comparing the UID to check if the ClusterRole was recreated")
-			Expect(initialControllerUid).To(Equal(afterControllerReconcileUid), "the ClusterRole was recreated")
-			Expect(initialApplicationSetControllerUid).To(Equal(afterApplicationSetControllerReconcileUid), "the ClusterRole was recreated")
-			Expect(initialServerUid).To(Equal(afterServerReconcileUid), "the ClusterRole was recreated")
+			Expect(initialControllerUid).To(Equal(afterReconcileControllerUid), "the ClusterRole was recreated")
+			Expect(initialApplicationSetControllerUid).To(Equal(afterReconcileApplicationSetControllerUid), "the ClusterRole was recreated")
+			Expect(initialServerUid).To(Equal(afterReconcileServerUid), "the ClusterRole was recreated")
 
-			Expect(initialControllerRoleBindingUid).To(Equal(afterControllerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
-			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterApplicationSetControllerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
-			Expect(initialServerRoleBindingUid).To(Equal(afterServerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
+			Expect(initialControllerRoleBindingUid).To(Equal(afterReconcileControllerRBUid), "the ClusterRoleBinding was recreated")
+			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterReconcileApplicationSetControllerRBUid), "the ClusterRoleBinding was recreated")
+			Expect(initialServerRoleBindingUid).To(Equal(afterReconcileServerRBUid), "the ClusterRoleBinding was recreated")
 
 		})
 

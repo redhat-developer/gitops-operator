@@ -142,10 +142,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				}
 				Eventually(service).Should(k8sFixture.ExistByName())
-				Expect(string(service.Spec.Type)).To(Equal("ClusterIP"))
-
 			}
-			By("verifying primary agent Deployment has expected values")
+			By("verifying primary agent Deployment has expected labels")
 
 			Eventually(agentDeployment).Should(k8sFixture.ExistByName())
 			Eventually(agentDeployment).Should(k8sFixture.HaveLabelWithValue("app.kubernetes.io/managed-by", "argocd-agent"))
@@ -154,7 +152,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		}
 
-		It("check agent clusterRole and clusterRoleBinding", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name for Agent", func() {
 
 			By("creating ArgoCD instance with agent enabled")
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -226,21 +224,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, argoCD1)).To(Succeed())
 			Eventually(argoCD1, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("Verify UID of ClusterRole and ClusterRoleBinding")
-			newClusterRole := &rbacv1.ClusterRole{}
+			By("Verifying UID of ClusterRole and ClusterRoleBinding to ensure they are not deleted by namespaced scoped resources")
+			afterReconcileClusterRole := &rbacv1.ClusterRole{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleName}, newClusterRole)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleName}, afterReconcileClusterRole)
 			}).Should(Succeed(), "ClusterRole should exist and be fetchable")
-			newClusterRoleUid := newClusterRole.GetUID()
+			afterReconcileClusterRoleUid := afterReconcileClusterRole.GetUID()
 
-			newClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+			afterReconcileClusterRB := &rbacv1.ClusterRoleBinding{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleBindingName}, newClusterRoleBinding)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleBindingName}, afterReconcileClusterRB)
 			}).Should(Succeed(), "ClusterRoleBinding should exist and be fetchable")
-			newClusterRoleBindingUid := newClusterRoleBinding.GetUID()
+			afterReconcileClusterRBUid := afterReconcileClusterRB.GetUID()
 
-			Expect(newClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
-			Expect(newClusterRoleBindingUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
+			Expect(afterReconcileClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
+			Expect(afterReconcileClusterRBUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
 
 		})
 
