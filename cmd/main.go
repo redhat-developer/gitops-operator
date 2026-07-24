@@ -341,6 +341,14 @@ func main() {
 			setupLog.Error(err, "unable to create controller", "controller", "Argo CD metrics")
 			os.Exit(1)
 		}
+
+		if err = (&controllers.OperatorMetricsTokenReconciler{
+			Client: client,
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "Operator metrics token")
+			os.Exit(1)
+		}
 	} else {
 		setupLog.Info("Monitoring API not found, skipping Argo CD metrics controller setup")
 	}
