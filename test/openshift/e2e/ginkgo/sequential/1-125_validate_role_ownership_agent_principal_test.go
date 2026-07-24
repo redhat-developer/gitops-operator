@@ -255,7 +255,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 		}
 
-		It("validates that the role bug is fixed in agent", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name for Agent Principal", func() {
 			By("Create ArgoCD instance")
 
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -323,20 +323,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("Verify UID of ClusterRole and ClusterRoleBinding")
-			newClusterRole := &rbacv1.ClusterRole{}
+			afterReconcileClusterRole := &rbacv1.ClusterRole{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleName}, newClusterRole)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleName}, afterReconcileClusterRole)
 			}).Should(Succeed(), "ClusterRole should exist and be fetchable")
-			newClusterRoleUid := newClusterRole.GetUID()
+			afterReconcileClusterRoleUid := afterReconcileClusterRole.GetUID()
 
-			newClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+			afterReconcileClusterRB := &rbacv1.ClusterRoleBinding{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleBindingName}, newClusterRoleBinding)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: clusterRoleBindingName}, afterReconcileClusterRB)
 			}).Should(Succeed(), "ClusterRoleBinding should exist and be fetchable")
-			newClusterRoleBindingUid := newClusterRoleBinding.GetUID()
+			afterReconcileClusterRBUid := afterReconcileClusterRB.GetUID()
 
-			Expect(newClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
-			Expect(newClusterRoleBindingUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
+			By("Verifying UID of ClusterRole and ClusterRoleBinding to ensure they are not deleted by namespaced scoped resources")
+			Expect(afterReconcileClusterRoleUid).To(Equal(initialClusterRoleUid))
+			Expect(afterReconcileClusterRBUid).To(Equal(initialClusterRoleBindingUid))
 
 		})
 

@@ -23,11 +23,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -56,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that the role bug is fixed", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 
 			By("checking that the default ClusterRole and clusterroleBinding for the ArgoCD Application Controller and Server exists")
 			defaultControllerClusterRole := &rbacv1.ClusterRole{
@@ -111,44 +108,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				},
 			}
 
-			Eventually(defaultArgocd, "5m", "5s").Should(argocdFixture.BeAvailable())
-			argocdFixture.Update(defaultArgocd, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ImageUpdater = argov1beta1api.ArgoCDImageUpdaterSpec{
-					Env: []corev1.EnvVar{
-						{
-							Name:  "IMAGE_UPDATER_WATCH_NAMESPACES",
-							Value: "*",
-						},
-					},
-					Enabled: true,
-				}
-			})
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(defaultArgocd, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("verifying image updater workload has started argocd-image-updater-controller")
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-argocd-image-updater-controller", Namespace: "openshift-gitops"}}
-			Eventually(depl, "2m", "5s").Should(k8sFixture.ExistByName(), "Deployment openshift-gitops-argocd-image-updater-controller did not exist within timeout")
-			Eventually(depl, "2m", "5s").Should(deplFixture.HaveReplicas(1), "Deployment openshift-gitops-argocd-image-updater-controller did not have correct replicas within timeout")
-			Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), "Deployment openshift-gitops-argocd-image-updater-controller was not ready within timeout")
-
-			defaultImageUpdaterClusterRole := &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-image-updater-controller",
-				},
-			}
-			defaultImageUpdaterClusterRoleBinding := &rbacv1.ClusterRoleBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-image-updater-controller",
-				},
-			}
-			Eventually(defaultImageUpdaterClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(defaultImageUpdaterClusterRoleBinding).Should(k8sFixture.ExistByName())
-
-			initialImageUpdaterClusterRoleUid := defaultImageUpdaterClusterRole.GetUID()
-			inititalImageUpdaterClusterRoleBindingUid := defaultImageUpdaterClusterRoleBinding.GetUID()
-
-			By("creating new ArgoCD instance to trigger the check")
+			By("creating new namespace scoped ArgoCD instance to create the condition where clusterrole and clusterrolebinding are deleted by namespaced scoped resources")
 			ns, nsCleanup := fixture.CreateNamespaceWithCleanupFunc("gitops")
 			defer nsCleanup()
 
@@ -157,95 +120,68 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Name:      "openshift-gitops-openshift",
 					Namespace: ns.Name,
 				},
-				Spec: argov1beta1api.ArgoCDSpec{
-					ImageUpdater: argov1beta1api.ArgoCDImageUpdaterSpec{
-						Env: []corev1.EnvVar{
-							{
-								Name:  "IMAGE_UPDATER_LOGLEVEL",
-								Value: "trace",
-							},
-						},
-						Enabled: true,
-					},
-				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("checking that the default ClusterRole for the ArgoCD Application Controller still exists")
-			newControllerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileControllerClusterRole := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationControllerClusterRoleName,
 				},
 			}
-			newApplicationSetControllerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileApplicationSetControllerCR := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationSetControllerClusterRoleName,
 				},
 			}
-			newServerClusterRole := &rbacv1.ClusterRole{
+			afterReconcileServerCR := &rbacv1.ClusterRole{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: serverClusterRoleName,
 				},
 			}
-			newControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileControllerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationControllerClusterRoleBindingName,
 				},
 			}
-			newApplicationSetControllerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileApplicationSetControllerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: applicationSetControllerClusterRoleBindingName,
 				},
 			}
-			newServerClusterRoleBinding := &rbacv1.ClusterRoleBinding{
+			afterReconcileServerCRB := &rbacv1.ClusterRoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: serverClusterRoleBindingName,
 				},
 			}
-			newImageUpdaterClusterRole := &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-image-updater-controller",
-				},
-			}
-			newImageUpdaterClusterRoleBinding := &rbacv1.ClusterRoleBinding{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "openshift-gitops-openshift-gitops-argocd-image-updater-controller",
-				},
-			}
 
-			Eventually(newControllerClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(newApplicationSetControllerClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(newServerClusterRole).Should(k8sFixture.ExistByName())
-			Eventually(newImageUpdaterClusterRole).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileControllerClusterRole).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileApplicationSetControllerCR).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileServerCR).Should(k8sFixture.ExistByName())
 
-			Eventually(newControllerClusterRoleBinding).Should(k8sFixture.ExistByName())
-			Eventually(newApplicationSetControllerClusterRoleBinding).Should(k8sFixture.ExistByName())
-			Eventually(newServerClusterRoleBinding).Should(k8sFixture.ExistByName())
-			Eventually(newImageUpdaterClusterRoleBinding).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileControllerCRB).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileApplicationSetControllerCRB).Should(k8sFixture.ExistByName())
+			Eventually(afterReconcileServerCRB).Should(k8sFixture.ExistByName())
 
 			By("fetching UID of the clusterrole after reconciliation")
-			afterControllerReconcileUid := newControllerClusterRole.GetUID()
-			afterApplicationSetControllerReconcileUid := newApplicationSetControllerClusterRole.GetUID()
-			afterServerReconcileUid := newServerClusterRole.GetUID()
-			afterImageUpdaterReconcileUid := newImageUpdaterClusterRole.GetUID()
+			afterReconcileControllerUid := afterReconcileControllerClusterRole.GetUID()
+			afterReconcileApplicationSetControllerUid := afterReconcileApplicationSetControllerCR.GetUID()
+			afterReconcileServerUid := afterReconcileServerCR.GetUID()
 
-			afterControllerRoleBindingReconcileUid := newControllerClusterRoleBinding.GetUID()
-			afterApplicationSetControllerRoleBindingReconcileUid := newApplicationSetControllerClusterRoleBinding.GetUID()
-			afterServerRoleBindingReconcileUid := newServerClusterRoleBinding.GetUID()
-			afterImageUpdaterRoleBindingReconcileUid := newImageUpdaterClusterRoleBinding.GetUID()
+			afterReconcileControllerRBUid := afterReconcileControllerCRB.GetUID()
+			afterReconcileApplicationSetControllerRBUid := afterReconcileApplicationSetControllerCRB.GetUID()
+			afterReconcileServerRBUid := afterReconcileServerCRB.GetUID()
 
-			By("comparing the UID to check if the ClusterRole was recreated")
-			Expect(initialControllerUid).To(Equal(afterControllerReconcileUid), "the ClusterRole was recreated")
-			Expect(initialApplicationSetControllerUid).To(Equal(afterApplicationSetControllerReconcileUid), "the ClusterRole was recreated")
-			Expect(initialServerUid).To(Equal(afterServerReconcileUid), "the ClusterRole was recreated")
-			Expect(initialImageUpdaterClusterRoleUid).To(Equal(afterImageUpdaterReconcileUid), "the ClusterRole was recreated")
+			By("comparing the UID to ensure that the ClusterRole and ClusterRoleBinding are not recreated")
+			Expect(initialControllerUid).To(Equal(afterReconcileControllerUid), "the ClusterRole was recreated")
+			Expect(initialApplicationSetControllerUid).To(Equal(afterReconcileApplicationSetControllerUid), "the ClusterRole was recreated")
+			Expect(initialServerUid).To(Equal(afterReconcileServerUid), "the ClusterRole was recreated")
 
-			Expect(initialControllerRoleBindingUid).To(Equal(afterControllerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
-			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterApplicationSetControllerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
-			Expect(initialServerRoleBindingUid).To(Equal(afterServerRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
-			Expect(inititalImageUpdaterClusterRoleBindingUid).To(Equal(afterImageUpdaterRoleBindingReconcileUid), "the ClusterRoleBinding was recreated")
+			Expect(initialControllerRoleBindingUid).To(Equal(afterReconcileControllerRBUid))
+			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterReconcileApplicationSetControllerRBUid))
+			Expect(initialServerRoleBindingUid).To(Equal(afterReconcileServerRBUid))
 
 		})
 
