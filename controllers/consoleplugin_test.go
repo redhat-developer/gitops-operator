@@ -1864,54 +1864,6 @@ func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
 		"ResourceVersion SHOULD change when actual change is made")
 }
 
-func TestTLSVersionToPlugin(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "TLS 1.2",
-			input:    "VersionTLS12",
-			expected: "TLSv1.2",
-		},
-		{
-			name:     "TLS 1.3",
-			input:    "VersionTLS13",
-			expected: "TLSv1.3",
-		},
-		{
-			name:     "TLS 1.1",
-			input:    "VersionTLS11",
-			expected: "TLSv1.1",
-		},
-		{
-			name:     "TLS 1.0",
-			input:    "VersionTLS10",
-			expected: "TLSv1",
-		},
-		{
-			name:     "unknown version",
-			input:    "VersionTLS14",
-			expected: "",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			actual := TLSVersionToPlugin(tt.input)
-			if actual != tt.expected {
-				t.Errorf("TLSVersionToPlugin(%q) = %q, want %q", tt.input, actual, tt.expected)
-			}
-		})
-	}
-}
-
 func TestBuildHttpdConfig(t *testing.T) {
 	tests := []struct {
 		name              string

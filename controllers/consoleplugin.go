@@ -244,19 +244,6 @@ func securityContextForPlugin() *corev1.SecurityContext {
 	}
 }
 
-func TLSVersionToPlugin(tlsVersion string) string {
-	versionMap := map[string]string{
-		"VersionTLS12": "TLSv1.2",
-		"VersionTLS13": "TLSv1.3",
-		"VersionTLS11": "TLSv1.1",
-		"VersionTLS10": "TLSv1",
-	}
-	if v, ok := versionMap[tlsVersion]; ok {
-		return v
-	}
-	return "" // default fallback
-}
-
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
 	minVersionTLS := string(r.CentralTLSProfile.MinTLSVersion)
@@ -279,7 +266,7 @@ ServerRoot "/etc/httpd"
 	case "VersionTLS13":
 		httpdConfigBase += "\n\tSSLProtocol -all +TLSv1.3"
 	}
-	if TLSVersionToPlugin(minVersionTLS) != "TLSv1.3" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
+	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
 	}
 	// Close VirtualHost
