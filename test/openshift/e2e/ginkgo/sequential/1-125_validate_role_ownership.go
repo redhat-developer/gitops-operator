@@ -173,13 +173,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			afterReconcileServerRBUid := afterReconcileServerCRB.GetUID()
 
 			By("comparing the UID to check if the ClusterRole was recreated")
-			Expect(initialControllerUid).To(Equal(afterReconcileControllerUid), "the ClusterRole was recreated")
-			Expect(initialApplicationSetControllerUid).To(Equal(afterReconcileApplicationSetControllerUid), "the ClusterRole was recreated")
-			Expect(initialServerUid).To(Equal(afterReconcileServerUid), "the ClusterRole was recreated")
+			Expect(initialControllerUid).To(Equal(afterReconcileControllerUid))
+			Expect(initialApplicationSetControllerUid).To(Equal(afterReconcileApplicationSetControllerUid))
+			Expect(initialServerUid).To(Equal(afterReconcileServerUid))
 
-			Expect(initialControllerRoleBindingUid).To(Equal(afterReconcileControllerRBUid), "the ClusterRoleBinding was recreated")
-			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterReconcileApplicationSetControllerRBUid), "the ClusterRoleBinding was recreated")
-			Expect(initialServerRoleBindingUid).To(Equal(afterReconcileServerRBUid), "the ClusterRoleBinding was recreated")
+			Expect(initialControllerRoleBindingUid).To(Equal(afterReconcileControllerRBUid))
+			Expect(initialApplicationSetControllerRoleBindingUid).To(Equal(afterReconcileApplicationSetControllerRBUid))
+			Expect(initialServerRoleBindingUid).To(Equal(afterReconcileServerRBUid))
 
 		})
 
