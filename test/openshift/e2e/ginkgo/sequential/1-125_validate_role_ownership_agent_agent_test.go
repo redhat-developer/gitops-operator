@@ -237,8 +237,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}).Should(Succeed(), "ClusterRoleBinding should exist and be fetchable")
 			afterReconcileClusterRBUid := afterReconcileClusterRB.GetUID()
 
-			Expect(afterReconcileClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
-			Expect(afterReconcileClusterRBUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
+			Expect(afterReconcileClusterRoleUid).To(Equal(initialClusterRoleUid))
+			Expect(afterReconcileClusterRBUid).To(Equal(initialClusterRoleBindingUid))
 
 		})
 
