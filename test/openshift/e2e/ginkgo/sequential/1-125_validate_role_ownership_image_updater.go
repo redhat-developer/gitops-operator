@@ -65,7 +65,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("validates role bug fixes for image updater", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name for Image Updater", func() {
 			By("create a simple namespace scoped ArgoCD instance with image updater enabled and watch namespace set to '*'")
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("image-updater")
 
@@ -130,23 +130,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ns1, nsCleanup := fixture.CreateNamespaceWithCleanupFunc("updater")
 			defer nsCleanup()
 
-			By("ensuring default service account has anyuid SCC permission")
-			serviceAccountUser = "system:serviceaccount:" + ns1.Name + ":default"
-			output, err = osFixture.ExecCommand("oc", "auth", "can-i", "use", "scc/anyuid", "--as", serviceAccountUser)
-			hasPermission = false
-			if err == nil && len(output) > 0 {
-				// Check if the service account user is already in the users list
-				// Remove quotes and whitespace for comparison
-				output = strings.TrimSpace(strings.Trim(output, "'\""))
-				if strings.Contains(output, serviceAccountUser) {
-					hasPermission = true
-				}
-			}
-			if !hasPermission {
-				_, err := osFixture.ExecCommand("oc", "adm", "policy", "add-scc-to-user", "anyuid", "-z", "default", "-n", ns1.Name)
-				Expect(err).NotTo(HaveOccurred(), "Failed to add anyuid SCC to default service account")
-			}
-
 			argoCD1 := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater-image",
@@ -168,22 +151,22 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Eventually(argoCD1, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("Verify UID of ClusterRole and ClusterRoleBinding remain the same after creating namespace-scoped ArgoCD instance")
-			newClusterRole := &rbacv1.ClusterRole{}
+			By("Verify UID of ClusterRole and ClusterRoleBinding remain the same after creating second ArgoCD instance to ensure they are not deleted by namespaced scoped resources")
+			afterReconcileClusterRole := &rbacv1.ClusterRole{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: imageUpdaterControllerClusterRoleName}, newClusterRole)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: imageUpdaterControllerClusterRoleName}, afterReconcileClusterRole)
 			}).Should(Succeed(), "ClusterRole should exist and be fetchable")
-			newClusterRoleUid := newClusterRole.GetUID()
+			afterReconcileClusterRoleUid := afterReconcileClusterRole.GetUID()
 
-			newClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+			afterReconcileClusterRB := &rbacv1.ClusterRoleBinding{}
 			Eventually(func() error {
-				return k8sClient.Get(ctx, client.ObjectKey{Name: imageUpdaterControllerClusterRoleBindingName}, newClusterRoleBinding)
+				return k8sClient.Get(ctx, client.ObjectKey{Name: imageUpdaterControllerClusterRoleBindingName}, afterReconcileClusterRB)
 			}).Should(Succeed(), "ClusterRoleBinding should exist and be fetchable")
 
-			newClusterRoleBindingUid := newClusterRoleBinding.GetUID()
+			afterReconcileClusterRBUid := afterReconcileClusterRB.GetUID()
 
-			Expect(newClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
-			Expect(newClusterRoleBindingUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
+			Expect(afterReconcileClusterRoleUid).To(Equal(initialClusterRoleUid), "ClusterRole UID should remain the same after creating namespace-scoped ArgoCD instance")
+			Expect(afterReconcileClusterRBUid).To(Equal(initialClusterRoleBindingUid), "ClusterRoleBinding UID should remain the same after creating namespace-scoped ArgoCD instance")
 		})
 	})
 })
