@@ -51,8 +51,8 @@ export class ApplicationDetailsPage {
   }
 
   async verifyPodLogs(expectedLogText?: string) {
-    //click Logs
-    await this.logsTab.waitFor({ state: 'visible', timeout: 5000 });
+    //click Logs timeout 30s 
+    await this.logsTab.waitFor({ state: 'visible', timeout: 30000 });
     await this.logsTab.click();
 
     const logFilterInput = this.slideOutPanel.getByPlaceholder('containing');

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, request } from '@playwright/test';
 import { execSync } from 'child_process';
 import { LoginPage } from '../src/pages/LoginPage';
 import { enableHA, disableHA } from '../src/utils/ha-manager';
@@ -23,6 +23,23 @@ test.describe('HA Login Verification', () => {
     testInfo.setTimeout(300000); //5 mins for teardown
     try {
       await disableHA();
+      
+      console.log('[teardown] Polling OpenShift Route via Playwright until it returns 200 OK...');
+      
+      //get route url
+      const routeHost = execSync(`oc get route openshift-gitops-server -n openshift-gitops -o jsonpath='{.spec.host}'`).toString().trim();
+      
+      //create api context ignoring self-signed certs
+      const apiContext = await request.newContext({ ignoreHTTPSErrors: true });
+
+      //poll until 200 ok to prevent 503 errors on next test
+      await expect(async () => {
+        const response = await apiContext.get(`https://${routeHost}`);
+        expect(response.status()).toBe(200);
+      }).toPass({ timeout: 60000 });
+
+      console.log('[teardown] Routing stabilized. Ready for the next test suite.');
+
     } catch (error) {
       console.error('[teardown] Failed to disable HA. Cluster may be in a dirty state.', error);
       throw error;
