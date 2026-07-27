@@ -73,7 +73,7 @@ if [ -z "$GITOPS_VERSION" ]; then
     GITOPS_VERSION="Unknown"
 fi
 
-#get Argo CD version (with CodeRabbit timeout fix)
+#get Argo CD version
 ARGO_API_VERSION=$(curl -s -k --max-time 10 "$ARGOCD_URL/api/version" | grep -o '"Version":"[^"]*"' | cut -d'"' -f4)
 if [ -z "$ARGO_API_VERSION" ]; then
     ARGO_API_VERSION="Unknown"
@@ -87,7 +87,7 @@ echo " "
 if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
     echo "Running headlessly in automation ($ENV)..."
     
-    #coderabbit hard-fails
+    #hard-fails
     npm ci || { echo "Error: npm ci failed."; exit 1; }
     
     if [ "$(uname -s)" = "Darwin" ]; then
