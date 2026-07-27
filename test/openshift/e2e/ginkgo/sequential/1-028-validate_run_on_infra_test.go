@@ -25,6 +25,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-028-validate_run_on_infra_test", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -37,7 +38,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that Argo CD runs on infra nodes", Label("openshfit"), func() {
+		It("validates that Argo CD runs on infra nodes", Label("openshift"), func() {
 
 			By("enabling run on infra on GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{

@@ -35,12 +35,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-018_validate_disable_default_instance", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that the default ArgoCD instance from openshift-gitops namespace is recreated when deleted manually", Label("openshfit"), func() {
+		It("verifies that the default ArgoCD instance from openshift-gitops namespace is recreated when deleted manually", Label("openshift"), func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
@@ -100,7 +101,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(ss, "5m", "5s").Should(statefulsetFixture.HaveReadyReplicas(1))
 		})
 
-		It("verifies that DISABLE_DEFAULT_ARGOCD_INSTANCE env var will delete the argo cd instance from openshift-gitops, and that default Argo CD instance will be restored when the env var is removed", Label("openshfit"), func() {
+		It("verifies that DISABLE_DEFAULT_ARGOCD_INSTANCE env var will delete the argo cd instance from openshift-gitops, and that default Argo CD instance will be restored when the env var is removed", Label("openshift"), func() {
 			if fixture.EnvLocalRun() {
 				Skip("when running locally, there is no subscription or operator deployment to modify, so this test is skipped.")
 				return

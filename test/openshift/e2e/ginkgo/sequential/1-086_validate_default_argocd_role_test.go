@@ -19,6 +19,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-086_validate_default_argocd_role", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -32,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", Label("openshfit"), func() {
+		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", Label("openshift"), func() {
 
 			By("verifying default ArgoCD in openshift-gitops is running and has defined expected RBAC values in ConfigMap argocd-rbac-cm")
 

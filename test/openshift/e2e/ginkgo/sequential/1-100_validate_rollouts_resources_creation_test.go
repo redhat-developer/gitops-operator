@@ -20,6 +20,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-100_validate_rollouts_resources_creation", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -33,7 +34,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", Label("openshfit"), func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", Label("openshift"), func() {
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
 

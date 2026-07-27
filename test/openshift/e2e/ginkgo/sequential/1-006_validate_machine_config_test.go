@@ -40,6 +40,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-006_validate_machine_config", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx           context.Context
@@ -70,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("openshfit"), func() {
+		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("openshift"), func() {
 
 			By("setting the repo server replicas to 2 on openshift-gitops Argo CD")
 			var err error

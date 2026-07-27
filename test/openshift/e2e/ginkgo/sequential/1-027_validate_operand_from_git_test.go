@@ -42,6 +42,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-027_validate_operand_from_git", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx              context.Context
@@ -68,7 +69,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("openshfit"), func() {
+		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("openshift"), func() {
 
 			openshiftgitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
