@@ -43,7 +43,7 @@ import (
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
-
+	//  TODO: update this test to run on xKS cluster
 	Context("1-121_validate_image_updater_test", func() {
 
 		var (

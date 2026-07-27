@@ -37,6 +37,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-114_validate_imagepullpolicy", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			k8sClient client.Client
@@ -49,7 +50,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that imagePullPolicy from ArgoCD CR spec is propagated to all ArgoCD workload resources", Label("openshfit"), func() {
+		It("verifies that imagePullPolicy from ArgoCD CR spec is propagated to all ArgoCD workload resources", func() {
 
 			By("creating a test namespace for ArgoCD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -138,7 +139,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies that imagePullPolicy works correctly on default openshift-gitops ArgoCD instance", Label("openshfit"), func() {
+		It("verifies that imagePullPolicy works correctly on default openshift-gitops ArgoCD instance", Label("openshift"), func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
@@ -194,7 +195,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies default imagePullPolicy is applied to all ArgoCD workload resources when not specified in either CR spec or subscription", Label("openshfit"), func() {
+		It("verifies default imagePullPolicy is applied to all ArgoCD workload resources when not specified in either CR spec or subscription", Label("openshift"), func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())

@@ -40,6 +40,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-064_validate_tcp_reset_error_test", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx                context.Context
@@ -66,7 +67,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that argocd cli app manifests command will succesfully retrieve app manifests, and tcp reset error will not occur", Label("openshfit"), func() {
+		It("verifies that argocd cli app manifests command will succesfully retrieve app manifests, and tcp reset error will not occur", Label("openshift"), func() {
 
 			// This test is VERY similar to 1-027.
 

@@ -83,7 +83,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			return podName, nil
 		}
 
-		It("verifies that toolchain versions have the expected values", func() {
+		It("verifies that toolchain versions have the expected values", Label("openshift"), func() {
 
 			// create a new namespace
 			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-031-toolchain")
