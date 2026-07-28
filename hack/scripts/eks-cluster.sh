@@ -3,13 +3,14 @@
 # Manage an AWS EKS cluster (3 nodes) suitable for Argo CD HA.
 #
 # Usage:
-#   ./eks-cluster.sh create  [CLUSTER_NAME] [REGION]
-#   ./eks-cluster.sh delete  [CLUSTER_NAME] [REGION]
-#   ./eks-cluster.sh status  [CLUSTER_NAME] [REGION]
+#   ./eks-cluster.sh create  [CLUSTER_NAME] [REGION] [AWS_PROFILE]
+#   ./eks-cluster.sh delete  [CLUSTER_NAME] [REGION] [AWS_PROFILE]
+#   ./eks-cluster.sh status  [CLUSTER_NAME] [REGION] [AWS_PROFILE]
 #
 # Defaults:
-#   CLUSTER_NAME = argocd-ha
+#   CLUSTER_NAME = argocd-xks
 #   REGION       = us-east-1
+#   AWS_PROFILE  = default
 
 set -euo pipefail
 
@@ -21,8 +22,9 @@ usage() {
 [[ $# -ge 1 ]] || usage
 
 ACTION="$1"; shift
-CLUSTER_NAME="${1:-argocd-ha}"
+CLUSTER_NAME="${1:-argocd-xks}"
 REGION="${2:-us-east-1}"
+AWS_PROFILE="${3:-default}"
 
 K8S_VERSION="1.30"
 NODE_TYPE="m5.xlarge"
@@ -42,7 +44,7 @@ cmd_create() {
   echo "==> Creating EKS cluster: ${CLUSTER_NAME} in ${REGION}"
   echo "    Kubernetes ${K8S_VERSION}, ${NODE_COUNT}x ${NODE_TYPE}, ${NODE_VOLUME_SIZE}GiB volumes"
 
-  eksctl create cluster \
+  eksctl create cluster --profile ${AWS_PROFILE} \
     --name "${CLUSTER_NAME}" \
     --region "${REGION}" \
     --version "${K8S_VERSION}" \
