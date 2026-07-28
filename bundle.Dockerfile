@@ -1,6 +1,3 @@
-# TODO: Remove this and use the bundle.Dockerfile in the root of the project.
-# To be dropped after the openshift-ci have started reding the other one.
-
 FROM scratch
 
 # Core bundle labels.
@@ -19,6 +16,6 @@ LABEL operators.operatorframework.io.test.mediatype.v1=scorecard+v1
 LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 
 # Copy files to locations specified by labels.
-COPY manifests /manifests/
-COPY metadata /metadata/
-COPY tests/scorecard /tests/scorecard/
+COPY bundle/manifests /manifests/
+COPY bundle/metadata /metadata/
+COPY bundle/tests/scorecard /tests/scorecard/

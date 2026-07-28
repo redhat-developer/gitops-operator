@@ -271,13 +271,12 @@ bundle: operator-sdk opm manifests kustomize ## Generate bundle manifests and me
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
-	mv bundle.Dockerfile bundle/bundle.Dockerfile
 	$(OPERATOR_SDK) bundle validate ./bundle
 	$(OPM) render ./bundle -o yaml | grep -E 'schema: olm.bundle' # Fail if using v0 format
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
-	$(CONTAINER_RUNTIME) build -f bundle/bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_RUNTIME) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 	$(CONTAINER_RUNTIME) image inspect $(BUNDLE_IMG) --format '{{json .Config.Labels}}' | grep '"operators.operatorframework.io.bundle.mediatype.v1":"registry+v1"' # Fail if using v0 format
 
 .PHONY: bundle-push
