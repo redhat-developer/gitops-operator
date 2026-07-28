@@ -24,6 +24,9 @@ test.describe('HA Login Verification', () => {
     try {
       await disableHA();
       
+      console.log('[teardown] Rollout complete. Waiting 15s for router to drop terminating HA pods...');
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      
       console.log('[teardown] Polling OpenShift Route via Playwright until it returns 200 OK...');
       
       //get route url
@@ -32,10 +35,22 @@ test.describe('HA Login Verification', () => {
       //create api context ignoring self-signed certs
       const apiContext = await request.newContext({ ignoreHTTPSErrors: true });
 
-      //poll until 200 ok to prevent 503 errors on next test
+      //poll ui, auth, api, and callback routes with cache-busting to prevent 503s
       await expect(async () => {
-        const response = await apiContext.get(`https://${routeHost}`);
-        expect(response.status()).toBe(200);
+        const cb = Date.now(); //cache buster to force fresh network connections
+        
+        const uiResponse = await apiContext.get(`https://${routeHost}/?cb=${cb}`);
+        const authResponse = await apiContext.get(`https://${routeHost}/auth/login?cb=${cb}`);
+        const apiResponse = await apiContext.get(`https://${routeHost}/api/version?cb=${cb}`);
+        const callbackResponse = await apiContext.get(`https://${routeHost}/api/dex/callback?cb=${cb}`);
+        
+        //check for 2xx status codes
+        expect(uiResponse.ok()).toBeTruthy();
+        expect(authResponse.ok()).toBeTruthy();
+        expect(apiResponse.ok()).toBeTruthy();
+        
+        //callback will return 400 without a token, just ensure it isn't 503
+        expect(callbackResponse.status()).not.toBe(503);
       }).toPass({ timeout: 60000 });
 
       console.log('[teardown] Routing stabilized. Ready for the next test suite.');
