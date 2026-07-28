@@ -324,7 +324,7 @@ catalog-build: opm bundle ## Build a file-based catalog image.
 	rm -rf $(CATALOG_DIR) $(CATALOG_DIR).Dockerfile
 	mkdir -p $(CATALOG_DIR)
 	$(OPM) init gitops-operator --default-channel=$(shell echo $(DEFAULT_CHANNEL) | tr -d '"') -o yaml > $(CATALOG_DIR)/index.yaml
-	$(OPM) render ./bundle -o yaml | sed 's|^image: ""$$|image: $(BUNDLE_IMG)|' >> $(CATALOG_DIR)/index.yaml
+	$(OPM) render ./bundle -o yaml --alpha-image-ref-template '$(BUNDLE_IMG)' --migrate-level=bundle-object-to-csv-metadata >> $(CATALOG_DIR)/index.yaml
 	@bundle_name="gitops-operator.v$(VERSION)"; \
 	for ch in $$(echo $(CHANNELS) | tr -d '"' | tr ',' ' '); do \
 		printf '%s\n' '---' 'schema: olm.channel' "package: gitops-operator" "name: $${ch}" 'entries:' "  - name: $${bundle_name}" >> $(CATALOG_DIR)/index.yaml; \
@@ -334,6 +334,8 @@ catalog-build: opm bundle ## Build a file-based catalog image.
 	$(CONTAINER_RUNTIME) build -f $(CATALOG_DIR).Dockerfile -t $(CATALOG_IMG) .
 
 	# Validate that the catalog image is using the v1 format
+	@grep -q 'type: olm.csv.metadata' $(CATALOG_DIR)/index.yaml # Fail if using v0 format
+	@! grep -q 'type: olm.bundle.object' $(CATALOG_DIR)/index.yaml # Fail if using v0 format
 	@cid=$$($(CONTAINER_RUNTIME) create $(CATALOG_IMG)); \
 	if $(CONTAINER_RUNTIME) cp $$cid:/database/index.db /tmp/gitops-catalog-index.db 2>/dev/null; then \
 		$(CONTAINER_RUNTIME) rm $$cid >/dev/null; rm -f /tmp/gitops-catalog-index.db; \
