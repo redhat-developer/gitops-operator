@@ -552,7 +552,6 @@ func getConfigMapHash(cm *corev1.ConfigMap) string {
 
 func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginConfigMap = r.pluginConfigMap(r.PluginNamespace)
 
 	if err := controllerutil.SetControllerReference(instance, newPluginConfigMap, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -582,6 +581,41 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 		}
 	}
 	return reconcile.Result{}, nil
+}
+
+// cleanupOldPluginResources removes plugin resources from the old namespace (openshift-gitops) after they have been moved to the operator namespace, since owner references on the cluster-scoped GitopsService CR won't trigger garbage collection.
+func (r *ReconcileGitopsService) cleanupOldPluginResources(ctx context.Context) error {
+	if r.PluginNamespace == serviceNamespace {
+		return nil
+	}
+
+	reqLogger := logs.WithValues()
+
+	oldDeploy := &appsv1.Deployment{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, oldDeploy); err == nil {
+		reqLogger.Info("Cleaning up old plugin Deployment from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldDeploy); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin Deployment from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	oldSvc := &corev1.Service{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, oldSvc); err == nil {
+		reqLogger.Info("Cleaning up old plugin Service from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldSvc); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin Service from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	oldCM := &corev1.ConfigMap{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, oldCM); err == nil {
+		reqLogger.Info("Cleaning up old plugin ConfigMap from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldCM); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin ConfigMap from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	return nil
 }
 
 // reconcilePlugin is the entry point for reconciling all console plugin resources.

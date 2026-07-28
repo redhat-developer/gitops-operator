@@ -311,17 +311,10 @@ func main() {
 		}
 	}
 
-	pluginNamespace := "openshift-gitops-operator"
-	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	pluginNamespace, err := util.GetOperatorNamespace()
 	if err != nil {
-		if os.IsNotExist(err) {
-			setupLog.Info(fmt.Sprintf("Unable to retrieve the operator's running namespace via serviceaccount: %v. Using default namespace '%s'. This is expected when running locally.", err, pluginNamespace))
-		} else {
-			setupLog.Error(err, "Error retrieving operator's running namespace")
-			os.Exit(1)
-		}
-	} else {
-		pluginNamespace = strings.TrimSpace(string(data))
+		setupLog.Error(err, "Error retrieving operator's running namespace")
+		os.Exit(1)
 	}
 
 	if util.IsOpenShiftCluster() {
