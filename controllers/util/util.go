@@ -41,7 +41,9 @@ import (
 )
 
 const (
-	clusterVersionName = "version"
+	clusterVersionName       = "version"
+	operatorPodNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	DefaultOperatorNamespace = "openshift-gitops-operator"
 )
 
 var (
@@ -293,4 +295,18 @@ func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec
 			}
 		}
 	}
+}
+
+// GetOperatorNamespace returns the namespace the operator is running in by reading
+// the serviceaccount namespace file. If the file is not found (e.g. running locally),
+// it returns the default operator namespace and a nil error.
+func GetOperatorNamespace() (string, error) {
+	data, err := os.ReadFile(operatorPodNamespacePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return DefaultOperatorNamespace, nil
+		}
+		return "", fmt.Errorf("error retrieving operator namespace: %w", err)
+	}
+	return strings.TrimSpace(string(data)), nil
 }

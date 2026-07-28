@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	consolev1 "github.com/openshift/api/console/v1"
+	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -76,6 +77,104 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			oldCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops"}}
 			Eventually(oldCM).Should(k8sFixture.NotExistByName())
+		})
+
+		It("cleans up plugin resources from the old namespace when they exist (simulating upgrade from older version)", func() {
+
+			k8sClient, _ := utils.GetE2ETestKubeClient()
+			ctx := context.Background()
+			oldNamespace := "openshift-gitops"
+			operatorNamespace := "openshift-gitops-operator"
+
+			By("waiting for plugin deployment to be ready in operator namespace before proceeding")
+			readyDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: operatorNamespace}}
+			Eventually(readyDepl, "5m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(readyDepl, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+
+			By("deleting GitopsService CR to prepare for recreation trigger")
+			Expect(k8sClient.Delete(ctx, &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+			})).To(Succeed())
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(
+					&gitopsoperatorv1alpha1.GitopsService{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}),
+					&gitopsoperatorv1alpha1.GitopsService{})
+				return err != nil
+			}, "60s", "5s").Should(BeTrue())
+
+			By("creating fake plugin resources in the old namespace to simulate a pre-upgrade installation")
+			oldDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-plugin",
+					Namespace: oldNamespace,
+					Labels:    map[string]string{"app": "gitops-plugin"},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "gitops-plugin"},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "gitops-plugin"}},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{Name: "gitops-plugin", Image: "fake-image:latest"},
+							},
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, oldDepl)).To(Succeed())
+
+			oldSvc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-plugin",
+					Namespace: oldNamespace,
+					Labels:    map[string]string{"app": "gitops-plugin"},
+				},
+				Spec: corev1.ServiceSpec{
+					Selector: map[string]string{"app": "gitops-plugin"},
+					Ports:    []corev1.ServicePort{{Port: 9001, Protocol: corev1.ProtocolTCP}},
+				},
+			}
+			Expect(k8sClient.Create(ctx, oldSvc)).To(Succeed())
+
+			oldCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "httpd-cfg",
+					Namespace: oldNamespace,
+					Labels:    map[string]string{"app": "gitops-plugin"},
+				},
+				Data: map[string]string{"test": "data"},
+			}
+			Expect(k8sClient.Create(ctx, oldCM)).To(Succeed())
+
+			By("verifying the old resources were created successfully")
+			Eventually(oldDepl, "30s", "5s").Should(k8sFixture.ExistByName())
+			Eventually(oldSvc, "30s", "5s").Should(k8sFixture.ExistByName())
+			Eventually(oldCM, "30s", "5s").Should(k8sFixture.ExistByName())
+
+			By("recreating GitopsService CR to trigger reconciliation")
+			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: oldNamespace},
+			}
+			Expect(k8sClient.Create(ctx, gitopsService)).To(Succeed())
+
+			By("verifying old plugin resources are cleaned up from openshift-gitops")
+			Eventually(oldDepl, "5m", "5s").Should(k8sFixture.NotExistByName())
+			Eventually(oldSvc, "5m", "5s").Should(k8sFixture.NotExistByName())
+			Eventually(oldCM, "5m", "5s").Should(k8sFixture.NotExistByName())
+
+			By("verifying plugin resources still exist in the operator namespace")
+			newDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: operatorNamespace}}
+			Eventually(newDepl, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(newDepl, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+
+			newSvc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: operatorNamespace}}
+			Eventually(newSvc, "60s", "5s").Should(k8sFixture.ExistByName())
+
+			newCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: operatorNamespace}}
+			Eventually(newCM, "60s", "5s").Should(k8sFixture.ExistByName())
+
 		})
 	})
 })

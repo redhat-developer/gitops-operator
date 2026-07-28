@@ -132,15 +132,8 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	pluginNamespace := "openshift-gitops-operator"
-	data, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
-	if err != nil {
-		if !os.IsNotExist(err) {
-			Expect(err).NotTo(HaveOccurred(), "Error retrieving operator's running namespace")
-		}
-	} else {
-		pluginNamespace = strings.TrimSpace(string(data))
-	}
+	pluginNamespace, err := util.GetOperatorNamespace()
+	Expect(err).NotTo(HaveOccurred(), "Error retrieving operator's running namespace")
 
 	err = (&controllers.ReconcileGitopsService{
 		Client:                mgr.GetClient(),

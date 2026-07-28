@@ -360,7 +360,9 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return result, err
 	}
 
-	r.cleanupOldPluginResources(ctx)
+	if err := r.cleanupOldPluginResources(ctx); err != nil {
+		return reconcile.Result{}, err
+	}
 
 	return result, nil
 }
