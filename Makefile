@@ -277,7 +277,7 @@ bundle: operator-sdk opm manifests kustomize ## Generate bundle manifests and me
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
 	$(CONTAINER_RUNTIME) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-	$(CONTAINER_RUNTIME) image inspect $(BUNDLE_IMG) --format '{{json .Config.Labels}}' | grep 'operators.operatorframework.io.test.mediatype.v1' # Fail if using v0 format
+	$(CONTAINER_RUNTIME) image inspect $(BUNDLE_IMG) --format '{{json .Config.Labels}}' | grep '"operators.operatorframework.io.bundle.mediatype.v1":"registry+v1"' # Fail if using v0 format
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
