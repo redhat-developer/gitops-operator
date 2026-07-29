@@ -330,6 +330,24 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Enabled: true,
 						},
 					},
+					Notifications: argov1beta1api.ArgoCDNotifications{
+						Enabled: true,
+					},
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
+						Enabled: ptr.To(true),
+					},
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeDex,
+						Dex: &argov1beta1api.ArgoCDDexSpec{
+							Config: "test-config",
+							Volumes: []corev1.Volume{
+								{Name: "empty-dir-volume", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: "empty-dir-volume", MountPath: "/etc/test"},
+							},
+						},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argocd)).To(Succeed())
@@ -367,6 +385,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				"example-argocd-repo-server-network-policy",
 				"example-argocd-server-network-policy",
 				"example-argocd-application-controller-network-policy",
+				"example-argocd-notifications-controller-network-policy",
+				"example-argocd-dex-server-network-policy",
+				"example-argocd-applicationset-controller-network-policy",
 			}
 			for _, npName := range coreNPs {
 				Eventually(&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}, "3m", "5s").Should(k8sFixture.NotExistByName())
