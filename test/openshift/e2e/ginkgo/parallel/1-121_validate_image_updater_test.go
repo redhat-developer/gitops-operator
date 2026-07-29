@@ -75,7 +75,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		FIt("ensures that Image Updater will update Argo CD Application to the latest image", func() {
+		It("ensures that Image Updater will update Argo CD Application to the latest image", func() {
 
 			By("creating simple namespace-scoped Argo CD instance with image updater enabled")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
