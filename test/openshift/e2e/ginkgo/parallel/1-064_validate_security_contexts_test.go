@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		FIt("verifies that various Argo CD component workloads have expected security context", func() {
+		It("verifies that various Argo CD component workloads have expected security context", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

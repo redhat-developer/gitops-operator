@@ -63,7 +63,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 		})
 
-		FIt("ensures that custom labels set by the operator are added to Argo Rollouts resources", func() {
+		It("ensures that custom labels set by the operator are added to Argo Rollouts resources", func() {
 
 			By("creating namespace-scoped RolloutManager instance")
 			rolloutManager = &rolloutmanagerv1alpha1.RolloutManager{
