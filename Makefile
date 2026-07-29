@@ -323,12 +323,16 @@ CATALOG_DIR = catalog
 catalog-build: opm bundle ## Build a file-based catalog image.
 	rm -rf $(CATALOG_DIR) $(CATALOG_DIR).Dockerfile
 	mkdir -p $(CATALOG_DIR)
-	$(OPM) init gitops-operator --default-channel=$(shell echo $(DEFAULT_CHANNEL) | tr -d '"') -o yaml > $(CATALOG_DIR)/index.yaml
+	$(OPM) init gitops-operator --default-channel=$(DEFAULT_CHANNEL) -o yaml > $(CATALOG_DIR)/index.yaml
 	$(OPM) render ./bundle -o yaml --alpha-image-ref-template '$(BUNDLE_IMG)' --migrate-level=bundle-object-to-csv-metadata >> $(CATALOG_DIR)/index.yaml
-	@bundle_name="gitops-operator.v$(VERSION)"; \
 	for ch in $$(echo $(CHANNELS) | tr -d '"' | tr ',' ' '); do \
-		printf '%s\n' '---' 'schema: olm.channel' "package: gitops-operator" "name: $${ch}" 'entries:' "  - name: $${bundle_name}" >> $(CATALOG_DIR)/index.yaml; \
-	done
+		echo '---'; \
+		echo 'schema: olm.channel'; \
+		echo "package: gitops-operator"; \
+		echo "name: $${ch}"; \
+		echo 'entries:'; \
+		echo "  - name: gitops-operator.v$(VERSION)"; \
+	done >> $(CATALOG_DIR)/index.yaml
 	$(OPM) validate $(CATALOG_DIR)
 	$(OPM) generate dockerfile $(CATALOG_DIR)
 	$(CONTAINER_RUNTIME) build -f $(CATALOG_DIR).Dockerfile -t $(CATALOG_IMG) .
