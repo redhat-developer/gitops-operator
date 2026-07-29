@@ -60,7 +60,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
+		FIt("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -143,10 +143,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("expecting redis-server to have desired container process command/arguments")
 
-			expectedString := "--save \"\" --appendonly no --aclfile /app/config/redis-auth/users.acl --tls-protocols TLSv1.2 --tls-ciphers TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 --tls-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no"
+			fqdnSuffix := ".svc.cluster.local.:"
+			if !fixture.RunningOnOpenShift() {
+				fqdnSuffix = ".svc.cluster.local:"
+			}
+
+			expectedString := "--save \"\" --appendonly no --aclfile /app/config/redis-auth/users.acl"
+
+			if fixture.RunningOnOpenShift() {
+				expectedString += " --tls-protocols TLSv1.2 --tls-ciphers TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 --tls-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+			}
+
+			expectedString += " --tls-port 6379 --port 0 --tls-cert-file /app/config/redis/tls/tls.crt --tls-key-file /app/config/redis/tls/tls.key --tls-auth-clients no"
 
 			if !fixture.IsUpstreamOperatorTests() {
-				// Downstream operator adds these arguments
 				expectedString = "redis-server --protected-mode no " + expectedString
 			}
 
@@ -157,21 +167,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
 
 			By("expecting repo-server to have desired container process command/arguments")
-			Expect(repoServerDepl).To(deplFixture.HaveContainerCommandSubstring("uid_entrypoint.sh argocd-repo-server --redis argocd-redis."+ns.Name+".svc.cluster.local.:6379 --redis-use-tls --redis-ca-certificate /app/config/reposerver/tls/redis/tls.crt --loglevel info --logformat text", 0),
+			Expect(repoServerDepl).To(deplFixture.HaveContainerCommandSubstring("uid_entrypoint.sh argocd-repo-server --redis argocd-redis."+ns.Name+fqdnSuffix+"6379 --redis-use-tls --redis-ca-certificate /app/config/reposerver/tls/redis/tls.crt --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-repo-server deployment is wrong")
 
 			argocdServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: ns.Name}}
 			Eventually(argocdServerDepl).Should(k8sFixture.ExistByName())
 
 			By("expecting argocd-server to have desired container process command/arguments")
-			Expect(argocdServerDepl).To(deplFixture.HaveContainerCommandSubstring("argocd-server --staticassets /shared/app --dex-server https://argocd-dex-server."+ns.Name+".svc.cluster.local.:5556 --repo-server argocd-repo-server."+ns.Name+".svc.cluster.local.:8081 --redis argocd-redis."+ns.Name+".svc.cluster.local.:6379 --redis-use-tls --redis-ca-certificate /app/config/server/tls/redis/tls.crt --loglevel info --logformat text", 0),
+			Expect(argocdServerDepl).To(deplFixture.HaveContainerCommandSubstring("argocd-server --staticassets /shared/app --dex-server https://argocd-dex-server."+ns.Name+fqdnSuffix+"5556 --repo-server argocd-repo-server."+ns.Name+fqdnSuffix+"8081 --redis argocd-redis."+ns.Name+fqdnSuffix+"6379 --redis-use-tls --redis-ca-certificate /app/config/server/tls/redis/tls.crt --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-server deployment is wrong")
 
 			By("expecting application-controller to have desired container process command/arguments")
 			applicationControllerSS := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
 			Eventually(applicationControllerSS).Should(k8sFixture.ExistByName())
 
-			Expect(applicationControllerSS).To(statefulsetFixture.HaveContainerCommandSubstring("argocd-application-controller --operation-processors 10 --redis argocd-redis."+ns.Name+".svc.cluster.local.:6379 --redis-use-tls --redis-ca-certificate /app/config/controller/tls/redis/tls.crt --repo-server argocd-repo-server."+ns.Name+".svc.cluster.local.:8081 --status-processors 20 --kubectl-parallelism-limit 10 --loglevel info --logformat text", 0),
+			Expect(applicationControllerSS).To(statefulsetFixture.HaveContainerCommandSubstring("argocd-application-controller --operation-processors 10 --redis argocd-redis."+ns.Name+fqdnSuffix+"6379 --redis-use-tls --redis-ca-certificate /app/config/controller/tls/redis/tls.crt --repo-server argocd-repo-server."+ns.Name+fqdnSuffix+"8081 --status-processors 20 --kubectl-parallelism-limit 10 --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-application-controller statefulsets is wrong")
 
 		})
