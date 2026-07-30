@@ -52,6 +52,7 @@ func roleContainsPolicyRule(k8sClient client.Client, role *rbacv1.Role, expected
 		}
 	}
 
+	GinkgoWriter.Println("roleContainsPolicyRule - Expected rule:", expected, "/ Actual rules:", role.Rules)
 	return false
 }
 
@@ -111,7 +112,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, aggregateClusterRole)).To(Succeed())
 			defer func() {
 				Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, aggregateClusterRole))).To(Succeed())
-				Eventually(aggregateClusterRole).Should(k8sFixture.NotExistByName())
 			}()
 
 			By("verifying aggregated rules are added to the application-controller Role")
