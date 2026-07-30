@@ -144,9 +144,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("expecting redis-server to have desired container process command/arguments")
 
 			fqdnSuffix := ".svc.cluster.local.:"
-			if !fixture.RunningOnOpenShift() {
-				fqdnSuffix = ".svc.cluster.local:"
-			}
 
 			expectedString := "--save \"\" --appendonly no --aclfile /app/config/redis-auth/users.acl"
 
@@ -166,7 +163,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
 			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
 
-			By("expecting repo-server to have desired container process command/arguments")
+			By("expecting repo-server to ha`ve desired container process command/arguments")
 			Expect(repoServerDepl).To(deplFixture.HaveContainerCommandSubstring("uid_entrypoint.sh argocd-repo-server --redis argocd-redis."+ns.Name+fqdnSuffix+"6379 --redis-use-tls --redis-ca-certificate /app/config/reposerver/tls/redis/tls.crt --loglevel info --logformat text", 0),
 				"TLS .spec.template.spec.containers.command for argocd-repo-server deployment is wrong")
 

@@ -197,9 +197,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			fqdnSuffix := ".svc.cluster.local.:"
-			if !fixture.RunningOnOpenShift() {
-				fqdnSuffix = ".svc.cluster.local:"
-			}
 
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
 			Eventually(repoServerDepl, "2m", "5s").Should(k8sFixture.ExistByName(), "Repo server deployment did not exist within timeout")
