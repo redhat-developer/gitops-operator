@@ -62,7 +62,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -70,7 +70,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -78,6 +78,73 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
+	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13})
+		var gotTLSMinVersion string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+		}
+	})
+
+	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12})
+		var gotTLSMinVersion string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.2")
+		}
+	})
+
+	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+		var gotTLSMinVersion string
+		var gotTLSCiphers string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+			if env.Name == "TLS_CIPHER_SUITES" {
+				gotTLSCiphers = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1")
+		}
+	})
+
+	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
+		var gotTLSMinVersion string
+		var gotTLSCiphers string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+			if env.Name == "TLS_CIPHER_SUITES" {
+				gotTLSCiphers = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1:dummy2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1:dummy2")
+		}
+	})
 }
 
 func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
