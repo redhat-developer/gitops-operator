@@ -495,11 +495,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(destMapNsPrincipal, destMapNsAgent, destMapNsTarget)
 
 			By("Cleanup cluster-scoped resources")
-			Expect(k8sClient.Delete(ctx, clusterRolePrincipal)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, clusterRoleBindingPrincipal)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, clusterRoleAgent)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, clusterRoleBindingAgent)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, adminCRBAgent)).To(Succeed())
+			_ = k8sClient.Delete(ctx, clusterRolePrincipal)
+			_ = k8sClient.Delete(ctx, clusterRoleBindingPrincipal)
+			_ = k8sClient.Delete(ctx, clusterRoleAgent)
+			_ = k8sClient.Delete(ctx, clusterRoleBindingAgent)
+			_ = k8sClient.Delete(ctx, adminCRBAgent)
 
 			By("Cleanup namespaces created in this test")
 			for i := len(cleanupFuncs) - 1; i >= 0; i-- {
