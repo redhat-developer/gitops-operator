@@ -23,6 +23,7 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -64,7 +65,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: argov1beta1api.SSOProviderTypeDex,
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
+							OpenShiftOAuth:       true,
+							EnableSATokenRenewal: util.BoolPtr(true),
 						},
 					},
 				},
