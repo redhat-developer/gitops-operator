@@ -25,7 +25,6 @@ import (
 	"github.com/argoproj-labs/argocd-operator/common"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -45,8 +44,7 @@ func newArgoCDForDexOpenShiftOAuthE2E(namespace string) *argov1beta1api.ArgoCD {
 			SSO: &argov1beta1api.ArgoCDSSOSpec{
 				Provider: argov1beta1api.SSOProviderTypeDex,
 				Dex: &argov1beta1api.ArgoCDDexSpec{
-					OpenShiftOAuth:       true,
-					EnableSATokenRenewal: util.BoolPtr(true),
+					OpenShiftOAuth: true,
 				},
 			},
 			Server: argov1beta1api.ArgoCDServerSpec{
