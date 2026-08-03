@@ -427,6 +427,8 @@ spec:
                                   chain. Do not include a CA certificate. The secret referenced should
                                   be present in the same namespace as that of the Route.
                                   Forbidden when `certificate` is set.
+                                  The router service account needs to be granted with read-only access to this secret,
+                                  please refer to openshift docs for additional details.
                                 properties:
                                   name:
                                     description: |-
@@ -440,8 +442,12 @@ spec:
                                   insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                                   each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                                  * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                                  * None - no traffic is allowed on the insecure port.
+                                  If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                                  * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                                  * None - no traffic is allowed on the insecure port (default).
+
                                   * Redirect - clients are redirected to the secure port.
                                 enum:
                                 - Allow
@@ -454,10 +460,12 @@ spec:
                                 type: string
                               termination:
                                 description: |-
-                                  termination indicates termination type.
+                                  termination indicates the TLS termination type.
 
                                   * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                                   * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                                   * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                                   Note: passthrough termination is incompatible with httpHeader actions
@@ -690,6 +698,11 @@ spec:
                         type: array
                       image:
                         description: Image is the name of Argo CD Agent image
+                        type: string
+                      labelSelector:
+                        description: |-
+                          LabelSelector is a Kubernetes label selector that restricts which resources the agent watches.
+                          Only resources matching this selector will be listed, watched, and processed by the agent.
                         type: string
                       logFormat:
                         description: LogFormat refers to the log format used by the
@@ -929,6 +942,11 @@ spec:
                               the JWT signing key.
                             type: string
                         type: object
+                      labelSelector:
+                        description: |-
+                          LabelSelector is a Kubernetes label selector that restricts which resources the principal watches.
+                          Only resources matching this selector will be listed, watched, and processed by the principal.
+                        type: string
                       logFormat:
                         description: LogFormat refers to the log format used by the
                           Principal component.
@@ -1386,8 +1404,9 @@ spec:
                         minimum: 1
                         type: integer
                       dynamicScalingEnabled:
-                        description: DynamicScalingEnabled defines whether dynamic
-                          scaling should be enabled for Application Controller component
+                        description: |-
+                          Deprecated: dynamicScalingEnabled is deprecated and will be removed in a future release.
+                          DynamicScalingEnabled defines whether dynamic scaling should be enabled for Application Controller component.
                         type: boolean
                       enabled:
                         description: Enabled defines whether sharding should be enabled
@@ -1420,6 +1439,11 @@ spec:
                   Deprecated field. Support dropped in v1beta1 version.
                   Dex defines the Dex server options for ArgoCD.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Custom annotations to pods deployed by the operator
+                    type: object
                   config:
                     description: Config is the dex connector configuration.
                     type: string
@@ -1432,6 +1456,11 @@ spec:
                   image:
                     description: Image is the Dex container image.
                     type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Custom labels to pods deployed by the operator
+                    type: object
                   openShiftOAuth:
                     description: OpenShiftOAuth enables OpenShift OAuth authentication
                       for the Dex server.
@@ -1700,6 +1729,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -1713,8 +1744,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -1727,10 +1762,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -2299,6 +2336,10 @@ spec:
                 description: OIDCConfig is the OIDC configuration as an alternative
                   to dex.
                 type: string
+              priorityClassName:
+                description: PriorityClassName is the name of the PriorityClass resource
+                  to be assigned to all ArgoCD component pods.
+                type: string
               prometheus:
                 description: Prometheus defines the Prometheus server options for
                   ArgoCD.
@@ -2421,6 +2462,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -2434,8 +2477,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -2448,10 +2495,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -2517,6 +2566,11 @@ spec:
               redis:
                 description: Redis defines the Redis server options for ArgoCD.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Custom annotations to pods deployed by the operator
+                    type: object
                   autotls:
                     description: |-
                       AutoTLS specifies the method to use for automatic TLS configuration for the redis server
@@ -2530,6 +2584,11 @@ spec:
                   image:
                     description: Image is the Redis container image.
                     type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Custom labels to pods deployed by the operator
+                    type: object
                   resources:
                     description: Resources defines the Compute Resources required
                       by the container for Redis.
@@ -8497,6 +8556,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -8510,8 +8571,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -8524,10 +8589,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -8577,6 +8644,11 @@ spec:
                   dex:
                     description: Dex contains the configuration for Argo CD dex authentication
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Custom annotations to pods deployed by the operator
+                        type: object
                       config:
                         description: Config is the dex connector configuration.
                         type: string
@@ -8589,6 +8661,11 @@ spec:
                       image:
                         description: Image is the Dex container image.
                         type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: Custom labels to pods deployed by the operator
+                        type: object
                       openShiftOAuth:
                         description: OpenShiftOAuth enables OpenShift OAuth authentication
                           for the Dex server.
@@ -11536,6 +11613,8 @@ spec:
                                   chain. Do not include a CA certificate. The secret referenced should
                                   be present in the same namespace as that of the Route.
                                   Forbidden when `certificate` is set.
+                                  The router service account needs to be granted with read-only access to this secret,
+                                  please refer to openshift docs for additional details.
                                 properties:
                                   name:
                                     description: |-
@@ -11549,8 +11628,12 @@ spec:
                                   insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                                   each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                                  * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                                  * None - no traffic is allowed on the insecure port.
+                                  If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                                  * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                                  * None - no traffic is allowed on the insecure port (default).
+
                                   * Redirect - clients are redirected to the secure port.
                                 enum:
                                 - Allow
@@ -11563,10 +11646,12 @@ spec:
                                 type: string
                               termination:
                                 description: |-
-                                  termination indicates termination type.
+                                  termination indicates the TLS termination type.
 
                                   * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                                   * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                                   * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                                   Note: passthrough termination is incompatible with httpHeader actions
@@ -11820,6 +11905,11 @@ spec:
                         type: array
                       image:
                         description: Image is the name of Argo CD Agent image
+                        type: string
+                      labelSelector:
+                        description: |-
+                          LabelSelector is a Kubernetes label selector that restricts which resources the agent watches.
+                          Only resources matching this selector will be listed, watched, and processed by the agent.
                         type: string
                       logFormat:
                         description: LogFormat refers to the log format used by the
@@ -12123,6 +12213,11 @@ spec:
                               the JWT signing key.
                             type: string
                         type: object
+                      labelSelector:
+                        description: |-
+                          LabelSelector is a Kubernetes label selector that restricts which resources the principal watches.
+                          Only resources matching this selector will be listed, watched, and processed by the principal.
+                        type: string
                       logFormat:
                         description: LogFormat refers to the log format used by the
                           Principal component.
@@ -14213,8 +14308,9 @@ spec:
                         minimum: 1
                         type: integer
                       dynamicScalingEnabled:
-                        description: DynamicScalingEnabled defines whether dynamic
-                          scaling should be enabled for Application Controller component
+                        description: |-
+                          Deprecated: dynamicScalingEnabled is deprecated and will be removed in a future release.
+                          DynamicScalingEnabled defines whether dynamic scaling should be enabled for Application Controller component.
                         type: boolean
                       enabled:
                         description: Enabled defines whether sharding should be enabled
@@ -17929,6 +18025,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -17942,8 +18040,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -17956,10 +18058,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -18797,6 +18901,10 @@ spec:
                 description: OIDCConfig is the OIDC configuration as an alternative
                   to dex.
                 type: string
+              priorityClassName:
+                description: PriorityClassName is the name of the PriorityClass resource
+                  to be assigned to all ArgoCD component pods.
+                type: string
               prometheus:
                 description: Prometheus defines the Prometheus server options for
                   ArgoCD.
@@ -18919,6 +19027,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -18932,8 +19042,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -18946,10 +19060,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -19015,6 +19131,11 @@ spec:
               redis:
                 description: Redis defines the Redis server options for ArgoCD.
                 properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: Custom annotations to pods deployed by the operator
+                    type: object
                   autotls:
                     description: |-
                       AutoTLS specifies the method to use for automatic TLS configuration for the redis server
@@ -19032,6 +19153,11 @@ spec:
                   image:
                     description: Image is the Redis container image.
                     type: string
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: Custom labels to pods deployed by the operator
+                    type: object
                   remote:
                     description: Remote specifies the remote URL of the Redis container.
                       (optional, by default, a local instance managed by the operator
@@ -26794,6 +26920,8 @@ spec:
                               chain. Do not include a CA certificate. The secret referenced should
                               be present in the same namespace as that of the Route.
                               Forbidden when `certificate` is set.
+                              The router service account needs to be granted with read-only access to this secret,
+                              please refer to openshift docs for additional details.
                             properties:
                               name:
                                 description: |-
@@ -26807,8 +26935,12 @@ spec:
                               insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
                               each router may make its own decisions on which ports to expose, this is normally port 80.
 
-                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only) (default).
-                              * None - no traffic is allowed on the insecure port.
+                              If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                              * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                              * None - no traffic is allowed on the insecure port (default).
+
                               * Redirect - clients are redirected to the secure port.
                             enum:
                             - Allow
@@ -26821,10 +26953,12 @@ spec:
                             type: string
                           termination:
                             description: |-
-                              termination indicates termination type.
+                              termination indicates the TLS termination type.
 
                               * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
                               * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
                               * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
 
                               Note: passthrough termination is incompatible with httpHeader actions
@@ -30361,6 +30495,11 @@ spec:
                   dex:
                     description: Dex contains the configuration for Argo CD dex authentication
                     properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Custom annotations to pods deployed by the operator
+                        type: object
                       config:
                         description: Config is the dex connector configuration.
                         type: string
@@ -30532,6 +30671,11 @@ spec:
                       image:
                         description: Image is the Dex container image.
                         type: string
+                      labels:
+                        additionalProperties:
+                          type: string
+                        description: Custom labels to pods deployed by the operator
+                        type: object
                       openShiftOAuth:
                         description: OpenShiftOAuth enables OpenShift OAuth authentication
                           for the Dex server.
