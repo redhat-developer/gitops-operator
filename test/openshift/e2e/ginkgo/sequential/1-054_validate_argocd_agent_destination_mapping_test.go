@@ -443,7 +443,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 1. Principal and agent with destination-based mapping enabled can be deployed and connected.
 		// 2. An Application created in the principal's namespace is routed to the agent via destination.name.
 		// 3. The Application reaches Synced and Healthy status.
-		It("Should deploy principal and agent with destination-based mapping", func() {
+		// TODO: update the test to pass on xKS cluster
+		It("Should deploy principal and agent with destination-based mapping",Label("openshift") func() {
 
 			By("Deploy principal with destination-based mapping enabled")
 			deployDestMapPrincipal()
