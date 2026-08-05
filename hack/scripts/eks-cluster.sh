@@ -30,6 +30,8 @@ K8S_VERSION="1.30"
 NODE_TYPE="m5.xlarge"
 NODE_COUNT=3
 NODE_VOLUME_SIZE=100
+CREATE_TIMEOUT="30m"
+DELETE_TIMEOUT="20m"
 
 required_cmds=(aws eksctl)
 [[ "${ACTION}" == "create" || "${ACTION}" == "status" ]] && required_cmds+=(kubectl)
@@ -40,9 +42,21 @@ for cmd in "${required_cmds[@]}"; do
   fi
 done
 
+cleanup_cluster() {
+  echo "==> Create failed — cleaning up partial cluster '${CLUSTER_NAME}'"
+  eksctl delete cluster \
+    --name "${CLUSTER_NAME}" \
+    --region "${REGION}" \
+    --wait \
+    --timeout "${DELETE_TIMEOUT}" 2>/dev/null || \
+    echo "WARNING: cleanup failed; manually delete cluster '${CLUSTER_NAME}' in ${REGION}" >&2
+}
+
 cmd_create() {
   echo "==> Creating EKS cluster: ${CLUSTER_NAME} in ${REGION}"
   echo "    Kubernetes ${K8S_VERSION}, ${NODE_COUNT}x ${NODE_TYPE}, ${NODE_VOLUME_SIZE}GiB volumes"
+
+  trap cleanup_cluster ERR
 
   eksctl create cluster --profile ${AWS_PROFILE} \
     --name "${CLUSTER_NAME}" \
@@ -57,7 +71,10 @@ cmd_create() {
     --managed \
     --with-oidc \
     --ssh-access=false \
-    --asg-access
+    --asg-access \
+    --timeout "${CREATE_TIMEOUT}"
+
+  trap - ERR
 
   echo "==> Cluster ready"
   kubectl get nodes -o wide
@@ -74,7 +91,8 @@ cmd_delete() {
   eksctl delete cluster \
     --name "${CLUSTER_NAME}" \
     --region "${REGION}" \
-    --wait
+    --wait \
+    --timeout "${DELETE_TIMEOUT}"
 
   echo "==> Cleanup complete"
 }
