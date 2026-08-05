@@ -5,6 +5,10 @@ on:
     branches:
       - "master"
       - "v*"
+  push:
+    branches:
+      - "master"
+      - "v*"
 
 env:
   IMG: gitops-operator:test
