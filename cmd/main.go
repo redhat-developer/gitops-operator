@@ -307,12 +307,19 @@ func main() {
 		}
 	}
 
+	pluginNamespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		setupLog.Error(err, "Error retrieving operator's running namespace")
+		os.Exit(1)
+	}
+
 	if util.IsOpenShiftCluster() {
 		if err = (&controllers.ReconcileGitopsService{
 			Client:                client,
 			Scheme:                mgr.GetScheme(),
 			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
 			CentralTLSProfile:     profile,
+			PluginNamespace:       pluginNamespace,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 			os.Exit(1)

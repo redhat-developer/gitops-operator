@@ -146,9 +146,13 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
+	pluginNamespace, err := util.GetOperatorNamespace()
+	Expect(err).NotTo(HaveOccurred(), "Error retrieving operator's running namespace")
+
 	err = (&controllers.ReconcileGitopsService{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		PluginNamespace: pluginNamespace,
 	}).SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
