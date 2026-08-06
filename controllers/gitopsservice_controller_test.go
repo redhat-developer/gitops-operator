@@ -221,21 +221,25 @@ func TestReconcileDisableDefault(t *testing.T) {
 
 	argoCD := &argoapp.ArgoCD{}
 
-	// ArgoCD instance SHOULD NOT created (in openshift-gitops namespace)
+	// ArgoCD instance SHOULD NOT be created (in openshift-gitops namespace)
 	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
 		argoCD); err == nil || !errors.IsNotFound(err) {
 
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD be created
+	// openshift-gitops namespace SHOULD NOT be created when DISABLE_DEFAULT_ARGOCD_INSTANCE is true
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Namespace should not exist when DISABLE_DEFAULT_ARGOCD_INSTANCE is true, error: %v", err)
+	}
 
-	// backend Deployment SHOULD be created
+	// backend Deployment SHOULD NOT be created (no namespace to deploy into)
 	deploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Backend deployment should not exist when namespace doesn't exist, error: %v", err)
+	}
 
 }
 
@@ -275,14 +279,11 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD still exist
+	// openshift-gitops namespace SHOULD be deleted when DISABLE_DEFAULT_ARGOCD_INSTANCE is enabled
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
-
-	// backend Deployment SHOULD still exist
-	deploy := &appsv1.Deployment{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Namespace should be deleted when DISABLE_DEFAULT_ARGOCD_INSTANCE is enabled, error: %v", err)
+	}
 
 }
 
