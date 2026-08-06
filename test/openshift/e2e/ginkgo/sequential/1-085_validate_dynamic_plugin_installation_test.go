@@ -20,8 +20,8 @@ import (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-
-	Context("1-085_validate_dynamic_plugin_installation", func() {
+	// Only works on openshift platform
+	Context("1-085_validate_dynamic_plugin_installation", Label("openshift"), func() {
 
 		var (
 			ctx       context.Context

@@ -39,6 +39,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-010_validate-ootb-manage-other-namespace", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx                context.Context
@@ -65,7 +66,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", func() {
+		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", Label("openshift"), func() {
 
 			By("creating a new namespace that is managed by openshift-gitops Argo CD instance")
 			nsTest_1_10_custom, nsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")
