@@ -65,8 +65,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: openshift-gitops-operator.v1.16.0
-  namespace: openshift-operators
+  name: openshift-gitops-operator.v1.21.2
+  namespace: openshift-gitops-operator
 spec:
   install:
     spec:
@@ -79,25 +79,6 @@ spec:
           - endpoints
           - events
           - namespaces
-          - pods
-          - secrets
-          - serviceaccounts
-          - services
-          - services/finalizers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - endpoints
-          - events
           - persistentvolumeclaims
           - pods
           - secrets
@@ -116,26 +97,16 @@ spec:
           - ""
           resources:
           - deployments
+          - podtemplates
           verbs:
           - get
           - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          - resourcequotas
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
           - watch
         - apiGroups:
           - ""
           resources:
           - pods/eviction
+          - serviceaccounts/token
           verbs:
           - create
         - apiGroups:
@@ -147,10 +118,13 @@ spec:
         - apiGroups:
           - ""
           resources:
-          - podtemplates
+          - resourcequotas
           verbs:
+          - create
+          - delete
           - get
           - list
+          - update
           - watch
         - apiGroups:
           - apiextensions.k8s.io
@@ -191,6 +165,7 @@ spec:
           resources:
           - daemonsets
           - deployments
+          - podtemplates
           - replicasets
           - statefulsets
           verbs:
@@ -204,29 +179,15 @@ spec:
         - apiGroups:
           - apps
           resources:
-          - deployments
-          - podtemplates
-          - replicasets
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - apps
-          resources:
           - deployments/finalizers
           verbs:
           - update
         - apiGroups:
           - apps
+          resources:
+          - deployments/finalizers
           resourceNames:
           - gitops-operator
-          resources:
-          - deployments/finalizers
           verbs:
           - update
         - apiGroups:
@@ -246,21 +207,16 @@ spec:
           resources:
           - analysisruns
           - analysisruns/finalizers
+          - analysistemplates
+          - clusteranalysistemplates
           - experiments
           - experiments/finalizers
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - analysistemplates
+          - namespacemanagements
+          - namespacemanagements/status
+          - rollouts
+          - rollouts/finalizers
+          - rollouts/scale
+          - rollouts/status
           verbs:
           - create
           - delete
@@ -278,22 +234,10 @@ spec:
           - argocds
           - argocds/finalizers
           - argocds/status
+          - rolloutmanagers
           verbs:
           - create
           - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - clusteranalysistemplates
-          verbs:
-          - create
-          - delete
-          - deletecollection
           - get
           - list
           - patch
@@ -309,18 +253,6 @@ spec:
         - apiGroups:
           - argoproj.io
           resources:
-          - rolloutmanagers
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
           - rolloutmanagers/finalizers
           verbs:
           - update
@@ -332,22 +264,6 @@ spec:
           - get
           - patch
           - update
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - rollouts
-          - rollouts/finalizers
-          - rollouts/scale
-          - rollouts/status
-          verbs:
-          - create
-          - delete
-          - deletecollection
-          - get
-          - list
-          - patch
-          - update
-          - watch
         - apiGroups:
           - autoscaling
           resources:
@@ -374,21 +290,11 @@ spec:
           - update
           - watch
         - apiGroups:
-          - batch
-          resources:
-          - jobs
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
           - config.openshift.io
           resources:
+          - authentications
           - clusterversions
+          - ingresses
           verbs:
           - get
           - list
@@ -408,17 +314,6 @@ spec:
           - console.openshift.io
           resources:
           - consolelinks
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - console.openshift.io
-          resources:
           - consoleplugins
           verbs:
           - create
@@ -431,19 +326,19 @@ spec:
         - apiGroups:
           - coordination.k8s.io
           resources:
-            - leases
+          - leases
           verbs:
-            - create
-            - get
-            - update
+          - create
+          - get
+          - update
         - apiGroups:
           - eks.amazonaws.com
           - elbv2.k8s.aws
           resources:
-            - targetgroupbindings
+          - targetgroupbindings
           verbs:
-            - get
-            - list
+          - get
+          - list
         - apiGroups:
           - extensions
           resources:
@@ -456,6 +351,7 @@ spec:
           - watch
         - apiGroups:
           - getambassador.io
+          - x.getambassador.io
           resources:
           - ambassadormappings
           - mappings
@@ -492,18 +388,7 @@ spec:
           - update
           - watch
         - apiGroups:
-            - networking.k8s.io
-          resources:
-          - ingresses
-          verbs:
-          - create
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-            - networking.k8s.io
+          - networking.k8s.io
           resources:
           - ingresses
           - networkpolicies
@@ -542,17 +427,6 @@ spec:
           - pipelines.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - pipelines.openshift.io
-          resources:
           - gitopsservices
           verbs:
           - create
@@ -580,20 +454,6 @@ spec:
           - rbac.authorization.k8s.io
           resources:
           - '*'
-          verbs:
-          - bind
-          - create
-          - delete
-          - deletecollection
-          - escalate
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
           - clusterrolebindings
           - clusterroles
           verbs:
@@ -624,17 +484,6 @@ spec:
           - route.openshift.io
           resources:
           - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - route.openshift.io
-          resources:
           - routes
           - routes/custom-host
           verbs:
@@ -677,18 +526,10 @@ spec:
           - get
           - update
           - watch
-        - apiGroups:
-          - x.getambassador.io
-          resources:
-          - ambassadormappings
-          - mappings
+        - nonResourceURLs:
+          - /metrics
           verbs:
-          - create
-          - delete
           - get
-          - list
-          - update
-          - watch
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -706,10 +547,10 @@ spec:
 
 			Expect(yaml.UnmarshalStrict([]byte(csvString), expectedCsv)).To(Succeed())
 
-			By("looking for a ClusterServiceVersion for openshift-gitops across all namespaces")
+			By("looking for a ClusterServiceVersion for openshift-gitops in openshift-gitops-operator namespace")
 			gitopsCSVsFound := []olmv1alpha1.ClusterServiceVersion{}
 			var csvList olmv1alpha1.ClusterServiceVersionList
-			Expect(k8sClient.List(ctx, &csvList)).To(Succeed())
+			Expect(k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator"))).To(Succeed())
 			for index := range csvList.Items {
 				csv := csvList.Items[index]
 				if strings.Contains(csv.Name, "openshift-gitops-operator") {
@@ -717,7 +558,11 @@ spec:
 				}
 			}
 			By("if more than one possible CSV is found, we will fail.")
-			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("Exactly one CSV should found: %v", gitopsCSVsFound))
+			csvNames := []string{}
+			for _, csv := range gitopsCSVsFound {
+				csvNames = append(csvNames, fmt.Sprintf("%s/%s", csv.Namespace, csv.Name))
+			}
+			Expect(gitopsCSVsFound).To(HaveLen(1), fmt.Sprintf("Exactly one CSV should be found: %v", csvNames))
 
 			actualCsv := &olmv1alpha1.ClusterServiceVersion{
 				ObjectMeta: metav1.ObjectMeta{
