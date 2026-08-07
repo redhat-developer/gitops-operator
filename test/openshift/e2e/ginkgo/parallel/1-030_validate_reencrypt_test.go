@@ -35,7 +35,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -87,7 +86,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Expect(r).Should(routeFixture.HavePort(intstr.FromString("https")))
 			Expect(r).Should(routeFixture.HaveTLS(routev1.TLSTerminationReencrypt, routev1.InsecureEdgeTerminationPolicyRedirect))
-			Expect(r).Should(routeFixture.HaveTo(routev1.RouteTargetReference{Kind: "Service", Name: "argocd-server", Weight: ptr.To(int32(100))}))
+			Expect(r).Should(routeFixture.HaveTo(routev1.RouteTargetReference{Kind: "Service", Name: "argocd-server", Weight: new(int32(100))}))
 
 			By("verifying the Route was successfully admitted, and ths TLS Secret exists")
 			Eventually(func() bool {

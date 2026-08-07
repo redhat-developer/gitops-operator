@@ -22,7 +22,6 @@ import (
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -107,7 +106,7 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName:  pluginServingCertName,
-						DefaultMode: ptr.To(int32(420)),
+						DefaultMode: new(int32(420)),
 					},
 				},
 			},
@@ -118,7 +117,7 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: httpdConfigMapName,
 						},
-						DefaultMode: ptr.To(int32(420)),
+						DefaultMode: new(int32(420)),
 					},
 				},
 			},
@@ -232,8 +231,8 @@ func securityContextForPlugin() *corev1.SecurityContext {
 				"ALL",
 			},
 		},
-		RunAsNonRoot:             ptr.To(true),
-		AllowPrivilegeEscalation: ptr.To(false),
+		RunAsNonRoot:             new(true),
+		AllowPrivilegeEscalation: new(false),
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		},

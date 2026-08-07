@@ -260,11 +260,6 @@ func caseInsensitiveGetenv(s string) (string, string) {
 	return "", ""
 }
 
-// BoolPtr returns a pointer to val
-func BoolPtr(val bool) *bool {
-	return &val
-}
-
 func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec) {
 
 	version, _ := GetClusterVersion(client)
@@ -280,13 +275,13 @@ func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec
 		}
 		if podspec.Containers[0].SecurityContext == nil {
 			podspec.Containers[0].SecurityContext = &corev1.SecurityContext{
-				AllowPrivilegeEscalation: BoolPtr(false),
+				AllowPrivilegeEscalation: new(false),
 				Capabilities: &corev1.Capabilities{
 					Drop: []corev1.Capability{
 						"ALL",
 					},
 				},
-				RunAsNonRoot: BoolPtr(true),
+				RunAsNonRoot: new(true),
 				SeccompProfile: &corev1.SeccompProfile{
 					Type: corev1.SeccompProfileTypeRuntimeDefault,
 				},

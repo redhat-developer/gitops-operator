@@ -28,7 +28,6 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -66,11 +65,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("updating server and repo replicas to 3")
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Server.Replicas = ptr.To((int32)(3))
+				ac.Spec.Server.Replicas = new((int32)(3))
 			})
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Repo.Replicas = ptr.To((int32)(3))
+				ac.Spec.Repo.Replicas = new((int32)(3))
 			})
 
 			By("verifying 3 server and repo replicas become ready")
@@ -82,11 +81,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating server and repo replicas to 1")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Server.Replicas = ptr.To((int32)(1))
+				ac.Spec.Server.Replicas = new((int32)(1))
 			})
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Repo.Replicas = ptr.To((int32)(1))
+				ac.Spec.Repo.Replicas = new((int32)(1))
 			})
 
 			By("verifying 1 server and repo replicas become ready")

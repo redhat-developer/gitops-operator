@@ -126,7 +126,7 @@ func gather() string {
 	Expect(err).ToNot(HaveOccurred())
 
 	errorLines := make([]string, 0)
-	for _, line := range strings.Split(stdout, "\n") {
+	for line := range strings.SplitSeq(stdout, "\n") {
 		if strings.Contains(line, "error:") {
 			errorLines = append(errorLines, line)
 		}

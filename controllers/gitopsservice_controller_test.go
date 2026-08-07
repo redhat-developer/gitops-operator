@@ -472,13 +472,13 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 
 	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
 	want := &corev1.SecurityContext{
-		AllowPrivilegeEscalation: util.BoolPtr(false),
+		AllowPrivilegeEscalation: new(false),
 		Capabilities: &corev1.Capabilities{
 			Drop: []corev1.Capability{
 				"ALL",
 			},
 		},
-		RunAsNonRoot: util.BoolPtr(true),
+		RunAsNonRoot: new(true),
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		},

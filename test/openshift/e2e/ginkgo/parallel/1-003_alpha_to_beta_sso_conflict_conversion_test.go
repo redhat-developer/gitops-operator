@@ -28,7 +28,6 @@ import (
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -74,7 +73,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						Keycloak: &argov1alpha1api.ArgoCDKeycloakSpec{
 							RootCA: "\"---BEGIN---END---\"",
 						},
-						VerifyTLS: ptr.To(false),
+						VerifyTLS: new(false),
 					},
 					ExtraConfig: map[string]string{
 						"oidc.tls.insecure.skip.verify": "true",
