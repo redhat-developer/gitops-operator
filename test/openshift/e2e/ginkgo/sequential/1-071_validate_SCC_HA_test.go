@@ -31,7 +31,6 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -75,7 +74,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				AllowHostNetwork:         false,
 				AllowHostPID:             false,
 				AllowHostPorts:           false,
-				AllowPrivilegeEscalation: ptr.To(false),
+				AllowPrivilegeEscalation: new(false),
 				AllowPrivilegedContainer: false,
 				AllowedCapabilities:      nil,
 				DefaultAddCapabilities:   nil,

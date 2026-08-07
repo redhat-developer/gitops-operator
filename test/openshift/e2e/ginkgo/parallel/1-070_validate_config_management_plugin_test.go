@@ -31,7 +31,6 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -79,7 +78,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							Command: []string{"/var/run/argocd/argocd-cmp-server"}, // Entrypoint should be Argo CD lightweight CMP server ie. argocd-cmp-server
 							Image:   "quay.io/fedora/fedora:latest",                // This can be off-the-shelf or custom-built image
 							SecurityContext: &corev1.SecurityContext{
-								RunAsNonRoot: ptr.To(true),
+								RunAsNonRoot: new(true),
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{MountPath: "/var/run/argocd", Name: "var-files"},
@@ -95,7 +94,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			if !fixture.RunningOnOpenShift() {
-				argoCD.Spec.Repo.SidecarContainers[0].SecurityContext.RunAsUser = ptr.To(int64(999))
+				argoCD.Spec.Repo.SidecarContainers[0].SecurityContext.RunAsUser = new(int64(999))
 			}
 
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())

@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -53,7 +52,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(serverRoute.Spec.To).Should(Equal(routev1.RouteTargetReference{
 				Kind:   "Service",
 				Name:   "openshift-gitops-server",
-				Weight: ptr.To(int32(100)),
+				Weight: new(int32(100)),
 			}))
 
 			By("verifying Route has admitted ingress")
