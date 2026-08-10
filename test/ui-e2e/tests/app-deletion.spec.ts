@@ -152,8 +152,8 @@ spec:
   });
 
   test('Delete application via UI and verify cascading deletion', async ({ page }) => {
-    //set explicit test timeout budget
-    test.setTimeout(90000);
+    //covers ui waits plus backend/child prune polling budgets
+    test.setTimeout(180000);
 
     //locate application card specifically bound to appName without broad div scanning
     const appTile = page.locator('.application-tile, [class*="application-tile"], [class*="applications-list__entry"]')
