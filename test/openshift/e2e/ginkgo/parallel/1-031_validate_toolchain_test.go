@@ -150,8 +150,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			// Dex Version: v2.41.1-1-ga7854d65
 
 			var dexVersion string
-			dexVersionOutputSplit := strings.Split(dexVersionOutput, "\n")
-			for _, line := range dexVersionOutputSplit {
+			dexVersionOutputSplit := strings.SplitSeq(dexVersionOutput, "\n")
+			for line := range dexVersionOutputSplit {
 				if strings.Contains(line, "Dex Version:") {
 					dexVersion = line
 					dexVersion = dexVersion[strings.Index(dexVersion, ":")+1:]

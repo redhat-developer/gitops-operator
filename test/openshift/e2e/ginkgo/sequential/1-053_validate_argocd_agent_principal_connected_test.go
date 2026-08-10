@@ -43,7 +43,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -787,11 +786,11 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 	if componentType == argov1beta1api.AgentComponentTypePrincipal {
 		argoCD.Spec = argov1beta1api.ArgoCDSpec{
 			Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-				Enabled: ptr.To(false),
+				Enabled: new(false),
 			},
 			ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 				Principal: &argov1beta1api.PrincipalSpec{
-					Enabled:  ptr.To(true),
+					Enabled:  new(true),
 					Auth:     "mtls:CN=([^,]+)",
 					LogLevel: "debug",
 					Image:    common.ArgoCDAgentPrincipalDefaultImageName,
@@ -802,15 +801,15 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 						},
 					},
 					TLS: &argov1beta1api.PrincipalTLSSpec{
-						InsecureGenerate: ptr.To(false),
+						InsecureGenerate: new(false),
 					},
 					JWT: &argov1beta1api.PrincipalJWTSpec{
-						InsecureGenerate: ptr.To(false),
+						InsecureGenerate: new(false),
 					},
 					Server: &argov1beta1api.PrincipalServerSpec{
 						KeepAliveMinInterval: "30s",
 						Route: argov1beta1api.ArgoCDAgentPrincipalRouteSpec{
-							Enabled: ptr.To(false),
+							Enabled: new(false),
 						},
 						Service: argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
 							Type: corev1.ServiceTypeLoadBalancer,
@@ -818,7 +817,7 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 					},
 				},
 				Agent: &argov1beta1api.AgentSpec{
-					Enabled: ptr.To(false),
+					Enabled: new(false),
 				},
 			},
 			SourceNamespaces: []string{
@@ -830,14 +829,14 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 		// Agent configurations
 		argoCD.Spec = argov1beta1api.ArgoCDSpec{
 			Server: argov1beta1api.ArgoCDServerSpec{
-				Enabled: ptr.To(false),
+				Enabled: new(false),
 			},
 			ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 				Principal: &argov1beta1api.PrincipalSpec{
-					Enabled: ptr.To(false),
+					Enabled: new(false),
 				},
 				Agent: &argov1beta1api.AgentSpec{
-					Enabled:  ptr.To(true),
+					Enabled:  new(true),
 					Creds:    "mtls:any",
 					LogLevel: "debug",
 					Image:    common.ArgoCDAgentAgentDefaultImageName,
@@ -853,7 +852,7 @@ func buildArgoCDResource(argoCDName string, componentType argov1beta1api.AgentCo
 					TLS: &argov1beta1api.AgentTLSSpec{
 						SecretName:       agentClientTLSSecretName,
 						RootCASecretName: agentRootCASecretName,
-						Insecure:         ptr.To(false),
+						Insecure:         new(false),
 					},
 				},
 			},
@@ -916,8 +915,8 @@ func buildApplicationResource(applicationName, nsName, agentName, argocdInstance
 			},
 			SyncPolicy: &argocdv1alpha1.SyncPolicy{
 				Automated: &argocdv1alpha1.SyncPolicyAutomated{
-					Prune:    ptr.To(true),
-					SelfHeal: ptr.To(true),
+					Prune:    new(true),
+					SelfHeal: new(true),
 				},
 				ManagedNamespaceMetadata: &argocdv1alpha1.ManagedNamespaceMetadata{
 					Labels: map[string]string{
