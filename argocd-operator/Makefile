@@ -43,6 +43,9 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.35.0
 
+# K8s version to use for reference documentation.
+KUBERNETES_API_VERSION ?= 1.35
+
 GOSEC_VERSION ?= v2.22.7
 GOLANGCILINT_VERSION ?= v2.12.2
 
@@ -388,6 +391,21 @@ update-dependencies:
 update-dependencies-argocd:
 	hack/update-dependencies-script/argocd/run.sh
 
+.PHONY: apidocs-gen
+apidocs-gen: ## Generate API documentation.
+	$(call crd-ref-docs,./api/v1alpha1/,./docs/reference/api-v1alpha1.md)
+	$(call crd-ref-docs,./api/v1beta1/,./docs/reference/api-v1beta1.md)
+
+define crd-ref-docs
+# The config have the k8s version injected so it does not have to be updated there
+go run github.com/elastic/crd-ref-docs@v0.3.0 \
+	--config=<(sed 's/__KUBERNETES_API_VERSION__/$(KUBERNETES_API_VERSION)/' ./docs/crd-ref-docs.config.yaml) \
+	--source-path=$(1) \
+	--log-level=info \
+	--renderer=markdown \
+	--output-path=$(2)
+endef
+
 .PHONY: serve-docs
-serve-docs: ## Serve documentation locally using mkdocs in a container
+serve-docs: apidocs-gen ## Serve documentation locally using mkdocs in a container
 	$(CONTAINER_RUNTIME) run --rm -it -p 8000:8000 -v $(PWD):/argocd-operator:Z -w /argocd-operator --name argocd-operator-mkdocs registry.access.redhat.com/ubi9/python-311:latest /bin/bash -c "pip install -r docs/requirements.txt && mkdocs serve -a 0.0.0.0:8000"
