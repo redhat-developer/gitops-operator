@@ -60,17 +60,25 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
 
   //handle the openshift welcome tour modal if it appears
   try {
-    const skipTourButton = page.getByRole('button', { name: /skip tour/i });
-    //wait briefly for the modal to pop up
-    await skipTourButton.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
-    await skipTourButton.click();
+    const welcomeDialog = page.getByRole('dialog').filter({
+      has: page.getByRole('heading', { name: /Welcome to the new OpenShift experience/i })
+    });
+    await welcomeDialog.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
+    const skipTour = welcomeDialog.getByRole('button', { name: /skip tour/i });
+    const closeBtn = welcomeDialog.getByRole('button', { name: /^close$/i });
+    if (await skipTour.isVisible()) {
+      await skipTour.click();
+    } else {
+      await closeBtn.click();
+    }
+    await expect(welcomeDialog).toBeHidden({ timeout: TIMEOUTS.medium });
     console.log('Dismissed the OpenShift Welcome Tour modal.');
   } catch (error) {
     if (error instanceof Error && error.name === 'TimeoutError') {
       //safely ignore the timeout and move on
       console.log('welcome tour modal did not appear, continuing...');
     } else {
-      //throw any other unexpected errors 
+      //throw any other unexpected errors
       throw error;
     }
   }
