@@ -167,18 +167,15 @@ export class ApplicationsPage {
   }
 
   async openApplication(appName: string) {
-    //re-apply search filter just in case the UI refreshed
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
-    
-    //find the container, then specifically click the link of the app name
-    const appLink = this.page.locator('.white-box, .argo-table-list__row')
-                         .filter({ has: this.page.getByText(appName, { exact: true }) })
-                         .getByRole('link', { name: appName, exact: true });
-                             
-    await appLink.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
-    await appLink.click();
-    
-    //wait for the URL to change to the details page to ensure the click worked
+
+    const appCard = this.page
+      .locator('.white-box, .argo-table-list__row, .application-tile, [class*="application-tile"], [class*="applications-list__entry"]')
+      .filter({ hasText: appName });
+    const appNameLink = appCard.getByText(appName, { exact: true }).first();
+
+    await expect(appNameLink).toBeVisible({ timeout: TIMEOUTS.load });
+    await appNameLink.click();
     await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: TIMEOUTS.default });
   }
 }
