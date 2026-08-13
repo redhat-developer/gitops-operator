@@ -2,8 +2,9 @@ import { test, expect } from '../src/fixtures';
 import { execFileSync } from 'child_process';
 
 test.describe('Clean Application Deletion (Pruning)', () => {
-  //make app name unique for test isolation
-  const appName = `ui-deletion-${Date.now()}`;
+  const stamp = Date.now();
+  const appName = `ui-deletion-${stamp}`;
+  const destNs = `ui-deletion-ns-${stamp}`;
   //pin revision to immutable commit SHA for reproducibility
   const targetCommit = '8088f4c0d970abb09e250248cc97e35623447cb5';
 
@@ -25,7 +26,7 @@ test.describe('Clean Application Deletion (Pruning)', () => {
       .map((kind) =>
         execFileSync(
           'oc',
-          ['get', kind, 'guestbook-ui', '-n', 'openshift-gitops', '--ignore-not-found', '-o', 'name'],
+          ['get', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '-o', 'name'],
           { stdio: 'pipe', timeout: 5000 }
         ).toString().trim()
       )
@@ -37,7 +38,6 @@ test.describe('Clean Application Deletion (Pruning)', () => {
     testInfo.setTimeout(180000);
     console.log(`\n[setup] Deploying dummy application '${appName}' via CLI...`);
 
-    //define standard guestbook app yaml targeting openshift-gitops namespace
     const appYaml = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -46,7 +46,7 @@ metadata:
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: openshift-gitops
+    namespace: ${destNs}
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -59,11 +59,13 @@ spec:
       selfHeal: true
 `;
     try {
+      execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
+
       //clear leftover guestbook children that can leave a new app stuck Unknown/OutOfSync
       for (const kind of ['deploy', 'svc'] as const) {
         execFileSync(
           'oc',
-          ['delete', kind, 'guestbook-ui', '-n', 'openshift-gitops', '--ignore-not-found', '--wait=false'],
+          ['delete', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '--wait=false'],
           { stdio: 'pipe', timeout: 15000 }
         );
       }
@@ -119,11 +121,9 @@ spec:
   });
 
   test.afterAll(async ({}, testInfo) => {
-    //set hook timeout to 60s
     testInfo.setTimeout(60000);
-    console.log('\n[teardown] Ensuring application is cleaned up...');
+    console.log(`\n[teardown] Ensuring '${appName}' and '${destNs}' are cleaned up...`);
 
-    //attempt fallback cleanup if ui deletion failed or was skipped
     try {
       execFileSync(
         'oc',
@@ -134,14 +134,18 @@ spec:
       console.warn(`[teardown] Initial cleanup command failed: ${(e as Error).message}`);
     }
 
-    //verify resource is completely absent from cluster
+    execFileSync(
+      'oc',
+      ['delete', 'namespace', destNs, '--ignore-not-found', '--wait=false'],
+      { stdio: 'pipe', timeout: 15000 }
+    );
+
     let isDeleted = false;
     for (let i = 1; i <= 5; i++) {
       if (!applicationExists()) {
         isDeleted = true;
         break;
       }
-      //resource still exists, wait before checking again
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 

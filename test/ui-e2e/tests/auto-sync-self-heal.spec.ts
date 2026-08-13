@@ -4,7 +4,9 @@ import { ApplicationsPage } from '../src/pages/ApplicationsPage';
 import { ApplicationDetailsPage } from '../src/pages/ApplicationDetailsPage';
 
 test.describe('Auto-Sync and Self-Healing', () => {
-  const appName = `ui-autosync-${Date.now()}`;
+  const stamp = Date.now();
+  const appName = `ui-autosync-${stamp}`;
+  const destNs = `ui-autosync-ns-${stamp}`;
   const targetCommit = '8088f4c0d970abb09e250248cc97e35623447cb5';
 
   const ocGet = (args: string[]): string =>
@@ -17,12 +19,11 @@ test.describe('Auto-Sync and Self-Healing', () => {
     return out.length > 0;
   };
 
-  //guestbook children share fixed names
   const deleteGuestbookChildren = () => {
     for (const kind of ['deploy', 'svc'] as const) {
       execFileSync(
         'oc',
-        ['delete', kind, 'guestbook-ui', '-n', 'openshift-gitops', '--ignore-not-found', '--wait=false'],
+        ['delete', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '--wait=false'],
         { stdio: 'pipe', timeout: 15000 }
       );
     }
@@ -32,6 +33,7 @@ test.describe('Auto-Sync and Self-Healing', () => {
     testInfo.setTimeout(120000);
     console.log(`\n[setup] Deploying '${appName}' via CLI (manual sync policy)...`);
 
+    execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
     deleteGuestbookChildren();
 
     //manual sync — UI enables automated policy
@@ -43,7 +45,7 @@ metadata:
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: openshift-gitops
+    namespace: ${destNs}
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -62,7 +64,7 @@ spec:
 
   test.afterAll(async ({}, testInfo) => {
     testInfo.setTimeout(90000);
-    console.log(`\n[teardown] Cleaning up '${appName}' and guestbook children...`);
+    console.log(`\n[teardown] Cleaning up '${appName}' and '${destNs}'...`);
 
     try {
       execFileSync(
@@ -75,6 +77,11 @@ spec:
     }
 
     deleteGuestbookChildren();
+    execFileSync(
+      'oc',
+      ['delete', 'namespace', destNs, '--ignore-not-found', '--wait=false'],
+      { stdio: 'pipe', timeout: 15000 }
+    );
 
     let gone = false;
     for (let i = 1; i <= 10; i++) {
