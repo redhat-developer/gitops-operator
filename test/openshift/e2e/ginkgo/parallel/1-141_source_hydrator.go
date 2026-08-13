@@ -325,7 +325,7 @@ patches:
 					},
 					// Expose host for the git push webhook to work.
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Ingress: argov1beta1api.ArgoCDIngressSpec{
+						Route: argov1beta1api.ArgoCDRouteSpec{
 							Enabled: true,
 						},
 						Insecure: true,
@@ -434,7 +434,7 @@ patches:
 					},
 					// Expose host for the git push webhook to work.
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Ingress: argov1beta1api.ArgoCDIngressSpec{
+						Route: argov1beta1api.ArgoCDRouteSpec{
 							Enabled: true,
 						},
 						Insecure: true,

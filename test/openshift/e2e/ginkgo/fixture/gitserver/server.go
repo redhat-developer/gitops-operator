@@ -207,6 +207,15 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 					SecurityContext: &corev1.SecurityContext{
 						RunAsUser:  ptr.To(int64(1000)),
 						RunAsGroup: ptr.To(int64(1000)),
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeRuntimeDefault,
+						},
+						AllowPrivilegeEscalation: ptr.To(false),
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{
+								"ALL",
+							},
+						},
 					},
 				},
 			},

@@ -82,6 +82,7 @@ func HavePhase(expected string) matcher.GomegaMatcher {
 				"Redis:", argocd.Status.Redis,
 				"Repo:", argocd.Status.Repo,
 				"Server: ", argocd.Status.Server,
+				"CommitServer:", argocd.Status.CommitServer,
 				"ApplicationController:", argocd.Status.ApplicationController,
 				"ApplicationSetController:", argocd.Status.ApplicationSetController,
 				"NotificationsController:", argocd.Status.NotificationsController,
