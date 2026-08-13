@@ -8,7 +8,6 @@ type HaCapacityAssessment = {
   reasons: string[];
   workerCount: number;
   workerMemSummary: string;
-  inspectionFailed: boolean;
 };
 
 //Ki/Mi/Gi -> Ki
@@ -34,7 +33,6 @@ function assessHaCapacity(): HaCapacityAssessment {
   const reasons: string[] = [];
   let workerCount = 0;
   let workerMemSummary = 'unknown';
-  let inspectionFailed = false;
 
   if (process.env.REDUCE_HA_RESOURCES === 'true') {
     reasons.push('REDUCE_HA_RESOURCES=true');
@@ -61,7 +59,6 @@ function assessHaCapacity(): HaCapacityAssessment {
     }
   } catch (e: any) {
     //don't treat oc errors as low capacity
-    inspectionFailed = true;
     console.warn(`[setup] could not inspect workers (${e?.message || e}); skipping capacity reduction`);
   }
 
@@ -70,7 +67,6 @@ function assessHaCapacity(): HaCapacityAssessment {
     reasons,
     workerCount,
     workerMemSummary,
-    inspectionFailed,
   };
 }
 
