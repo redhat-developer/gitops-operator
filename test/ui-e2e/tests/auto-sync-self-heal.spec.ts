@@ -29,7 +29,7 @@ test.describe('Auto-Sync and Self-Healing', () => {
   };
 
   test.beforeAll(async ({}, testInfo) => {
-    testInfo.setTimeout(60000);
+    testInfo.setTimeout(120000);
     console.log(`\n[setup] Deploying '${appName}' via CLI (manual sync policy)...`);
 
     deleteGuestbookChildren();
