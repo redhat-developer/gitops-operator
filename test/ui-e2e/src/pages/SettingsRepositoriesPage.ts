@@ -1,5 +1,5 @@
 import { Page, expect, Locator } from '@playwright/test';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 export class SettingsRepositoriesPage {
   readonly page: Page;
@@ -63,13 +63,18 @@ export class SettingsRepositoriesPage {
     }
 
     const data = JSON.parse(raw) as {
-      items?: Array<{ metadata?: { name?: string }; data?: Record<string, string> }>;
+      items?: Array<{
+        metadata?: { name?: string; labels?: Record<string, string> };
+        data?: Record<string, string>;
+      }>;
     };
     const toDelete: string[] = [];
     for (const secret of data.items || []) {
       const name = secret.metadata?.name;
+      const labels = secret.metadata?.labels || {};
       const b64 = secret.data || {};
-      if (!name) continue;
+      //repo secrets only
+      if (!name || labels['argocd.argoproj.io/secret-type'] !== 'repository') continue;
 
       let urlVal = '';
       if (b64.url) {
@@ -81,26 +86,13 @@ export class SettingsRepositoriesPage {
       }
       if (urlVal === repoUrl) {
         toDelete.push(name);
-        continue;
-      }
-
-      let blob = '';
-      for (const v of Object.values(b64)) {
-        try {
-          blob += Buffer.from(v, 'base64').toString('utf8') + '\n';
-        } catch {
-          /* ignore */
-        }
-      }
-      if (blob.includes(repoUrl)) {
-        toDelete.push(name);
       }
     }
 
     let deleted = 0;
     for (const name of [...new Set(toDelete)]) {
       try {
-        execSync(`oc delete secret ${name} -n openshift-gitops --wait=true`, {
+        execFileSync('oc', ['delete', 'secret', name, '-n', 'openshift-gitops', '--wait=true'], {
           encoding: 'utf8',
           timeout: 60000,
           stdio: ['ignore', 'pipe', 'pipe'],

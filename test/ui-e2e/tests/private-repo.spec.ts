@@ -11,7 +11,7 @@ test.describe('Private Git Repository Connection', () => {
   });
 
   test.afterEach(async ({ page }) => {
-    if (!repoUrl) return;
+    if (!repoUrl || !password) return;
     console.log('[teardown] removing configured private repository');
     const reposPage = new SettingsRepositoriesPage(page);
     await reposPage.ensureRepoRemoved(repoUrl);

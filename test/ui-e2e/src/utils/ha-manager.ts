@@ -8,12 +8,33 @@ type HaCapacityAssessment = {
   reasons: string[];
   workerCount: number;
   workerMemSummary: string;
+  inspectionFailed: boolean;
 };
+
+//Ki/Mi/Gi -> Ki
+function memoryToKi(quantity: string): number {
+  const match = /^(\d+(?:\.\d+)?)(Ki|Mi|Gi|Ti)?$/.exec(quantity.trim());
+  if (!match) return 0;
+  const value = parseFloat(match[1]);
+  const unit = match[2] || 'Ki';
+  switch (unit) {
+    case 'Ti':
+      return Math.round(value * 1024 * 1024 * 1024);
+    case 'Gi':
+      return Math.round(value * 1024 * 1024);
+    case 'Mi':
+      return Math.round(value * 1024);
+    case 'Ki':
+    default:
+      return Math.round(value);
+  }
+}
 
 function assessHaCapacity(): HaCapacityAssessment {
   const reasons: string[] = [];
   let workerCount = 0;
   let workerMemSummary = 'unknown';
+  let inspectionFailed = false;
 
   if (process.env.REDUCE_HA_RESOURCES === 'true') {
     reasons.push('REDUCE_HA_RESOURCES=true');
@@ -27,7 +48,7 @@ function assessHaCapacity(): HaCapacityAssessment {
 
     for (const node of workers) {
       const name = node.metadata?.name || 'worker';
-      const memKi = parseInt(node.status?.allocatable?.memory || '0', 10);
+      const memKi = memoryToKi(node.status?.allocatable?.memory || '0');
       memParts.push(`${name}=${memKi > 0 ? `${Math.round(memKi / 1024 / 1024)}Gi` : '?'}`);
       if (memKi > 0 && memKi < MIN_WORKER_MEM_KI) {
         reasons.push(`${name} allocatable memory ${Math.round(memKi / 1024 / 1024)}Gi < 12Gi`);
@@ -39,7 +60,9 @@ function assessHaCapacity(): HaCapacityAssessment {
       reasons.push(`worker count ${workerCount} < ${MIN_WORKERS}`);
     }
   } catch (e: any) {
-    reasons.push(`could not inspect workers (${e?.message || e})`);
+    //don't treat oc errors as low capacity
+    inspectionFailed = true;
+    console.warn(`[setup] could not inspect workers (${e?.message || e}); skipping capacity reduction`);
   }
 
   return {
@@ -47,6 +70,7 @@ function assessHaCapacity(): HaCapacityAssessment {
     reasons,
     workerCount,
     workerMemSummary,
+    inspectionFailed,
   };
 }
 
