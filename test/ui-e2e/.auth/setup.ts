@@ -66,6 +66,7 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
     await welcomeDialog.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
     const skipTour = welcomeDialog.getByRole('button', { name: /skip tour/i });
     const closeBtn = welcomeDialog.getByRole('button', { name: /^close$/i });
+    await skipTour.or(closeBtn).first().waitFor({ state: 'visible', timeout: TIMEOUTS.medium });
     if (await skipTour.isVisible()) {
       await skipTour.click();
     } else {

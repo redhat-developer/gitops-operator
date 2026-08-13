@@ -99,6 +99,7 @@ npx playwright show-trace test-results/create-application-chromium/trace.zip
 ├── src/
 │   └── pages/            # Page Object Models (POM) isolating UI selectors from spec logic
 │       ├── ApplicationsPage.ts
+│       ├── ApplicationDetailsPage.ts
 │       └── SettingsRepositoriesPage.ts
 ├── tests/                # Test specs organized by feature epic
 │   ├── admin-login.spec.ts

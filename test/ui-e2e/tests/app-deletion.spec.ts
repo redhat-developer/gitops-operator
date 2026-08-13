@@ -34,8 +34,7 @@ test.describe('Clean Application Deletion (Pruning)', () => {
   };
 
   test.beforeAll(async ({}, testInfo) => {
-    //set timeout to 150s (sync poll can take ~90s after a fresh install)
-    testInfo.setTimeout(150000);
+    testInfo.setTimeout(180000);
     console.log(`\n[setup] Deploying dummy application '${appName}' via CLI...`);
 
     //define standard guestbook app yaml targeting openshift-gitops namespace

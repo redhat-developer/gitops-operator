@@ -89,7 +89,9 @@ export class ApplicationDetailsPage {
     await expect
       .poll(
         async () => {
-          const res = await this.page.request.get(`/api/v1/applications/${appName}`);
+          const res = await this.page.request.get(
+            `/api/v1/applications/${encodeURIComponent(appName)}`
+          );
           if (!res.ok()) return false;
           const app = await res.json();
           return app?.spec?.syncPolicy?.automated?.[flag] === true;
@@ -104,14 +106,16 @@ export class ApplicationDetailsPage {
     const checkboxId = kind === 'prune' ? 'prune-resources' : 'self-heal';
     const rowLabel = kind === 'prune' ? /PRUNE RESOURCES/i : /SELF HEAL/i;
     const checkbox = this.page.locator(`#${checkboxId}`);
+    const enableBtn = this.syncPolicyRow(rowLabel).getByRole('button', { name: /^Enable$/i });
 
+    //wait for checkbox or Enable button
+    await expect(checkbox.or(enableBtn).first()).toBeVisible({ timeout: 15000 });
     if (await checkbox.isVisible()) {
       await checkbox.click();
       await this.confirmArgoPopup();
       return;
     }
 
-    const enableBtn = this.syncPolicyRow(rowLabel).getByRole('button', { name: /^Enable$/i });
     await expect(enableBtn).toBeVisible({ timeout: 15000 });
     await enableBtn.click();
     await this.confirmArgoPopup();
