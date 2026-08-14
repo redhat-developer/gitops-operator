@@ -264,14 +264,16 @@ export class SettingsRepositoriesPage {
     }
     await this.passwordField().fill(password);
 
+    //oauth2/token often needs force basic auth
     const forceBasic = this.slidingPanel().getByLabel(/Force HTTP basic auth/i);
     if (await forceBasic.isVisible().catch(() => false)) {
       if (!(await forceBasic.isChecked())) {
+        console.log('[private-repo] enabling force HTTP basic auth');
         await forceBasic.check();
       }
     }
 
-    //gitlab.cee internal CA is not trusted by repo-server by default
+    //internal CA not trusted by default
     const skipTls = this.slidingPanel().getByLabel(/Skip server verification/i);
     if (await skipTls.isVisible().catch(() => false)) {
       if (!(await skipTls.isChecked())) {
@@ -284,29 +286,92 @@ export class SettingsRepositoriesPage {
     await this.slidingPanel().getByRole('button', { name: /^Connect$/i }).click();
   }
 
+  private async repoPresentInApi(repoUrl: string): Promise<boolean> {
+    try {
+      const response = await this.page.request.get('/api/v1/repositories');
+      if (!response.ok()) return false;
+      const body = (await response.json()) as { items?: Array<{ repo?: string; url?: string }> };
+      return (body.items || []).some((item) => item.repo === repoUrl || item.url === repoUrl);
+    } catch {
+      return false;
+    }
+  }
+
+  private async visibleConnectionError(): Promise<string> {
+    //real failure toasts only
+    const failureBanner = this.page
+      .getByText(/Unable to connect HTTPS repository/i)
+      .or(this.page.getByText(/Unable to connect repository/i))
+      .or(this.page.getByText(/Failed to connect/i))
+      .first();
+    if (await failureBanner.isVisible().catch(() => false)) {
+      const detail = (
+        await this.page
+          .locator('.notifications-list, .toast, [class*="notification"], .argo-notifications')
+          .first()
+          .innerText()
+          .catch(async () => failureBanner.innerText().catch(() => ''))
+      ).trim();
+      return detail || 'Unable to connect repository';
+    }
+    return '';
+  }
+
   async assertConnectionSuccessful(repoUrl: string) {
-    console.log('[private-repo] waiting for successful connection (max 60s)');
-    const connectError = this.page.getByText(/Unable to connect HTTPS repository/i);
+    console.log('[private-repo] waiting for successful connection (max 90s)');
     const row = this.repoRow(repoUrl);
+    const deadline = Date.now() + 90000;
 
     try {
-      await Promise.race([
-        row.waitFor({ state: 'visible', timeout: 60000 }),
-        connectError.waitFor({ state: 'visible', timeout: 60000 }).then(async () => {
-          const detail = (
-            await this.page
-              .locator('.notifications-list, .toast, [class*="notification"]')
-              .first()
-              .innerText()
-              .catch(() => '')
-          ).trim();
-          throw new Error(
-            this.redact(`argo failed to connect private repo${detail ? `: ${detail}` : ''}`)
-          );
-        }),
-      ]);
-      await expect(row.getByText(/Successful/i)).toBeVisible({ timeout: 30000 });
-      console.log('[private-repo] connection successful');
+      while (Date.now() < deadline) {
+        const err = await this.visibleConnectionError();
+        if (err) {
+          throw new Error(this.redact(`argo failed to connect private repo: ${err}`));
+        }
+
+        if (await row.isVisible().catch(() => false)) {
+          await expect(row.getByText(/Successful/i)).toBeVisible({ timeout: 30000 });
+          console.log('[private-repo] connection successful');
+          return;
+        }
+
+        if (await this.repoPresentInApi(repoUrl)) {
+          console.log('[private-repo] repo present via API; refreshing list');
+          const refresh = this.page.getByRole('button', { name: /Refresh list/i });
+          if (await refresh.isVisible().catch(() => false)) {
+            await refresh.click();
+          } else {
+            await this.page.reload();
+          }
+          await expect(this.page.getByText('Loading...', { exact: true })).toHaveCount(0, {
+            timeout: 60000,
+          });
+          continue;
+        }
+
+        //refresh if list stayed empty
+        const empty = this.page.getByText(/No repositories connected/i);
+        if (await empty.isVisible().catch(() => false)) {
+          const refresh = this.page.getByRole('button', { name: /Refresh list/i });
+          if (await refresh.isVisible().catch(() => false)) {
+            await refresh.click();
+            await expect(this.page.getByText('Loading...', { exact: true })).toHaveCount(0, {
+              timeout: 30000,
+            });
+          }
+        }
+
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+
+      const err = await this.visibleConnectionError();
+      const inApi = await this.repoPresentInApi(repoUrl);
+      throw new Error(
+        this.redact(
+          `private repo did not appear in Settings after Connect ` +
+            `(apiHasRepo=${inApi}${err ? `; uiError=${err}` : ''}).`
+        )
+      );
     } finally {
       await this.clearSecretsFromForm();
     }
