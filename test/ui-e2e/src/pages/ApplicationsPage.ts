@@ -48,16 +48,21 @@ export class ApplicationsPage {
                               
   }
 
-  //dismiss intermittent load-error banner
-  private async dismissLoadErrorBanner(timeout = TIMEOUTS.short) {
+  //dismiss intermittent load-error banner (wait only for late banners)
+  private async dismissLoadErrorBanner(waitForLateMs = 0) {
     const errorBanner = this.page.getByText(/try again/i);
-    try {
-      await errorBanner.waitFor({ state: 'visible', timeout });
+    if (await errorBanner.isVisible()) {
       await errorBanner.click();
+      return;
+    }
+    if (waitForLateMs <= 0) return;
+    try {
+      await errorBanner.waitFor({ state: 'visible', timeout: waitForLateMs });
     } catch (error) {
       if (error instanceof Error && error.name === 'TimeoutError') return;
       throw error;
     }
+    await errorBanner.click();
   }
 
   async navigate() {
@@ -176,7 +181,7 @@ export class ApplicationsPage {
     const appCard = this.page
       .locator('.white-box, .argo-table-list__row, .application-tile, [class*="application-tile"], [class*="applications-list__entry"]')
       .filter({ hasText: appName });
-    const appNameLink = appCard.getByText(appName, { exact: true }).first();
+    const appNameLink = appCard.getByText(appName, { exact: true }).filter({ visible: true }).first();
 
     await expect(appNameLink).toBeVisible({ timeout: TIMEOUTS.load });
     await appNameLink.click();
