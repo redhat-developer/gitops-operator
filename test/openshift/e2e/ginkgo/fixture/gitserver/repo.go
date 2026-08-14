@@ -51,7 +51,7 @@ func (r Repo) GetRepoSshURL() string {
 }
 
 func (r Repo) getRepoSshURLLocal() string {
-	return fmt.Sprintf("ssh://%s@127.0.0.1:%d/%s/%s.git", giteaSSHLogin, localSSHPort, r.server.httpUsername, r.repoName)
+	return fmt.Sprintf("ssh://%s@127.0.0.1:%d/%s/%s.git", giteaSSHLogin, r.server.localSSHPort, r.server.httpUsername, r.repoName)
 }
 
 func (r *Repo) Clone(t Transport) (cleanup func(), err error) {

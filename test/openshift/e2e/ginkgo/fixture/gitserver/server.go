@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -31,9 +32,8 @@ const (
 	serverName = "e2e-gitserver"
 
 	httpPort       = int32(3000)
-	sshPort        = int32(2222)  // rootless image listens on 2222
-	sshServicePort = int32(22)    // service maps 22 -> 2222 for callers
-	localSSHPort   = int32(30222) // kubectl port-forward target for local git clients
+	sshPort        = int32(2222) // rootless image listens on 2222
+	sshServicePort = int32(22)   // service maps 22 -> 2222 for callers
 	gitUsername    = "gituser"
 	giteaSSHLogin  = "git" // rootless builtin SSH authenticates as RUN_USER (git), not the Gitea account name
 )
@@ -45,6 +45,7 @@ type Server struct {
 
 	clusterDomain string // in-cluster service DNS name (matches the TLS certificate SAN)
 	domain        string // external HTTPS route hostname for local git clients
+	localSSHPort  int32  // kubectl port-forward local port for git clients on the test runner
 	httpURL       string
 	httpUsername  string
 	httpPassword  string
@@ -319,9 +320,10 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 
 	server.domain = server.httpsRoute.Status.Ingress[0].Host
 	server.httpURL = fmt.Sprintf("https://%s", server.domain)
-	server.stopPortForward = startSSHPortForward(ns.Name, service.Name)
+	server.localSSHPort = reserveLocalSSHPort()
+	server.stopPortForward = startSSHPortForward(ns.Name, service.Name, server.localSSHPort)
 	GinkgoWriter.Printf("Git server HTTPS endpoint: %s\n", server.httpURL)
-	GinkgoWriter.Printf("Git server local SSH endpoint: 127.0.0.1:%d\n", localSSHPort)
+	GinkgoWriter.Printf("Git server local SSH endpoint: 127.0.0.1:%d\n", server.localSSHPort)
 
 	configureGiteaAdmin(server)
 	server.sshKnownHosts = fetchSSHKnownHosts(server)
@@ -468,8 +470,16 @@ func (s *Server) CreateRepo(repoName string) Repo {
 	}
 }
 
-func startSSHPortForward(namespace, serviceName string) func() {
-	portMapping := fmt.Sprintf("%d:%d", localSSHPort, sshServicePort)
+func reserveLocalSSHPort() int32 {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	Expect(err).NotTo(HaveOccurred())
+	port := int32(listener.Addr().(*net.TCPAddr).Port)
+	Expect(listener.Close()).To(Succeed())
+	return port
+}
+
+func startSSHPortForward(namespace, serviceName string, localPort int32) func() {
+	portMapping := fmt.Sprintf("%d:%d", localPort, sshServicePort)
 	cmdArgs := []string{"kubectl", "port-forward", "-n", namespace, "svc/" + serviceName, portMapping}
 	GinkgoWriter.Println("executing command:", cmdArgs)
 
