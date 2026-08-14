@@ -45,7 +45,7 @@ type Server struct {
 
 	clusterDomain string // in-cluster service DNS name (matches the TLS certificate SAN)
 	domain        string // external HTTPS route hostname for local git clients
-	localSSHPort  int32  // kubectl port-forward local port for git clients on the test runner
+	localSSHPort  int    // kubectl port-forward local port for git clients on the test runner
 	httpURL       string
 	httpUsername  string
 	httpPassword  string
@@ -470,15 +470,15 @@ func (s *Server) CreateRepo(repoName string) Repo {
 	}
 }
 
-func reserveLocalSSHPort() int32 {
+func reserveLocalSSHPort() int {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	Expect(err).NotTo(HaveOccurred())
-	port := int32(listener.Addr().(*net.TCPAddr).Port)
+	port := listener.Addr().(*net.TCPAddr).Port
 	Expect(listener.Close()).To(Succeed())
 	return port
 }
 
-func startSSHPortForward(namespace, serviceName string, localPort int32) func() {
+func startSSHPortForward(namespace, serviceName string, localPort int) func() {
 	portMapping := fmt.Sprintf("%d:%d", localPort, sshServicePort)
 	cmdArgs := []string{"kubectl", "port-forward", "-n", namespace, "svc/" + serviceName, portMapping}
 	GinkgoWriter.Println("executing command:", cmdArgs)
@@ -503,6 +503,9 @@ func startSSHPortForward(namespace, serviceName string, localPort int32) func() 
 				signalReady()
 				signalReady = nil
 			}
+		}
+		if scanErr := scanner.Err(); scanErr != nil {
+			GinkgoWriter.Println("port-forward scanner error:", scanErr)
 		}
 	}
 
