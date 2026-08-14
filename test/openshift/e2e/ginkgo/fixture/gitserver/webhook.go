@@ -95,7 +95,7 @@ func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit)
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // e2e test against operator-managed routes
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 // e2e test against operator-managed routes
 		},
 	}
 

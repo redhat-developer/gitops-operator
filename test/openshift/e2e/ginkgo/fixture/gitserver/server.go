@@ -31,8 +31,8 @@ const (
 	serverName = "e2e-gitserver"
 
 	httpPort       = int32(3000)
-	sshPort        = int32(2222) // rootless image listens on 2222
-	sshServicePort = int32(22)   // service maps 22 -> 2222 for callers
+	sshPort        = int32(2222)  // rootless image listens on 2222
+	sshServicePort = int32(22)    // service maps 22 -> 2222 for callers
 	localSSHPort   = int32(30222) // kubectl port-forward target for local git clients
 	gitUsername    = "gituser"
 	giteaSSHLogin  = "git" // rootless builtin SSH authenticates as RUN_USER (git), not the Gitea account name
