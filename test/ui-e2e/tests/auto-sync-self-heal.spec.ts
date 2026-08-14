@@ -34,6 +34,11 @@ test.describe('Auto-Sync and Self-Healing', () => {
     console.log(`\n[setup] Deploying '${appName}' via CLI (manual sync policy)...`);
 
     execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
+    execFileSync(
+      'oc',
+      ['label', 'namespace', destNs, 'argocd.argoproj.io/managed-by=openshift-gitops', '--overwrite'],
+      { stdio: 'pipe', timeout: 15000 }
+    );
     deleteGuestbookChildren();
 
     //manual sync — UI enables automated policy
