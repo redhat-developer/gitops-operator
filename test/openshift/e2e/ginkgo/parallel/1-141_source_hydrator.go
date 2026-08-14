@@ -338,6 +338,16 @@ patches:
 
 			repo := server.CreateRepo("hydrator-kustomize")
 
+			By("pushing dry source before creating the Application")
+			cleanup, err := repo.Clone(gitserver.TransportSSH)
+			Expect(err).NotTo(HaveOccurred())
+			gitRepoCleanup = cleanup
+			dryCommit := gitserver.Commit{
+				Branch: "dry",
+				Files:  kustomizeDrySourceFiles,
+			}
+			Expect(repo.CommitAndPush(dryCommit)).To(Succeed())
+
 			By("creating a test Argo CD Application")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "hydrated", Namespace: ns.Name},
@@ -368,16 +378,6 @@ patches:
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-
-			By("pushing dry source to trigger Source Hydrator")
-			cleanup, err := repo.Clone(gitserver.TransportSSH)
-			Expect(err).NotTo(HaveOccurred())
-			gitRepoCleanup = cleanup
-			dryCommit := gitserver.Commit{
-				Branch: "dry",
-				Files:  kustomizeDrySourceFiles,
-			}
-			Expect(repo.CommitAndPush(dryCommit)).To(Succeed())
 			Expect(repo.NotifyArgoCDWebhook(argoCD, dryCommit)).To(Succeed())
 
 			By("waiting for Source Hydrator to hydrate and sync the application")
@@ -447,6 +447,16 @@ patches:
 
 			repo := server.CreateRepo("hydrator-helm")
 
+			By("pushing dry source before creating the Application")
+			cleanup, err := repo.Clone(gitserver.TransportHTTPS)
+			Expect(err).NotTo(HaveOccurred())
+			gitRepoCleanup = cleanup
+			dryCommit := gitserver.Commit{
+				Branch: "main",
+				Files:  helmDrySourceFiles,
+			}
+			Expect(repo.CommitAndPush(dryCommit)).To(Succeed())
+
 			By("creating a test Argo CD Application")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "hydrated-helm", Namespace: ns.Name},
@@ -475,16 +485,6 @@ patches:
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-
-			By("pushing dry source to trigger Source Hydrator")
-			cleanup, err := repo.Clone(gitserver.TransportHTTPS)
-			Expect(err).NotTo(HaveOccurred())
-			gitRepoCleanup = cleanup
-			dryCommit := gitserver.Commit{
-				Branch: "main",
-				Files:  helmDrySourceFiles,
-			}
-			Expect(repo.CommitAndPush(dryCommit)).To(Succeed())
 			Expect(repo.NotifyArgoCDWebhook(argoCD, dryCommit)).To(Succeed())
 
 			By("waiting for Source Hydrator to hydrate the application")

@@ -2,6 +2,7 @@ package gitserver
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -77,7 +78,7 @@ func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit)
 		Repository: gogsPushWebhookRepository{
 			Name:          r.repoName,
 			FullName:      fmt.Sprintf("%s/%s", r.server.httpUsername, r.repoName),
-			HTMLURL:       fmt.Sprintf("https://%s:%d/%s/%s", r.server.domain, httpPort, r.server.httpUsername, r.repoName),
+			HTMLURL:       fmt.Sprintf("https://%s/%s/%s", r.server.domain, r.server.httpUsername, r.repoName),
 			SSHURL:        r.GetRepoSshURL(),
 			CloneURL:      r.GetRepoHttpURL(),
 			DefaultBranch: "main",
@@ -90,33 +91,32 @@ func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit)
 		return err
 	}
 
-	webhookURL := fmt.Sprintf("http://%s/api/webhook", hosts[0])
-	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	if argoCD.Name != "" {
-		req.Host = argoCD.Name
-		req.Header.Set("Host", argoCD.Name)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Gogs-Event", "push")
-	req.Header.Set("X-Gitea-Event", "push")
-
+	webhookURL := fmt.Sprintf("https://%s/api/webhook", hosts[0])
 	client := &http.Client{
 		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // e2e test against operator-managed routes
+		},
 	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("argo cd webhook request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	var lastStatus int
+	Eventually(func(g Gomega) {
+		req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
+		g.Expect(err).NotTo(HaveOccurred())
+		req.Host = hosts[0]
+		req.Header.Set("Host", hosts[0])
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Gogs-Event", "push")
+		req.Header.Set("X-Gitea-Event", "push")
 
-	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("argo cd webhook returned status %d", resp.StatusCode)
-	}
+		resp, err := client.Do(req)
+		g.Expect(err).NotTo(HaveOccurred())
+		defer resp.Body.Close()
+		lastStatus = resp.StatusCode
+		g.Expect(resp.StatusCode).To(BeNumerically(">=", http.StatusOK))
+		g.Expect(resp.StatusCode).To(BeNumerically("<", http.StatusMultipleChoices))
+	}, "2m", "5s").Should(Succeed())
 
-	GinkgoWriter.Printf("notified Argo CD webhook %s for branch %s@%s\n", webhookURL, branch, commitSHA)
+	GinkgoWriter.Printf("notified Argo CD webhook %s for branch %s@%s (status %d)\n", webhookURL, branch, commitSHA, lastStatus)
 	return nil
 }

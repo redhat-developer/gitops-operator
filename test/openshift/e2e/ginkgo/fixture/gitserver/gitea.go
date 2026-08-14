@@ -111,7 +111,7 @@ func fetchSSHKnownHosts(server *Server) string {
 		pubKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(strings.TrimSpace(out)))
 		g.Expect(err).NotTo(HaveOccurred(), "parse Gitea SSH host key from %q: %q", hostPublicKeyPath, out)
 
-		knownHosts = formatSSHKnownHosts(server.domain, sshServicePort, pubKey)
+		knownHosts = formatSSHKnownHosts(server.clusterDomain, sshServicePort, pubKey)
 		g.Expect(knownHosts).NotTo(BeEmpty())
 	}, "2m", "5s").Should(Succeed())
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -38,14 +39,19 @@ func (r Repo) getRepoHttpURLWithCredentials() string {
 	repoURL := &url.URL{
 		Scheme: "https",
 		User:   url.UserPassword(r.server.httpUsername, r.server.httpPassword),
-		Host:   fmt.Sprintf("%s:%d", r.server.domain, httpPort),
+		Host:   r.server.domain,
 		Path:   fmt.Sprintf("/%s/%s.git", r.server.httpUsername, r.repoName),
 	}
 	return repoURL.String()
 }
 
+// GetRepoSshURL returns the SSH clone URL reachable from inside the cluster.
 func (r Repo) GetRepoSshURL() string {
-	return fmt.Sprintf("ssh://%s@%s:%d/%s/%s.git", giteaSSHLogin, r.server.domain, sshServicePort, r.server.httpUsername, r.repoName)
+	return fmt.Sprintf("ssh://%s@%s:%d/%s/%s.git", giteaSSHLogin, r.server.clusterDomain, sshServicePort, r.server.httpUsername, r.repoName)
+}
+
+func (r Repo) getRepoSshURLLocal() string {
+	return fmt.Sprintf("ssh://%s@127.0.0.1:%d/%s/%s.git", giteaSSHLogin, localSSHPort, r.server.httpUsername, r.repoName)
 }
 
 func (r *Repo) Clone(t Transport) (cleanup func(), err error) {
@@ -73,10 +79,12 @@ func (r *Repo) Clone(t Transport) (cleanup func(), err error) {
 		_ = os.RemoveAll(fsDir)
 	}
 
-	cloneURL := r.GetRepoSshURL()
+	cloneURL := r.getRepoSshURLLocal()
 	if t == TransportHTTPS {
 		cloneURL = r.getRepoHttpURLWithCredentials()
 	}
+
+	GinkgoWriter.Println("Cloning repo:", cloneURL)
 
 	out, err := r.git("clone", cloneURL, ".")
 	if err != nil {

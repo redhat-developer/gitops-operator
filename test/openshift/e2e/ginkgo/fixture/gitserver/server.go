@@ -1,10 +1,14 @@
 package gitserver
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -20,6 +24,7 @@ import (
 	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
 	podFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/pod"
+	routev1 "github.com/openshift/api/route/v1"
 )
 
 const (
@@ -28,6 +33,7 @@ const (
 	httpPort       = int32(3000)
 	sshPort        = int32(2222) // rootless image listens on 2222
 	sshServicePort = int32(22)   // service maps 22 -> 2222 for callers
+	localSSHPort   = int32(30222) // kubectl port-forward target for local git clients
 	gitUsername    = "gituser"
 	giteaSSHLogin  = "git" // rootless builtin SSH authenticates as RUN_USER (git), not the Gitea account name
 )
@@ -38,7 +44,7 @@ type Server struct {
 	serviceName string
 
 	clusterDomain string // in-cluster service DNS name (matches the TLS certificate SAN)
-	domain        string // external LoadBalancer hostname or IP
+	domain        string // external HTTPS route hostname for local git clients
 	httpURL       string
 	httpUsername  string
 	httpPassword  string
@@ -47,6 +53,9 @@ type Server struct {
 	sshKnownHosts string
 	sshKeyFile    string
 	caCert        []byte
+
+	stopPortForward func()
+	httpsRoute      *routev1.Route
 }
 
 func (s *Server) getSSHKeyFile() (string, error) {
@@ -256,7 +265,7 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 			Labels:    fixture.NamespaceLabels,
 		},
 		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeLoadBalancer,
+			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
 				"app.kubernetes.io/name": serverName,
 			},
@@ -281,19 +290,38 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 	Eventually(pod, "2m", "10s").Should(podFixture.HavePhase(corev1.PodRunning))
 
 	By("exposing Git server outside the cluster")
-	Eventually(func(g Gomega) {
-		g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(service), service)).To(Succeed())
-		g.Expect(service.Status.LoadBalancer.Ingress).NotTo(BeEmpty())
-	}, "5m", "5s").Should(Succeed())
-
-	ingress := service.Status.LoadBalancer.Ingress[0]
-	if ingress.Hostname != "" {
-		server.domain = ingress.Hostname
-	} else {
-		server.domain = ingress.IP
+	server.httpsRoute = &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serverName + "-https",
+			Namespace: ns.Name,
+			Labels:    fixture.NamespaceLabels,
+		},
+		Spec: routev1.RouteSpec{
+			To: routev1.RouteTargetReference{
+				Kind:   "Service",
+				Name:   service.Name,
+				Weight: ptr.To(int32(100)),
+			},
+			Port: &routev1.RoutePort{
+				TargetPort: intstr.FromString("https"),
+			},
+			TLS: &routev1.TLSConfig{
+				Termination: routev1.TLSTerminationPassthrough,
+			},
+		},
 	}
-	server.httpURL = fmt.Sprintf("https://%s:%d", server.domain, httpPort)
-	GinkgoWriter.Printf("Git server public endpoint: %s\n", server.httpURL)
+	Expect(k8sClient.Create(ctx, server.httpsRoute)).To(Succeed())
+	Eventually(func(g Gomega) {
+		g.Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(server.httpsRoute), server.httpsRoute)).To(Succeed())
+		g.Expect(server.httpsRoute.Status.Ingress).NotTo(BeEmpty())
+		g.Expect(server.httpsRoute.Status.Ingress[0].Host).NotTo(BeEmpty())
+	}, "3m", "5s").Should(Succeed())
+
+	server.domain = server.httpsRoute.Status.Ingress[0].Host
+	server.httpURL = fmt.Sprintf("https://%s", server.domain)
+	server.stopPortForward = startSSHPortForward(ns.Name, service.Name)
+	GinkgoWriter.Printf("Git server HTTPS endpoint: %s\n", server.httpURL)
+	GinkgoWriter.Printf("Git server local SSH endpoint: 127.0.0.1:%d\n", localSSHPort)
 
 	configureGiteaAdmin(server)
 	server.sshKnownHosts = fetchSSHKnownHosts(server)
@@ -306,6 +334,15 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 
 	cleanup = func() {
 		server.removeSSHKeyFile()
+		if server.stopPortForward != nil {
+			server.stopPortForward()
+		}
+		if server.httpsRoute != nil {
+			err := k8sClient.Delete(ctx, server.httpsRoute)
+			if err != nil && !apierrors.IsNotFound(err) {
+				GinkgoWriter.Println("gitserver cleanup:", client.ObjectKeyFromObject(server.httpsRoute), err)
+			}
+		}
 
 		resources := []client.Object{
 			service, pod, sshCredentialsSecret, httpCredentialsSecret, tlsSecret,
@@ -325,7 +362,7 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 }
 
 func (s *Server) sshRepoURLPrefix() string {
-	return fmt.Sprintf("ssh://%s@%s:%d/%s/", giteaSSHLogin, s.domain, sshServicePort, s.httpUsername)
+	return fmt.Sprintf("ssh://%s@%s:%d/%s/", giteaSSHLogin, s.clusterDomain, sshServicePort, s.httpUsername)
 }
 
 // SSHKnownHosts returns the known_hosts entry for the server's SSH host key.
@@ -428,5 +465,57 @@ func (s *Server) CreateRepo(repoName string) Repo {
 	return Repo{
 		server:   s,
 		repoName: repoName,
+	}
+}
+
+func startSSHPortForward(namespace, serviceName string) func() {
+	portMapping := fmt.Sprintf("%d:%d", localSSHPort, sshServicePort)
+	cmdArgs := []string{"kubectl", "port-forward", "-n", namespace, "svc/" + serviceName, portMapping}
+	GinkgoWriter.Println("executing command:", cmdArgs)
+
+	// #nosec G204
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+
+	stdout, err := cmd.StdoutPipe()
+	Expect(err).NotTo(HaveOccurred())
+	stderr, err := cmd.StderrPipe()
+	Expect(err).NotTo(HaveOccurred())
+
+	ready := make(chan struct{})
+	streamOutput := func(pipe io.Reader, signalReady func()) {
+		defer GinkgoRecover()
+
+		scanner := bufio.NewScanner(pipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			GinkgoWriter.Println("port-forward:", line)
+			if signalReady != nil && strings.HasPrefix(line, "Forwarding from") {
+				signalReady()
+				signalReady = nil
+			}
+		}
+	}
+
+	Expect(cmd.Start()).To(Succeed())
+	go streamOutput(stdout, func() { close(ready) })
+	go streamOutput(stderr, nil)
+
+	select {
+	case <-ready:
+		GinkgoWriter.Println("SSH port-forward is ready")
+	case <-time.After(60 * time.Second):
+		Fail("timed out waiting for SSH port-forward to be ready")
+	}
+
+	go func() {
+		defer GinkgoRecover()
+		if err := cmd.Wait(); err != nil && !strings.Contains(err.Error(), "killed") {
+			GinkgoWriter.Println("port-forward process error:", err)
+		}
+	}()
+
+	return func() {
+		GinkgoWriter.Println("terminating SSH port-forward")
+		_ = cmd.Process.Kill()
 	}
 }
