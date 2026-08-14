@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -118,9 +117,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-applicationset-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						ReadOnlyRootFilesystem:   ptr.To(true),
-						RunAsNonRoot:             ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						ReadOnlyRootFilesystem:   new(true),
+						RunAsNonRoot:             new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -129,9 +128,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-dex-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -140,23 +139,23 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-notifications-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
 						},
 					}))
 
-					Expect(depl.Spec.Template.Spec.SecurityContext.RunAsNonRoot).To(Equal(ptr.To(true)))
+					Expect(depl.Spec.Template.Spec.SecurityContext.RunAsNonRoot).To(Equal(new(true)))
 
 				case "argocd-redis":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -166,9 +165,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-repo-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -178,9 +177,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,

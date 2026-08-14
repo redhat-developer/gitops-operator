@@ -70,7 +70,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			output, err := osFixture.ExecCommand("oc", "version")
 			Expect(err).ToNot(HaveOccurred())
 
-			for _, line := range strings.Split(output, "\n") {
+			for line := range strings.SplitSeq(output, "\n") {
 
 				if strings.Contains(line, "Server Version:") {
 					ocVersion = strings.TrimSpace(line[strings.Index(line, ":")+1:])

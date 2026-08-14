@@ -34,7 +34,6 @@ import (
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -80,7 +79,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(defaultArgoCD).ToNot(BeNil())
 
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Repo.Replicas = ptr.To(int32(2))
+				ac.Spec.Repo.Replicas = new(int32(2))
 			})
 
 			By("creating an Argo CD Application targeting the Argo CD namespace")
@@ -152,7 +151,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("updating repo server replicas back to 1")
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Repo.Replicas = ptr.To(int32(1))
+				ac.Spec.Repo.Replicas = new(int32(1))
 			})
 
 			By("verifying repo server Deployment moves back to a single replica")

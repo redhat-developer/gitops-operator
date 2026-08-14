@@ -34,8 +34,8 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   if (await idpScreenText.isVisible()) {
     console.log(`IDP selection screen detected. Selecting provider: "${idpName}"`);
     
-    //look for the specific IDP 
-    const idpLink = page.getByRole('link', { name: idpName, exact: true });
+    //look for the specific idp link without exact matching
+    const idpLink = page.getByRole('link', { name: idpName });
     
     await idpLink.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
     await idpLink.click();
@@ -58,10 +58,10 @@ setup('authenticate to OpenShift Cluster', async ({ page, baseURL }) => {
   await passwordInput.fill(process.env.CLUSTER_PASSWORD);
   await page.getByRole('button', { name: /Log in/i }).click();
 
-//handle the OpenShift 4.x Welcome Tour modal if it appears
+  //handle the openshift welcome tour modal if it appears
   try {
     const skipTourButton = page.getByRole('button', { name: /skip tour/i });
-    //wait up to 5 seconds for the modal to pop up
+    //wait briefly for the modal to pop up
     await skipTourButton.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
     await skipTourButton.click();
     console.log('Dismissed the OpenShift Welcome Tour modal.');

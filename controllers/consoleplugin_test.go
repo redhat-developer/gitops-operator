@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -150,7 +149,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -161,7 +160,7 @@ func TestPlugin_reconcileDeployment_changedLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -296,7 +295,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -307,7 +306,7 @@ func TestPlugin_reconcileDeployment_changedReplicas(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -437,7 +436,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -448,7 +447,7 @@ func TestPlugin_reconcileDeployment_changedSelector(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -577,7 +576,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -588,7 +587,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -664,7 +663,7 @@ func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
 			Name:  "wrong name",
 			Image: "wrong image",
 			SecurityContext: &corev1.SecurityContext{
-				Privileged: ptr.To(true),
+				Privileged: new(true),
 			},
 		},
 	}
@@ -784,7 +783,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -795,7 +794,7 @@ func TestPlugin_reconcileDeployment_changedRestartPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -924,7 +923,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 									VolumeSource: corev1.VolumeSource{
 										Secret: &corev1.SecretVolumeSource{
 											SecretName:  pluginServingCertName,
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
@@ -935,7 +934,7 @@ func TestPlugin_reconcileDeployment_changedDNSPolicy(t *testing.T) {
 											LocalObjectReference: corev1.LocalObjectReference{
 												Name: httpdConfigMapName,
 											},
-											DefaultMode: ptr.To(int32(420)),
+											DefaultMode: new(int32(420)),
 										},
 									},
 								},
