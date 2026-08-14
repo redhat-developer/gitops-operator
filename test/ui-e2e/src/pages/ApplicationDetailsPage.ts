@@ -32,22 +32,17 @@ export class ApplicationDetailsPage {
   }
 
   async clickResourceNode(kind: string, name: string) {
-    //find the innermost div representing the resource node
-    const node = this.resourceTreeContainer
-      .locator('div')
-      .filter({ hasText: kind })
-      .filter({ hasText: name })
-      .last();
-
-    //scroll it into view and click it
-    await node.scrollIntoViewIfNeeded();
-    await node.waitFor({ state: 'visible', timeout: 15000 });
-    await node.click();
-
-    //self-healing validation block to handle frontend rendering lag
+    //re-query on tree re-render
     await expect(async () => {
-      await expect(this.slideOutPanel).toBeVisible({ timeout: 2000 });
-    }).toPass({ timeout: 10000 });
+      const node = this.resourceTreeContainer
+        .locator('div')
+        .filter({ hasText: kind })
+        .filter({ hasText: name })
+        .last();
+      await expect(node).toBeVisible({ timeout: 5000 });
+      await node.click({ timeout: 5000 });
+      await expect(this.slideOutPanel).toBeVisible({ timeout: 3000 });
+    }).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
   }
 
   async verifyPodLogs(expectedLogText?: string) {

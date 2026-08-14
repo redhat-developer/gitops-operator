@@ -35,7 +35,8 @@ test.describe('Clean Application Deletion (Pruning)', () => {
   };
 
   test.beforeAll(async ({}, testInfo) => {
-    testInfo.setTimeout(180000);
+    //RBAC wait + sync can exceed 3m
+    testInfo.setTimeout(240000);
     console.log(`\n[setup] Deploying dummy application '${appName}' via CLI...`);
 
     const appYaml = `
@@ -60,6 +61,31 @@ spec:
 `;
     try {
       execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
+      //needed for controller write access
+      execFileSync(
+        'oc',
+        ['label', 'namespace', destNs, 'argocd.argoproj.io/managed-by=openshift-gitops', '--overwrite'],
+        { stdio: 'pipe', timeout: 15000 }
+      );
+      let rbacReady = false;
+      for (let i = 1; i <= 30; i++) {
+        const rbs = execFileSync(
+          'oc',
+          ['get', 'rolebinding', '-n', destNs, '-o', 'name'],
+          { stdio: 'pipe', timeout: 5000 }
+        ).toString();
+        if (/argocd-application-controller/i.test(rbs)) {
+          rbacReady = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      if (!rbacReady) {
+        throw new Error(
+          `Namespace '${destNs}' never received openshift-gitops application-controller RoleBinding ` +
+            `(label argocd.argoproj.io/managed-by=openshift-gitops).`
+        );
+      }
 
       //clear leftover guestbook children that can leave a new app stuck Unknown/OutOfSync
       for (const kind of ['deploy', 'svc'] as const) {
@@ -78,6 +104,7 @@ spec:
       let lastSync = '';
       let lastHealth = '';
       let lastMessage = '';
+      let lastOpMessage = '';
       for (let i = 1; i <= 30; i++) {
         try {
           lastSync = execFileSync(
@@ -93,6 +120,14 @@ spec:
           lastMessage = execFileSync(
             'oc',
             ['get', 'application', appName, '-n', 'openshift-gitops', '-o', 'jsonpath={.status.conditions[0].message}'],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          lastOpMessage = execFileSync(
+            'oc',
+            [
+              'get', 'application', appName, '-n', 'openshift-gitops',
+              '-o', 'jsonpath={.status.operationState.message}',
+            ],
             { stdio: 'pipe', timeout: 3000 }
           ).toString().trim();
           console.log(
@@ -111,7 +146,8 @@ spec:
       if (!isSynced) {
         throw new Error(
           `Dummy application '${appName}' never reached Synced status ` +
-            `(last sync='${lastSync || '-'}' health='${lastHealth || '-'}' message='${lastMessage || '-'}').`
+            `(last sync='${lastSync || '-'}' health='${lastHealth || '-'}' ` +
+            `condition='${lastMessage || '-'}' operation='${lastOpMessage || '-'}').`
         );
       }
     } catch (e) {
