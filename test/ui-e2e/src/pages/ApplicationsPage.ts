@@ -48,25 +48,42 @@ export class ApplicationsPage {
                               
   }
 
-  async navigate() {
-    await this.page.goto('/applications');
-    
-    //ignore the "failed to load data" banner if it appears
-    const errorBanner = this.page.getByText('try again');
+  //dismiss intermittent load-error banner
+  private async dismissLoadErrorBanner(timeout = TIMEOUTS.short) {
+    const errorBanner = this.page.getByText(/try again/i);
     try {
-      //wait 3 secs
-      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
-      await errorBanner.click(); 
+      await errorBanner.waitFor({ state: 'visible', timeout });
+      await errorBanner.click();
     } catch (error) {
-      //ignore if the banner timed out (wasn't present)
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        //banner didn't appear so just continue
-      } else {
-        throw error;
+      if (error instanceof Error && error.name === 'TimeoutError') return;
+      throw error;
+    }
+  }
+
+  async navigate() {
+    const attempts = 3;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      await this.page.goto('/applications', { waitUntil: 'domcontentloaded' });
+      await this.dismissLoadErrorBanner();
+
+      try {
+        await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.render });
+        return;
+      } catch (error) {
+        lastError = error;
+        //dismiss late load-error banner
+        await this.dismissLoadErrorBanner(TIMEOUTS.modal);
+        if (attempt < attempts) {
+          console.log(
+            `[apps] NEW APP not ready on /applications (attempt ${attempt}/${attempts}); reloading...`
+          );
+        }
       }
     }
-    
-    await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.default });
+
+    throw lastError;
   }
 
   //helper for fields that need to have select a pre existing option
@@ -82,20 +99,7 @@ export class ApplicationsPage {
 
   async createApp(appName: string, repoUrl: string, repoPath: string) {
     await this.newAppButton.click();
-    
-    //handle the "failed to load data" banner if it appears inside the slide-out panel
-    const errorBanner = this.page.getByText('try again');
-    try {
-      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
-      await errorBanner.click(); 
-    } catch (error) {
-      //ignore if the banner timed out (wasn't present)
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        // banner didn't appear so just continue
-      } else {
-        throw error;
-      }
-    }
+    await this.dismissLoadErrorBanner();
 
     await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: TIMEOUTS.default });
 
