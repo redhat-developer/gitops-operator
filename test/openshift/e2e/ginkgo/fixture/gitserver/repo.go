@@ -147,7 +147,7 @@ func (r *Repo) git(args ...string) (string, error) {
 		return "", fmt.Errorf("repository has not been cloned")
 	}
 
-	cmd := exec.Command("git", args...)
+	cmd := exec.Command("git", args...) // #nosec G204 // Binary is specified by literal
 	cmd.Dir = r.cloneDir.Name()
 	if r.transport == TransportHTTPS {
 		cmd.Env = append(os.Environ(), "GIT_SSL_NO_VERIFY=true")
