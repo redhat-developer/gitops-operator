@@ -33,16 +33,18 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	operatorMetricsServiceName             = "openshift-gitops-operator-metrics-service"
-	operatorMetricsMonitorName             = "openshift-gitops-operator-metrics-monitor"
-	operatorMetricsBearerTokenSecretName   = "openshift-gitops-operator-metrics-monitor-bearer-token"
+	operatorMetricsServiceName           = "openshift-gitops-operator-metrics-service"
+	operatorMetricsMonitorName           = "openshift-gitops-operator-metrics-monitor"
+	operatorMetricsBearerTokenSecretName = "openshift-gitops-operator-metrics-monitor-bearer-token"
 	operatorControllerSAName             = "openshift-gitops-operator-controller-manager"
 	operatorMetricsTokenExpirySecs       = int64(3600)
 	operatorMetricsTokenExpiry           = time.Duration(operatorMetricsTokenExpirySecs) * time.Second
@@ -95,16 +97,33 @@ func (r *OperatorMetricsTokenReconciler) tokenRequester() serviceAccountTokenReq
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *OperatorMetricsTokenReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	serviceMonitorPredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetName() == operatorMetricsMonitorName
+	})
+	bearerTokenSecretPredicate := predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		return obj.GetName() == operatorMetricsBearerTokenSecretName
+	})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("operator-metrics-token").
-		For(&monitoringv1.ServiceMonitor{}).
-		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			return obj.GetName() == operatorMetricsMonitorName
-		})).
+		For(&monitoringv1.ServiceMonitor{}, builder.WithPredicates(serviceMonitorPredicate)).
+		Watches(
+			&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(mapBearerTokenSecretToServiceMonitor),
+			builder.WithPredicates(bearerTokenSecretPredicate),
+		).
 		Complete(r)
 }
 
-//+kubebuilder:rbac:groups="",resources=serviceaccounts/token,resourceNames=openshift-gitops-operator-controller-manager,verbs=create
+func mapBearerTokenSecretToServiceMonitor(_ context.Context, obj client.Object) []reconcile.Request {
+	return []reconcile.Request{{
+		NamespacedName: types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      operatorMetricsMonitorName,
+		},
+	}}
+}
+
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=monitoring.coreos.com,resources=servicemonitors,verbs=get;list;watch;update;patch
 
@@ -167,8 +186,8 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 	endpoint := &serviceMonitor.Spec.Endpoints[0]
 
 	updated := false
-	if endpoint.BearerTokenSecret != nil {
-		endpoint.BearerTokenSecret = nil
+	if endpoint.BearerTokenSecret != nil { //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
+		endpoint.BearerTokenSecret = nil //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
 		endpoint.Authorization = &monitoringv1.SafeAuthorization{
 			Type: "Bearer",
 			Credentials: &corev1.SecretKeySelector{
@@ -217,15 +236,15 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 	}, secret)
 
 	needsRefresh := false
-	legacySAToken := false
 	if errors.IsNotFound(err) {
 		needsRefresh = true
 	} else if err != nil {
 		return 0, err
 	} else if secret.Type == corev1.SecretTypeServiceAccountToken {
-		// Keep the legacy Secret until TokenRequest succeeds so scrape auth
+		// Migrate legacy Secret in place after TokenRequest succeeds so scrape auth
 		// is not interrupted if minting fails.
-		legacySAToken = true
+		needsRefresh = true
+	} else if secret.Type != corev1.SecretTypeOpaque || len(secret.Data[operatorMetricsBearerTokenKey]) == 0 {
 		needsRefresh = true
 	} else {
 		expiry, parseErr := parseBearerTokenExpiry(secret.Data[operatorMetricsBearerTokenExpiryKey])
@@ -261,18 +280,6 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 			operatorMetricsBearerTokenKey:       []byte(token),
 			operatorMetricsBearerTokenExpiryKey: []byte(expiry.UTC().Format(time.RFC3339)),
 		},
-	}
-
-	if legacySAToken {
-		reqLogger.Info("Replacing legacy non-expiring service account token Secret",
-			"Namespace", namespace, "Name", operatorMetricsBearerTokenSecretName)
-		if err := r.Client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
-			return 0, err
-		}
-		if err := r.Client.Create(ctx, desiredSecret); err != nil {
-			return 0, err
-		}
-		return bearerTokenRequeueDuration(expiry), nil
 	}
 
 	existingSecret := &corev1.Secret{}

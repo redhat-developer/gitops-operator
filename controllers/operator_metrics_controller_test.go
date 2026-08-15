@@ -96,7 +96,7 @@ func newOperatorMetricsServiceMonitor(namespace string, useLegacyAuth bool) *mon
 		},
 	}
 	if useLegacyAuth {
-		sm.Spec.Endpoints[0].BearerTokenSecret = &corev1.SecretKeySelector{
+		sm.Spec.Endpoints[0].BearerTokenSecret = &corev1.SecretKeySelector{ //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
 			LocalObjectReference: corev1.LocalObjectReference{
 				Name: operatorMetricsBearerTokenSecretName,
 			},
@@ -168,7 +168,7 @@ func TestOperatorMetricsTokenReconciler_migratesServiceMonitorAuth(t *testing.T)
 		Namespace: testOperatorNamespace,
 	}, updatedSM)
 	assert.NilError(t, err)
-	assert.Assert(t, is.Nil(updatedSM.Spec.Endpoints[0].BearerTokenSecret))
+	assert.Assert(t, is.Nil(updatedSM.Spec.Endpoints[0].BearerTokenSecret)) //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization//nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
 	assert.Assert(t, updatedSM.Spec.Endpoints[0].Authorization != nil)
 	assert.Equal(t, updatedSM.Spec.Endpoints[0].Authorization.Type, "Bearer")
 	assert.Equal(t, updatedSM.Spec.Endpoints[0].Authorization.Credentials.Name, operatorMetricsBearerTokenSecretName)
@@ -333,6 +333,50 @@ func TestOperatorMetricsTokenReconciler_refreshesExpiredToken(t *testing.T) {
 	}, secret)
 	assert.NilError(t, err)
 	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "refreshed-token")
+}
+
+func TestOperatorMetricsTokenReconciler_refreshesSecretWithMissingToken(t *testing.T) {
+	writeOperatorNamespaceFile(t, testOperatorNamespace)
+
+	s := newOperatorMetricsTokenScheme()
+	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
+	invalidSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      operatorMetricsBearerTokenSecretName,
+			Namespace: testOperatorNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			operatorMetricsBearerTokenExpiryKey: []byte(time.Now().Add(operatorMetricsTokenExpiry).UTC().Format(time.RFC3339)),
+		},
+	}
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(serviceMonitor, invalidSecret).Build()
+
+	newExpiry := time.Now().Add(operatorMetricsTokenExpiry)
+	r := &OperatorMetricsTokenReconciler{
+		Client: c,
+		Scheme: s,
+		TokenRequester: &fakeTokenRequester{
+			token:  "minted-token",
+			expiry: newExpiry,
+		},
+	}
+
+	_, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      operatorMetricsMonitorName,
+			Namespace: testOperatorNamespace,
+		},
+	})
+	assert.NilError(t, err)
+
+	secret := &corev1.Secret{}
+	err = c.Get(context.Background(), types.NamespacedName{
+		Name:      operatorMetricsBearerTokenSecretName,
+		Namespace: testOperatorNamespace,
+	}, secret)
+	assert.NilError(t, err)
+	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "minted-token")
 }
 
 func TestOperatorMetricsTokenReconciler_skipsOtherNamespaces(t *testing.T) {
