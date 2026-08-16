@@ -994,6 +994,8 @@ func RunningOnOpenShift() bool {
 }
 
 // IsOperatorRunningOnOLM returns true if the operator is running on OLM, false otherwise.
+// TODO: Update to check the actual installation method by verifying whether a gitops Subscription is present,
+// rather than just checking for OLM CRDs.
 func IsOperatorRunningOnOLM() bool {
 	k8sClient, _ := utils.GetE2ETestKubeClient()
 
