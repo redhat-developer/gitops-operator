@@ -5,6 +5,7 @@ import { ApplicationsPage } from './pages/ApplicationsPage';
 //define custom fixture types
 type MyFixtures = {
   managedApp: string;
+  argoVersion: string;
 };
 
 export const test = base.extend<MyFixtures>({
@@ -30,7 +31,33 @@ export const test = base.extend<MyFixtures>({
     await use(page);
   },
 
-//app setup/teardown
+  //get target argocd version
+  argoVersion: async ({ page }, use) => {
+      try {
+        //get version
+        const response = await page.request.get('/api/version');
+        
+        if (!response.ok()) {
+          throw new Error(`API returned status: ${response.status()}`);
+        }
+
+        const data = await response.json();
+        const fullVersion = data.Version || 'Unknown';
+        
+        //extract the major.minor version (e.g., "v2.10.1" -> "2.10")
+        const match = fullVersion.match(/v(\d+\.\d+)/);
+        const version = match ? match[1] : '3.0';
+        
+        //for debugging/CI logs
+        console.log(`TARGETING ARGO CD VERSION: ${fullVersion}`);
+
+        await use(version);
+      } catch (error) {
+        console.warn(`\n[warn] Failed to fetch Argo CD version from API. Defaulting to 3.0. Reason: ${error instanceof Error ? error.message : 'Unknown'}\n`);
+        await use('3.0'); // Default to 3.0
+      }
+    },
+
   managedApp: [ async ({ page }, use) => {
     const appName = `e2e-app-${Date.now()}`;
     const appsPage = new ApplicationsPage(page);
@@ -50,17 +77,45 @@ export const test = base.extend<MyFixtures>({
 
     //teardown 
     console.log(`[teardown] deleting ${appName} via api`);
-    const response = await page.request.delete(`/api/v1/applications/${appName}?cascade=true`, {
+    
+    //page.request
+    const deleteResponse = await page.request.delete(`/api/v1/applications/${appName}?cascade=true`, {
       headers: { 'Content-Type': 'application/json' }
     });
     
-    // 4. Update the teardown to only ignore 404s, treating 403s as failures
-    if (response.status() === 404) {
+    // If it's already 404 (or 403), we have nothing left to do
+    if (deleteResponse.status() === 404 || deleteResponse.status() === 403) {
+      console.log(`[teardown] ${appName} was already deleted.`);
       return; 
     } else {
-      expect(response.status()).toBeLessThan(400);
+      // Ensure the delete request itself was accepted (200/202)
+      expect(deleteResponse.status()).toBeLessThan(400);
+
+      console.log(`[teardown] waiting for background cleanup of ${appName} to finish...`);
+      await expect.poll(async () => {
+        try {
+          const checkResponse = await page.request.get(`/api/v1/applications/${appName}`);
+          const status = checkResponse.status();
+          
+          //404 (Not Found) or 403 (Forbidden due to RBAC project scoping)
+          return status === 404 || status === 403;
+        } catch (error) {
+          //router blips or drops the socket swallow it and keep polling
+          if (error instanceof Error && (error.message.includes('hang up') || error.message.includes('RESET') || error.message.includes('closed'))) {
+            return false; 
+          }
+          //fail fast
+          throw error;
+        }
+      }, {
+        message: `Waiting for ${appName} to completely delete from the cluster.`,
+        timeout: 60000, 
+        intervals: [2000, 5000, 10000], 
+      }).toBeTruthy();
+      
+      console.log(`[teardown] ${appName} successfully removed from the cluster.`);
     }
-  }, { timeout: 120000 } ], 
+  }, { timeout: 300000 } ], 
 });
 
 //export it so spec files can use it

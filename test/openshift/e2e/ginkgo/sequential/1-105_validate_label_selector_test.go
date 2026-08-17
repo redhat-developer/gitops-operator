@@ -13,7 +13,6 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -84,8 +83,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.RBAC = argov1beta1api.ArgoCDRBACSpec{
-					Policy: ptr.To("g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin"),
-					Scopes: ptr.To("[email]"),
+					Policy: new("g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin"),
+					Scopes: new("[email]"),
 				}
 			})
 
@@ -108,8 +107,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.RBAC = argov1beta1api.ArgoCDRBACSpec{
-					Policy: ptr.To("g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin"),
-					Scopes: ptr.To("[people]"),
+					Policy: new("g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin"),
+					Scopes: new("[people]"),
 				}
 			})
 

@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -41,14 +40,12 @@ import (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-
 	const (
 		argoCDName           = "example"
 		argoCDAgentAgentName = "example-agent-agent" // argoCDName + "-agent-agent"
 	)
 
 	Context("1-052_validate_argocd_agent_agent", func() {
-
 		var (
 			k8sClient            client.Client
 			ctx                  context.Context
@@ -83,14 +80,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled:   ptr.To(true),
+							Enabled:   new(true),
 							Creds:     "mtls:any",
 							LogLevel:  "info",
 							LogFormat: "text",
@@ -98,14 +95,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								PrincipalServerAddress: "argocd-agent-principal.example.com",
 								PrincipalServerPort:    "443",
 								Mode:                   string(argov1beta1api.AgentModeManaged),
-								EnableWebSocket:        ptr.To(false),
-								EnableCompression:      ptr.To(false),
+								EnableWebSocket:        new(false),
+								EnableCompression:      new(false),
 								KeepAliveInterval:      "30s",
 							},
 							TLS: &argov1beta1api.AgentTLSSpec{
 								SecretName:       agentClientTLSSecretName,
 								RootCASecretName: agentRootCASecretName,
-								Insecure:         ptr.To(false),
+								Insecure:         new(false),
 							},
 							Redis: &argov1beta1api.AgentRedisSpec{
 								ServerAddress: fmt.Sprintf("%s-%s:%d", argoCDName, "redis", common.ArgoCDDefaultRedisPort),
@@ -203,12 +200,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		// verifyExpectedResourcesExist will verify that the resources that are created for agent and ArgoCD are created.
 		verifyExpectedResourcesExist := func(ns *corev1.Namespace) {
-
 			By("verifying expected resources exist")
 			Eventually(&corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: secretNames[2], Namespace: ns.Name,
-				}}, "60s", "2s").Should(k8sFixture.ExistByName())
+				},
+			}, "60s", "2s").Should(k8sFixture.ExistByName())
 			Eventually(serviceAccount).Should(k8sFixture.ExistByName())
 			Eventually(role).Should(k8sFixture.ExistByName())
 			Eventually(roleBinding).Should(k8sFixture.ExistByName())
@@ -260,7 +257,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		// verifyResourcesDeleted will verify that the various resources that are created for agent are deleted.
 		verifyResourcesDeleted := func() {
-
 			By("verifying resources are deleted for agent pod")
 
 			Eventually(serviceAccount).Should(k8sFixture.NotExistByName())
@@ -314,7 +310,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ArgoCDAgent.Agent.Enabled = ptr.To(false)
+				ac.Spec.ArgoCDAgent.Agent.Enabled = new(false)
 			})
 
 			By("Verify agent resources are deleted")
@@ -323,7 +319,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should create argocd agent agent resources with default image, but pod will not start without principal", func() {
-
 			// Add a custom environment variable to the agent client
 			argoCD.Spec.ArgoCDAgent.Agent.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -369,7 +364,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", func() {
-
 			By("Create ArgoCD instance")
 
 			argoCD.Spec.ArgoCDAgent.Agent.Image = common.ArgoCDAgentAgentDefaultImageName
@@ -397,22 +391,20 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-
 				ac.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 				ac.Spec.ArgoCDAgent.Agent.LogFormat = "json"
 				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 				ac.Spec.ArgoCDAgent.Agent.Client.KeepAliveInterval = "60s"
-				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = ptr.To(true)
-				ac.Spec.ArgoCDAgent.Agent.Client.EnableCompression = ptr.To(true)
+				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = new(true)
+				ac.Spec.ArgoCDAgent.Agent.Client.EnableCompression = new(true)
 				ac.Spec.ArgoCDAgent.Agent.Client.Mode = string(argov1beta1api.AgentModeAutonomous)
 				ac.Spec.ArgoCDAgent.Agent.Client.PrincipalServerAddress = "argocd-agent-principal-updated.example.com"
 				ac.Spec.ArgoCDAgent.Agent.Client.PrincipalServerPort = "8443"
 
-				ac.Spec.ArgoCDAgent.Agent.TLS.Insecure = ptr.To(true)
+				ac.Spec.ArgoCDAgent.Agent.TLS.Insecure = new(true)
 				ac.Spec.ArgoCDAgent.Agent.TLS.SecretName = "argocd-agent-client-tls-v2"
 				ac.Spec.ArgoCDAgent.Agent.TLS.RootCASecretName = "argocd-agent-ca-v2"
-
 			})
 
 			By("Verify agent has the updated image we specified in ArgoCD CR")
@@ -453,7 +445,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should deploy agent via namespace-scoped ArgoCD instance and verify cluster role and cluster role binding are not created", func() {
-
 			By("Create namespace-scoped ArgoCD instance")
 
 			// Create namespace for hosting namespace-scoped ArgoCD instance with agent
@@ -507,7 +498,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should delete existing cluster role and cluster role binding if ArgoCD instance is namespace-scoped", func() {
-
 			By("Create namespace-scoped ArgoCD instance namespace")
 
 			// Create namespace for hosting namespace-scoped ArgoCD instance with agent
@@ -587,7 +577,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should create and delete agent ServiceMonitor based on prometheus enabled flag", func() {
-
 			By("Create ArgoCD instance with agent enabled and prometheus enabled")
 
 			argoCD.Spec.Prometheus.Enabled = true
@@ -629,10 +618,45 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ArgoCDAgent.Agent.Enabled = ptr.To(false)
+				ac.Spec.ArgoCDAgent.Agent.Enabled = new(false)
 			})
 
 			Eventually(agentServiceMonitor, "2m", "2s").Should(k8sFixture.NotExistByName())
+		})
+
+		It("shouldn't create ClusterRole and ClusterRoleBinding for agent if spec.DefaultClusterScopedRoleDisabled is set", func() {
+			By("Create ArgoCD instance with agent enabled and DefaultClusterScopedRoleDisabled is true")
+			argoCD.Spec.DefaultClusterScopedRoleDisabled = true
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			By("Verify Argo CD becomes available")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("Verify ClusterRole and ClusterRoleBinding do not exist")
+			Eventually(clusterRole, "60s", "2s").Should(k8sFixture.NotExistByName())
+			Eventually(clusterRoleBinding, "60s", "2s").Should(k8sFixture.NotExistByName())
+			Consistently(clusterRole, "15s", "2s").Should(k8sFixture.NotExistByName())
+			Consistently(clusterRoleBinding, "15s", "2s").Should(k8sFixture.NotExistByName())
+
+			By("Namespaced RBAC objects should still exist")
+			Eventually(role, "60s", "2s").Should(k8sFixture.ExistByName())
+			Eventually(roleBinding, "60s", "2s").Should(k8sFixture.ExistByName())
+
+			By("Unset DefaultClusterScopedRoleDisabled and make sure cluster scoped RBAC objects are created")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.DefaultClusterScopedRoleDisabled = false
+			})
+			Eventually(clusterRole, "60s", "2s").Should(k8sFixture.ExistByName())
+			Eventually(clusterRoleBinding, "60s", "2s").Should(k8sFixture.ExistByName())
+
+			By("Setting DefaultClusterScopedRoleDisabled again deletes clusterRole and clusterRoleBinding")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.DefaultClusterScopedRoleDisabled = true
+			})
+			Eventually(clusterRole, "60s", "2s").Should(k8sFixture.NotExistByName())
+			Eventually(clusterRoleBinding, "60s", "2s").Should(k8sFixture.NotExistByName())
+			Consistently(clusterRole, "10s", "2s").Should(k8sFixture.NotExistByName())
+			Consistently(clusterRoleBinding, "10s", "2s").Should(k8sFixture.NotExistByName())
 		})
 	})
 })

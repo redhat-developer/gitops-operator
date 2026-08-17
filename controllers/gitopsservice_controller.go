@@ -54,6 +54,8 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	configv1 "github.com/openshift/api/config/v1"
 )
 
 var logs = logf.Log.WithName("controller_gitopsservice")
@@ -146,6 +148,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
+	//CentralTLSProfile contains MinVersion and CipherSuites
+	CentralTLSProfile configv1.TLSProfileSpec
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
@@ -658,7 +662,7 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy)
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -796,10 +800,29 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
+	}
+	env := []corev1.EnvVar{
+		{
+			Name:  insecureEnvVar,
+			Value: insecureEnvVarValue,
+		},
+	}
+	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
+		env = append(env, corev1.EnvVar{
+			Name:  "TLS_MIN_VERSION",
+			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
+		})
+	}
+
+	if len(CentralTLSProfile.Ciphers) > 0 {
+		env = append(env, corev1.EnvVar{
+			Name:  "TLS_CIPHER_SUITES",
+			Value: strings.Join(CentralTLSProfile.Ciphers, ":"),
+		})
 	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
@@ -814,12 +837,7 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 						ContainerPort: port, // should come from flag
 					},
 				},
-				Env: []corev1.EnvVar{
-					{
-						Name:  insecureEnvVar,
-						Value: insecureEnvVarValue,
-					},
-				},
+				Env: env,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						MountPath: "/etc/gitops/ssl",
