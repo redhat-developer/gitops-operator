@@ -31,7 +31,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -71,7 +70,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						},
 					},
 					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 						WebhookServer: argov1beta1api.WebhookServerSpec{
 							Host: "example.com",
 							Route: argov1beta1api.ArgoCDRouteSpec{

@@ -248,8 +248,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Project: "default",
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    ptr.To(true),
-							SelfHeal: ptr.To(true),
+							Prune:    new(true),
+							SelfHeal: new(true),
 						},
 					},
 				},

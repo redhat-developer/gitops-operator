@@ -13,7 +13,6 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -77,7 +76,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy-empty", Namespace: test_1_086_custom2NS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
-						DefaultPolicy: ptr.To(""),
+						DefaultPolicy: new(""),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
 						Route: argov1beta1api.ArgoCDRouteSpec{
@@ -92,7 +91,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy-admin", Namespace: test_1_086_custom3NS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
-						DefaultPolicy: ptr.To("role:admin"),
+						DefaultPolicy: new("role:admin"),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
 						Route: argov1beta1api.ArgoCDRouteSpec{

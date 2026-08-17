@@ -32,7 +32,7 @@ var log = logf.Log.WithName("openshift_controller_argocd")
 // 	argocd.Register(reconcilerHook)
 // }
 
-func ReconcilerHook(cr *argoapp.ArgoCD, v interface{}, hint string) error {
+func ReconcilerHook(cr *argoapp.ArgoCD, v any, hint string) error {
 
 	logv := log.WithValues("ArgoCD Namespace", cr.Namespace, "ArgoCD Name", cr.Name)
 	switch o := v.(type) {
@@ -205,7 +205,7 @@ echo "Done!"
 }
 
 // BuilderHook updates the Argo CD controller builder to watch for changes to the "admin" ClusterRole
-func BuilderHook(_ *argoapp.ArgoCD, v interface{}, _ string) error {
+func BuilderHook(_ *argoapp.ArgoCD, v any, _ string) error {
 	logv := log.WithValues("module", "builder-hook")
 
 	bldr, ok := v.(*argocd.BuilderHook)
@@ -480,10 +480,8 @@ func allowedNamespace(current string, namespaces string) bool {
 			return true
 		}
 
-		for _, n := range clusterConfigNamespaces {
-			if n == current {
-				return true
-			}
+		if slices.Contains(clusterConfigNamespaces, current) {
+			return true
 		}
 	}
 	return false
