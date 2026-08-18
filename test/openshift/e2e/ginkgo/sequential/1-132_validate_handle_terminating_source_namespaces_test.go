@@ -53,6 +53,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			appProject                         *argocdv1alpha1.AppProject
 			originalArgoCDSourceNamespaces     []string
 			originalAppProjectSourceNamespaces []string
+			capturedArgoCDSourceNamespaces     bool
+			capturedAppProjectSourceNamespaces bool
 			terminatingNS                      *corev1.Namespace
 			activeNS                           *corev1.Namespace
 			destinationNS                      *corev1.Namespace
@@ -72,12 +74,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		AfterEach(func() {
 			fixture.OutputDebugOnFail("openshift-gitops", terminatingNS, activeNS, destinationNS)
 
-			if argoCD != nil {
+			if capturedArgoCDSourceNamespaces {
 				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 					ac.Spec.SourceNamespaces = originalArgoCDSourceNamespaces
 				})
 			}
-			if appProject != nil {
+			if capturedAppProjectSourceNamespaces {
 				appprojectFixture.Update(appProject, func(project *argocdv1alpha1.AppProject) {
 					project.Spec.SourceNamespaces = originalAppProjectSourceNamespaces
 				})
@@ -106,6 +108,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD, err = argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 			originalArgoCDSourceNamespaces = append([]string(nil), argoCD.Spec.SourceNamespaces...)
+			capturedArgoCDSourceNamespaces = true
 
 			By("creating a source namespace that matches the sourceNamespaces pattern")
 			terminatingNS, terminatingNSCleanupFunc = fixture.CreateNamespaceWithCleanupFunc("src-1-132-terminating")
@@ -191,6 +194,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(appProject).Should(k8sFixture.ExistByName())
 			originalAppProjectSourceNamespaces = append([]string(nil), appProject.Spec.SourceNamespaces...)
+			capturedAppProjectSourceNamespaces = true
 			appprojectFixture.Update(appProject, func(project *argocdv1alpha1.AppProject) {
 				project.Spec.SourceNamespaces = append(project.Spec.SourceNamespaces, activeNS.Name)
 			})
