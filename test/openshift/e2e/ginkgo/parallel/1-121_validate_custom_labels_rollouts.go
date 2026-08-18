@@ -35,47 +35,63 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-121_validate_custom_labels_rollouts", func() {
 
+		const rolloutNamespace = "openshift-gitops"
+
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient      client.Client
+			ctx            context.Context
+			rolloutManager *rolloutmanagerv1alpha1.RolloutManager
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+
+			if !fixture.RunningOnOpenShift() {
+				ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: rolloutNamespace}}
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ns), ns); err != nil {
+					Expect(k8sClient.Create(ctx, ns)).To(Succeed())
+				}
+			}
+		})
+
+		AfterEach(func() {
+			if rolloutManager != nil {
+				_ = k8sClient.Delete(ctx, rolloutManager)
+				Eventually(rolloutManager, "2m", "2s").Should(k8sFixture.NotExistByName())
+			}
 		})
 
 		It("ensures that custom labels set by the operator are added to Argo Rollouts resources", func() {
 
 			By("creating namespace-scoped RolloutManager instance")
-			rolloutManager := &rolloutmanagerv1alpha1.RolloutManager{
+			rolloutManager = &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: rolloutNamespace,
 				},
 			}
 			Expect(k8sClient.Create(ctx, rolloutManager)).To(Succeed())
 
 			By("waiting for Argo Rollouts deployment to be created and become available")
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: rolloutNamespace}}
 			Eventually(depl, "2m", "2s").Should(k8sFixture.ExistByName())
 
 			By("verifying Argo Rollouts Secret has the custom labels")
 			labelKey := "operator.argoproj.io/tracked-by"
 			labelValue := "argocd"
-			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: "openshift-gitops"}}
+			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: rolloutNamespace}}
 			Eventually(secret, "2m", "1s").Should(k8sFixture.ExistByName())
 			Expect(secret.Labels).Should(HaveKeyWithValue(labelKey, labelValue))
 
 			By("verifying Argo Rollouts ConfigMap has the custom labels")
-			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-config", Namespace: "openshift-gitops"}}
+			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-config", Namespace: rolloutNamespace}}
 			Eventually(configMap, "2m", "1s").Should(k8sFixture.ExistByName())
 			Expect(configMap.Labels).Should(HaveKeyWithValue(labelKey, labelValue))
 
 			By("updating RolloutManager spec")
 
-			// Add a new label to trigger reconciliation
 			if rolloutManager.Labels == nil {
 				rolloutManager.Labels = make(map[string]string)
 			}
@@ -84,12 +100,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Patch(ctx, rolloutManager, patch)).To(Succeed())
 
 			By("ensures that custom labels persist in configmap after RolloutManager updates")
-			configMap = &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-config", Namespace: "openshift-gitops"}}
+			configMap = &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-config", Namespace: rolloutNamespace}}
 			Eventually(configMap, "2m", "1s").Should(k8sFixture.ExistByName())
 			Expect(configMap.Labels).Should(HaveKeyWithValue(labelKey, labelValue))
 
 			By("ensures that custom labels persist in secret after RolloutManager updates")
-			secret = &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: "openshift-gitops"}}
+			secret = &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: rolloutNamespace}}
 			Eventually(secret, "2m", "1s").Should(k8sFixture.ExistByName())
 			Expect(secret.Labels).Should(HaveKeyWithValue(labelKey, labelValue))
 		})

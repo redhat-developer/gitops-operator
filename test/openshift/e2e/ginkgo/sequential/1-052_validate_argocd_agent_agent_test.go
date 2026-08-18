@@ -364,6 +364,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", func() {
+
 			By("Create ArgoCD instance")
 
 			argoCD.Spec.ArgoCDAgent.Agent.Image = common.ArgoCDAgentAgentDefaultImageName
@@ -576,7 +577,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "60s", "2s").Should(BeTrue(), "ArgoCD should be deleted")
 		})
 
-		It("should create and delete agent ServiceMonitor based on prometheus enabled flag", func() {
+		It("should create and delete agent ServiceMonitor based on prometheus enabled flag", Label("openshift"), func() {
+
 			By("Create ArgoCD instance with agent enabled and prometheus enabled")
 
 			argoCD.Spec.Prometheus.Enabled = true
