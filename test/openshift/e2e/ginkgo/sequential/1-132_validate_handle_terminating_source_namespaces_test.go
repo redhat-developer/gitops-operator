@@ -101,7 +101,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("ensures that if one source namespace is stuck in terminating, it does not prevent other source namespaces from being managed or deployed to", func() {
+		It("ensures that if one source namespace is stuck in terminating, it does not prevent other source namespaces from being managed or deployed to", Label("openshift"), func() {
 
 			By("getting the default cluster-scoped openshift-gitops Argo CD instance")
 			var err error
