@@ -47,15 +47,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-132_validate_handle_terminating_source_namespaces", func() {
 
 		var (
-			k8sClient                client.Client
-			ctx                      context.Context
-			terminatingNS            *corev1.Namespace
-			activeNS                 *corev1.Namespace
-			destinationNS            *corev1.Namespace
-			configMapTerminatingNS   *corev1.ConfigMap
-			terminatingNSCleanupFunc func()
-			activeNSCleanupFunc      func()
-			destinationNSCleanupFunc func()
+			k8sClient                          client.Client
+			ctx                                context.Context
+			argoCD                             *argov1beta1api.ArgoCD
+			appProject                         *argocdv1alpha1.AppProject
+			originalArgoCDSourceNamespaces     []string
+			originalAppProjectSourceNamespaces []string
+			terminatingNS                      *corev1.Namespace
+			activeNS                           *corev1.Namespace
+			destinationNS                      *corev1.Namespace
+			configMapTerminatingNS             *corev1.ConfigMap
+			terminatingNSCleanupFunc           func()
+			activeNSCleanupFunc                func()
+			destinationNSCleanupFunc           func()
 		)
 
 		BeforeEach(func() {
@@ -67,6 +71,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 			fixture.OutputDebugOnFail("openshift-gitops", terminatingNS, activeNS, destinationNS)
+
+			if argoCD != nil {
+				argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+					ac.Spec.SourceNamespaces = originalArgoCDSourceNamespaces
+				})
+			}
+			if appProject != nil {
+				appprojectFixture.Update(appProject, func(project *argocdv1alpha1.AppProject) {
+					project.Spec.SourceNamespaces = originalAppProjectSourceNamespaces
+				})
+			}
 
 			if configMapTerminatingNS != nil {
 				configmapFixture.Update(configMapTerminatingNS, func(cm *corev1.ConfigMap) {
@@ -87,8 +102,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("ensures that if one source namespace is stuck in terminating, it does not prevent other source namespaces from being managed or deployed to", func() {
 
 			By("getting the default cluster-scoped openshift-gitops Argo CD instance")
-			argoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			var err error
+			argoCD, err = argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
+			originalArgoCDSourceNamespaces = append([]string(nil), argoCD.Spec.SourceNamespaces...)
 
 			By("creating a source namespace that matches the sourceNamespaces pattern")
 			terminatingNS, terminatingNSCleanupFunc = fixture.CreateNamespaceWithCleanupFunc("src-1-132-terminating")
@@ -169,10 +186,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "2m", "5s").Should(k8sFixture.ExistByName())
 
 			By("allowing Applications from the active source namespace in the default AppProject")
-			appProject := &argocdv1alpha1.AppProject{
+			appProject = &argocdv1alpha1.AppProject{
 				ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "openshift-gitops"},
 			}
 			Eventually(appProject).Should(k8sFixture.ExistByName())
+			originalAppProjectSourceNamespaces = append([]string(nil), appProject.Spec.SourceNamespaces...)
 			appprojectFixture.Update(appProject, func(project *argocdv1alpha1.AppProject) {
 				project.Spec.SourceNamespaces = append(project.Spec.SourceNamespaces, activeNS.Name)
 			})
