@@ -82,7 +82,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			return podName, nil
 		}
 
-		It("verifies that toolchain versions have the expected values", func() {
+		It("verifies that toolchain versions have the expected values", Label("openshift"), func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
 			expected_kustomizeVersion := "v5.8.1"

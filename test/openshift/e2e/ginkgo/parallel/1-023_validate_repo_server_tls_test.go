@@ -59,7 +59,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(nsTest_1_23_custom)
 		})
 
-		It("verifying ArgoCD .spec.repo AutoTLS and verifyTLS work as expected", func() {
+		It("verifying ArgoCD .spec.repo AutoTLS and verifyTLS work as expected", Label("openshift"), func() {
 
 			By("creating a namespace scoped Argo instance with AutoTLS set to 'openshift'")
 
