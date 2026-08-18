@@ -31,10 +31,17 @@ const (
 	InfraNodeLabelSelector = "node-role.kubernetes.io/infra"
 	// Default console plugin image
 	DefaultConsoleImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-rhel9"
+	// DefaultConsoleImagePF5 is Default console plugin image for PatternFly 5
+	DefaultConsoleImagePF5 = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-4.18-rhel9"
 	// Default console plugin version
 	DefaultConsoleVersion = "main"
-	// Default console plugin installation OCP version
-	DefaultDynamicPluginStartOCPVersion = "4.15.0"
+	// DefaultConsoleVersionPF5 is a Default console plugin version for PatternFly 5
+	DefaultConsoleVersionPF5 = "main"
+	// DefaultDynamicPluginStartOCPVersion is the minimum OCP version that supports the console plugin
+	DefaultDynamicPluginStartOCPVersion = "4.18.0"
+	// PluginPF6MinOCPVersion is the minimum OCP version that should use the PF6-based plugin;
+	// OCP versions >= 4.18 and < 4.19 use the PF5-based plugin instead.
+	PluginPF6MinOCPVersion = "4.19.0"
 	// ImagePullPolicyEnvVar is the environment variable for configuring image pull policy
 	ImagePullPolicy = "IMAGE_PULL_POLICY"
 	// InfraNodeSelectorAnnotation is the OpenShift namespace annotation that applies a default node selector to all pods
