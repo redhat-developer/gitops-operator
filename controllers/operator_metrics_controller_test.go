@@ -123,18 +123,25 @@ func TestGetOperatorNamespace_trimsNewline(t *testing.T) {
 	assert.Equal(t, ns, "openshift-gitops-operator")
 }
 
-func TestBearerTokenRequeueDuration(t *testing.T) {
-	expiry := time.Now().Add(operatorMetricsTokenExpiry)
-	requeue := bearerTokenRequeueDuration(expiry)
-	assert.Assert(t, requeue > 19*time.Minute && requeue <= 20*time.Minute)
+func TestBearerTokenRenewalLead(t *testing.T) {
+	lead := bearerTokenRenewalLead()
+	assert.Assert(t, lead > 11*time.Minute && lead <= 12*time.Minute)
+}
 
-	// Cluster-capped shorter lifetime must still schedule renewal.
-	shortExpiry := time.Now().Add(30 * time.Minute)
-	shortRequeue := bearerTokenRequeueDuration(shortExpiry)
-	assert.Assert(t, shortRequeue > 9*time.Minute && shortRequeue <= 10*time.Minute)
+func TestEvaluateBearerTokenRenewal(t *testing.T) {
+	now := time.Now()
+	expiry := now.Add(operatorMetricsTokenExpiry)
 
-	expiredExpiry := time.Now().Add(-time.Minute)
-	assert.Equal(t, bearerTokenRequeueDuration(expiredExpiry), time.Duration(0))
+	requeueAfter, needsRefresh := evaluateBearerTokenRenewal(expiry, now)
+	assert.Assert(t, !needsRefresh)
+	assert.Assert(t, requeueAfter > 47*time.Minute && requeueAfter <= 48*time.Minute)
+
+	lead := bearerTokenRenewalLead()
+	_, needsRefresh = evaluateBearerTokenRenewal(now.Add(lead), now)
+	assert.Assert(t, needsRefresh)
+
+	_, needsRefresh = evaluateBearerTokenRenewal(now.Add(-time.Minute), now)
+	assert.Assert(t, needsRefresh)
 }
 
 func TestOperatorMetricsTokenReconciler_migratesServiceMonitorAuth(t *testing.T) {
@@ -224,9 +231,11 @@ func TestOperatorMetricsTokenReconciler_replacesLegacySecret(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, secret.Type, corev1.SecretTypeOpaque)
 	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "new-token")
-	parsedExpiry, err := parseBearerTokenExpiry(secret.Data[operatorMetricsBearerTokenExpiryKey])
+	parsedExpiry, err := parseBearerTokenTimestamp(secret.Data[operatorMetricsBearerTokenExpiryKey])
 	assert.NilError(t, err)
 	assert.Equal(t, parsedExpiry.UTC().Format(time.RFC3339), expiry.UTC().Format(time.RFC3339))
+	_, hasIssuedAt := secret.Data["issuedAt"]
+	assert.Assert(t, !hasIssuedAt)
 }
 
 func TestOperatorMetricsTokenReconciler_keepsLegacySecretIfTokenRequestFails(t *testing.T) {
@@ -377,6 +386,120 @@ func TestOperatorMetricsTokenReconciler_refreshesSecretWithMissingToken(t *testi
 	}, secret)
 	assert.NilError(t, err)
 	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "minted-token")
+}
+
+func TestOperatorMetricsTokenReconciler_schedulesRenewalFromExpiry(t *testing.T) {
+	writeOperatorNamespaceFile(t, testOperatorNamespace)
+
+	s := newOperatorMetricsTokenScheme()
+	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
+	expiry := time.Now().Add(operatorMetricsTokenExpiry)
+	validSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      operatorMetricsBearerTokenSecretName,
+			Namespace: testOperatorNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			operatorMetricsBearerTokenKey:       []byte("current-token"),
+			operatorMetricsBearerTokenExpiryKey: []byte(expiry.UTC().Format(time.RFC3339)),
+		},
+	}
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(serviceMonitor, validSecret).Build()
+
+	r := &OperatorMetricsTokenReconciler{
+		Client: c,
+		Scheme: s,
+		TokenRequester: &fakeTokenRequester{
+			token:  "unexpected-token",
+			expiry: time.Now().Add(operatorMetricsTokenExpiry),
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      operatorMetricsMonitorName,
+			Namespace: testOperatorNamespace,
+		},
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, result.RequeueAfter > 47*time.Minute && result.RequeueAfter <= 48*time.Minute)
+
+	secret := &corev1.Secret{}
+	err = c.Get(context.Background(), types.NamespacedName{
+		Name:      operatorMetricsBearerTokenSecretName,
+		Namespace: testOperatorNamespace,
+	}, secret)
+	assert.NilError(t, err)
+	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "current-token")
+
+	result, err = r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      operatorMetricsMonitorName,
+			Namespace: testOperatorNamespace,
+		},
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, result.RequeueAfter > 47*time.Minute && result.RequeueAfter <= 48*time.Minute)
+}
+
+func TestOperatorMetricsTokenReconciler_refreshesTokenAtRenewalDeadline(t *testing.T) {
+	writeOperatorNamespaceFile(t, testOperatorNamespace)
+
+	s := newOperatorMetricsTokenScheme()
+	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
+	serviceMonitor.Spec.Endpoints[0].Authorization = &monitoringv1.SafeAuthorization{
+		Type: "Bearer",
+		Credentials: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: operatorMetricsBearerTokenSecretName,
+			},
+			Key: operatorMetricsBearerTokenKey,
+		},
+	}
+	now := time.Now()
+	dueSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      operatorMetricsBearerTokenSecretName,
+			Namespace: testOperatorNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			operatorMetricsBearerTokenKey:       []byte("old-token"),
+			operatorMetricsBearerTokenExpiryKey: []byte(now.Add(bearerTokenRenewalLead()).UTC().Format(time.RFC3339)),
+		},
+	}
+	c := fake.NewClientBuilder().WithScheme(s).WithObjects(serviceMonitor, dueSecret).Build()
+
+	newExpiry := time.Now().Add(operatorMetricsTokenExpiry)
+	r := &OperatorMetricsTokenReconciler{
+		Client: c,
+		Scheme: s,
+		TokenRequester: &fakeTokenRequester{
+			token:  "renewed-token",
+			expiry: newExpiry,
+		},
+	}
+
+	_, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      operatorMetricsMonitorName,
+			Namespace: testOperatorNamespace,
+		},
+	})
+	assert.NilError(t, err)
+
+	secret := &corev1.Secret{}
+	err = c.Get(context.Background(), types.NamespacedName{
+		Name:      operatorMetricsBearerTokenSecretName,
+		Namespace: testOperatorNamespace,
+	}, secret)
+	assert.NilError(t, err)
+	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "renewed-token")
+	_, hasIssuedAt := secret.Data["issuedAt"]
+	assert.Assert(t, !hasIssuedAt)
+	_, hasRenewAt := secret.Data["renewAt"]
+	assert.Assert(t, !hasRenewAt)
 }
 
 func TestOperatorMetricsTokenReconciler_skipsOtherNamespaces(t *testing.T) {

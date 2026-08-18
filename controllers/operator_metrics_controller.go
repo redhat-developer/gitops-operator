@@ -50,6 +50,7 @@ const (
 	operatorMetricsTokenExpiry           = time.Duration(operatorMetricsTokenExpirySecs) * time.Second
 	operatorMetricsBearerTokenKey        = "token"
 	operatorMetricsBearerTokenExpiryKey  = "expiry"
+	operatorMetricsTokenRenewalPercent   = 20
 )
 
 type serviceAccountTokenRequester interface {
@@ -247,16 +248,16 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 	} else if secret.Type != corev1.SecretTypeOpaque || len(secret.Data[operatorMetricsBearerTokenKey]) == 0 {
 		needsRefresh = true
 	} else {
-		expiry, parseErr := parseBearerTokenExpiry(secret.Data[operatorMetricsBearerTokenExpiryKey])
-		if parseErr != nil || !time.Now().Before(expiry) {
+		expiry, parseErr := parseBearerTokenTimestamp(secret.Data[operatorMetricsBearerTokenExpiryKey])
+		if parseErr != nil {
+			reqLogger.Error(parseErr, "bearer token secret has unparseable expiry, renewal needed",
+				"Namespace", namespace, "Name", operatorMetricsBearerTokenSecretName,
+				"expiry", string(secret.Data[operatorMetricsBearerTokenExpiryKey]))
+			needsRefresh = true
+		} else if requeueAfter, refresh := evaluateBearerTokenRenewal(expiry, time.Now()); refresh {
 			needsRefresh = true
 		} else {
-			requeueAfter := bearerTokenRequeueDuration(expiry)
-			if requeueAfter <= 0 {
-				needsRefresh = true
-			} else {
-				return requeueAfter, nil
-			}
+			return requeueAfter, nil
 		}
 	}
 
@@ -281,6 +282,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 			operatorMetricsBearerTokenExpiryKey: []byte(expiry.UTC().Format(time.RFC3339)),
 		},
 	}
+	requeueAfter, _ := evaluateBearerTokenRenewal(expiry, time.Now())
 
 	existingSecret := &corev1.Secret{}
 	getErr := r.Client.Get(ctx, types.NamespacedName{
@@ -294,7 +296,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 			if err := r.Client.Create(ctx, desiredSecret); err != nil {
 				return 0, err
 			}
-			return bearerTokenRequeueDuration(expiry), nil
+			return requeueAfter, nil
 		}
 		return 0, getErr
 	}
@@ -307,20 +309,32 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 		return 0, err
 	}
 
-	return bearerTokenRequeueDuration(expiry), nil
+	return requeueAfter, nil
 }
 
-func parseBearerTokenExpiry(expiryData []byte) (time.Time, error) {
-	return time.Parse(time.RFC3339, string(expiryData))
+func parseBearerTokenTimestamp(value []byte) (time.Time, error) {
+	return time.Parse(time.RFC3339, string(value))
 }
 
-// bearerTokenRequeueDuration returns how long to wait before renewing the token.
-// Renewal is scheduled after one third of the *actual* remaining lifetime has
-// elapsed, so cluster-capped TokenRequest lifetimes still get a renewal.
-func bearerTokenRequeueDuration(expiry time.Time) time.Duration {
-	remaining := time.Until(expiry)
+// bearerTokenRenewalLead is how long before expiry renewal should happen. It
+// matches one third of the requested token lifetime: renew once two thirds of
+// the nominal TTL remain (equivalent to renewing after one third has elapsed on
+// a fully granted token).
+func bearerTokenRenewalLead() time.Duration {
+	return operatorMetricsTokenExpiry * operatorMetricsTokenRenewalPercent / 100
+}
+
+// evaluateBearerTokenRenewal decides whether to refresh now and, if not, when
+// to requeue. Only expiry is stored in the Secret; the renewal boundary is
+// expiry minus a fixed lead derived from the requested TTL.
+func evaluateBearerTokenRenewal(expiry, now time.Time) (time.Duration, bool) {
+	remaining := expiry.Sub(now)
 	if remaining <= 0 {
-		return 0
+		return 0, true
 	}
-	return remaining / 3
+	lead := bearerTokenRenewalLead()
+	if remaining <= lead {
+		return 0, true
+	}
+	return remaining - lead, false
 }
