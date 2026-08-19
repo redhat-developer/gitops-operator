@@ -61,9 +61,10 @@ func HaveNonEmptyKeyValue(key string) matcher.GomegaMatcher {
 			return false
 		}
 
-		GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, " Have:", string(a))
-
-		return len(a) > 0
+		// Printing string that looks like secret causes openshift-ci to redact the entire log file, preventing investigating failures in any other tests.
+		empty := len(a) == 0
+		GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, " empty:", empty)
+		return !empty
 	})
 
 }
