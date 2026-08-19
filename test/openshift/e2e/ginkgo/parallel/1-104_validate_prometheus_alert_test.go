@@ -23,7 +23,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("verify that openshift gitops operator servicemonitor exists in openshift-gitops-operator namespace, and has the expected values", func() {
+		// TODO: currently skipped on xKS, update CI to install prometheus for tests to run
+		It("verify that openshift gitops operator servicemonitor exists in openshift-gitops-operator namespace, and has the expected values", Label("openshift"), func() {
 
 			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
 				Skip("this test requires the operator to installed via OLM to openshift-operators namespace")

@@ -14,12 +14,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-026-validate_backend_service_permissions", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates backend service permissions", func() {
+		It("validates backend service permissions", Label("openshift"), func() {
 
 			By("verifying that various backend-related resources exist and have the expected values")
 

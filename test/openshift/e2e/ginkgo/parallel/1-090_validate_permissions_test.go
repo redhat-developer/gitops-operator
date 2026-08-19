@@ -47,7 +47,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("ensure the GitOps Operator CSV has the correct cluster permissions and gitopsservices CRD has expected properties", func() {
+		// TODO: skipped on xKS, check if this can be ported for xKS testing
+		It("ensure the GitOps Operator CSV has the correct cluster permissions and gitopsservices CRD has expected properties", Label("openshift"), func() {
 
 			if fixture.EnvCI() {
 				Skip("AFAICT CSV does not exist when running E2E tests from gitops-operator repo")
