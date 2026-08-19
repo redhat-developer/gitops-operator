@@ -35,6 +35,7 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -71,6 +72,25 @@ func newOperatorMetricsTokenScheme() *runtime.Scheme {
 	s := scheme.Scheme
 	s.AddKnownTypes(monitoringv1.SchemeGroupVersion, &monitoringv1.ServiceMonitor{})
 	return s
+}
+
+func newOperatorMetricsClientBuilder(s *runtime.Scheme) *fake.ClientBuilder {
+	return fake.NewClientBuilder().WithScheme(s).WithInterceptorFuncs(interceptor.Funcs{
+		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			secret, ok := obj.(*corev1.Secret)
+			if !ok {
+				return c.Update(ctx, obj, opts...)
+			}
+			existing := &corev1.Secret{}
+			if err := c.Get(ctx, client.ObjectKeyFromObject(secret), existing); err != nil {
+				return c.Update(ctx, obj, opts...)
+			}
+			if existing.Type == corev1.SecretTypeServiceAccountToken && secret.Type != existing.Type {
+				return fmt.Errorf("secret type is immutable")
+			}
+			return c.Update(ctx, obj, opts...)
+		},
+	})
 }
 
 func newOperatorMetricsServiceMonitor(namespace string, useLegacyAuth bool) *monitoringv1.ServiceMonitor {
@@ -175,7 +195,7 @@ func TestOperatorMetricsTokenReconciler_migratesServiceMonitorAuth(t *testing.T)
 		Namespace: testOperatorNamespace,
 	}, updatedSM)
 	assert.NilError(t, err)
-	assert.Assert(t, is.Nil(updatedSM.Spec.Endpoints[0].BearerTokenSecret)) //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization//nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
+	assert.Assert(t, is.Nil(updatedSM.Spec.Endpoints[0].BearerTokenSecret)) //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
 	assert.Assert(t, updatedSM.Spec.Endpoints[0].Authorization != nil)
 	assert.Equal(t, updatedSM.Spec.Endpoints[0].Authorization.Type, "Bearer")
 	assert.Equal(t, updatedSM.Spec.Endpoints[0].Authorization.Credentials.Name, operatorMetricsBearerTokenSecretName)
@@ -203,7 +223,7 @@ func TestOperatorMetricsTokenReconciler_replacesLegacySecret(t *testing.T) {
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
-	c := fake.NewClientBuilder().WithScheme(s).WithObjects(serviceMonitor, legacySecret).Build()
+	c := newOperatorMetricsClientBuilder(s).WithObjects(serviceMonitor, legacySecret).Build()
 
 	expiry := time.Now().Add(operatorMetricsTokenExpiry)
 	r := &OperatorMetricsTokenReconciler{

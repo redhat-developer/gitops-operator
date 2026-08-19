@@ -237,13 +237,16 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 	}, secret)
 
 	needsRefresh := false
+	legacySAToken := false
 	if errors.IsNotFound(err) {
 		needsRefresh = true
 	} else if err != nil {
 		return 0, err
 	} else if secret.Type == corev1.SecretTypeServiceAccountToken {
-		// Migrate legacy Secret in place after TokenRequest succeeds so scrape auth
-		// is not interrupted if minting fails.
+		// Keep the legacy Secret until TokenRequest succeeds so scrape auth
+		// is not interrupted if minting fails. Replace it via delete/create
+		// because Secret type is immutable in the API.
+		legacySAToken = true
 		needsRefresh = true
 	} else if secret.Type != corev1.SecretTypeOpaque || len(secret.Data[operatorMetricsBearerTokenKey]) == 0 {
 		needsRefresh = true
@@ -284,6 +287,18 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 	}
 	requeueAfter, _ := evaluateBearerTokenRenewal(expiry, time.Now())
 
+	if legacySAToken {
+		reqLogger.Info("Replacing legacy non-expiring service account token Secret",
+			"Namespace", namespace, "Name", operatorMetricsBearerTokenSecretName)
+		if err := r.Client.Delete(ctx, secret); err != nil && !errors.IsNotFound(err) {
+			return 0, err
+		}
+		if err := r.Client.Create(ctx, desiredSecret); err != nil {
+			return 0, err
+		}
+		return requeueAfter, nil
+	}
+
 	existingSecret := &corev1.Secret{}
 	getErr := r.Client.Get(ctx, types.NamespacedName{
 		Name:      operatorMetricsBearerTokenSecretName,
@@ -317,7 +332,7 @@ func parseBearerTokenTimestamp(value []byte) (time.Time, error) {
 }
 
 // bearerTokenRenewalLead is how long before expiry renewal should happen. It
-// matches one third of the requested token lifetime: renew once two thirds of
+// matches 20% of the requested token lifetime: renew once 80% of
 // the nominal TTL remain (equivalent to renewing after one third has elapsed on
 // a fully granted token).
 func bearerTokenRenewalLead() time.Duration {
