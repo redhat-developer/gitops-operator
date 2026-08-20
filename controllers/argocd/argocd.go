@@ -255,7 +255,7 @@ func NewCR(name, ns string, client client.Client) (*argoapp.ArgoCD, error) {
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
 			SSO:                getArgoSSOSpec(client),
-			Grafana:            getArgoGrafanaSpec(),
+			Grafana:            getArgoGrafanaSpec(), //nolint:staticcheck // Deprecated field
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),
 			Repo:               getArgoRepoServerSpec(),
