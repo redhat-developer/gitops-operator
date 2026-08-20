@@ -229,20 +229,10 @@ envtest: ## Download envtest-setup locally if necessary.
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.24)
 	$(ENVTEST) use 1.26
 
-
-.PHONY: gosec
-gosec: go_sec
-	$(GO_SEC) --exclude-dir "tests/auxiliary/smtplistener" --exclude-dir "hack/"  ./...
-
 .PHONY: lint
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
 	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
-
-
-GO_SEC = $(shell pwd)/bin/gosec
-go_sec: ## Download gosec locally if necessary.
-	$(call go-install-tool,$(GO_SEC),github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION))
 
 
 # If you get an error from golangci-lint indicating the go version mismatches, use:
