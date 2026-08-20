@@ -345,7 +345,7 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: gosec
 gosec: go_sec
-	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./...
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager" --exclude-dir "argocd-operator/hack/"  ./...
 
 .PHONY: lint
 lint: golangci_lint
