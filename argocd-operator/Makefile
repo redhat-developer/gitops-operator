@@ -114,13 +114,6 @@ get-image-updater-crd: ## Download Image Updater CRD.
 	@echo "downloading image updater crd"
 	@curl -sSLo config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/master/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
 
-
-# Exclude E2E tests from the list of unit test packages
-UNIT_TEST_PACKAGES := $(shell go list ./... | grep -E -v '/tests/ginkgo')
-
-test: manifests generate fmt vet envtest ## Run tests.
-	REDIS_CONFIG_PATH="$(shell pwd)/build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
-
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
@@ -129,7 +122,7 @@ build: generate fmt vet ## Build manager binary.
 run: manifests generate fmt vet ## Run a controller from your host.
 	REDIS_CONFIG_PATH="build/redis" go run -ldflags=$(LD_FLAGS) ./cmd/main.go
 
-docker-build: test ## Build docker image with the manager.
+docker-build: ## Build docker image with the manager.
 	$(CONTAINER_RUNTIME) build --build-arg LD_FLAGS=$(LD_FLAGS) -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.
@@ -213,7 +206,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 start-e2e: install-prometheus-crds ## Start operator for E2E tests (installs required CRDs if needed)
 	ARGOCD_CLUSTER_CONFIG_NAMESPACES="argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent" make run
 
-all: test install run ## UnitTest, Run the operator locally
+all: install run ## UnitTest, Run the operator locally
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
