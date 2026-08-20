@@ -351,6 +351,7 @@ gosec: go_sec
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
 	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+	cd argocd-operator && $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
 
 
 GO_SEC = $(shell pwd)/bin/gosec

@@ -47,7 +47,6 @@ OPERATOR_SDK_VERSION ?= v1.35.0
 KUBERNETES_API_VERSION ?= 1.35
 
 GOSEC_VERSION ?= v2.22.7
-GOLANGCILINT_VERSION ?= v2.12.2
 
 
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
@@ -228,21 +227,6 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.24)
 	$(ENVTEST) use 1.26
-
-.PHONY: lint
-lint: golangci_lint
-	$(GOLANGCI_LINT) --version
-	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
-
-
-# If you get an error from golangci-lint indicating the go version mismatches, use:
-# - 'GOTOOLCHAIN=go1.2x.x  make golangci_lint'
-# - For example, 'GOTOOLCHAIN=go1.24.5  make golangci_lintlint'
-# - You may need to run `rm ./bin/*', first, to remove the old binary from (argocd-operator)/bin/ directory
-GOLANGCI_LINT = $(shell pwd)/bin/golangci-lint
-golangci_lint: ## Download golangci-lint locally if necessary.
-	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCILINT_VERSION))
-
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
