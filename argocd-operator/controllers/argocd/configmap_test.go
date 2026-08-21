@@ -32,6 +32,7 @@ import (
 	testclient "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -2136,5 +2137,121 @@ func TestReconcileArgoCD_reconcileArgoConfigMap_sensitiveAnnotations(t *testing.
 		assert.Equal(t, "some.other/annotation,openshift.io/token-secret.value",
 			cm.Data[common.ArgoCDKeyResourceSensitiveMaskAnnotations],
 			"token annotation should not be duplicated")
+	})
+}
+
+func TestReconcileArgoCD_reconcileCAConfigMap(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	t.Run("creates ConfigMap with both tls.crt and ca.crt keys", func(t *testing.T) {
+		a := makeTestArgoCD()
+
+		caSecret, err := newCASecret(a)
+		require.NoError(t, err)
+
+		resObjs := []client.Object{a, caSecret}
+		subresObjs := []client.Object{a}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err = r.reconcileCAConfigMap(a)
+		require.NoError(t, err)
+
+		cm := &corev1.ConfigMap{}
+		err = r.Get(context.TODO(), types.NamespacedName{
+			Name:      getCAConfigMapName(a),
+			Namespace: a.Namespace,
+		}, cm)
+		require.NoError(t, err)
+
+		assert.Contains(t, cm.Data, common.ArgoCDKeyTLSCert, "ConfigMap should have tls.crt key")
+		assert.Contains(t, cm.Data, common.ArgoCDKeyTLSCACert, "ConfigMap should have ca.crt key")
+		assert.Equal(t, string(caSecret.Data[corev1.TLSCertKey]), cm.Data[common.ArgoCDKeyTLSCert])
+		assert.Equal(t, string(caSecret.Data[corev1.ServiceAccountRootCAKey]), cm.Data[common.ArgoCDKeyTLSCACert])
+	})
+
+	t.Run("updates ConfigMap when ca.crt key is missing", func(t *testing.T) {
+		a := makeTestArgoCD()
+
+		caSecret, err := newCASecret(a)
+		require.NoError(t, err)
+
+		// Create ConfigMap with only tls.crt + an extra key (simulating pre-fix state with custom data)
+		oldCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getCAConfigMapName(a),
+				Namespace: a.Namespace,
+			},
+			Data: map[string]string{
+				common.ArgoCDKeyTLSCert: "existing-tls",
+				"someOtherKey":          "someValue",
+			},
+		}
+
+		resObjs := []client.Object{a, caSecret, oldCM}
+		subresObjs := []client.Object{a}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err = r.reconcileCAConfigMap(a)
+		require.NoError(t, err)
+
+		cm := &corev1.ConfigMap{}
+		err = r.Get(context.TODO(), types.NamespacedName{
+			Name:      getCAConfigMapName(a),
+			Namespace: a.Namespace,
+		}, cm)
+		require.NoError(t, err)
+
+		assert.Equal(t, "existing-tls", cm.Data[common.ArgoCDKeyTLSCert], "existing tls.crt should be preserved")
+		assert.Contains(t, cm.Data, common.ArgoCDKeyTLSCACert, "ConfigMap should now have ca.crt key added")
+		assert.Equal(t, string(caSecret.Data[corev1.ServiceAccountRootCAKey]), cm.Data[common.ArgoCDKeyTLSCACert])
+		assert.Contains(t, cm.Data, "someOtherKey", "existing keys should be preserved")
+		assert.Equal(t, "someValue", cm.Data["someOtherKey"], "existing key values should be preserved")
+	})
+
+	t.Run("no-op when both keys are already present", func(t *testing.T) {
+		a := makeTestArgoCD()
+
+		caSecret, err := newCASecret(a)
+		require.NoError(t, err)
+
+		// Create ConfigMap with sentinel values (simulating post-fix state)
+		existingCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      getCAConfigMapName(a),
+				Namespace: a.Namespace,
+			},
+			Data: map[string]string{
+				common.ArgoCDKeyTLSCert:   "sentinel-tls",
+				common.ArgoCDKeyTLSCACert: "sentinel-ca",
+			},
+		}
+
+		resObjs := []client.Object{a, caSecret, existingCM}
+		subresObjs := []client.Object{a}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+		cl := fake.NewClientBuilder().WithScheme(sch).WithObjects(resObjs...).WithStatusSubresource(subresObjs...).WithRuntimeObjects(runtimeObjs...).WithInterceptorFuncs(interceptor.Funcs{Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+			return fmt.Errorf("unexpected Update call to configmaps")
+		}}).Build()
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err = r.reconcileCAConfigMap(a)
+		require.NoError(t, err)
+
+		cm := &corev1.ConfigMap{}
+		err = r.Get(context.TODO(), types.NamespacedName{
+			Name:      getCAConfigMapName(a),
+			Namespace: a.Namespace,
+		}, cm)
+		require.NoError(t, err)
+
+		assert.Equal(t, "sentinel-tls", cm.Data[common.ArgoCDKeyTLSCert], "existing tls.crt should be preserved unchanged")
+		assert.Equal(t, "sentinel-ca", cm.Data[common.ArgoCDKeyTLSCACert], "existing ca.crt should be preserved unchanged")
 	})
 }
