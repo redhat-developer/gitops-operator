@@ -15,6 +15,8 @@ import (
 
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
+
 	"github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 )
 
@@ -66,14 +68,13 @@ func makeTestReconcilerClient(sch *runtime.Scheme, resObjs, subresObjs []client.
 }
 
 func TestReconcileNotifications_CreateConfigMap(t *testing.T) {
-
 	a := makeTestNotificationsConfiguration(func(a *v1alpha1.NotificationsConfiguration) {
 	})
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme)
+	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme, promoter.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch)
 
@@ -118,14 +119,13 @@ func TestReconcileNotifications_CreateConfigMap(t *testing.T) {
 }
 
 func TestReconcileNotifications_UpdateConfigMap(t *testing.T) {
-
 	a := makeTestNotificationsConfiguration(func(a *v1alpha1.NotificationsConfiguration) {
 	})
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme)
+	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme, promoter.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch)
 
@@ -182,14 +182,13 @@ func TestReconcileNotifications_UpdateConfigMap(t *testing.T) {
 }
 
 func TestReconcileNotifications_DeleteConfigMap(t *testing.T) {
-
 	a := makeTestNotificationsConfiguration(func(a *v1alpha1.NotificationsConfiguration) {
 	})
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme)
+	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme, promoter.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch)
 
@@ -233,27 +232,32 @@ func TestReconcileNotifications_DeleteConfigMap(t *testing.T) {
 func Test_checkIfContextEquals(t *testing.T) {
 	a := makeTestNotificationsConfiguration(func(a *v1alpha1.NotificationsConfiguration) {})
 	a.Spec = v1alpha1.NotificationsConfigurationSpec{
-		Context: map[string]string{"key1": "value1",
+		Context: map[string]string{
+			"key1": "value1",
 			"key2": "value2",
 			"key4": "value4",
 			"key3": "value3",
-			"key6": "value6"},
+			"key6": "value6",
+		},
 	}
 
-	var testmap = []struct {
+	testmap := []struct {
 		testcase string
 		cm       corev1.ConfigMap
 		result   bool
 	}{
-		{"equal context",
+		{
+			"equal context",
 			corev1.ConfigMap{Data: map[string]string{"context": "key4: value4\nkey2: value2\nkey6: value6\nkey1: value1\nkey3: value3\n"}},
 			false,
 		},
-		{"context is not equal",
+		{
+			"context is not equal",
 			corev1.ConfigMap{Data: map[string]string{"context": "key1: value1\nkey4: value4\nkey9: value9\nkey6: value6\n"}},
 			true,
 		},
-		{"context of same length but not equal",
+		{
+			"context of same length but not equal",
 			corev1.ConfigMap{Data: map[string]string{"context": "key2: value2\nkey1: value1\nkey4: value4\nkey9: value9\nkey6: value6\n"}},
 			true,
 		},

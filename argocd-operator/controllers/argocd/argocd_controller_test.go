@@ -38,6 +38,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
 	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -58,7 +61,7 @@ func TestReconcileArgoCD_Reconcile_with_deleted(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -99,7 +102,7 @@ func TestReconcileArgoCD_DexWorkloads(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, makeTestK8sClientWithTokenReactor("mock-dex-token"))
 
@@ -176,7 +179,6 @@ func TestReconcileArgoCD_DexWorkloads(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, configMap.Data["dex.config"], "")
-
 }
 
 func TestReconcileArgoCD_Reconcile(t *testing.T) {
@@ -187,7 +189,7 @@ func TestReconcileArgoCD_Reconcile(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -215,7 +217,7 @@ func TestReconcileArgoCD_Reconcile(t *testing.T) {
 func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	argoutil.SetRouteAPIFound(true) // Setup Route API for tests that call full reconciler
 	logf.SetLogger(ZapLogger(true))
-	//ctx := context.Background()
+	// ctx := context.Background()
 	a := makeTestArgoCD(func(ac *argoproj.ArgoCD) {
 		ac.Name = "argo-test-1"
 		ac.Labels = map[string]string{"foo": "bar"}
@@ -231,7 +233,7 @@ func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	resObjs := []client.Object{a, b, c}
 	subresObjs := []client.Object{a, b, c}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	rt := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -249,7 +251,7 @@ func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	_, err := rt.Reconcile(context.TODO(), req1)
 	assert.NoError(t, err)
 
-	//Instance 'b'
+	// Instance 'b'
 	req2 := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      b.Name,
@@ -259,7 +261,7 @@ func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	_, err = rt.Reconcile(context.TODO(), req2)
 	assert.NoError(t, err)
 
-	//Instance 'c'
+	// Instance 'c'
 	req3 := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      c.Name,
@@ -292,7 +294,7 @@ func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	_, err = rt.Reconcile(context.TODO(), reqTest2)
 	assert.Error(t, err)
 
-	//Instance 'c' is not reconciled as there is no label, error expected
+	// Instance 'c' is not reconciled as there is no label, error expected
 	reqTest3 := reconcile.Request{
 		NamespacedName: types.NamespacedName{
 			Name:      c.Name,
@@ -331,7 +333,7 @@ func TestReconcileArgoCD_Reconcile_RemoveManagedByLabelOnArgocdDeletion(t *testi
 			resObjs := []client.Object{a}
 			subresObjs := []client.Object{a}
 			runtimeObjs := []runtime.Object{}
-			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -345,11 +347,13 @@ func TestReconcileArgoCD_Reconcile_RemoveManagedByLabelOnArgocdDeletion(t *testi
 				t.Setenv("REMOVE_MANAGED_BY_LABEL_ON_ARGOCD_DELETION", "true")
 			}
 
-			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
-				Name: test.nsName,
-				Labels: map[string]string{
-					common.ArgoCDManagedByLabel: a.Namespace,
-				}},
+			ns := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: test.nsName,
+					Labels: map[string]string{
+						common.ArgoCDManagedByLabel: a.Namespace,
+					},
+				},
 			}
 			err = r.Create(context.TODO(), ns)
 			assert.NoError(t, err)
@@ -396,7 +400,7 @@ func TestReconcileArgoCD_CleanUp(t *testing.T) {
 
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resources, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -479,7 +483,7 @@ func TestReconcileArgoCD_Status_Condition(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	rt := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 	rt.LabelSelector = "foo=bar"
@@ -543,7 +547,7 @@ func TestReconcileArgoCD_Cleanup_RBACs_When_NamespaceManagement_Disabled(t *test
 	resObjs := []client.Object{argoCD, nsMgmt}
 	subresObjs := []client.Object{argoCD}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -751,7 +755,7 @@ func Test_restoreTrackingLabelsForOrphanedNamespaces(t *testing.T) {
 	subresObjs := append([]client.Object{}, resObjs...)
 	runtimeObjs := []runtime.Object{}
 
-	scheme := makeTestReconcilerScheme(argoproj.AddToScheme)
+	scheme := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(scheme, resObjs, subresObjs, runtimeObjs)
 	kubeClient := testclient.NewSimpleClientset()
 

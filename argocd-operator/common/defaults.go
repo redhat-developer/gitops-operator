@@ -208,7 +208,7 @@ const (
 	// ArgoCDDefaultRedisSentinelPort is the default listen port for Redis sentinel.
 	ArgoCDDefaultRedisSentinelPort = 26379
 
-	//ArgoCDDefaultRedisSuffix is the default suffix to use for Redis resources.
+	// ArgoCDDefaultRedisSuffix is the default suffix to use for Redis resources.
 	ArgoCDDefaultRedisSuffix = "redis"
 
 	// ArgoCDDefaultRedisVersion is the Redis container image tag to use when not specified.
@@ -324,6 +324,12 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 	ArgoCDDefaultClusterDomain = "cluster.local"
 	// ArgoCDDefaultWebTerminalEnabled is the default web terminal enabled switch.
 	ArgoCDDefaultWebTerminalEnabled = "false"
+
+	// GitOpsPromoterDefaultImageName is the default image name for the GitOps Promoter
+	GitOpsPromoterDefaultImageName = "quay.io/argoprojlabs/gitops-promoter:v0.35.0"
+
+	// GitopsPromoterExtensionInstallerName is the default url for the GitOps Promoter extension
+	GitopsPromoterExtensionURL = "https://github.com/argoproj-labs/gitops-promoter/releases/download/v0.35.0/gitops-promoter-argocd-extension.tar.gz"
 )
 
 // DefaultLabels returns the default set of labels for controllers.

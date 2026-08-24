@@ -22,6 +22,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
 	"github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
@@ -37,7 +40,7 @@ func TestReconcileNotifications_CreateRoles(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -74,7 +77,7 @@ func TestReconcileNotifications_CreateServiceAccount(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -98,7 +101,6 @@ func TestReconcileNotifications_CreateServiceAccount(t *testing.T) {
 		Namespace: a.Namespace,
 	}, testSa)
 	assert.True(t, errors.IsNotFound(err))
-
 }
 
 func TestReconcileNotifications_CreateRoleBinding(t *testing.T) {
@@ -110,7 +112,7 @@ func TestReconcileNotifications_CreateRoleBinding(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -152,7 +154,7 @@ func TestReconcileNotifications_CreateClusterRole(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -187,7 +189,7 @@ func TestReconcileNotifications_CreateClusterRoleBinding(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -282,7 +284,6 @@ func TestReconcileNotifications_Deployments_Command(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			a := makeTestArgoCD()
 			os.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", a.Namespace)
 			if test.namespaceScopedArgoCD {
@@ -301,7 +302,7 @@ func TestReconcileNotifications_Deployments_Command(t *testing.T) {
 			resObjs := []client.Object{a, &ns1, &ns2}
 			subresObjs := []client.Object{a}
 			runtimeObjs := []runtime.Object{}
-			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 			cm := newConfigMapWithName(getCAConfigMapName(a), a)
@@ -342,7 +343,7 @@ func TestReconcileNotifications_CreateDeployments(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 	sa := v1.ServiceAccount{}
@@ -449,7 +450,7 @@ func TestReconcileNotifications_CreateMetricsService(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -480,7 +481,6 @@ func TestReconcileNotifications_CreateMetricsService(t *testing.T) {
 }
 
 func TestReconcileNotifications_CreateServiceMonitor(t *testing.T) {
-
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.Notifications.Enabled = true
 	})
@@ -488,7 +488,7 @@ func TestReconcileNotifications_CreateServiceMonitor(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := monitoringv1.AddToScheme(sch)
 	assert.NoError(t, err)
 	err = v1alpha1.AddToScheme(sch)
@@ -540,7 +540,7 @@ func TestReconcileNotifications_ServiceMonitorWithMetrics(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := monitoringv1.AddToScheme(sch)
 	assert.NoError(t, err)
 	err = v1alpha1.AddToScheme(sch)
@@ -573,7 +573,7 @@ func TestReconcileNotifications_ServiceMonitorWithLongName(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := monitoringv1.AddToScheme(sch)
 	assert.NoError(t, err)
 	err = v1alpha1.AddToScheme(sch)
@@ -637,7 +637,7 @@ func TestReconcileNotifications_CreateSecret(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -659,7 +659,6 @@ func TestReconcileNotifications_CreateSecret(t *testing.T) {
 }
 
 func TestReconcileNotifications_testEnvVars(t *testing.T) {
-
 	envMap := []v1.EnvVar{
 		{
 			Name:  "foo",
@@ -674,7 +673,7 @@ func TestReconcileNotifications_testEnvVars(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -727,7 +726,6 @@ func TestReconcileNotifications_testEnvVars(t *testing.T) {
 }
 
 func TestReconcileNotifications_testLogLevel(t *testing.T) {
-
 	testLogLevel := "debug"
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.Notifications.Enabled = true
@@ -737,7 +735,7 @@ func TestReconcileNotifications_testLogLevel(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -804,7 +802,7 @@ func TestReconcileNotifications_testLogFormat(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -901,12 +899,11 @@ func TestArgoCDNotifications_getNotificationsSourceNamespaces(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			a := makeTestArgoCD()
 			resObjs := []client.Object{a}
 			subresObjs := []client.Object{a}
 			runtimeObjs := []runtime.Object{}
-			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 			cm := newConfigMapWithName(getCAConfigMapName(a), a)
@@ -940,7 +937,7 @@ func TestArgoCDNotifications_setManagedNotificationsSourceNamespaces(t *testing.
 	resObjs := []client.Object{a, &ns1, &ns2}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -968,7 +965,7 @@ func TestNotifications_removeUnmanagedNotificationsSourceNamespaceResources(t *t
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := v1alpha1.AddToScheme(sch)
 	assert.NoError(t, err)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
@@ -1062,7 +1059,7 @@ func TestReconcileNotifications_NotificationsConfigurationInSourceNamespaceWhenD
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := v1alpha1.AddToScheme(sch)
 	assert.NoError(t, err)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
@@ -1099,7 +1096,7 @@ func TestReconcileNotifications_SourceNamespaceResourcesIncludeNotificationsConf
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	err := v1alpha1.AddToScheme(sch)
 	assert.NoError(t, err)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
@@ -1171,7 +1168,7 @@ func TestReconcileNotifications_LogFormatFallback(t *testing.T) {
 			resObjs := []client.Object{a}
 			subresObjs := []client.Object{a}
 			runtimeObjs := []runtime.Object{}
-			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -1204,5 +1201,4 @@ func TestReconcileNotifications_LogFormatFallback(t *testing.T) {
 			}
 		})
 	}
-
 }

@@ -208,7 +208,10 @@ const (
 
 	// ArgoCDExtensionImageEnvName is the environment variable used to get the image
 	// to be used for the Argo-CD extension image
-	ArgoCDExtensionImageEnvName = "ARGOCD_EXTENSION_IMAGE"
+	ArgoCDRolloutsExtensionImageEnvName = "ROLLOUTS_EXTENSION_IMAGE"
+
+	// ArgoCDPromoterExtensionEnvName is the environment variable used to get the image for the GitOps Promoter Extension
+	ArgoCDPromoterExtensionImageEnvName = "PROMOTER_EXTENSION_IMAGE"
 
 	// ArgoCDRedisHAProxyImageEnvName is the environment variable used to get the image
 	// to used for the Redis HA Proxy container.
@@ -261,6 +264,12 @@ const (
 
 	// ArgoCDAgentClusterRoleEnvName is an environment variable to specify a custom cluster role for the agent component of Argo CD Agent
 	ArgoCDAgentClusterRoleEnvName = "AGENT_CLUSTER_ROLE"
+
+	// GitOpsPromoterControllerClusterRoleEnvName is an environment variable to specify a custom cluster role for the GitOps Promoter Controller
+	GitOpsPromoterControllerClusterRoleEnvName = "PROMOTER_CONTROLLER_CLUSTER_ROLE"
+
+	// GitOpsPromoterAPIServerClusterRoleEnvName is an environment variable to specify a custom cluster role for the GitOps Promoter API Server
+	GitOpsPromoterAPIServerClusterRoleEnvName = "PROMOTER_API_SERVER_CLUSTER_ROLE"
 
 	// ArgoCDDexSecretKey is used to reference Dex secret from Argo CD secret into Argo CD configmap
 	ArgoCDDexSecretKey = "oidc.dex.clientSecret" // #nosec G101

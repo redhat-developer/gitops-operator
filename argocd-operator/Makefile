@@ -212,7 +212,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 
 
 start-e2e: install-prometheus-crds ## Start operator for E2E tests (installs required CRDs if needed)
-	ARGOCD_CLUSTER_CONFIG_NAMESPACES="argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent" make run
+	ARGOCD_CLUSTER_CONFIG_NAMESPACES="argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, gitops-promoter-1-134" make run
 
 all: test install run ## UnitTest, Run the operator locally
 
@@ -390,6 +390,11 @@ update-dependencies:
 .PHONY: update-dependencies-argocd
 update-dependencies-argocd:
 	hack/update-dependencies-script/argocd/run.sh
+
+# Updates only Argo CD dependencies
+.PHONY: update-dependencies-gitops-promoter
+update-dependencies-gitops-promoter:
+	hack/update-dependencies-script/gitops-promoter/run.sh
 
 .PHONY: apidocs-gen
 apidocs-gen: ## Generate API documentation.

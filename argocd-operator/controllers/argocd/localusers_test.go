@@ -32,6 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
 	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -43,7 +46,7 @@ func createResources(cr *argoproj.ArgoCD, expect *assert.Assertions) *ReconcileA
 	resObjs := []client.Object{cr}
 	subresObjs := []client.Object{}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
@@ -64,7 +67,6 @@ func createResources(cr *argoproj.ArgoCD, expect *assert.Assertions) *ReconcileA
 }
 
 func cleanupAllTokenTimers(r *ReconcileArgoCD) {
-
 	r.LocalUsers.lock.Lock()
 	defer r.LocalUsers.lock.Unlock()
 
@@ -159,7 +161,6 @@ func TestReconcileArgoCD_reconcileArgoLocalUsersCreate(t *testing.T) {
 
 	expect.Len(r.LocalUsers.tokenRenewalTimers, 1)
 	expect.True(timer == r.LocalUsers.tokenRenewalTimers[cr.Namespace+"/alice"]) // testing pointer equality
-
 }
 
 func TestReconcileArgoCD_reconcileArgoLocalUsersCreateWithDefaultTokenLifetime(t *testing.T) {
@@ -674,7 +675,6 @@ func TestReconcileArgoCD_reconcileArgoLocalUsersTurnOffAutoRenew(t *testing.T) {
 	expect.Equal("false", string(userSecret.Data["autoRenew"]))
 	expect.NotEmpty(userSecret.Data["apiToken"])
 	expect.Equal(apiToken, string(userSecret.Data["apiToken"]))
-
 }
 
 func TestReconcileArgoCD_reconcileArgoLocalUsersTurnOnAutoRenew(t *testing.T) {
@@ -959,7 +959,6 @@ func TestReconcileArgoCD_reconcileArgoLocalUsersTurnOffAutoRenewChangeTokenLifet
 	expect.Equal("false", string(userSecret.Data["autoRenew"]))
 	expect.NotEmpty(userSecret.Data["apiToken"])
 	expect.NotEqual(apiToken, string(userSecret.Data["apiToken"]))
-
 }
 
 func TestReconcileArgoCD_reconcileArgoLocalUsersSetAPIKeyFalse(t *testing.T) {
