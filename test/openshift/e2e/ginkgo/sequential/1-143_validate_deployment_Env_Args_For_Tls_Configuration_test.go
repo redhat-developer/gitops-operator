@@ -41,17 +41,17 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
 		ocVersion string
 	)
 	BeforeEach(func() {
+		if fixture.EnvLocalRun() {
+			Skip("This test is known not to work when running gitops operator locally")
+		}
+	})
+	BeforeEach(func() {
 		fixture.EnsureSequentialCleanSlate()
 		c, _ = utils.GetE2ETestKubeClient()
 		ctx = context.Background()
 		ocVersion = getOCPVersion()
 		Expect(ocVersion).ToNot(BeEmpty())
 		gitopsFixture.SkipIfMinOCPVersion(ocVersion, gitopsFixture.OCP4_22)
-	})
-	BeforeEach(func() {
-		if fixture.EnvLocalRun() {
-			Skip("This test is known not to work when running gitops operator locally")
-		}
 	})
 	// --- Helper: Extract TLS values from args ---
 	getTLSValues := func(args []string) (min string, hasMin bool, hasCiphers bool, ciphers string) {
