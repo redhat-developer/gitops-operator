@@ -2,7 +2,6 @@ package sequential
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -67,11 +66,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		var (
 			ctx       context.Context
 			k8sClient client.Client
+			ocVersion string
 		)
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			ocVersion = getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			fixture.SkipIfMinOCPVersion(ocVersion, fixture.OCP4_22)
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", Label("openshift"), func() {
@@ -79,12 +82,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
-			ocVersion := getOCPVersion()
-			Expect(ocVersion).ToNot(BeEmpty())
-			if strings.Contains(ocVersion, "4.15.") {
-				Skip("skipping this test as OCP version is 4.15")
-				return
-			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
@@ -153,36 +150,29 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			verifyResourceConstraints(k8sClient, "gitops-plugin", expectedReq, expectedLim)
 			verifyResourceConstraints(k8sClient, "cluster", expectedReq, expectedLim)
-			//below code needs to be verified only on and above 4.22 cluster, because apiserver CR will not having tls parameters below 4.22 OCP version
-			var major, minor int
-			_, err := fmt.Sscanf(ocVersion, "%d.%d", &major, &minor)
-			Expect(err).NotTo(HaveOccurred())
 
-			if major > 4 || (major == 4 && minor >= 22) {
-				depl = &appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster",
-						Namespace: "openshift-gitops",
-					},
-				}
-
-				Expect(depl).To(k8sFixture.ExistByName())
-				Expect(depl.Spec.Template.Spec.Containers).NotTo(BeEmpty())
-
-				container := depl.Spec.Template.Spec.Containers[0]
-				env := container.Env
-
-				Expect(env).To(ContainElement(corev1.EnvVar{
-					Name:  "TLS_MIN_VERSION",
-					Value: "1.2",
-				}))
-
-				Expect(env).To(ContainElement(corev1.EnvVar{
-					Name:  "TLS_CIPHER_SUITES",
-					Value: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
-				}))
+			depl = &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
 			}
 
+			Expect(depl).To(k8sFixture.ExistByName())
+			Expect(depl.Spec.Template.Spec.Containers).NotTo(BeEmpty())
+
+			container := depl.Spec.Template.Spec.Containers[0]
+			env := container.Env
+
+			Expect(env).To(ContainElement(corev1.EnvVar{
+				Name:  "TLS_MIN_VERSION",
+				Value: "1.2",
+			}))
+
+			Expect(env).To(ContainElement(corev1.EnvVar{
+				Name:  "TLS_CIPHER_SUITES",
+				Value: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+			}))
 		})
 
 		It("validates that GitOpsService can update resource constraints", Label("openshift"), func() {
@@ -190,12 +180,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
-			ocVersion := getOCPVersion()
-			Expect(ocVersion).ToNot(BeEmpty())
-			if strings.Contains(ocVersion, "4.15.") {
-				Skip("skipping this test as OCP version is 4.15")
-				return
-			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
@@ -261,12 +245,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
-			ocVersion := getOCPVersion()
-			Expect(ocVersion).ToNot(BeEmpty())
-			if strings.Contains(ocVersion, "4.15.") {
-				Skip("skipping this test as OCP version is 4.15")
-				return
-			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
