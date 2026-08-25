@@ -254,6 +254,31 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
 				GinkgoWriter.Printf("%s TLS args ciphers value: %s\n", deployment.Name, tlsCiphersTLS12)
 				return true
 			}, 60*time.Second, 2*time.Second).Should(BeTrue())
+			By("Validating TLS environment variables in cluster deployment")
+			Eventually(func() error {
+				depl := &appsv1.Deployment{}
+				if err := c.Get(ctx, types.NamespacedName{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				}, depl); err != nil {
+					return err
+				}
+				Expect(depl.Spec.Template.Spec.Containers).NotTo(BeEmpty())
+				env := depl.Spec.Template.Spec.Containers[0].Env
+				Expect(env).To(ContainElement(corev1.EnvVar{
+					Name:  "TLS_MIN_VERSION",
+					Value: "1.2",
+				}))
+				Expect(env).To(ContainElement(corev1.EnvVar{
+					Name: "TLS_CIPHER_SUITES",
+					Value: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:" +
+						"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:" +
+						"ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:" +
+						"ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+				}))
+
+				return nil
+			}, 60*time.Second, 2*time.Second).Should(Succeed())
 		})
 	})
 })

@@ -66,15 +66,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		var (
 			ctx       context.Context
 			k8sClient client.Client
-			ocVersion string
 		)
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
-			ocVersion = getOCPVersion()
-			Expect(ocVersion).ToNot(BeEmpty())
-			fixture.SkipIfMinOCPVersion(ocVersion, fixture.OCP4_22)
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", Label("openshift"), func() {
@@ -82,6 +78,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
@@ -180,6 +182,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
@@ -245,6 +253,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
+			ocVersion := getOCPVersion()
+			Expect(ocVersion).ToNot(BeEmpty())
+			if strings.Contains(ocVersion, "4.15.") {
+				Skip("skipping this test as OCP version is 4.15")
+				return
+			}
 			addDynamicPluginEnv(csv, ocVersion)
 
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
