@@ -32,7 +32,7 @@ const (
 	// Default console plugin image
 	DefaultConsoleImage = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-rhel9"
 	// DefaultConsoleImagePF5 is Default console plugin image for PatternFly 5
-	DefaultConsoleImagePF5 = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-4.18-rhel9"
+	DefaultConsoleImagePF5 = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/console-plugin-4-18-rhel9"
 	// Default console plugin version
 	DefaultConsoleVersion = "main"
 	// DefaultConsoleVersionPF5 is a Default console plugin version for PatternFly 5
