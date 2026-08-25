@@ -8,7 +8,6 @@ package sequential
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
 	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
 	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 )
 
 var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
@@ -36,13 +36,17 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
 		argocdInstanceName = "example-argocd"
 	)
 	var (
-		c   client.Client
-		ctx context.Context
+		c         client.Client
+		ctx       context.Context
+		ocVersion string
 	)
 	BeforeEach(func() {
 		fixture.EnsureSequentialCleanSlate()
 		c, _ = utils.GetE2ETestKubeClient()
 		ctx = context.Background()
+		ocVersion = getOCPVersion()
+		Expect(ocVersion).ToNot(BeEmpty())
+		gitopsFixture.SkipIfMinOCPVersion(ocVersion, gitopsFixture.OCP4_22)
 	})
 	BeforeEach(func() {
 		if fixture.EnvLocalRun() {
@@ -81,17 +85,6 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
 
 	Context("When the ArgoCD instance is created with default TLS settings", func() {
 		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", func() {
-			ocVersion := getOCPVersion()
-			Expect(ocVersion).ToNot(BeEmpty())
-
-			var major, minor int
-			_, err := fmt.Sscanf(ocVersion, "%d.%d", &major, &minor)
-			Expect(err).NotTo(HaveOccurred())
-
-			if major < 4 || (major == 4 && minor < 22) {
-				Skip(fmt.Sprintf("skipping this test as OCP version is %s, requires OCP >= 4.22", ocVersion))
-				return
-			}
 			By("creating namespace")
 			ns := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
