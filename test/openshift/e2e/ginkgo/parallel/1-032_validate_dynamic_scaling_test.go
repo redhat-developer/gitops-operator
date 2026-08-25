@@ -70,7 +70,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Spec: argov1beta1api.ArgoCDSpec{
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
 						Sharding: argov1beta1api.ArgoCDApplicationControllerShardSpec{
-							DynamicScalingEnabled: new(true),
+							DynamicScalingEnabled: new(true), //nolint:staticcheck // Test for a deprecated field
 							MinShards:             1,
 							MaxShards:             4,
 							ClustersPerShard:      1,

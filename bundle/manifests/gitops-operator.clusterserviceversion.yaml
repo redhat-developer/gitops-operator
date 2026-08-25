@@ -190,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-07-31T05:20:33Z"
+    createdAt: "2026-08-20T12:43:49Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -384,13 +384,7 @@ spec:
           - services
           - services/finalizers
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - ""
           resources:
@@ -463,19 +457,20 @@ spec:
           resources:
           - daemonsets
           - deployments
-          - podtemplates
           - replicasets
           - statefulsets
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - apps
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - apps
+          resourceNames:
+          - argocd-operator
           resources:
           - deployments/finalizers
           verbs:
@@ -489,7 +484,20 @@ spec:
           verbs:
           - update
         - apiGroups:
+          - apps
+          resources:
+          - podtemplates
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - apps.openshift.io
+          - route.openshift.io
           resources:
           - '*'
           verbs:
@@ -501,6 +509,13 @@ spec:
           - update
           - watch
         - apiGroups:
+          - argocd-image-updater.argoproj.io
+          resources:
+          - imageupdaters
+          - imageupdaters/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
           - argoproj.io
           resources:
           - analysisruns
@@ -509,8 +524,6 @@ spec:
           - clusteranalysistemplates
           - experiments
           - experiments/finalizers
-          - namespacemanagements
-          - namespacemanagements/status
           - rollouts
           - rollouts/finalizers
           - rollouts/scale
@@ -532,6 +545,29 @@ spec:
           - argocds
           - argocds/finalizers
           - argocds/status
+          verbs:
+          - '*'
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - argocdexports
+          - argocdexports/finalizers
+          - argocdexports/status
+          - namespacemanagements/finalizers
+          - notificationsconfigurations
+          - notificationsconfigurations/finalizers
+          verbs:
+          - '*'
+        - apiGroups:
+          - argoproj.io
+          resources:
+          - namespacemanagements
+          - namespacemanagements/status
+          verbs:
+          - '*'
+        - apiGroups:
+          - argoproj.io
+          resources:
           - rolloutmanagers
           verbs:
           - create
@@ -541,13 +577,6 @@ spec:
           - patch
           - update
           - watch
-        - apiGroups:
-          - argoproj.io
-          resources:
-          - notificationsconfigurations
-          - notificationsconfigurations/finalizers
-          verbs:
-          - '*'
         - apiGroups:
           - argoproj.io
           resources:
@@ -567,25 +596,21 @@ spec:
           resources:
           - horizontalpodautoscalers
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - batch
           resources:
           - cronjobs
           - jobs
           verbs:
-          - create
-          - delete
+          - '*'
+        - apiGroups:
+          - certificates.k8s.io
+          resources:
+          - clustertrustbundles
+          verbs:
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - config.openshift.io
@@ -668,13 +693,7 @@ spec:
           - prometheusrules
           - servicemonitors
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - networking.istio.io
           resources:
@@ -690,6 +709,11 @@ spec:
           - networking.k8s.io
           resources:
           - ingresses
+          verbs:
+          - '*'
+        - apiGroups:
+          - networking.k8s.io
+          resources:
           - networkpolicies
           verbs:
           - create
@@ -756,16 +780,7 @@ spec:
           - clusterrolebindings
           - clusterroles
           verbs:
-          - bind
-          - create
-          - delete
-          - deletecollection
-          - escalate
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:
@@ -782,17 +797,10 @@ spec:
         - apiGroups:
           - route.openshift.io
           resources:
-          - '*'
           - routes
           - routes/custom-host
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - split.smi-spec.io
           resources:
@@ -810,13 +818,7 @@ spec:
           - templateinstances
           - templates
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
+          - '*'
         - apiGroups:
           - traefik.containo.us
           resources:

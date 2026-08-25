@@ -157,6 +157,7 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
+	cd argocd-operator && REDIS_CONFIG_PATH="build/redis" go test $(shell cd argocd-operator && go list ./... | grep -E -v '/tests/ginkgo') -coverprofile cover.out
 	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
 
 
@@ -300,16 +301,6 @@ bundle-build: ## Build the bundle image.
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
-ARGOCD_OPERATOR_BRANCH ?= master
-
-# To run propagate-manifests target with the default argocd-operator master branch:
-#  make propagate-manifests
-# To run propagate-manifests target with a custom argocd-operator branch or tag:
-#  ARGOCD_OPERATOR_BRANCH=release-0.19 make propagate-manifests
-.PHONY: propagate-manifests
-propagate-manifests: ## compare and propagate manifests from argocd-operator repo
-	./hack/propagate.sh --from-branch $(ARGOCD_OPERATOR_BRANCH)
-
 .PHONY: opm
 OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
@@ -355,12 +346,13 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: gosec
 gosec: go_sec
-	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./...
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager" --exclude-dir "argocd-operator/hack/"  ./...
 
 .PHONY: lint
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
 	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+	cd argocd-operator && $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
 
 
 GO_SEC = $(shell pwd)/bin/gosec

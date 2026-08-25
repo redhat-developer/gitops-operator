@@ -386,10 +386,10 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 
 	// ADD THIS: Get ConfigMap and add hash to pod template annotations
 	configMapHash := getConfigMapHash(newPluginConfigMap)
-	if newPluginDeployment.Spec.Template.ObjectMeta.Annotations == nil {
-		newPluginDeployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	if newPluginDeployment.Spec.Template.Annotations == nil {
+		newPluginDeployment.Spec.Template.Annotations = make(map[string]string)
 	}
-	newPluginDeployment.Spec.Template.ObjectMeta.Annotations["httpd-cfg-hash"] = configMapHash
+	newPluginDeployment.Spec.Template.Annotations["httpd-cfg-hash"] = configMapHash
 
 	// Check if this Deployment already exists
 	existingPluginDeployment := &appsv1.Deployment{}
@@ -413,7 +413,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Replicas, newPluginDeployment.Spec.Replicas) ||
 			!equality.Semantic.DeepEqual(existingPluginDeployment.Spec.Selector, newPluginDeployment.Spec.Selector) ||
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Labels, newSpecTemplate.Labels) ||
-			!equality.Semantic.DeepEqual(existingSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"], newSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"]) ||
+			!equality.Semantic.DeepEqual(existingSpecTemplate.Annotations["httpd-cfg-hash"], newSpecTemplate.Annotations["httpd-cfg-hash"]) ||
 			!equality.Semantic.DeepEqual(sortContainers(existingSpecTemplate.Spec.Containers), sortContainers(newSpecTemplate.Spec.Containers)) ||
 			!equality.Semantic.DeepEqual(sortVolumes(existingSpecTemplate.Spec.Volumes), sortVolumes(newSpecTemplate.Spec.Volumes)) ||
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.RestartPolicy, newSpecTemplate.Spec.RestartPolicy) ||
@@ -424,15 +424,15 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 			!equality.Semantic.DeepEqual(existingSpecTemplate.Spec.Containers[0].Resources, newSpecTemplate.Spec.Containers[0].Resources)
 
 		if changed {
-			if existingSpecTemplate.ObjectMeta.Annotations == nil {
-				existingSpecTemplate.ObjectMeta.Annotations = make(map[string]string)
+			if existingSpecTemplate.Annotations == nil {
+				existingSpecTemplate.Annotations = make(map[string]string)
 			}
 			reqLogger.Info("Reconciling plugin deployment", "Namespace", existingPluginDeployment.Namespace, "Name", existingPluginDeployment.Name)
 			existingPluginDeployment.Labels = newPluginDeployment.Labels
 			existingPluginDeployment.Spec.Replicas = newPluginDeployment.Spec.Replicas
 			existingPluginDeployment.Spec.Selector = newPluginDeployment.Spec.Selector
 			existingSpecTemplate.Labels = newSpecTemplate.Labels
-			existingSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"] = newSpecTemplate.ObjectMeta.Annotations["httpd-cfg-hash"]
+			existingSpecTemplate.Annotations["httpd-cfg-hash"] = newSpecTemplate.Annotations["httpd-cfg-hash"]
 			existingSpecTemplate.Spec.SecurityContext = newSpecTemplate.Spec.SecurityContext
 			existingSpecTemplate.Spec.Containers = newSpecTemplate.Spec.Containers
 			existingSpecTemplate.Spec.Volumes = newSpecTemplate.Spec.Volumes
