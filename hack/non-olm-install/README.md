@@ -65,16 +65,16 @@ The following environment variables can be set to configure various options for 
 | **REGCTL_VERSION** | Version of the regctl binary to be installed if not found in PATH  | v0.4.8 |
 
 #### Variables for Component Image Overrides
-| Environment | Description |Default Value |
-| ----------- | ----------- |------------- |
-| **ARGOCD_DEX_IMAGE** | Image override for Argo CD DEX component| `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}` |
-| **ARGOCD_IMAGE** | Image override for Argo CD component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}` |
-| **ARGOCD_KEYCLOAK_IMAGE** | Image override for Keycloak component | `registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8` |
-| **ARGOCD_REDIS_IMAGE** | Image override for Redis component | `registry.redhat.io/rhel8/redis-6:1-110` |
-| **ARGOCD_REDIS_HA_PROXY_IMAGE** | Image override for Redis HA proxy component | `registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream` |
-| **BACKEND_IMAGE** | Image override for Backend component |`${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}`|
-| **GITOPS_CONSOLE_PLUGIN_IMAGE** | Image override for the PF6 console plugin (OCP >= 4.19) | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}` |
-| **GITOPS_CONSOLE_PLUGIN_IMAGE_PF5** | Image override for the PF5 console plugin (OCP 4.18.x) | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-4.18-rhel9:${GITOPS_OPERATOR_VER}` |
+| Environment | Description | Default Value                                                                                                   |
+| ----------- | ----------- |-----------------------------------------------------------------------------------------------------------------|
+| **ARGOCD_DEX_IMAGE** | Image override for Argo CD DEX component| `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}dex-rhel8:${GITOPS_OPERATOR_VER}`                 |
+| **ARGOCD_IMAGE** | Image override for Argo CD component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}argocd-rhel8:${GITOPS_OPERATOR_VER}`              |
+| **ARGOCD_KEYCLOAK_IMAGE** | Image override for Keycloak component | `registry.redhat.io/rh-sso-7/sso7-rhel8-operator:7.6-8`                                                         |
+| **ARGOCD_REDIS_IMAGE** | Image override for Redis component | `registry.redhat.io/rhel8/redis-6:1-110`                                                                        |
+| **ARGOCD_REDIS_HA_PROXY_IMAGE** | Image override for Redis HA proxy component | `registry.redhat.io/openshift4/ose-haproxy-router:v4.12.0-202302280915.p0.g3065f65.assembly.stream`             |
+| **BACKEND_IMAGE** | Image override for Backend component | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}gitops-rhel8:${GITOPS_OPERATOR_VER}`              |
+| **GITOPS_CONSOLE_PLUGIN_IMAGE** | Image override for the PF6 console plugin (OCP >= 4.19) | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-rhel8:${GITOPS_OPERATOR_VER}`      |
+| **GITOPS_CONSOLE_PLUGIN_IMAGE_PF5** | Image override for the PF5 console plugin (OCP 4.18.x) | `${OPERATOR_REGISTRY}/${OPERATOR_REGISTRY_ORG}/${IMAGE_PREFIX}console-plugin-4-18-rhel9:${GITOPS_OPERATOR_VER}` |
 
 
 #### Variables for Operator parameters
