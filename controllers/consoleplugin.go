@@ -38,6 +38,7 @@ const (
 	gitopsPluginSvcName          = gitopsPluginName + "-service"
 	proxyAlias                   = "gitops"
 	pluginImageEnv               = "GITOPS_CONSOLE_PLUGIN_IMAGE"
+	pluginImageEnvPF5            = "GITOPS_CONSOLE_PLUGIN_IMAGE_PF5"
 	servicePort                  = 9001
 	pluginServingCertName        = "console-serving-cert"
 	kubeAppLabelApp              = "app"
@@ -49,12 +50,18 @@ const (
 	kubeAppLabelName             = "app.kubernetes.io/name"
 )
 
-func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
-	consolePluginImage := os.Getenv(pluginImageEnv)
-	if consolePluginImage == "" {
-		image := common.DefaultConsoleImage
-		version := common.DefaultConsoleVersion
-		consolePluginImage = image + ":" + version
+func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy, isPF5 bool) corev1.PodSpec {
+	var consolePluginImage string
+	if isPF5 {
+		consolePluginImage = os.Getenv(pluginImageEnvPF5)
+		if consolePluginImage == "" {
+			consolePluginImage = common.DefaultConsoleImagePF5 + ":" + common.DefaultConsoleVersionPF5
+		}
+	} else {
+		consolePluginImage = os.Getenv(pluginImageEnv)
+		if consolePluginImage == "" {
+			consolePluginImage = common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion
+		}
 	}
 
 	podSpec := corev1.PodSpec{
@@ -138,8 +145,8 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy) corev1.PodSpec {
 	return podSpec
 }
 
-func pluginDeployment(crImagePullPolicy corev1.PullPolicy) *appsv1.Deployment {
-	podSpec := getPluginPodSpec(crImagePullPolicy)
+func pluginDeployment(crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.Deployment {
+	podSpec := getPluginPodSpec(crImagePullPolicy, isPF5)
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
@@ -362,9 +369,9 @@ func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
 	return sorted
 }
 
-func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap, isPF5 bool) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy)
+	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy, isPF5)
 
 	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -481,7 +488,7 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 			existingServiceRef.Labels = pluginServiceRef.Labels
 			existingServiceRef.Spec.Selector = pluginServiceRef.Spec.Selector
 			existingServiceRef.Spec.Ports = pluginServiceRef.Spec.Ports
-			return reconcile.Result{}, r.Client.Update(context.TODO(), pluginServiceRef)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingServiceRef)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -518,7 +525,7 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 			reqLogger.Info("Reconciling Console Plugin", "Namespace", existingPlugin.Namespace, "Name", existingPlugin.Name)
 			existingPlugin.Spec.DisplayName = newConsolePlugin.Spec.DisplayName
 			existingPlugin.Spec.Backend.Service = newConsolePlugin.Spec.Backend.Service
-			return reconcile.Result{}, r.Client.Update(context.TODO(), newConsolePlugin)
+			return reconcile.Result{}, r.Client.Update(context.TODO(), existingPlugin)
 		}
 	}
 	return reconcile.Result{}, nil
@@ -576,8 +583,9 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 	return reconcile.Result{}, nil
 }
 
-// is this func the reconciler enty point to reconcile the current plugin state?
-func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
+// reconcilePlugin is the entry point for reconciling all console plugin resources.
+// isPF5 selects the PatternFly 5 image (OCP 4.18.x) vs the PatternFly 6 image (OCP >= 4.19).
+func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, isPF5 bool) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	if !util.IsConsoleAPIFound() {
 		reqLogger.Info("Skip console plugin reconcile: OpenShift Console API not found")
@@ -595,7 +603,7 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 		return result, err
 	}
 
-	if result, err := r.reconcileDeployment(instance, request, newPluginConfigMap); err != nil {
+	if result, err := r.reconcileDeployment(instance, request, newPluginConfigMap, isPF5); err != nil {
 		return result, err
 	}
 

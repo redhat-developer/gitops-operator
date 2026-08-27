@@ -310,29 +310,33 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, nil
 	}
 
-	v1, err := version.NewVersion(OCPVersion)
+	clusterVersion, err := version.NewVersion(OCPVersion)
 	if err != nil {
 		log.Printf("Unable to retrieve current OCP version: %v", err)
 		return reconcile.Result{}, nil
 	}
-	realVersion := v1.Segments()
-	realMajorVersion := realVersion[0]
-	realMinorVersion := realVersion[1]
 
-	v2, err := version.NewVersion(dynamicPluginStartOCPVersion)
+	minVersion, err := version.NewVersion(dynamicPluginStartOCPVersion)
 	if err != nil {
+		log.Printf("Unable to parse minimum plugin OCP version: %v", err)
 		return reconcile.Result{}, nil
 	}
-	startVersion := v2.Segments()
-	startMajorVersion := startVersion[0]
-	startMinorVersion := startVersion[1]
 
-	if realMajorVersion < startMajorVersion || (realMajorVersion == startMajorVersion && realMinorVersion < startMinorVersion) {
-		// Skip plugin reconciliation if real OCP version is less than dynamic plugin start OCP version
+	if clusterVersion.LessThan(minVersion) {
+		// Skip plugin reconciliation if cluster version is below the minimum supported version
 		return reconcile.Result{}, nil
-	} else {
-		return r.reconcilePlugin(instance, request)
 	}
+
+	pf6MinVersion, err := version.NewVersion(common.PluginPF6MinOCPVersion)
+	if err != nil {
+		log.Printf("Unable to parse PF6 minimum OCP version: %v", err)
+		return reconcile.Result{}, nil
+	}
+
+	if clusterVersion.LessThan(pf6MinVersion) {
+		return r.reconcilePlugin(instance, request, true) // PF5: >= 4.18 && < 4.19
+	}
+	return r.reconcilePlugin(instance, request, false) // PF6: >= 4.19
 }
 
 // Detect the unsupported KAM components across Deployments , Routes , Services and deletes them to perform cleanup as KAM is no longer supported since 1.15
