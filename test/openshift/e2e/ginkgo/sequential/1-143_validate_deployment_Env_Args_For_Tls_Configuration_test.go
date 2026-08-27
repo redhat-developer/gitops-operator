@@ -94,16 +94,15 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 			By("generating a test certificate to use with redis, using openssl")
 			redis_crt_File, err := os.CreateTemp("", "redis.crt")
 			Expect(err).ToNot(HaveOccurred())
-
+			Expect(redis_crt_File.Close()).To(Succeed())
 			redis_key_File, err := os.CreateTemp("", "redis.key")
 			Expect(err).ToNot(HaveOccurred())
-
+			Expect(redis_key_File.Close()).To(Succeed())
 			openssl_test_File, err := os.CreateTemp("", "openssl_test.cnf")
 			Expect(err).ToNot(HaveOccurred())
-
+			Expect(openssl_test_File.Close()).To(Succeed())
 			opensslTestCNFContents := "\n[SAN]\nsubjectAltName=DNS:argocd-redis." + argocdNamespace + ".svc.cluster.local\n[req]\ndistinguished_name=req"
-
-			err = os.WriteFile(openssl_test_File.Name(), ([]byte)(opensslTestCNFContents), 0666)
+			err = os.WriteFile(openssl_test_File.Name(), ([]byte)(opensslTestCNFContents), 0600)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, err = osFixture.ExecCommandWithOutputParam(false, true, "openssl", "req", "-new", "-x509", "-sha256",
