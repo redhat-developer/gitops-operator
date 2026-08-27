@@ -25,6 +25,7 @@ import (
 	"time"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/go-logr/logr"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -207,6 +208,48 @@ func TestOperatorMetricsTokenReconciler_replacesIncompatibleSecretType(t *testin
 	assert.NilError(t, err)
 	assert.Equal(t, secret.Type, corev1.SecretTypeOpaque)
 	assert.Equal(t, string(secret.Data[operatorMetricsBearerTokenKey]), "replaced-token")
+}
+
+func TestBearerTokenRequeueAfterMint(t *testing.T) {
+	now := time.Now()
+
+	requeueAfter := bearerTokenRequeueAfterMint(now.Add(operatorMetricsTokenExpiry), now, logr.Discard())
+	assert.Assert(t, requeueAfter > 47*time.Minute && requeueAfter <= 48*time.Minute)
+
+	requeueAfter = bearerTokenRequeueAfterMint(now.Add(5*time.Minute), now, logr.Discard())
+	assert.Assert(t, requeueAfter > 0)
+	assert.Assert(t, requeueAfter <= 5*time.Minute)
+
+	requeueAfter = bearerTokenRequeueAfterMint(now.Add(30*time.Second), now, logr.Discard())
+	assert.Assert(t, requeueAfter > 0)
+	assert.Assert(t, requeueAfter < 30*time.Second)
+}
+
+func TestOperatorMetricsTokenReconciler_schedulesRequeueForShortGrantedLifetime(t *testing.T) {
+	writeOperatorNamespaceFile(t, testOperatorNamespace)
+
+	s := newOperatorMetricsTokenScheme()
+	c := fake.NewClientBuilder().WithScheme(s).Build()
+	shortExpiry := time.Now().Add(5 * time.Minute)
+
+	r := &OperatorMetricsTokenReconciler{
+		Client: c,
+		Scheme: s,
+		TokenRequester: &fakeTokenRequester{
+			token:  "short-lived-token",
+			expiry: shortExpiry,
+		},
+	}
+
+	result, err := r.Reconcile(context.Background(), reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      operatorMetricsMonitorName,
+			Namespace: testOperatorNamespace,
+		},
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, result.RequeueAfter > 0)
+	assert.Assert(t, result.RequeueAfter <= 5*time.Minute)
 }
 
 func TestEvaluateBearerTokenRenewal(t *testing.T) {

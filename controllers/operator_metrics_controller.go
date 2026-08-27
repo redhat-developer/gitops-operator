@@ -58,6 +58,9 @@ const (
 	operatorMetricsTokenRenewalPercent   = 20
 	operatorMetricsControlPlaneLabel     = "control-plane"
 	operatorMetricsControlPlaneLabelVal  = "gitops-operator"
+	// bearerTokenMinRequeueAfter is the minimum RequeueAfter after minting when
+	// the API server grants a lifetime shorter than bearerTokenRenewalLead().
+	bearerTokenMinRequeueAfter = time.Minute
 )
 
 type serviceAccountTokenRequester interface {
@@ -478,7 +481,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileBearerTokenSecret(ctx context.
 			operatorMetricsBearerTokenExpiryKey: []byte(expiry.UTC().Format(time.RFC3339)),
 		},
 	}
-	requeueAfter, _ := evaluateBearerTokenRenewal(expiry, time.Now())
+	requeueAfter := bearerTokenRequeueAfterMint(expiry, time.Now(), reqLogger)
 
 	if err := r.applyMetricsBearerTokenSecret(ctx, namespace, desiredSecret, existing, reqLogger); err != nil {
 		return 0, false, err
@@ -495,6 +498,33 @@ func parseBearerTokenTimestamp(value []byte) (time.Time, error) {
 // matches 20% of the requested token lifetime.
 func bearerTokenRenewalLead() time.Duration {
 	return operatorMetricsTokenExpiry * operatorMetricsTokenRenewalPercent / 100
+}
+
+// bearerTokenRequeueAfterMint returns when to requeue after a successful
+// TokenRequest. Normal lifetimes use evaluateBearerTokenRenewal unchanged; when
+// the granted lifetime is at or below the renewal lead, requeue on a positive
+// minimum interval instead of zero so renewal is scheduled.
+func bearerTokenRequeueAfterMint(expiry, now time.Time, reqLogger logr.Logger) time.Duration {
+	requeueAfter, refreshAgain := evaluateBearerTokenRenewal(expiry, now)
+	if !refreshAgain {
+		return requeueAfter
+	}
+	remaining := expiry.Sub(now)
+	if remaining > bearerTokenRenewalLead() {
+		return requeueAfter
+	}
+	reqLogger.Info("Granted token lifetime is shorter than the renewal lead",
+		"remaining", remaining.String(),
+		"renewalLead", bearerTokenRenewalLead().String(),
+		"expiry", expiry.UTC().Format(time.RFC3339))
+	requeueAfter = bearerTokenMinRequeueAfter
+	if remaining > 0 && requeueAfter >= remaining {
+		requeueAfter = remaining - time.Second
+	}
+	if requeueAfter <= 0 {
+		return bearerTokenMinRequeueAfter
+	}
+	return requeueAfter
 }
 
 // evaluateBearerTokenRenewal decides whether to refresh now and, if not, when
