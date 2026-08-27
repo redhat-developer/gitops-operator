@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("openshift"), func() {
+		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("fixed"), func() {
 
 			// The Application in this test deploys a cluster-scoped resource (config.openshift.io/v1 Image),
 			// so the Argo CD instance must be cluster-scoped. That requires setting an env var on the operator,
@@ -91,11 +91,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD = argocdFixture.CreateNewArgoCDInstance("argocd", ns.Name)
 			Eventually(argoCD, "8m", "5s").Should(argocdFixture.BeAvailable())
 
-By("setting the repo server replicas to 2 on the Argo CD instance")
-		argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-			replicas := int32(2)
-			ac.Spec.Repo.Replicas = &replicas
-		})
+			By("setting the repo server replicas to 2 on the Argo CD instance")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				replicas := int32(2)
+				ac.Spec.Repo.Replicas = &replicas
+			})
 
 			By("creating an Argo CD Application targeting the Argo CD namespace")
 			app = &argocdv1alpha1.Application{
@@ -163,16 +163,16 @@ By("setting the repo server replicas to 2 on the Argo CD instance")
 			Eventually(app, "4m", "5s").Should(application.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(application.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
-By("updating repo server replicas back to 1")
-		argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-			replicas := int32(1)
-			ac.Spec.Repo.Replicas = &replicas
-		})
+			By("updating repo server replicas back to 1")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				replicas := int32(1)
+				ac.Spec.Repo.Replicas = &replicas
+			})
 
-		By("waiting for Argo CD to become available after the repo server change we made")
-		Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			By("waiting for Argo CD to become available after the repo server change we made")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-		By("verifying repo server Deployment moves back to a single replica")
+			By("verifying repo server Deployment moves back to a single replica")
 			repoServerDepl := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name},
 			}
