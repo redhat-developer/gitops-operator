@@ -13,13 +13,11 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,7 +28,7 @@ import (
 	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 )
 
-var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
+var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("openshift"), func() {
 	const (
 		argocdNamespace    = "test-tls-argocd"
 		argocdInstanceName = "example-argocd"
@@ -228,7 +226,6 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", func() {
 					}
 				}
 
-				// --- Print results (always helpful in debugging)
 				if !hasCiphersTLS13 || tlsCiphersTLS13 == "" {
 					GinkgoWriter.Printf("  --tls-ciphersuites should not be empty, got %q\n", tlsCiphersTLS13)
 					return false
