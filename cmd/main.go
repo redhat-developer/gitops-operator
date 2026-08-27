@@ -35,6 +35,7 @@ import (
 	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	argocdcommon "github.com/argoproj-labs/argocd-operator/common"
 	argocdprovisioner "github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -53,6 +54,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -273,6 +275,8 @@ func main() {
 
 	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
+	registerComponentOrExit(mgr, promoter.AddToScheme)
+	registerComponentOrExit(mgr, apiregistrationv1.AddToScheme)
 
 	// Setup Scheme for OpenShift Config if available
 	// Disables default Argo CD instance if the cluster doesn't contain OpenShift config API

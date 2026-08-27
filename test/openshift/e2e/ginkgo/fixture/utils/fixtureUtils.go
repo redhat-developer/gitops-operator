@@ -19,6 +19,7 @@ import (
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	imageUpdater "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
 	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -32,6 +33,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	. "github.com/onsi/gomega"
 )
@@ -62,7 +64,6 @@ func GetE2ETestKubeClientWithError() (client.Client, *runtime.Scheme, error) {
 
 // getKubeClient returns a controller-runtime Client for accessing K8s API resources used by the controller.
 func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) {
-
 	scheme := runtime.NewScheme()
 
 	if err := corev1.AddToScheme(scheme); err != nil {
@@ -151,18 +152,24 @@ func getKubeClient(config *rest.Config) (client.Client, *runtime.Scheme, error) 
 		return nil, nil, err
 	}
 
+	if err := apiregistrationv1.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
+	if err := promoter.AddToScheme(scheme); err != nil {
+		return nil, nil, err
+	}
+
 	k8sClient, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return k8sClient, scheme, nil
-
 }
 
 // Retrieve the system-level Kubernetes config (e.g. ~/.kube/config or service account config from volume)
 func getSystemKubeConfig() (*rest.Config, error) {
-
 	overrides := clientcmd.ConfigOverrides{}
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
