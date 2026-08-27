@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -42,13 +43,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-027_validate_operand_from_git", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx              context.Context
 			k8sClient        client.Client
 			app              *argocdv1alpha1.Application
 			test_1_27_custom *corev1.Namespace
+			parentNS         *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -59,36 +60,38 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 
-			fixture.OutputDebugOnFail(test_1_27_custom, "openshift-gitops")
+			fixture.OutputDebugOnFail(test_1_27_custom, parentNS)
 
-			if app != nil {
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}
+			// if app != nil {
+			// 	Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			// }
 			if test_1_27_custom != nil {
 				Expect(k8sClient.Delete(ctx, test_1_27_custom)).To(Succeed())
 			}
 		})
 
-		It("verifies that a custom Argo CD instance can be deployed by the 'openshift-gitops' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("openshift"), func() {
+		It("verifies that a custom Argo CD instance can be deployed by an Argo CD instance via GitOps, and the deployed instance is able to deploy a simple application", Label("openshift"), func() {
 
-			openshiftgitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
+			parentNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-027")
+			defer cleanupFunc()
+			parentArgoCD := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: parentNS.Name},
+			}
+			Expect(k8sClient.Create(ctx, parentArgoCD)).To(Succeed())
+			Eventually(parentArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			By("verifying openshift-gitops Argo CD instance is available")
-			Eventually(openshiftgitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-
-			By("creating Argo CD Application in openshift-gitops namespace")
+			By("creating Argo CD Application in parent namespace")
 			app = &argocdv1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: openshiftgitopsArgoCD.Namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: parentArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
-						Path: "./operator-acceptance/1-027_operand-from-git",
+						Path: ".test/examples/operator-acceptance/1-027_operand-from-git",
 						// TODO: Move this repository to a better location
-						RepoURL:        "https://github.com/jannfis/operator-e2e-git",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: openshiftgitopsArgoCD.Namespace,
+						Namespace: parentNS.Name,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
@@ -108,7 +111,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			Eventually(test_1_27_custom, "5m", "5s").Should(k8sFixture.ExistByName())
-			Eventually(test_1_27_custom).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
+			Eventually(test_1_27_custom).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", parentNS.Name))
 
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
