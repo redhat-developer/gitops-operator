@@ -323,7 +323,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 			updated = true
 		}
 
-		desiredServerName := desiredEndpoint.TLSConfig.SafeTLSConfig.ServerName
+		desiredServerName := desiredEndpoint.TLSConfig.ServerName
 		if endpoint.TLSConfig == nil ||
 			endpoint.TLSConfig.ServerName == nil ||
 			desiredServerName == nil ||
@@ -335,7 +335,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 			updated = true
 		}
 
-		desiredCA := desiredEndpoint.TLSConfig.SafeTLSConfig.CA.ConfigMap
+		desiredCA := desiredEndpoint.TLSConfig.CA.ConfigMap
 		if endpoint.TLSConfig == nil ||
 			endpoint.TLSConfig.CA.ConfigMap == nil ||
 			desiredCA == nil ||
