@@ -44,6 +44,20 @@ func Update(obj *argov1beta1api.ArgoCD, modify func(*argov1beta1api.ArgoCD)) {
 	time.Sleep(7 * time.Second)
 }
 
+// CreateNewArgoCDInstance creates a new ArgoCD instance with an empty (zero) spec in the
+// given namespace and returns it. Callers should wait for availability via BeAvailable.
+func CreateNewArgoCDInstance(name, namespace string) *argov1beta1api.ArgoCD {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	argoCD := &argov1beta1api.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       argov1beta1api.ArgoCDSpec{},
+	}
+	Expect(k8sClient.Create(context.Background(), argoCD)).To(Succeed())
+
+	return argoCD
+}
+
 func GetOpenShiftGitOpsNSArgoCD() (*argov1beta1api.ArgoCD, error) {
 
 	k8sClient, _ := utils.GetE2ETestKubeClient()
