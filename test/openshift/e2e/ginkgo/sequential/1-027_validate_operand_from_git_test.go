@@ -48,7 +48,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			k8sClient        client.Client
 			app              *argocdv1alpha1.Application
 			test_1_27_custom *corev1.Namespace
-			parentNS         *corev1.Namespace
 		)
 
 		BeforeEach(func() {
