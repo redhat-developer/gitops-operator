@@ -17,11 +17,16 @@ limitations under the License.
 package sequential
 
 import (
+	"context"
+
+	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,20 +39,31 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
+			k8sClient, _ = utils.GetE2ETestKubeClient()
+			ctx = context.Background()
 		})
 
 		It("verifies RoleBindings are added to namespace-scoped Namespace when that Namespace is managed by openshift-gitops", Label("openshift"), func() {
+
+			By("creating and checking ArgoCD instance is available")
+			namespace, cleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanup()
+			argocd := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: namespace.Name},
+			}
+			Expect(k8sClient.Create(ctx, argocd)).To(Succeed())
+			Eventually(argocd, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
 
 			namespaceFixture.Update(ns, func(ns *corev1.Namespace) {
-				ns.Labels["argocd.argoproj.io/managed-by"] = "openshift-gitops"
+				ns.Labels["argocd.argoproj.io/managed-by"] = argocd.Namespace
 			})
 
-			roleBindingList := []string{"openshift-gitops-argocd-application-controller",
-				"openshift-gitops-argocd-server"}
+			roleBindingList := []string{argocd.Name + "-argocd-application-controller",
+				argocd.Name + "-argocd-server"}
 
 			for _, rb := range roleBindingList {
 				rb := &rbacv1.RoleBinding{
