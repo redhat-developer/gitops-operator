@@ -20,7 +20,6 @@ import (
 	"context"
 
 	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -60,38 +59,39 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 
-			fixture.OutputDebugOnFail(test_1_27_custom, parentNS)
+			fixture.OutputDebugOnFail(test_1_27_custom, "argocd-027")
 
-			// if app != nil {
-			// 	Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			// }
 			if test_1_27_custom != nil {
 				Expect(k8sClient.Delete(ctx, test_1_27_custom)).To(Succeed())
 			}
 		})
 
-		It("verifies that a custom Argo CD instance can be deployed by an Argo CD instance via GitOps, and the deployed instance is able to deploy a simple application", Label("openshift"), func() {
+		It("verifies that a custom Argo CD instance can be deployed by the 'argocd-027' Argo CD instance. It also verfies that the custom Argo CD instance is able to deploy a simple application", Label("openshift"), func() {
 
-			parentNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-027")
-			defer cleanupFunc()
-			parentArgoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: parentNS.Name},
+			By("getting creating Argo CD instance in new namespace")
+			_, cleanup := fixture.CreateNamespaceWithCleanupFunc("argocd-027")
+			defer cleanup()
+			ArgoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: "argocd-027"},
 			}
-			Expect(k8sClient.Create(ctx, parentArgoCD)).To(Succeed())
-			Eventually(parentArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Expect(k8sClient.Create(ctx, ArgoCD)).To(Succeed())
 
-			By("creating Argo CD Application in parent namespace")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "argocd-027")
+
+			By("verifying argocd-027 Argo CD instance is available")
+			Eventually(ArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("creating Argo CD Application in argocd-027 namespace")
 			app = &argocdv1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: parentArgoCD.Namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: ArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
-						Path: ".test/examples/operator-acceptance/1-027_operand-from-git",
-						// TODO: Move this repository to a better location
+						Path:           "./test/examples/operator-acceptance",
 						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: parentNS.Name,
+						Namespace: ArgoCD.Namespace,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
@@ -105,13 +105,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-			By("verifying test-1-27-custom NS is created and is managed by openshift-gitops, and Application deploys successfully")
+			By("verifying test-1-27-custom NS is created and is managed by argocd-027, and Application deploys successfully")
 			test_1_27_custom = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-27-custom"},
 			}
 
 			Eventually(test_1_27_custom, "5m", "5s").Should(k8sFixture.ExistByName())
-			Eventually(test_1_27_custom).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", parentNS.Name))
+			Eventually(test_1_27_custom).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "argocd-027"))
 
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
