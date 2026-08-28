@@ -353,6 +353,11 @@ func LogInToArgoCDInstanceWithoutRoute(instanceName, namespace string) (func(), 
 // portForwardArgoCD starts kubectl port-forward and returns a cancel func.
 // Blocks until the tunnel is ready (or Fail()s after 60s).
 func portForwardArgoCD(namespace, subject, port string) func() {
+	// Kill any stale process on the local port left by a previous crashed run.
+	localPort := strings.SplitN(port, ":", 2)[0]
+	// #nosec G204
+	_ = exec.Command("sh", "-c", "lsof -ti :"+localPort+" | xargs kill -9 2>/dev/null; fuser -k "+localPort+"/tcp 2>/dev/null; true").Run()
+
 	cmd := exec.Command("kubectl", "port-forward", "-n", namespace, subject, port) // #nosec G204
 
 	stdout, err := cmd.StdoutPipe()
