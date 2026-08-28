@@ -1,8 +1,10 @@
 package argocd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 	"time"
@@ -311,6 +313,91 @@ func LogInToDefaultArgoCDInstance() error {
 
 	return nil
 
+}
+
+// LogInToArgoCDInstanceWithoutRoute logs in to an ArgoCD instance via kubectl
+// port-forward instead of an OpenShift Route, so it works on xks clusters.
+// instanceName is the ArgoCD CR name (e.g. "openshift-gitops"); namespace is its namespace.
+// The returned cancel func stops the port-forward; call it (or defer it) after all argocd
+// CLI calls in the test are done, since the CLI stores localhost:18080 as the server address.
+func LogInToArgoCDInstanceWithoutRoute(instanceName, namespace string) (func(), error) {
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	if err != nil {
+		return nil, err
+	}
+
+	secretName := instanceName + "-cluster"
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName, Namespace: namespace}}
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(secret), secret); err != nil {
+		return nil, fmt.Errorf("unable to locate %q Secret", secretName)
+	}
+
+	const localPort = "18080"
+	cancel := portForwardArgoCD(namespace, "svc/"+instanceName+"-server", localPort+":80")
+
+	output, err := RunArgoCDCLI("login", "localhost:"+localPort, "--username", "admin",
+		"--password", string(secret.Data["admin.password"]), "--insecure")
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	if !strings.Contains(output, "'admin:login' logged in successfully") {
+		cancel()
+		return nil, fmt.Errorf("unable to log in to ArgoCD instance %q in namespace %q", instanceName, namespace)
+	}
+
+	return cancel, nil
+}
+
+// portForwardArgoCD starts kubectl port-forward and returns a cancel func.
+// Blocks until the tunnel is ready (or Fail()s after 60s).
+func portForwardArgoCD(namespace, subject, port string) func() {
+	cmd := exec.Command("kubectl", "port-forward", "-n", namespace, subject, port) // #nosec G204
+
+	stdout, err := cmd.StdoutPipe()
+	Expect(err).ToNot(HaveOccurred())
+	stderr, err := cmd.StderrPipe()
+	Expect(err).ToNot(HaveOccurred())
+
+	ready := make(chan struct{})
+
+	stream := func(r io.Reader, signal func()) {
+		defer GinkgoRecover()
+		sc := bufio.NewScanner(r)
+		for sc.Scan() {
+			line := sc.Text()
+			GinkgoWriter.Println("port-forward:", line)
+			if signal != nil && strings.HasPrefix(line, "Forwarding from") {
+				signal()
+				signal = nil
+			}
+		}
+	}
+
+	Expect(cmd.Start()).To(Succeed())
+	go stream(stdout, func() { close(ready) })
+	go stream(stderr, nil)
+	go func() {
+		defer GinkgoRecover()
+		if waitErr := cmd.Wait(); waitErr != nil &&
+			!strings.Contains(waitErr.Error(), "killed") &&
+			!strings.Contains(waitErr.Error(), "signal: killed") {
+			GinkgoWriter.Println("port-forward exited:", waitErr)
+		}
+	}()
+
+	select {
+	case <-ready:
+	case <-time.After(60 * time.Second):
+		Fail("timed out waiting for port-forward to be ready")
+	}
+
+	return func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	}
 }
 
 func RunArgoCDCLI(args ...string) (string, error) {
