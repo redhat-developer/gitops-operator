@@ -401,7 +401,7 @@ patches:
 			Expect(syncedCM).Should(configmapFixture.HaveStringDataKeyValue("foo", "prod"))
 
 			By("verifying hydrated branch contains rendered manifests")
-			Eventually(func(g Gomega) {
+			Expect(func(g Gomega) {
 				g.Expect(repo.CheckoutBranch("hydrated")).To(Succeed())
 				manifest, err := repo.ReadFile("app/manifest.yaml")
 				g.Expect(err).NotTo(HaveOccurred())
@@ -516,7 +516,7 @@ patches:
 			Expect(syncedCM).Should(configmapFixture.HaveStringDataKeyValue("foo", "helm"))
 
 			By("verifying dry branch contains rendered manifests in helm-output")
-			Eventually(func(g Gomega) {
+			Expect(func(g Gomega) {
 				g.Expect(repo.CheckoutBranch("main")).To(Succeed())
 				manifest, err := repo.ReadFile("helm-output/manifest.yaml")
 				g.Expect(err).NotTo(HaveOccurred())
