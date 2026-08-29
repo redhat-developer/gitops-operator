@@ -27,7 +27,7 @@ import (
 
 	"github.com/onsi/gomega/gcustom"
 	matcher "github.com/onsi/gomega/types"
-	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -902,6 +902,7 @@ func purgeCtbs(ctx context.Context, k8sClient client.Client, clusterSupportsClus
 // getArgoCDComponentImageAndVersion ensures rhel based image is used for testing this.
 // If this is installed as a full-blown operator, use its images.
 // If not, inject bleeding-edge pre-release rhel-based images.
+<<<<<<< HEAD
 func getArgoCDComponentImageAndVersion(ctx context.Context, k8sClient client.Client) (string, string) {
 	csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 	if csv != nil {
@@ -909,6 +910,23 @@ func getArgoCDComponentImageAndVersion(ctx context.Context, k8sClient client.Cli
 			if image.Name == "argocd_image" {
 				By("Detected operator image " + image.Image + ". Using it")
 				return "", ""
+=======
+// On xks (no OLM/CSV API), falls back to RHEL image — required because the operator's
+// CA trust init container uses RHEL-specific tools (update-ca-trust, trust).
+func getArgoCDComponentImageAndVersion() (string, string) {
+	var csvList olmv1alpha1.ClusterServiceVersionList
+	if err := k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator")); err == nil {
+		for idx := range csvList.Items {
+			idxCSV := csvList.Items[idx]
+			if !strings.Contains(idxCSV.Name, "gitops-operator") {
+				continue
+			}
+			for _, img := range idxCSV.Spec.RelatedImages {
+				if img.Name == "argocd_image" {
+					By("Detected operator image " + img.Image + ". Using it")
+					return "", ""
+				}
+>>>>>>> e5f6efc2 (fix: 1-120 update getArgoCDComponentImageAndVersion to use redhat images)
 			}
 		}
 	}
