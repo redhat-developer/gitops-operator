@@ -20,7 +20,6 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-100_validate_rollouts_resources_creation", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default xks instance
 
 		var (
 			ctx       context.Context
