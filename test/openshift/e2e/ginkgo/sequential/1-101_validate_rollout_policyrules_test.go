@@ -32,11 +32,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		It("verifying Rollouts operator creates the expected policy rules", Label("openshift"), func() {
 
+			namespace, cleanupNamespace := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupNamespace()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
+
 			By("creating cluster-scoped Argo Rollouts instance in openshift-gitops RolloutManager")
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Expect(k8sClient.Create(ctx, rm)).To(Succeed())
