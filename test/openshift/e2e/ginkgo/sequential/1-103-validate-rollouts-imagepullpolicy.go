@@ -35,11 +35,12 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-103_validate_rollouts_imagepullpolicy", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx              context.Context
+			k8sClient        client.Client
+			namespace        *corev1.Namespace
+			cleanupNamespace func()
 		)
 
 		BeforeEach(func() {
@@ -47,6 +48,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			namespace, cleanupNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
+		})
+
+		AfterEach(func() {
+			if cleanupNamespace != nil {
+				cleanupNamespace()
+			}
 		})
 
 		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", Label("openshift"), func() {
@@ -56,19 +65,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Expect(k8sClient.Create(ctx, rm)).To(Succeed())
 
 			By("verifying deplyment exists")
 			deplName := "argo-rollouts"
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: namespace.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying deployment has ImagePullPolicy set to default(IfNotPresent)")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 
 		})
@@ -80,7 +89,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 				Spec: rolloutmanagerv1alpha1.RolloutManagerSpec{
 					ImagePullPolicy: corev1.PullAlways,
@@ -90,12 +99,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying deplyment exists")
 			deplName := "argo-rollouts"
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: namespace.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying deployment has ImagePullPolicy set to the CR value(Always)")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 
 			By("updating the RolloutManager CR to set imagePullPolicy to Never")
@@ -104,7 +113,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Patch(ctx, rm, patch)).To(Succeed())
 
 			By("verifying deployment has ImagePullPolicy set to the CR value(Never)")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullNever), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullNever), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Never", deplName)
 
 			By("Removing the imagePullPolicy from the CR and check if the deployment has the imagePullPolicy set to default(IfNotPresent)")
@@ -112,7 +121,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Patch(ctx, rm, patch)).To(Succeed())
 
 			By("verifying deployment has ImagePullPolicy set to default(IfNotPresent)")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 		})
 
@@ -133,40 +142,40 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Expect(k8sClient.Create(ctx, rm)).To(Succeed())
 
 			By("verifying deplyment exists")
 			deplName := "argo-rollouts"
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: namespace.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying deployment has ImagePullPolicy set to Always")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 
 			By("changing the subscription image pull policy to Never")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
 
 			By("verifying deployment has ImagePullPolicy set to Never")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullNever), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullNever), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Never", deplName)
 
 			By("changing the subscription image pull policy to IfNotPresent")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
 
 			By("verifying deployment has ImagePullPolicy set to IfNotPresent")
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 
 			By("setting imagePullPolicy in CR and verify if the deployment has the imagePullPolicy set to the CR value")
 			patch := client.MergeFrom(rm.DeepCopy())
 			rm.Spec.ImagePullPolicy = corev1.PullAlways
 			Expect(k8sClient.Patch(ctx, rm, patch)).To(Succeed())
-			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 
 		})
