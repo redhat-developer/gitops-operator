@@ -37,11 +37,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		It("verifies that custom traffic management and metrics plugins can be added to Argo Rollouts instance via RolloutManager CR", Label("openshift"), func() {
 
+			namespace, cleanupNamespace := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupNamespace()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
+
 			By("creating a new Argo Rollouts instance in openshift-gitops namespace, containing a custom traffic management plugin and a custom metrics plugin")
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 				Spec: rolloutmanagerv1alpha1.RolloutManagerSpec{
 					Plugins: rolloutmanagerv1alpha1.Plugins{
@@ -71,7 +75,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rolloutsServiceAcct := &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argo-rollouts",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Eventually(rolloutsServiceAcct).Should(k8sFixture.ExistByName())
@@ -102,7 +106,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argo-rollouts-notification-secret",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Eventually(secret).Should(k8sFixture.ExistByName())
@@ -110,7 +114,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			depl := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argo-rollouts",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Eventually(depl).Should(k8sFixture.ExistByName())
@@ -119,7 +123,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			metricsService := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argo-rollouts-metrics",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Eventually(metricsService).Should(k8sFixture.ExistByName())
@@ -128,7 +132,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rolloutsConfigMap := &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "argo-rollouts-config",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Eventually(rolloutsConfigMap).Should(k8sFixture.ExistByName())
@@ -144,7 +148,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
   location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.4.0/gatewayapi-plugin-linux-amd64
   sha256: ""`
 
-			if fixture.EnvLocalRun() || fixture.EnvCI() {
+			if fixture.EnvLocalRun() || fixture.EnvCI() || fixture.EnvNonOLM() {
 				// When running the operator locally, the value comes from 'DefaultOpenShiftRoutePluginURL' constant
 				expectedTrafficRouterPluginsVal += `
 - name: argoproj-labs/openshift
