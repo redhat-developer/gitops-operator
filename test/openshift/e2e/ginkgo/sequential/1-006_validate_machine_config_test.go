@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that repo server replicas can be modified via .spec.repo.replicas", Label("fixed"), func() {
+		It("verifies that repo server replicas can be modified via .spec.repo.replicas", func() {
 
 			// The Application in this test deploys a cluster-scoped resource (config.openshift.io/v1 Image),
 			// so the Argo CD instance must be cluster-scoped. That requires setting an env var on the operator,

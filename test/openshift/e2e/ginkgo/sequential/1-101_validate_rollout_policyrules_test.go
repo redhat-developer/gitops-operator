@@ -30,7 +30,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifying Rollouts operator creates the expected policy rules", Label("openshift"), func() {
+		It("verifying Rollouts operator creates the expected policy rules", func() {
 
 			namespace, cleanupNamespace := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupNamespace()

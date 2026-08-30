@@ -43,7 +43,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies RoleBindings are added to namespace-scoped Namespace when that Namespace is managed by openshift-gitops", Label("openshift"), func() {
+		It("verifies RoleBindings are added to namespace-scoped Namespace when that Namespace is managed by openshift-gitops", func() {
 
 			By("creating and checking ArgoCD instance is available")
 			namespace, cleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
