@@ -140,7 +140,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies that imagePullPolicy works correctly on default openshift-gitops ArgoCD instance", Label("openshift"), func() {
+		It("verifies that imagePullPolicy works correctly on default openshift-gitops ArgoCD instance", func() {
 
 			By("creating a namespace and argocd instance for the test")
 			argocdInstance, ArgocdNamespace, cleanupNamespace := fixture.CreateNamespaceWithArgoCDInstance("test-1-114-1")
@@ -203,7 +203,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies default imagePullPolicy is applied to all ArgoCD workload resources when not specified in either CR spec or subscription", Label("openshift"), func() {
+		It("verifies default imagePullPolicy is applied to all ArgoCD workload resources when not specified in either CR spec or subscription", func() {
 
 			argocdInstance, ArgocdNamespace, cleanupNamespace := fixture.CreateNamespaceWithArgoCDInstance("test-1-114")
 			defer cleanupNamespace()

@@ -82,7 +82,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", Label("openshift"), func() {
+		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", func() {
 
 			By("creating a namespace and argocd instance for the test")
 			argocdInstance, ArgocdNamespace, cleanupNamespace = fixture.CreateNamespaceWithArgoCDInstance("test-1-113")
