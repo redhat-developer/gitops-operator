@@ -221,7 +221,7 @@ TARGET_ROLLOUT_MANAGER_COMMIT=67002e569d7f7de26a60a1f5a8d0b4924931b4da
 
 # This commit value will be automatically updated by calling 'hack/upgrade-rollouts-manager/go-run.sh':
 # - It should always point to the same argo-rollouts-manager commit that is referenced in the version of argo-rollouts-manager that is in go.mod
-TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT=ec4d284bed164ab4fdbb152178f2577ba6321e0f
+TARGET_OPENSHIFT_ROUTE_ROLLOUT_PLUGIN_COMMIT=f316fad99b3555be0612dc34098d22392bba3492
 
 git checkout $TARGET_ROLLOUT_MANAGER_COMMIT
 
