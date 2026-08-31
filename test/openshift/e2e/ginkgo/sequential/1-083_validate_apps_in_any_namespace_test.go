@@ -308,10 +308,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("restarts the server and app controller workloads. I presume this is because their startup is too slow to pick up the RBAC changes we have made (removing the label)")
-			_, err := osFixture.ExecCommand("oc", "rollout", "restart", "deployment.apps/"+argocdName+"-server", "-n", argocdNS.Name)
+			_, err := osFixture.ExecCommand("kubectl", "rollout", "restart", "deployment.apps/"+argocdName+"-server", "-n", argocdNS.Name)
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = osFixture.ExecCommand("oc", "rollout", "restart", "statefulset.apps/"+argocdName+"-application-controller", "-n", argocdNS.Name)
+			_, err = osFixture.ExecCommand("kubectl", "rollout", "restart", "statefulset.apps/"+argocdName+"-application-controller", "-n", argocdNS.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("workloads should become available")
