@@ -111,7 +111,7 @@ patches:
 			nsCleanup()
 		})
 
-		It("activate Commit Server by Source Hydrator config", func() {
+		It("activate Commit Server by Source Hydrator config", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			csService := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "example-commit-server", Namespace: ns.Name}}
@@ -169,7 +169,7 @@ patches:
 			assertRunning(false)
 		})
 
-		It("apply CommitServer configuration options to the running CommitServer deployment", func() {
+		It("apply CommitServer configuration options to the running CommitServer deployment", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			expectedCommand := []string{"/usr/local/bin/argocd-commit-server", "--loglevel", "info", "--logformat", "json"}
@@ -304,7 +304,7 @@ patches:
 			}, "5s", "1s").To(ContainElement("debug"))
 		})
 
-		It("hydrate kustomize to another branch via ssh", func() {
+		It("hydrate kustomize to another branch via ssh", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			server, cleanup := gitserver.StartServer(ctx, k8sClient, ns)
@@ -410,7 +410,7 @@ patches:
 			Expect(manifest).NotTo(ContainSubstring("foo: base"))
 		})
 
-		It("hydrate helm to another directory via https", func() {
+		It("hydrate helm to another directory via https", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			server, cleanup := gitserver.StartServer(ctx, k8sClient, ns)
