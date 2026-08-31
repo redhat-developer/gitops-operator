@@ -44,6 +44,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		var (
 			ctx       context.Context
 			k8sClient client.Client
+			argoCDNS  *corev1.Namespace
+			cleanup1  func()
 		)
 
 		BeforeEach(func() {
@@ -52,11 +54,17 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(argoCDNS)
+			if cleanup1 != nil {
+				cleanup1()
+			}
+		})
+
 		It("ensures that Argo CD server becomes ready after modifying Argo CD Server TLS secret", func() {
 
 			By("creating basic Argo CD instance")
-			argoCDNS, cleanup1 := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanup1()
+			argoCDNS, cleanup1 = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: argoCDNS.Name},
