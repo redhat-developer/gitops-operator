@@ -90,7 +90,7 @@ func VerifyExpectedResourcesExist(resources VerifyExpectedResourcesExistParams) 
 	By("Verifying the expected resources exist")
 
 	if resources.Deployment != nil {
-		Eventually(resources.Deployment).Should(k8sFixture.ExistByName())
+		Eventually(resources.Deployment, "2m", "5s").Should(k8sFixture.ExistByName())
 	}
 
 	if resources.Service != nil {
