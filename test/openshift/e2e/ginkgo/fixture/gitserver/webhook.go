@@ -46,8 +46,8 @@ type gogsPushWebhookRepository struct {
 // NotifyArgoCDWebhook posts a push webhook to Argo CD for the current HEAD commit.
 func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit) error {
 	Expect(argoCD).NotTo(BeNil())
-	hosts := strings.Split(argoCD.Status.Host, ", ")
-	Expect(hosts).NotTo(BeEmpty())
+	host := strings.Split(argoCD.Status.Host, ", ")[0]
+	Expect(host).NotTo(BeEmpty())
 
 	branch := commit.Branch
 	if branch == "" {
@@ -91,7 +91,7 @@ func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit)
 		return err
 	}
 
-	webhookURL := fmt.Sprintf("https://%s/api/webhook", hosts[0])
+	webhookURL := fmt.Sprintf("https://%s/api/webhook", host)
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
@@ -103,8 +103,8 @@ func (r *Repo) NotifyArgoCDWebhook(argoCD *argov1beta1api.ArgoCD, commit Commit)
 	Eventually(func(g Gomega) {
 		req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
 		g.Expect(err).NotTo(HaveOccurred())
-		req.Host = hosts[0]
-		req.Header.Set("Host", hosts[0])
+		req.Host = host
+		req.Header.Set("Host", host)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Gogs-Event", "push")
 		req.Header.Set("X-Gitea-Event", "push")
