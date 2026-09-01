@@ -44,8 +44,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-030_validate_reencrypt", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx             context.Context
+			k8sClient       client.Client
+			test_1_30_argo1 *corev1.Namespace
+			cleanupFunc     func()
 		)
 
 		BeforeEach(func() {
@@ -54,12 +56,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(test_1_30_argo1)
+
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+
+		})
+
 		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", Label("openshift"), func() {
 
 			By("creating namespace-scoped Argo CD instance with rencrypt Route")
 
-			test_1_30_argo1, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
-			defer cleanupFunc()
+			test_1_30_argo1, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_30_argo1.Name},

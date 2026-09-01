@@ -25,6 +25,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,8 +37,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-021_validate_rolebindings", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx         context.Context
+			k8sClient   client.Client
+			randomNS    *corev1.Namespace
+			cleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -46,11 +49,17 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(randomNS)
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+		})
+
 		It("verifies a namespace-scoped Argo CD instance has the expected RoleBindings", func() {
 
 			By("creating new namespace-scoped Argo CD instance and verifying it becomes available")
-			randomNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			randomNS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
