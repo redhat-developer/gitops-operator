@@ -180,6 +180,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if err != nil {
 					return err
 				}
+				GinkgoWriter.Println("redis conf values:")
+				GinkgoWriter.Println(redisConf)
+
 				for _, line := range expectedRedisConfig {
 					if !strings.Contains(redisConf, line) {
 						return fmt.Errorf("redis.conf does not contain expected value: %s", line)
@@ -216,6 +219,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if err != nil {
 					return err
 				}
+				GinkgoWriter.Println("sentinel conf values:")
+				GinkgoWriter.Println(sentinelConf)
+
 				for _, line := range expectedSentinelConfig {
 					matched, err := regexp.MatchString(line, sentinelConf)
 					if err != nil {

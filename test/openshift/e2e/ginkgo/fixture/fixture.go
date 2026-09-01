@@ -869,6 +869,12 @@ func OutputDebug(namespaceParams ...any) {
 			namespaces = append(namespaces, str)
 
 		} else if nsPtr, isNsPtr := (param).(*corev1.Namespace); isNsPtr {
+			// A typed nil (*corev1.Namespace)(nil) is not caught by the 'param == nil'
+			// check above, since an interface holding a typed nil is itself non-nil.
+			// Skip it here to avoid dereferencing a nil pointer.
+			if nsPtr == nil {
+				continue
+			}
 			namespaces = append(namespaces, nsPtr.Name)
 
 		} else if ns, isNs := (param).(corev1.Namespace); isNs {
