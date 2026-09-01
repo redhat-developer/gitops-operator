@@ -190,7 +190,7 @@ metadata:
     capabilities: Deep Insights
     console.openshift.io/plugins: '["gitops-plugin"]'
     containerImage: quay.io/redhat-developer/gitops-operator
-    createdAt: "2026-08-31T22:08:00Z"
+    createdAt: "2026-09-01T13:15:29Z"
     description: Enables teams to adopt GitOps principles for managing cluster configurations
       and application delivery across hybrid multi-cluster Kubernetes environments.
     features.operators.openshift.io/disconnected: "true"
@@ -242,6 +242,12 @@ spec:
       displayName: AppProject
       kind: AppProject
       name: appprojects.argoproj.io
+      version: v1alpha1
+    - description: ArgoCDCommitStatus is used as a way to aggregate all the Argo CD
+        Applications that are being used in a promotion strategy.
+      displayName: ArgoCDCommitStatus
+      kind: ArgoCDCommitStatus
+      name: argocdcommitstatuses.promoter.argoproj.io
       version: v1alpha1
     - kind: ArgoCD
       name: argocds.argoproj.io
@@ -297,12 +303,34 @@ spec:
         name: ""
         version: v1
       version: v1beta1
+    - description: ChangeTransferPolicy represents a pair hydrated environment branch
+        pair of the proposed environment branch and the live environment branch.
+      displayName: ChangeTransferPolicy
+      kind: ChangeTransferPolicy
+      name: changetransferpolicies.promoter.argoproj.io
+      version: v1alpha1
     - description: A ClusterAnalysisTemplate is like an AnalysisTemplate,but it is
         not limited to its namespace. It can be used by any Rollout throughout the
         cluster.
       displayName: ClusterAnalysisTemplate
       kind: ClusterAnalysisTemplate
       name: clusteranalysistemplates.argoproj.io
+      version: v1alpha1
+    - description: ClusterScmProvider is a cluster-scoped SCM instance (such as GitHub).
+      displayName: ClusterSCMProvider
+      kind: ClusterScmProvider
+      name: clusterscmproviders.promoter.argoproj.io
+      version: v1alpha1
+    - description: CommitStatus is a thin wrapper for the SCM's commit status API.
+      displayName: CommitStatus
+      kind: CommitStatus
+      name: commitstatuses.promoter.argoproj.io
+      version: v1alpha1
+    - description: ControllerConfiguration is used to configure the behavior of the
+        promoter.
+      displayName: ControllerConfiguration
+      kind: ControllerConfiguration
+      name: controllerconfigurations.promoter.argoproj.io
       version: v1alpha1
     - description: An Experiment is limited run of one or more ReplicaSets for the
         purposes of analysis. Experiments typically run for a pre-determined duration,
@@ -311,10 +339,21 @@ spec:
       kind: Experiment
       name: experiments.argoproj.io
       version: v1alpha1
+    - description: GitCommitStatus evaluates commit data with a custom expression
+        for promotion gating.
+      displayName: GitCommitStatus
+      kind: GitCommitStatus
+      name: gitcommitstatuses.promoter.argoproj.io
+      version: v1alpha1
     - description: GitopsService is the Schema for the gitopsservices API
       displayName: Gitops Service
       kind: GitopsService
       name: gitopsservices.pipelines.openshift.io
+      version: v1alpha1
+    - description: GitRepository represents a single git repository.
+      displayName: GitRepository
+      kind: GitRepository
+      name: gitrepositories.promoter.argoproj.io
       version: v1alpha1
     - description: ImageUpdater is the Schema for the imageupdaters API
       displayName: ImageUpdater
@@ -331,6 +370,24 @@ spec:
       kind: NotificationsConfiguration
       name: notificationsconfigurations.argoproj.io
       version: v1alpha1
+    - description: PromotionStrategy is the user's interface to controlling how changes
+        are promoted through their environments.
+      displayName: PromotionStrategy
+      kind: PromotionStrategy
+      name: promotionstrategies.promoter.argoproj.io
+      version: v1alpha1
+    - description: PullRequest represents a thin wrapper around the SCM's pull request
+        API.
+      displayName: PullRequest
+      kind: PullRequest
+      name: pullrequests.promoter.argoproj.io
+      version: v1alpha1
+    - description: RevertCommit represents a revert commit created to roll back a
+        promotion.
+      displayName: RevertCommit
+      kind: RevertCommit
+      name: revertcommits.promoter.argoproj.io
+      version: v1alpha1
     - description: A controller for managing Argo Rollouts
       displayName: RolloutManager
       kind: RolloutManager
@@ -338,6 +395,28 @@ spec:
       version: v1alpha1
     - kind: Rollout
       name: rollouts.argoproj.io
+      version: v1alpha1
+    - description: ScheduledCommitStatus provides calendar-based gating for environment
+        promotions.
+      displayName: ScheduledCommitStatus
+      kind: ScheduledCommitStatus
+      name: scheduledcommitstatuses.promoter.argoproj.io
+      version: v1alpha1
+    - description: ScmProvider represents a SCM instance (such as GitHub).
+      displayName: ScmProvider
+      kind: ScmProvider
+      name: scmproviders.promoter.argoproj.io
+      version: v1alpha1
+    - description: TimedCommitStatus provides time-based gating for environment promotions.
+      displayName: TimedCommitStatus
+      kind: TimedCommitStatus
+      name: timedcommitstatuses.promoter.argoproj.io
+      version: v1alpha1
+    - description: WebRequestCommitStatus gates promotions on external HTTP/HTTPS
+        API validation.
+      displayName: WebRequestCommitStatus
+      kind: WebRequestCommitStatus
+      name: webrequestcommitstatuses.promoter.argoproj.io
       version: v1alpha1
   description: "Red Hat OpenShift GitOps is a declarative continuous delivery platform
     based on [Argo CD](https://argoproj.github.io/argo-cd/). It enables teams to adopt
@@ -437,8 +516,13 @@ spec:
           resources:
           - apiservices
           verbs:
+          - create
+          - delete
           - get
           - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - appmesh.k8s.aws
           resources:
@@ -749,6 +833,21 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - promoter.argoproj.io
+          resources:
+          - '*'
+          verbs:
+          - get
+          - list
+        - apiGroups:
+          - promoter.argoproj.io
+          resources:
+          - controllerconfigurations
+          - controllerconfigurations/finalizers
+          - controllerconfigurations/status
+          verbs:
+          - '*'
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:

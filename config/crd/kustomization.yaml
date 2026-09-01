@@ -16,6 +16,20 @@ resources:
 - bases/cluster-analysis-template-crd.yaml
 - bases/experiment-crd.yaml
 - bases/rollout-crd.yaml
+- bases/promoter.argoproj.io_argocdcommitstatuses.yaml
+- bases/promoter.argoproj.io_changetransferpolicies.yaml
+- bases/promoter.argoproj.io_clusterscmproviders.yaml
+- bases/promoter.argoproj.io_commitstatuses.yaml
+- bases/promoter.argoproj.io_controllerconfigurations.yaml
+- bases/promoter.argoproj.io_gitcommitstatuses.yaml
+- bases/promoter.argoproj.io_gitrepositories.yaml
+- bases/promoter.argoproj.io_promotionstrategies.yaml
+- bases/promoter.argoproj.io_pullrequests.yaml
+- bases/promoter.argoproj.io_revertcommits.yaml
+- bases/promoter.argoproj.io_scheduledcommitstatuses.yaml
+- bases/promoter.argoproj.io_scmproviders.yaml
+- bases/promoter.argoproj.io_timedcommitstatuses.yaml
+- bases/promoter.argoproj.io_webrequestcommitstatuses.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
