@@ -76,7 +76,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.OutputDebugOnFail(testNS, "openshift-gitops")
 		})
 
-		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", func() {
+		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", Label("openshift"), func() {
 
 			By("creating a namespace managed by openshift-gitops")
 			testNS = fixture.CreateManagedNamespace("test-1-113-ns", "openshift-gitops")

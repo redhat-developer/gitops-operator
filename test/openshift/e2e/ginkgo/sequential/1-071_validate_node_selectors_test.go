@@ -23,6 +23,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-071_validate_node_selectors", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -36,7 +37,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies changes to GitOpsService's nodeselector, tolerations, and runOnInfra will modify Argo CD Deployments and StatefulSets", func() {
+		It("verifies changes to GitOpsService's nodeselector, tolerations, and runOnInfra will modify Argo CD Deployments and StatefulSets", Label("openshift"), func() {
 
 			By("ensuring Deployments and StatefulSets have nodeSelector of 'kubernetes.io/os: linux'")
 
