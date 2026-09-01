@@ -71,8 +71,13 @@ rules:
   resources:
   - apiservices
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - appmesh.k8s.aws
   resources:
@@ -383,6 +388,21 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - promoter.argoproj.io
+  resources:
+  - '*'
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - promoter.argoproj.io
+  resources:
+  - controllerconfigurations
+  - controllerconfigurations/finalizers
+  - controllerconfigurations/status
+  verbs:
+  - '*'
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

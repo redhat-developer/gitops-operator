@@ -221,7 +221,9 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups="x.getambassador.io",resources=ambassadormappings;mappings,verbs=create;watch;get;update;list;delete
 //+kubebuilder:rbac:groups=argoproj.io,resources=notificationsconfigurations;notificationsconfigurations/finalizers,verbs=*
 //+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;
-//+kubebuilder:rbac:groups="apiregistration.k8s.io",resources="apiservices",verbs=get;list
+//+kubebuilder:rbac:groups="apiregistration.k8s.io",resources="apiservices",verbs=create;delete;get;list;update;patch;watch
+//+kubebuilder:rbac:groups=promoter.argoproj.io,resources=controllerconfigurations;controllerconfigurations/status;controllerconfigurations/finalizers,verbs=*
+//+kubebuilder:rbac:groups=promoter.argoproj.io,resources=*,verbs=get;list
 //+kubebuilder:rbac:groups="argoproj.io",resources=namespacemanagements;namespacemanagements/status,verbs=create;get;list;watch;update;patch;delete;deletecollection
 //+kubebuilder:rbac:groups="config.openshift.io",resources=ingresses,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create

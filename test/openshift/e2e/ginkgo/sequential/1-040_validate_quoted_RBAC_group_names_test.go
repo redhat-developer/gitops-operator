@@ -5,14 +5,17 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-040-validate_quoted_RBAC_group_names", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
@@ -36,6 +39,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
 			Eventually(defaultArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying the argocd-server route in openshift-gitops namespace has been admitted")
+			serverRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops-server",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(serverRoute).Should(k8sFixture.ExistByName())
+			Eventually(serverRoute).Should(routeFixture.HaveAdmittedIngress())
 
 			By("logging in to Argo CD instance")
 			Expect(argocdFixture.LogInToDefaultArgoCDInstance()).To(Succeed())
