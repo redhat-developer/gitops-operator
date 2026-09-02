@@ -199,7 +199,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
+	ARGOCD_OPERATOR_NAMESPACE=openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
