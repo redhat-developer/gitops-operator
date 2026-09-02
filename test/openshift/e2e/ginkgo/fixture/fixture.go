@@ -898,7 +898,7 @@ func OutputDebug(namespaceParams ...any) {
 
 	for _, namespace := range namespaces {
 
-		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all", "-n", namespace)
+		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all,serviceaccount", "-n", namespace)
 		if err != nil {
 			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
