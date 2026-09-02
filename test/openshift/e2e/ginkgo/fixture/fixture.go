@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -897,7 +898,7 @@ func OutputDebug(namespaceParams ...any) {
 
 	for _, namespace := range namespaces {
 
-		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all", "-n", namespace)
+		kubectlOutput, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "all,serviceaccount", "-n", namespace)
 		if err != nil {
 			GinkgoWriter.Println("unable to list", namespace, err, kubectlOutput)
 			continue
@@ -1105,4 +1106,55 @@ func outputAppControllerAndRepoLogsInNamespace(namespace string) {
 
 func IsUpstreamOperatorTests() bool {
 	return false // This function should return true if running from argocd-operator repo, false if running from gitops-operator repo. This is to distinguish between tests in upstream argocd-operator and downstream gitops-operator repos.
+}
+
+type OCPVersion struct {
+	Major int
+	Minor int
+}
+
+var OCP4_22 = OCPVersion{
+	Major: 4,
+	Minor: 22,
+}
+
+func Parse(version string) (OCPVersion, error) {
+	version = strings.TrimSpace(version)
+
+	parts := strings.Split(version, ".")
+	if len(parts) < 2 {
+		return OCPVersion{}, fmt.Errorf("invalid OCP version %q", version)
+	}
+
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return OCPVersion{}, fmt.Errorf("invalid OCP major version %q: %w", version, err)
+	}
+
+	minor, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return OCPVersion{}, fmt.Errorf("invalid OCP minor version %q: %w", version, err)
+	}
+
+	return OCPVersion{
+		Major: major,
+		Minor: minor,
+	}, nil
+}
+
+func SkipIfMinOCPVersion(currentVersion string, minimumVersion OCPVersion) {
+	current, err := Parse(currentVersion)
+	Expect(err).NotTo(HaveOccurred())
+
+	if current.Major > minimumVersion.Major ||
+		(current.Major == minimumVersion.Major && current.Minor >= minimumVersion.Minor) {
+		return
+	}
+
+	Skip(fmt.Sprintf(
+		"skipping test: OCP version %s is below minimum required version %d.%d",
+		currentVersion,
+		minimumVersion.Major,
+		minimumVersion.Minor,
+	))
 }

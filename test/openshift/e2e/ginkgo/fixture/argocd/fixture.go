@@ -82,6 +82,7 @@ func HavePhase(expected string) matcher.GomegaMatcher {
 				"Redis:", argocd.Status.Redis,
 				"Repo:", argocd.Status.Repo,
 				"Server: ", argocd.Status.Server,
+				"CommitServer:", argocd.Status.CommitServer,
 				"ApplicationController:", argocd.Status.ApplicationController,
 				"ApplicationSetController:", argocd.Status.ApplicationSetController,
 				"NotificationsController:", argocd.Status.NotificationsController,
@@ -116,6 +117,13 @@ func HaveServerStatus(status string) matcher.GomegaMatcher {
 	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
 		GinkgoWriter.Println("HaveServerStatus:", "expected:", status, "/ actual:", argocd.Status.Server)
 		return argocd.Status.Server == status
+	})
+}
+
+func HaveCommitServerStatus(status string) matcher.GomegaMatcher {
+	return fetchArgoCD(func(argocd *argov1beta1api.ArgoCD) bool {
+		GinkgoWriter.Println("HaveCommitServerStatus:", "expected:", status, "/ actual:", argocd.Status.CommitServer)
+		return argocd.Status.CommitServer == status
 	})
 }
 

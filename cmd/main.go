@@ -41,6 +41,7 @@ import (
 	notificationsprovisioner "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
 	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
 	cw "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -55,6 +56,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	crclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -273,6 +275,8 @@ func main() {
 
 	registerComponentOrExit(mgr, argov1alpha1api.AddToScheme)
 	registerComponentOrExit(mgr, argov1beta1api.AddToScheme)
+	registerComponentOrExit(mgr, promoter.AddToScheme)
+	registerComponentOrExit(mgr, apiregistrationv1.AddToScheme)
 
 	// Setup Scheme for OpenShift Config if available
 	// Disables default Argo CD instance if the cluster doesn't contain OpenShift config API
