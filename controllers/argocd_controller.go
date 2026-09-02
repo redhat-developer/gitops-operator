@@ -45,16 +45,16 @@ import (
 )
 
 const (
-	argocdNS                 = "openshift-gitops"
-	depracatedArgoCDNS       = "openshift-pipelines-app-delivery"
-	consoleLinkName          = "argocd"
-	argocdRouteName          = "openshift-gitops-server"
-	iconFilePath             = "/argo.png"
-	operatorPodNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	argocdNS           = "openshift-gitops"
+	depracatedArgoCDNS = "openshift-pipelines-app-delivery"
+	consoleLinkName    = "argocd"
+	argocdRouteName    = "openshift-gitops-server"
+	iconFilePath       = "/argo.png"
 )
 
 var (
-	encodedArgoImage string
+	operatorPodNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	encodedArgoImage         string
 
 	//go:embed argocd/img/argo.png
 	argoImage []byte
