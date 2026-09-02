@@ -1,6 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -eEu
+trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
-set -e
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+cd "$DIR/.."
 
 FROM_BRANCH="master"
 SKIP_MAKE=false
@@ -41,18 +44,17 @@ mkdir -p /tmp/argocd-operator-hack
 
 git clone --depth 1 --branch "$FROM_BRANCH" --single-branch --no-tags https://github.com/argoproj-labs/argocd-operator.git /tmp/argocd-operator-hack/
 
-changedFiles=$(diff -qr /tmp/argocd-operator-hack/config/crd/bases/  ../config/crd/bases/ | grep -v argoproj.io_argocdexports.yaml | grep differ | awk -F ' ' '{print $2}')
+changedFiles=$(diff -qr /tmp/argocd-operator-hack/config/crd/bases/ ./config/crd/bases/ | grep -v argoproj.io_argocdexports.yaml | grep differ | awk -F ' ' '{print $2}')
 
 echo "Changed Files"
-echo $changedFiles
+echo "$changedFiles"
 
 if [ -z "$changedFiles" ]
 then
       echo "No difference found"
 else
-      cp ${changedFiles} ../config/crd/bases/
+      cp ${changedFiles} ./config/crd/bases/
       if [ "$SKIP_MAKE" = false ]; then
-        cd ..
         make bundle
       else
         echo "Skipping 'make bundle' (--skip-make specified)"
