@@ -1,0 +1,258 @@
+import { test, expect } from '../src/fixtures';
+import { execFileSync } from 'child_process';
+
+test.describe('Clean Application Deletion (Pruning)', () => {
+  const stamp = Date.now();
+  const appName = `ui-deletion-${stamp}`;
+  const destNs = `ui-deletion-ns-${stamp}`;
+  //pin revision to immutable commit SHA for reproducibility
+  const targetCommit = '8088f4c0d970abb09e250248cc97e35623447cb5';
+
+  //returns true when the application cr is still present
+  const applicationExists = (): boolean => {
+    const out = execFileSync(
+      'oc',
+      ['get', 'application', appName, '-n', 'openshift-gitops', '--ignore-not-found', '-o', 'name'],
+      { stdio: 'pipe', timeout: 5000 }
+    ).toString().trim();
+    return out.length > 0;
+  };
+
+  //guestbook always creates deploy/svc named guestbook-ui. use --ignore-not-found -o name
+  //(empty = gone; real oc errors still throw). avoids instance-label lookups that fail under annotation tracking.
+  const remainingChildResources = (): string => {
+    const kinds = ['deploy', 'svc'] as const;
+    return kinds
+      .map((kind) =>
+        execFileSync(
+          'oc',
+          ['get', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '-o', 'name'],
+          { stdio: 'pipe', timeout: 5000 }
+        ).toString().trim()
+      )
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  test.beforeAll(async ({}, testInfo) => {
+    //RBAC wait + sync can exceed 3m
+    testInfo.setTimeout(240000);
+    console.log(`\n[setup] Deploying dummy application '${appName}' via CLI...`);
+
+    const appYaml = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${appName}
+  namespace: openshift-gitops
+spec:
+  destination:
+    namespace: ${destNs}
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: guestbook
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: ${targetCommit}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+`;
+    try {
+      execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
+      //needed for controller write access
+      execFileSync(
+        'oc',
+        ['label', 'namespace', destNs, 'argocd.argoproj.io/managed-by=openshift-gitops', '--overwrite'],
+        { stdio: 'pipe', timeout: 15000 }
+      );
+      let rbacReady = false;
+      for (let i = 1; i <= 30; i++) {
+        const rbs = execFileSync(
+          'oc',
+          ['get', 'rolebinding', '-n', destNs, '-o', 'name'],
+          { stdio: 'pipe', timeout: 5000 }
+        ).toString();
+        if (/argocd-application-controller/i.test(rbs)) {
+          rbacReady = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      if (!rbacReady) {
+        throw new Error(
+          `Namespace '${destNs}' never received openshift-gitops application-controller RoleBinding ` +
+            `(label argocd.argoproj.io/managed-by=openshift-gitops).`
+        );
+      }
+
+      //clear leftover guestbook children that can leave a new app stuck Unknown/OutOfSync
+      for (const kind of ['deploy', 'svc'] as const) {
+        execFileSync(
+          'oc',
+          ['delete', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '--wait=false'],
+          { stdio: 'pipe', timeout: 15000 }
+        );
+      }
+
+      //deploy dummy app via cli with process timeout
+      execFileSync('oc', ['apply', '-f', '-'], { input: appYaml, stdio: 'pipe', timeout: 15000 });
+
+      //poll until argo cd reports synced (unknown is common while repo-server warms up)
+      let isSynced = false;
+      let lastSync = '';
+      let lastHealth = '';
+      let lastMessage = '';
+      let lastOpMessage = '';
+      for (let i = 1; i <= 30; i++) {
+        try {
+          lastSync = execFileSync(
+            'oc',
+            ['get', 'application', appName, '-n', 'openshift-gitops', '-o', 'jsonpath={.status.sync.status}'],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          lastHealth = execFileSync(
+            'oc',
+            ['get', 'application', appName, '-n', 'openshift-gitops', '-o', 'jsonpath={.status.health.status}'],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          lastMessage = execFileSync(
+            'oc',
+            ['get', 'application', appName, '-n', 'openshift-gitops', '-o', 'jsonpath={.status.conditions[0].message}'],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          lastOpMessage = execFileSync(
+            'oc',
+            [
+              'get', 'application', appName, '-n', 'openshift-gitops',
+              '-o', 'jsonpath={.status.operationState.message}',
+            ],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          console.log(
+            `[setup] Checking sync status (Attempt ${i}/30): sync='${lastSync || 'Initializing...'}' health='${lastHealth || '-'}'`
+          );
+          if (lastSync === 'Synced') {
+            isSynced = true;
+            break;
+          }
+        } catch (e) {
+          console.log(`[setup] Checking sync status (Attempt ${i}/30): Waiting for resource...`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+
+      if (!isSynced) {
+        throw new Error(
+          `Dummy application '${appName}' never reached Synced status ` +
+            `(last sync='${lastSync || '-'}' health='${lastHealth || '-'}' ` +
+            `condition='${lastMessage || '-'}' operation='${lastOpMessage || '-'}').`
+        );
+      }
+    } catch (e) {
+      console.error('Failed to pre-deploy dummy app', e);
+      throw e;
+    }
+  });
+
+  test.afterAll(async ({}, testInfo) => {
+    testInfo.setTimeout(60000);
+    console.log(`\n[teardown] Ensuring '${appName}' and '${destNs}' are cleaned up...`);
+
+    try {
+      execFileSync(
+        'oc',
+        ['delete', 'application', appName, '-n', 'openshift-gitops', '--ignore-not-found', '--wait=true'],
+        { stdio: 'pipe', timeout: 15000 }
+      );
+    } catch (e) {
+      console.warn(`[teardown] Initial cleanup command failed: ${(e as Error).message}`);
+    }
+
+    execFileSync(
+      'oc',
+      ['delete', 'namespace', destNs, '--ignore-not-found', '--wait=false'],
+      { stdio: 'pipe', timeout: 15000 }
+    );
+
+    let isDeleted = false;
+    for (let i = 1; i <= 5; i++) {
+      if (!applicationExists()) {
+        isDeleted = true;
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    if (!isDeleted) {
+      throw new Error(`[teardown] Cleanup verification failed: '${appName}' still exists on cluster.`);
+    }
+  });
+
+  test('Delete application via UI and verify cascading deletion', async ({ page }) => {
+    //covers ui waits plus backend/child prune polling budgets
+    test.setTimeout(180000);
+
+    //locate application card specifically bound to appName without broad div scanning
+    const appTile = page.locator('.application-tile, [class*="application-tile"], [class*="applications-list__entry"]')
+      .filter({ hasText: appName });
+
+    //ensure application tile appears on dashboard
+    await expect(appTile).toBeVisible({ timeout: 30000 });
+
+    //confirm guestbook children exist before delete so cascade assertion is meaningful
+    expect(remainingChildResources()).not.toBe('');
+
+    //click delete button scoped specifically to this app card
+    const deleteBtn = appTile.locator('[qe-id="applications-tiles-button-delete"]');
+    await deleteBtn.click();
+
+    //locate modal container via dialog role or confirmation prompt text
+    const modal = page.getByRole('dialog')
+      .or(page.locator('div').filter({ hasText: /to confirm the deletion/i }))
+      .first();
+    await expect(modal).toBeVisible({ timeout: 15000 });
+
+    //type application name into confirmation field
+    const confirmInput = modal.getByRole('textbox').or(modal.locator('input')).first();
+    await confirmInput.fill(appName);
+
+    //confirm deletion
+    const okBtn = modal.getByRole('button', { name: /^ok$/i }).or(modal.locator('button').filter({ hasText: /^ok$/i })).first();
+    await okBtn.click();
+
+    //assert modal closes after confirming
+    await expect(modal).toBeHidden({ timeout: 15000 });
+
+    //assert app tile disappears from ui dashboard
+    await expect(appTile).toBeHidden({ timeout: 30000 });
+
+    //verify backend cr deletion via cli directly within test block before teardown
+    let backendDeleted = false;
+    for (let i = 1; i <= 10; i++) {
+      if (!applicationExists()) {
+        backendDeleted = true;
+        break;
+      }
+      //resource still present on cluster, wait before checking again
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    expect(backendDeleted).toBe(true);
+
+    //verify cascading deletion removed guestbook deploy/svc
+    let childrenGone = false;
+    for (let i = 1; i <= 10; i++) {
+      const remaining = remainingChildResources();
+      if (remaining === '') {
+        childrenGone = true;
+        break;
+      }
+      console.log(`[verify] Waiting for child resources to prune (Attempt ${i}/10): ${remaining}`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    expect(childrenGone).toBe(true);
+  });
+});
