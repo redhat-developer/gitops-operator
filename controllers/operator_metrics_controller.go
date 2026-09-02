@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -304,11 +305,7 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 			endpoint.BearerTokenSecret = nil //nolint:staticcheck // SA1019: migrate deprecated bearerTokenSecret to authorization
 			updated = true
 		}
-		if endpoint.Authorization == nil ||
-			endpoint.Authorization.Type != desiredEndpoint.Authorization.Type ||
-			endpoint.Authorization.Credentials == nil ||
-			endpoint.Authorization.Credentials.Name != operatorMetricsBearerTokenSecretName ||
-			endpoint.Authorization.Credentials.Key != operatorMetricsBearerTokenKey {
+		if !reflect.DeepEqual(endpoint.Authorization, desiredEndpoint.Authorization) {
 			endpoint.Authorization = desiredEndpoint.Authorization
 			updated = true
 		}
@@ -323,33 +320,21 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 			updated = true
 		}
 
-		desiredServerName := desiredEndpoint.TLSConfig.ServerName
-		if endpoint.TLSConfig == nil ||
-			endpoint.TLSConfig.ServerName == nil ||
-			desiredServerName == nil ||
-			*endpoint.TLSConfig.ServerName != *desiredServerName {
-			if endpoint.TLSConfig == nil {
-				endpoint.TLSConfig = &monitoringv1.TLSConfig{}
-			}
-			endpoint.TLSConfig.ServerName = desiredServerName
+		if endpoint.TLSConfig == nil {
+			endpoint.TLSConfig = &monitoringv1.TLSConfig{}
+		}
+		if !reflect.DeepEqual(endpoint.TLSConfig.SafeTLSConfig, desiredEndpoint.TLSConfig.SafeTLSConfig) {
+			endpoint.TLSConfig.SafeTLSConfig = desiredEndpoint.TLSConfig.SafeTLSConfig
 			updated = true
 		}
 
-		desiredCA := desiredEndpoint.TLSConfig.CA.ConfigMap
-		if endpoint.TLSConfig == nil ||
-			endpoint.TLSConfig.CA.ConfigMap == nil ||
-			desiredCA == nil ||
-			endpoint.TLSConfig.CA.ConfigMap.Name != desiredCA.Name ||
-			endpoint.TLSConfig.CA.ConfigMap.Key != desiredCA.Key {
-			if endpoint.TLSConfig == nil {
-				endpoint.TLSConfig = &monitoringv1.TLSConfig{}
-			}
+		if !reflect.DeepEqual(endpoint.TLSConfig.CA, desiredEndpoint.TLSConfig.CA) {
 			endpoint.TLSConfig.CA = desiredEndpoint.TLSConfig.CA
 			updated = true
 		}
 	}
 
-	if !mapsEqual(serviceMonitor.Spec.Selector.MatchLabels, desired.Spec.Selector.MatchLabels) {
+	if !reflect.DeepEqual(serviceMonitor.Spec.Selector.MatchLabels, desired.Spec.Selector.MatchLabels) {
 		serviceMonitor.Spec.Selector = desired.Spec.Selector
 		updated = true
 	}
@@ -361,18 +346,6 @@ func (r *OperatorMetricsTokenReconciler) reconcileServiceMonitor(ctx context.Con
 	reqLogger.Info("Updating operator metrics ServiceMonitor",
 		"Namespace", serviceMonitor.Namespace, "Name", serviceMonitor.Name)
 	return r.Client.Update(ctx, serviceMonitor)
-}
-
-func mapsEqual(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for key, value := range a {
-		if b[key] != value {
-			return false
-		}
-	}
-	return true
 }
 
 // isLegacyMetricsBearerTokenSecret reports whether the Secret is a deprecated
@@ -415,6 +388,9 @@ func (r *OperatorMetricsTokenReconciler) applyMetricsBearerTokenSecret(
 		return r.Client.Create(ctx, desired)
 	}
 
+	if reflect.DeepEqual(existing.Data, desired.Data) {
+		return nil
+	}
 	existing.Data = desired.Data
 	reqLogger.Info("Updating metrics monitor bearer token Secret",
 		"Namespace", namespace, "Name", operatorMetricsBearerTokenSecretName)

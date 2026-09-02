@@ -47,7 +47,7 @@ const (
 	operatorMetricsControllerSAName      = "openshift-gitops-operator-controller-manager"
 
 	// Mirror controller renewal settings: 20% of the requested one-hour TTL (~12 minutes).
-	operatorMetricsTokenExpiry         = time.Hour
+	operatorMetricsTokenExpiry         = time.Minute * 10
 	operatorMetricsTokenRenewalPercent = 20
 
 	// Bumping this annotation triggers a reconcile via the ServiceMonitor or Secret watch.
@@ -76,7 +76,7 @@ func operatorMetricsServiceMonitor() *monitoringv1.ServiceMonitor {
 
 // operatorMetricsBearerTokenRenewalLead matches bearerTokenRenewalLead in the controller.
 func operatorMetricsBearerTokenRenewalLead() time.Duration {
-	return operatorMetricsTokenExpiry * operatorMetricsTokenRenewalPercent / 100
+	return operatorMetricsTokenExpiry / 10
 }
 
 // snapshotOperatorMetricsBearerTokenResources waits for and deep-copies the current
@@ -326,7 +326,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("triggering operator metrics token reconciliation")
-			triggerOperatorMetricsTokenReconcileViaServiceMonitor()
+			triggerOperatorMetricsTokenReconcileViaSecret()
 
 			By("waiting for the bearer token Secret to be refreshed")
 			Eventually(func(g Gomega) {
