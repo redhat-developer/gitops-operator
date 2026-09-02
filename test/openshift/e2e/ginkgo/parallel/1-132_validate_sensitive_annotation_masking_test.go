@@ -52,8 +52,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		const sensitiveToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.fake-openshift-service-account-token"
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient       client.Client
+			ctx             context.Context
+			argoCDNS        *corev1.Namespace
+			cleanupArgoCDNS func()
+			appNS           *corev1.Namespace
+			cleanupAppNS    func()
 		)
 
 		BeforeEach(func() {
@@ -62,13 +66,24 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(argoCDNS, appNS)
+
+			if cleanupAppNS != nil {
+				cleanupAppNS()
+			}
+			if cleanupArgoCDNS != nil {
+				cleanupArgoCDNS()
+			}
+		})
+
 		It("verifies that resource.sensitive.mask.annotations is set in argocd-cm and that the openshift.io/token-secret.value annotation is hidden from diff computation so the app stays Synced and the token is never visible in CLI output", func() {
 
 			fixture.EnsureRunningOnOpenShift()
 
 			By("creating namespace for the ArgoCD instance")
-			argoCDNS, cleanupArgoCDNS := fixture.CreateNamespaceWithCleanupFunc("test-1-132-argocd")
-			defer cleanupArgoCDNS()
+			argoCDNS, cleanupArgoCDNS = fixture.CreateNamespaceWithCleanupFunc("test-1-132-argocd")
 
 			By("creating a namespace-scoped ArgoCD instance with the server Route enabled")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -90,8 +105,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argocdCM).Should(configmapFixture.HaveStringDataKeyValue("resource.sensitive.mask.annotations", tokenAnnotationKey))
 
 			By("creating a managed namespace for app deployment")
-			appNS, cleanupAppNS := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-132-apps", argoCDNS.Name)
-			defer cleanupAppNS()
+			appNS, cleanupAppNS = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-132-apps", argoCDNS.Name)
 
 			By("creating a per-test ArgoCD CLI config file to prevent parallel-test login context conflicts")
 			cliConfigFile, err := os.CreateTemp("", "argocd-e2e-1-132-*.yaml")
