@@ -36,55 +36,56 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-020_validate_redis_ha_nonha", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates Redis HA and Non-HA", Label("openshift"), func() {
+		It("validates Redis HA and Non-HA", func() {
 
 			// This test enables HA, so it needs to be running on a cluster with at least 3 nodes
 			node.ExpectHasAtLeastXNodes(3)
 
-			By("ensuring the openshift-gitops Argo CD instance is running")
-			gitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(gitopsArgoCD).Should(argocdFixture.HaveRedisStatus("Running"))
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
+
+			By("creating a new Argo CD instance and waiting for it to be ready")
+			argoCD := argocdFixture.CreateNewArgoCDInstance("argocd-020", ns.Name)
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD).Should(argocdFixture.HaveRedisStatus("Running"))
 
 			By("verifying various expected resources exist in namespace")
-			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis", Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis", Namespace: ns.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl).Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifies Redis HA resources should not exist since we are in non-HA mode")
 
-			Consistently(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
-			Consistently(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
-			Consistently(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
-			Consistently(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-server", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-server", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
-			By("enabling HA on openshift-gitops Argo CD instance")
-			argocdFixture.Update(gitopsArgoCD, func(argocd *v1beta1.ArgoCD) {
-				argocd.Spec.HA.Enabled = true
+			By("enabling HA on Argo CD instance")
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.HA.Enabled = true
 			})
 
 			By("verifying expected HA resources are eventually created after we enabled HA")
 
-			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha", Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
 
-			Eventually(gitopsArgoCD, "4m", "5s").Should(argocdFixture.HavePhase("Available"))
-			Eventually(gitopsArgoCD).Should(argocdFixture.HaveRedisStatus("Running"))
+			Eventually(argoCD, "4m", "5s").Should(argocdFixture.HavePhase("Available"))
+			Eventually(argoCD).Should(argocdFixture.HaveRedisStatus("Running"))
 
-			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-server", Namespace: "openshift-gitops"}}
+			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-server", Namespace: ns.Name}}
 			Eventually(statefulSet).Should(statefulsetFixture.HaveReadyReplicas(3))
 			Expect(statefulSet.Spec.Template.Spec.Affinity).To(Equal(
 				&corev1.Affinity{
@@ -93,7 +94,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							{
 								LabelSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										"app.kubernetes.io/name": "openshift-gitops-redis-ha",
+										"app.kubernetes.io/name": "argocd-020-redis-ha",
 									},
 								},
 								TopologyKey: "kubernetes.io/hostname",
@@ -102,19 +103,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				}))
 
-			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(3))
+			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(3))
 
 			By("verifying non-HA resources no longer exist, since HA is enabled")
 
-			Expect(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}).To(k8sFixture.NotExistByName())
+			Expect(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis", Namespace: ns.Name}}).To(k8sFixture.NotExistByName())
 
-			Expect(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}).To(k8sFixture.NotExistByName())
+			Expect(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis", Namespace: ns.Name}}).To(k8sFixture.NotExistByName())
 
 			By("updating ArgoCD CR to add cpu and memory resource request and limits to HA workloads")
 
-			argocdFixture.Update(gitopsArgoCD, func(argocd *v1beta1.ArgoCD) {
-				argocd.Spec.HA.Enabled = true
-				argocd.Spec.HA.Resources = &corev1.ResourceRequirements{
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.HA.Enabled = true
+				ac.Spec.HA.Resources = &corev1.ResourceRequirements{
 					Limits: corev1.ResourceList{
 						corev1.ResourceCPU:    resource.MustParse("500m"),
 						corev1.ResourceMemory: resource.MustParse("256Mi"),
@@ -127,12 +128,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("Argo CD should eventually be ready after updating the resource requirements")
-			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable()) // it can take a while to schedule the Pods
-			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable()) // it can take a while to schedule the Pods
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
 
 			By("verifying Deployment and StatefulSet have expected resources that we set in previous step")
 
-			depl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}
+			depl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}
 			Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(3))
 
 			haProxyContainer := deploymentFixture.GetTemplateSpecContainerByName("haproxy", *depl)
@@ -150,7 +151,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(configInitContainer.Resources.Requests.Cpu().AsDec().String()).To(Equal("0.200"))
 			Expect(configInitContainer.Resources.Requests.Memory().AsDec().String()).To(Equal("134217728"))
 
-			ss := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-server", Namespace: "openshift-gitops"}}
+			ss := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-server", Namespace: ns.Name}}
 			Eventually(ss, "2m", "5s").Should(statefulsetFixture.HaveReadyReplicas(3))
 
 			redisContainer := statefulsetFixture.GetTemplateSpecContainerByName("redis", *ss)
@@ -175,23 +176,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("disabling HA on ArgoCD CR")
 
-			argocdFixture.Update(gitopsArgoCD, func(argocd *v1beta1.ArgoCD) {
-				argocd.Spec.HA.Enabled = false
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.HA.Enabled = false
 			})
 
 			By("verifying Argo CD becomes ready again after HA is disabled")
 
-			Eventually(gitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(gitopsArgoCD, "60s", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "60s", "5s").Should(argocdFixture.HaveRedisStatus("Running"))
 
 			By("verifying expected non-HA resources exist again and HA resources no longer exist")
-			depl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis", Namespace: "openshift-gitops"}}
+			depl = &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis", Namespace: ns.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl).Should(deploymentFixture.HaveReadyReplicas(1))
 
-			Consistently(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-haproxy", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-haproxy", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
-			Consistently(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-redis-ha-server", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Consistently(&appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-020-redis-ha-server", Namespace: ns.Name}}).Should(k8sFixture.NotExistByName())
 
 		})
 	})

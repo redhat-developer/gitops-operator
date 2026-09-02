@@ -274,6 +274,16 @@ func CreateRandomE2ETestNamespaceWithCleanupFunc() (*corev1.Namespace, func()) {
 	return ns, nsDeletionFunc(ns)
 }
 
+// CreateNamespaceWithArgoCDInstance creates a random namespace, creates an ArgoCD instance with
+// the given name in it, waits for it to be available, and returns the ArgoCD, namespace, and a
+// cleanup func that deletes the namespace.
+func CreateNamespaceWithArgoCDInstance(instanceName string) (*argov1beta1api.ArgoCD, *corev1.Namespace, func()) {
+	ns, cleanupFunc := CreateRandomE2ETestNamespaceWithCleanupFunc()
+	argoCDInstance := argocd.CreateNewArgoCDInstance(instanceName, ns.Name)
+	Eventually(argoCDInstance, "5m", "5s").Should(argocd.BeAvailable())
+	return argoCDInstance, ns, cleanupFunc
+}
+
 // Create namespace for tests having a specific label for identification
 // - If the namespace already exists, it will be deleted first
 func CreateNamespace(name string) *corev1.Namespace {
@@ -671,7 +681,7 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 		// All Deployments in NS are reconciled and ready
 		return true
 
-	}, "3m", "1s").Should(BeTrue())
+	}, "5m", "1s").Should(BeTrue())
 
 	// The above logic will successfully wait for Deployments to be ready. However, this does not mean that the operator's controller logic has completed it's initial cluster reconciliation logic (starting a watch then reconciling existing resources)
 	// - I'm not aware of a way to detect when this has completed, so instead I am inserting a 15 second pause.
