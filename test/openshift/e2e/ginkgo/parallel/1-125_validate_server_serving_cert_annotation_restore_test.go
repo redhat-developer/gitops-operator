@@ -124,7 +124,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", Label("openshift"), func() {
+		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", func() {
 			certPem, keyPem, err := certFixture.GenerateCert()
 			Expect(err).NotTo(HaveOccurred())
 

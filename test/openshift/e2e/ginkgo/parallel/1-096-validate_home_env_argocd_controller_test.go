@@ -17,31 +17,53 @@ limitations under the License.
 package parallel
 
 import (
+	"context"
+
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-096-validate_home_env_argocd_controller", func() {
-
+		var (
+			k8sClient client.Client
+			ctx       context.Context
+		)
 		BeforeEach(func() {
 			fixture.EnsureParallelCleanSlate()
-
+			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
+			ctx = context.Background()
 		})
 
-		It("verifies openshift-gitops app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", Label("openshift"), func() {
+		It("verifies app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", Label("openshift"), func() {
 
-			By("verifying openshift-gitops-application-controller StatefulSet has the expected value for HOME")
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
+
+			argoCDName := "argocd-redis"
+
+			By("creating Argo CD CR with ApplicationSet controller enabled")
+			argoCD := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: argoCDName, Namespace: ns.Name},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying application-controller StatefulSet has the expected value for HOME")
 			ss := &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-application-controller",
-					Namespace: "openshift-gitops",
+					Name:      argoCD.Name + "-application-controller",
+					Namespace: argoCD.Namespace,
 				},
 			}
 			Eventually(ss).Should(k8sFixture.ExistByName())
