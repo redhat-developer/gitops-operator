@@ -109,6 +109,8 @@ func (r *ReconcileArgoCD) reconcileRepoDeployment(cr *argocdoperatorv1beta1.Argo
 
 	if cr.Spec.Repo.ServiceAccount != "" {
 		deploy.Spec.Template.Spec.ServiceAccountName = cr.Spec.Repo.ServiceAccount
+	} else {
+		deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDRepoServerComponent)
 	}
 
 	// Global proxy env vars go first

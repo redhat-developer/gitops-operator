@@ -15,6 +15,7 @@
 package argoutil
 
 import (
+	"fmt"
 	"os"
 	"strings"
 )
@@ -37,6 +38,34 @@ func allowedNamespace(current string, namespaces string) bool {
 		}
 	}
 	return false
+}
+
+const OperatorNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+
+func GetOperatorNamespace() (string, error) {
+	if _, err := os.Stat(OperatorNamespaceFile); os.IsNotExist(err) {
+		// read from env variable ARGOCD_OPERATOR_NAMESPACE for local run
+		if os.Getenv("ARGOCD_OPERATOR_NAMESPACE") != "" {
+			return os.Getenv("ARGOCD_OPERATOR_NAMESPACE"), nil
+		}
+		// If you are seeing this error:
+		// - You are likely running the operator outside a cluster (e.g. within development/test environment via Makefile)
+		// - You likely need to set `ARGOCD_OPERATOR_NAMESPACE` env var before starting operator (or running unit test). You could also temporarily hardcode it if that's easier for your use case.
+		// - In most cases, this should already be handled by Makefile.
+		// - See Makefile for an example of how this looks.
+		// - You should never see this error in production.
+		return "", fmt.Errorf("operator namespace file does not exist and if running locally set ARGOCD_OPERATOR_NAMESPACE")
+	}
+
+	data, err := os.ReadFile(OperatorNamespaceFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read operator namespace: %w", err)
+	}
+	ns := strings.TrimSpace(string(data))
+	if ns == "" {
+		return "", fmt.Errorf("operator namespace file is empty")
+	}
+	return ns, nil
 }
 
 func splitList(s string) []string {

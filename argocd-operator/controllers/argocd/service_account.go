@@ -16,6 +16,7 @@ package argocd
 
 import (
 	"context"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
@@ -73,6 +74,10 @@ func (r *ReconcileArgoCD) reconcileServiceAccounts(cr *argoproj.ArgoCD) error {
 		}
 	}
 
+	if _, err := r.reconcileServiceAccount(common.ArgoCDRepoServerComponent, cr); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -111,6 +116,10 @@ func (r *ReconcileArgoCD) reconcileServiceAccount(name string, cr *argoproj.Argo
 		shouldExist = false
 	}
 
+	if name == common.ArgoCDRepoServerComponent && (!cr.Spec.Repo.IsEnabled() || cr.Spec.Repo.IsRemote()) {
+		shouldExist = false
+	}
+
 	// Attempt to retrieve the ServiceAccount
 	exists := true
 	if err := argoutil.FetchObject(r.Client, cr.Namespace, sa.Name, sa); err != nil {
@@ -130,15 +139,30 @@ func (r *ReconcileArgoCD) reconcileServiceAccount(name string, cr *argoproj.Argo
 			argoutil.LogResourceDeletion(log, sa, "component is being uninstalled")
 			return sa, r.Delete(context.TODO(), sa)
 		}
+
+		desired, err := r.getImagePullSecretRefs(cr)
+		if err != nil {
+			return sa, err
+		}
+		if !reflect.DeepEqual(sa.ImagePullSecrets, desired) {
+			sa.ImagePullSecrets = desired
+			argoutil.LogResourceUpdate(log, sa, "imagePullSecrets changed")
+			return sa, r.Update(context.TODO(), sa)
+		}
 		return sa, nil
 	}
 
+	refs, err := r.getImagePullSecretRefs(cr)
+	if err != nil {
+		return nil, err
+	}
+	sa.ImagePullSecrets = refs
 	if err := controllerutil.SetControllerReference(cr, sa, r.Scheme); err != nil {
 		return nil, err
 	}
 
 	argoutil.LogResourceCreation(log, sa)
-	err := r.Create(context.TODO(), sa)
+	err = r.Create(context.TODO(), sa)
 	if err != nil {
 		return nil, err
 	}

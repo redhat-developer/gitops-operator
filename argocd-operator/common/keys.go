@@ -301,6 +301,15 @@ const (
 	// ArgoCDImagePullPolicyEnvName is the environment variable used to get the global image pull policy
 	// for all ArgoCD components managed by the operator.
 	ArgoCDImagePullPolicyEnvName = "IMAGE_PULL_POLICY"
+
+	// ArgoCDImagePullSecretPropagateLabel is the label applied to Secrets in the operator namespace
+	// that should be copied to all ArgoCD instance namespaces and referenced as imagePullSecrets.
+	ArgoCDImagePullSecretPropagateLabel = "operator.argoproj.io/propagate-image-pull-secret"
+
+	// ArgoCDImagePullSecretCopiedLabel marks a Secret as a copy of a propagated image pull secret.
+	// The value is the source secret name.
+	ArgoCDImagePullSecretCopiedLabel = "operator.argoproj.io/image-pull-secret-source"
+
 	// ArgoCDWebTerminalEnabledKey is the configuration key for enabling the web terminal.
 	ArgoCDWebTerminalEnabledKey = "exec.enabled"
 	// ArgoCDWebTerminalEnabledDefaultValue is the default value for enabling the web terminal.

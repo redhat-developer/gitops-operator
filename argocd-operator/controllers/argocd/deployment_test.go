@@ -2739,7 +2739,7 @@ func TestReconcileArgoCD_reconcileRepoDeployment_serviceAccount(t *testing.T) {
 		}, {
 			testName:                      "Empty serviceAccountName field in the spec should have updated value",
 			serviceAccountName:            "",
-			expectedServiceAccountName:    "",
+			expectedServiceAccountName:    "argocd-argocd-repo-server",
 			isServiceAccountNameChanged:   true,
 			newServiceAccountName:         "builder",
 			newExpectedServiceAccountName: "builder",
@@ -2749,7 +2749,7 @@ func TestReconcileArgoCD_reconcileRepoDeployment_serviceAccount(t *testing.T) {
 			expectedServiceAccountName:    "builder",
 			isServiceAccountNameChanged:   true,
 			newServiceAccountName:         "",
-			newExpectedServiceAccountName: "",
+			newExpectedServiceAccountName: "argocd-argocd-repo-server",
 		},
 	}
 

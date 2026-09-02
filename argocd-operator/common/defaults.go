@@ -54,6 +54,9 @@ const (
 	// ArgoCDDexServerComponent is the name of the Dex server control plane component
 	ArgoCDDexServerComponent = "argocd-dex-server"
 
+	// ArgoCDRepoServerComponent is the name of the repo server control plane component
+	ArgoCDRepoServerComponent = "argocd-repo-server"
+
 	// ArgoCDNotificationsControllerComponent is the name of the Notifications controller control plane component
 	ArgoCDNotificationsControllerComponent = "argocd-notifications-controller"
 

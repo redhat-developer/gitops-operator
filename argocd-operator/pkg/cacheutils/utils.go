@@ -54,6 +54,7 @@ func IsTrackedByOperator(obj runtime.Object) bool {
 	trackedLabels := []string{
 		common.ArgoCDTrackedByOperatorLabel,
 		common.ArgoCDSecretTypeLabel,
+		common.ArgoCDImagePullSecretPropagateLabel,
 	}
 
 	// Get labels from the object's metadata

@@ -17,6 +17,7 @@ package argocdagent
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,7 @@ var log = logr.Log.WithName("controller_agent")
 
 // ReconcilePrincipalServiceAccount reconciles the service account for the ArgoCD agent principal component.
 // It handles creation, deletion, and updates of the service account based on the principal configuration.
-func ReconcilePrincipalServiceAccount(client client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme) (*corev1.ServiceAccount, error) {
+func ReconcilePrincipalServiceAccount(client client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme, imagePullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, error) {
 	sa := buildServiceAccount(compName, cr)
 
 	// Check if the service account already exists
@@ -57,7 +58,14 @@ func ReconcilePrincipalServiceAccount(client client.Client, compName string, cr 
 			}
 			return sa, nil
 		}
-		// Service account exists and principal is enabled, nothing to do
+
+		if !reflect.DeepEqual(sa.ImagePullSecrets, imagePullSecrets) {
+			sa.ImagePullSecrets = imagePullSecrets
+			argoutil.LogResourceUpdate(log, sa, "imagePullSecrets changed")
+			if err := client.Update(context.TODO(), sa); err != nil {
+				return nil, fmt.Errorf("failed to update principal service account %s: %v", sa.Name, err)
+			}
+		}
 		return sa, nil
 	}
 
@@ -66,6 +74,7 @@ func ReconcilePrincipalServiceAccount(client client.Client, compName string, cr 
 		return sa, nil
 	}
 
+	sa.ImagePullSecrets = imagePullSecrets
 	if err := controllerutil.SetControllerReference(cr, sa, scheme); err != nil {
 		return nil, fmt.Errorf("failed to set ArgoCD CR %s as owner for service account %s: %w", cr.Name, sa.Name, err)
 	}

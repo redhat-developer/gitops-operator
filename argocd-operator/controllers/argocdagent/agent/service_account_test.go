@@ -92,7 +92,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountDoesNotExist_AgentDisabled(t
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -115,7 +115,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountDoesNotExist_AgentEnabled(t 
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -157,7 +157,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountExists_AgentDisabled(t *test
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -189,7 +189,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountExists_AgentEnabled(t *testi
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -224,7 +224,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountExists_AgentNotSet(t *testin
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -247,7 +247,7 @@ func TestReconcileAgentServiceAccount_ServiceAccountDoesNotExist_AgentNotSet(t *
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch)
+	sa, err := ReconcileAgentServiceAccount(cl, testAgentCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 

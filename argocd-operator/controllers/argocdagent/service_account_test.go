@@ -92,7 +92,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountDoesNotExist_PrincipalDi
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -115,7 +115,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountDoesNotExist_PrincipalEn
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -157,7 +157,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountExists_PrincipalDisabled
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -189,7 +189,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountExists_PrincipalEnabled(
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -224,7 +224,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountExists_PrincipalNotSet(t
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -247,7 +247,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountDoesNotExist_PrincipalNo
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -270,7 +270,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountDoesNotExist_AgentNotSet
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -302,7 +302,7 @@ func TestReconcilePrincipalServiceAccount_ServiceAccountExists_AgentNotSet(t *te
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch)
+	sa, err := ReconcilePrincipalServiceAccount(cl, testCompName, cr, sch, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 

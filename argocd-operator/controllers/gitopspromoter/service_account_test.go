@@ -151,7 +151,7 @@ func TestReconcilePromoterServiceAccount_DoesNotExist_PromoterDisabled(t *testin
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, false)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, false, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -173,7 +173,7 @@ func TestReconcilePromoterServiceAccount_DoesNotExist_PromoterEnabled(t *testing
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -205,7 +205,7 @@ func TestReconcilePromoterServiceAccount_Exists_PromoterDisabled(t *testing.T) {
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, false)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, false, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -215,6 +215,65 @@ func TestReconcilePromoterServiceAccount_Exists_PromoterDisabled(t *testing.T) {
 		Namespace: testNamespace,
 	}, retrievedSA)
 	assert.True(t, errors.IsNotFound(err))
+}
+
+func TestReconcilePromoterServiceAccount_DoesNotExist_SetsImagePullSecrets(t *testing.T) {
+	// Test Case: Promoter enabled, SA created with the provided imagePullSecrets
+
+	cr := makeTestArgoCD(withPromoterEnabled(true))
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	client := makeTestReconcilerClient(sch, resObjs)
+
+	refs := []corev1.LocalObjectReference{{Name: "my-pull-secret"}}
+	_, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, refs)
+	assert.NoError(t, err)
+
+	retrievedSA := &corev1.ServiceAccount{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      generatePromoterResourceName(testCompName, cr),
+		Namespace: testNamespace,
+	}, retrievedSA)
+	assert.NoError(t, err)
+	assert.Equal(t, refs, retrievedSA.ImagePullSecrets)
+}
+
+func TestReconcilePromoterServiceAccount_Exists_UpdatesImagePullSecrets(t *testing.T) {
+	// Test Case: existing SA has a stale pull secret; reconcile with a new set
+	// updates it, and reconcile with nil clears it (label-removal cleanup).
+
+	cr := makeTestArgoCD(withPromoterEnabled(true))
+
+	existingSA := makeExistingServiceAccount(cr)
+	existingSA.ImagePullSecrets = []corev1.LocalObjectReference{{Name: "stale"}}
+
+	resObjs := []client.Object{cr, existingSA}
+	sch := makeTestReconcilerScheme()
+	client := makeTestReconcilerClient(sch, resObjs)
+
+	refs := []corev1.LocalObjectReference{{Name: "my-pull-secret"}}
+	_, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, refs)
+	assert.NoError(t, err)
+
+	retrievedSA := &corev1.ServiceAccount{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      generatePromoterResourceName(testCompName, cr),
+		Namespace: testNamespace,
+	}, retrievedSA)
+	assert.NoError(t, err)
+	assert.Equal(t, refs, retrievedSA.ImagePullSecrets)
+
+	// nil refs (label removed) should clear the imagePullSecrets
+	_, err = ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, nil)
+	assert.NoError(t, err)
+
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      generatePromoterResourceName(testCompName, cr),
+		Namespace: testNamespace,
+	}, retrievedSA)
+	assert.NoError(t, err)
+	assert.Empty(t, retrievedSA.ImagePullSecrets)
 }
 
 func TestReconcilePromoterServiceAccount_Exists_PromoterEnabled(t *testing.T) {
@@ -229,7 +288,7 @@ func TestReconcilePromoterServiceAccount_Exists_PromoterEnabled(t *testing.T) {
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -251,7 +310,7 @@ func TestReconcilePromoterServiceAccount_DoesNotExist_PromoterNotSet(t *testing.
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 
@@ -275,7 +334,7 @@ func TestReconcilePromoterServiceAccount_Exists_PromoterNotSet(t *testing.T) {
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true)
+	sa, err := ReconcilePromoterServiceAccount(client, testCompName, cr, sch, true, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, sa)
 

@@ -305,3 +305,27 @@ func (r *ReconcileArgoCD) nmMapper(ctx context.Context, o client.Object) []recon
 
 	return result
 }
+
+// imagePullSecretMapper maps a watch event on a propagation-labeled Secret to ALL ArgoCD instances.
+// The watch's label selector and imagePullSecretFilterPredicate handle namespace and label filtering;
+// this mapper enqueues unconditionally so that label-removal events (true→false) still trigger
+// reconcileImagePullSecrets for stale-copy cleanup.
+func (r *ReconcileArgoCD) imagePullSecretMapper(ctx context.Context, o client.Object) []reconcile.Request {
+	var result []reconcile.Request
+
+	argocdList := &argoproj.ArgoCDList{}
+	if err := r.List(ctx, argocdList); err != nil {
+		return result
+	}
+
+	for _, argocd := range argocdList.Items {
+		result = append(result, reconcile.Request{
+			NamespacedName: client.ObjectKey{
+				Name:      argocd.Name,
+				Namespace: argocd.Namespace,
+			},
+		})
+	}
+
+	return result
+}

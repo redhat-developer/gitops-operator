@@ -17,6 +17,7 @@ package gitopspromoter
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,7 +46,7 @@ func generatePromoterResourceNameWithNamespace(compName string, cr *argoproj.Arg
 }
 
 // ReconcilePromoterServiceAccount reconciles a ServiceAccount needed for the Promoter's workloads. Handles creation, updating, and deletion.
-func ReconcilePromoterServiceAccount(client client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme, enabled bool) (*corev1.ServiceAccount, error) {
+func ReconcilePromoterServiceAccount(client client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme, enabled bool, imagePullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, error) {
 	sa := buildPromoterServiceAccount(compName, cr)
 
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
@@ -66,6 +67,13 @@ func ReconcilePromoterServiceAccount(client client.Client, compName string, cr *
 			}
 			return sa, nil
 		}
+		if !reflect.DeepEqual(sa.ImagePullSecrets, imagePullSecrets) {
+			sa.ImagePullSecrets = imagePullSecrets
+			argoutil.LogResourceUpdate(log, sa, "imagePullSecrets changed")
+			if err := client.Update(context.Background(), sa); err != nil {
+				return nil, fmt.Errorf("failed to update promoter service account %s: %v", sa.Name, err)
+			}
+		}
 		return sa, nil
 	}
 
@@ -73,6 +81,7 @@ func ReconcilePromoterServiceAccount(client client.Client, compName string, cr *
 		return sa, nil
 	}
 
+	sa.ImagePullSecrets = imagePullSecrets
 	if err := controllerutil.SetControllerReference(cr, sa, scheme); err != nil {
 		return nil, fmt.Errorf("failed to set argocd cr %s as owner for service account %s: %v", cr.Name, sa.Name, err)
 	}
