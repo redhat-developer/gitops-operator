@@ -246,7 +246,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					continue
 				}
 				By("verifying the " + sa.Name + " ServiceAccount does not carry the pull secret")
-				expectSAPullSecret(sa.Name, argocdNS.Name, "all-component-pull-secret", false)
+				expectSAPullSecret(sa.Name, argocdNS.Name, "my-pull-secret", false)
 			}
 
 			By("deleting the pull Secret and ArgoCD instance")
