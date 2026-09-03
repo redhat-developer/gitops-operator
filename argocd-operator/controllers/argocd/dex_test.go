@@ -592,7 +592,7 @@ func TestReconcileArgoCD_reconcileDexDeployment_withUpdate(t *testing.T) {
 				Containers: []corev1.Container{
 					{
 						Name:  "dex",
-						Image: "ghcr.io/dexidp/dex@sha256:b8469881d3cb3a73001506f0d3aaefecb9c45d2311c1e0f405d8ac538316c59d", // (v2.45.0) NOTE: this value is modified by dependency update script
+						Image: "ghcr.io/dexidp/dex@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462", // (v2.45.1) NOTE: this value is modified by dependency update script
 						Command: []string{
 							"/shared/argocd-dex",
 							"rundex",
