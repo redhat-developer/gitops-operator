@@ -41,7 +41,7 @@ import (
 // getImagePullSecretRefs and set as imagePullSecrets on the component ServiceAccounts.
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-135_validate_image_pull_secret_propagation", func() {
+	Context("1-135_validate_image_pull_secret_propagation", Label("xks"), func() {
 
 		var (
 			k8sClient client.Client
