@@ -29,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	nodeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/node"
@@ -113,7 +114,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: ss, Namespace: ns.Name}}
 					Eventually(statefulSet, "2m", "5s").Should(k8sFixture.ExistByName(), "StatefulSet "+ss+" did not exist within timeout")
 					Eventually(statefulSet, "3m", "5s").Should(statefulsetFixture.HaveReplicas(replicas), "StatefulSet "+ss+" did not have correct replicas within timeout")
-					Eventually(statefulSet, "6m", "10s").Should(statefulsetFixture.HaveReadyReplicas(replicas), "StatefulSet "+ss+" did not have ready replicas within timeout")
+					//ready replicas can still be the old pods while a rollout is in flight
+					Eventually(statefulSet, "6m", "10s").Should(statefulsetFixture.HaveCompletedRollout(replicas), "ss "+ss+" never finished rolling out")
 				}
 
 			}
@@ -157,10 +159,54 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			expectComponentsAreRunning()
 
 			By("adding argo cd label to argocd-operator-redis-tls secret")
+			redisHAStatefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server", Namespace: ns.Name}}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(redisHAStatefulSet), redisHAStatefulSet)).To(Succeed())
+			ssUIDBeforeTLS := redisHAStatefulSet.UID
+
+			oldServer0 := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-0", Namespace: ns.Name}}
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(oldServer0), oldServer0)).To(Succeed())
+			server0UIDBeforeTLS := oldServer0.UID
+
 			_, err = osFixture.ExecCommand("kubectl", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", ns.Name)
 			Expect(err).ToNot(HaveOccurred())
 
+			//operator recreates the ha configmap with tls, then deletes the ss (a rollout would mix tls and non-tls pods)
+			By("wait until redis ha configmap has tls")
+			redisHAConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-configmap", Namespace: ns.Name}}
+			Eventually(redisHAConfigMap, "2m", "5s").Should(configmapFixture.HaveStringDataKeyValueContainsSubstring("redis.conf", "tls-port 6379"))
+
+			By("wait until redis ha statefulset is recreated")
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(redisHAStatefulSet), redisHAStatefulSet); err != nil {
+					return false
+				}
+				return redisHAStatefulSet.UID != ssUIDBeforeTLS
+			}, "2m", "5s").Should(BeTrue(), "redis ha ss was never recreated after tls")
+
 			expectComponentsAreRunning()
+
+			By("wait until server-0 is the new pod")
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(redisHAStatefulSet), redisHAStatefulSet); err != nil {
+					return false
+				}
+				pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-0", Namespace: ns.Name}}
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod); err != nil {
+					return false
+				}
+				if pod.UID == server0UIDBeforeTLS || pod.DeletionTimestamp != nil || pod.Status.Phase != corev1.PodRunning {
+					return false
+				}
+				if redisHAStatefulSet.Status.UpdateRevision != "" && pod.Labels["controller-revision-hash"] != redisHAStatefulSet.Status.UpdateRevision {
+					return false
+				}
+				for _, cs := range pod.Status.ContainerStatuses {
+					if cs.Name == "redis" && cs.Ready {
+						return true
+					}
+				}
+				return false
+			}).Should(BeTrue(), "server-0 still isn't the post-tls pod")
 
 			By("extracting the contents of /data/conf/redis.conf and checking it contains expected values")
 			expectedRedisConfig := []string{
@@ -191,9 +237,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return nil
 			}
 
-			// First, wait for redis.conf to eventually contain the expected values, then
-			// verify it consistently contains them.
-			Eventually(redisConfHasExpectedValues, "10m", "5s").Should(Succeed())
+			Eventually(redisConfHasExpectedValues, "2m", "5s").Should(Succeed())
 			Consistently(redisConfHasExpectedValues, "30s", "5s").Should(Succeed())
 
 			By("extracting the contents of /data/conf/sentinel.conf and checking it contains expected values")
@@ -234,8 +278,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return nil
 			}
 
-			// First, wait for sentinel.conf to eventually contain the expected values, then
-			// verify it consistently contains them.
 			Eventually(sentinelConfHasExpectedValues, "2m", "5s").Should(Succeed())
 			Consistently(sentinelConfHasExpectedValues, "30s", "5s").Should(Succeed())
 
