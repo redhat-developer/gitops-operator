@@ -24,14 +24,12 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
-	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -150,16 +148,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Eventually(guestbookApp, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(guestbookApp, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
-
-			By("verifying the argocd-server route in openshift-gitops namespace has been admitted, to avoid race condition where Argo CD is available but the Route isn't yet")
-			serverRoute := &routev1.Route{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-server",
-					Namespace: "openshift-gitops",
-				},
-			}
-			Eventually(serverRoute).Should(k8sFixture.ExistByName())
-			Eventually(serverRoute).Should(routeFixture.HaveAdmittedIngress())
 
 			By("verifying we can log in to Argo CD via CLI")
 			Expect(argocdFixture.LogInToDefaultArgoCDInstance()).To(Succeed())

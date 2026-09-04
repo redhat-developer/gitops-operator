@@ -169,6 +169,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				// Print the response body
 				GinkgoWriter.Println(string(body))
 
+				GinkgoWriter.Println(r.Status.Ingress, r.Spec.Host)
+
 				return strings.Contains(string(body), "Your browser does not support JavaScript.")
 
 			}, "90s", "5s").Should(BeTrue())

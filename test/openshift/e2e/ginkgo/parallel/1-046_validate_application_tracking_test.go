@@ -31,11 +31,11 @@ import (
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/application"
+	applicationFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/application"
 	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
 	configmapFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/configmap"
 	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/namespace"
+	namespaceFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/namespace"
 	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
@@ -152,21 +152,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(configMap_test_1_046_argocd_3).Should(configmapFixture.HaveStringDataKeyValue("application.resourceTrackingMethod", "annotation"))
 
 			By("adding managed-by label to test-1-046-argocd-(1/3), managed by Argo CD instances 1, 2 and 3")
-			namespace.Update(source_ns_1_NS, func(n *corev1.Namespace) {
+			namespaceFixture.Update(source_ns_1_NS, func(n *corev1.Namespace) {
 				if n.Labels == nil {
 					n.Labels = map[string]string{}
 				}
 				n.Labels["argocd.argoproj.io/managed-by"] = "test-1-046-argocd-1"
 			})
 
-			namespace.Update(source_ns_2_NS, func(n *corev1.Namespace) {
+			namespaceFixture.Update(source_ns_2_NS, func(n *corev1.Namespace) {
 				if n.Labels == nil {
 					n.Labels = map[string]string{}
 				}
 				n.Labels["argocd.argoproj.io/managed-by"] = "test-1-046-argocd-2"
 			})
 
-			namespace.Update(source_ns_3_NS, func(n *corev1.Namespace) {
+			namespaceFixture.Update(source_ns_3_NS, func(n *corev1.Namespace) {
 				n.Labels["argocd.argoproj.io/managed-by"] = "test-1-046-argocd-3"
 				if n.Annotations == nil {
 					n.Annotations = map[string]string{}
@@ -270,14 +270,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying that the Applications successfully deployed, and that they have the correct installation-id and tracking-id, based on which Argo CD instance deployed them")
 
-			Eventually(application_test_1_046_argocd_1, "4m", "5s").Should(application.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(application_test_1_046_argocd_1, "4m", "5s").Should(application.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(application_test_1_046_argocd_1, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(application_test_1_046_argocd_1, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
-			Eventually(application_test_1_046_argocd_2, "4m", "5s").Should(application.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(application_test_1_046_argocd_2, "4m", "5s").Should(application.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(application_test_1_046_argocd_2, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(application_test_1_046_argocd_2, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
-			Eventually(application_test_1_046_argocd_3, "4m", "5s").Should(application.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(application_test_1_046_argocd_3, "4m", "5s").Should(application.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(application_test_1_046_argocd_3, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(application_test_1_046_argocd_3, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			deployment_source_ns_1 := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{

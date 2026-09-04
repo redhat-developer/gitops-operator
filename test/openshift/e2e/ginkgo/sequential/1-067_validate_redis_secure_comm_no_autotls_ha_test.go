@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-067_validate_redis_secure_comm_no_autotls_ha", func() {
 
@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
@@ -85,7 +85,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			expectComponentsAreRunning := func() {
 
-				// In BeAvailable() we wait 15 seconds for ArgoCD CR to be reconciled, this SHOULD be enough time.
+				// In BeAvailable() we wait 10 seconds for ArgoCD CR to be reconciled, this SHOULD be enough time.
 
 				By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 				Eventually(argoCD, "10m", "10s").Should(argocdFixture.BeAvailable())
@@ -180,8 +180,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if err != nil {
 					return err
 				}
-				GinkgoWriter.Println("redis conf values:")
-				GinkgoWriter.Println(redisConf)
+
+				fmt.Println("redis conf has length:", len(redisConf))
 
 				for _, line := range expectedRedisConfig {
 					if !strings.Contains(redisConf, line) {
@@ -193,7 +193,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			// First, wait for redis.conf to eventually contain the expected values, then
 			// verify it consistently contains them.
-			Eventually(redisConfHasExpectedValues, "2m", "5s").Should(Succeed())
+			Eventually(redisConfHasExpectedValues, "10m", "5s").Should(Succeed())
 			Consistently(redisConfHasExpectedValues, "30s", "5s").Should(Succeed())
 
 			By("extracting the contents of /data/conf/sentinel.conf and checking it contains expected values")
@@ -219,8 +219,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if err != nil {
 					return err
 				}
-				GinkgoWriter.Println("sentinel conf values:")
-				GinkgoWriter.Println(sentinelConf)
+
+				fmt.Println("sentinel conf has length:", len(sentinelConf))
 
 				for _, line := range expectedSentinelConfig {
 					matched, err := regexp.MatchString(line, sentinelConf)

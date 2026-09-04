@@ -10,8 +10,9 @@ import (
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	corev1 "k8s.io/api/core/v1"
@@ -44,11 +45,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ns), ns)
 			Expect(err).ToNot(HaveOccurred())
 
-			if ns.Labels == nil {
-				ns.Labels = make(map[string]string)
-			}
-			ns.Labels["argocd.argoproj.io/managed-by"] = "openshift-gitops"
-			Expect(k8sClient.Update(ctx, ns)).To(Succeed())
+			namespaceFixture.Update(ns, func(n *corev1.Namespace) {
+				if ns.Labels == nil {
+					ns.Labels = make(map[string]string)
+				}
+				ns.Labels["argocd.argoproj.io/managed-by"] = "openshift-gitops"
+			})
 
 			By("waiting for the operator to create rolebindings in the managed namespace")
 			argoCDServerRB := &rbacv1.RoleBinding{
@@ -142,8 +144,12 @@ labels:
 			err = os.WriteFile(filepath.Join(workDir, "app-template2.yaml"), []byte(template2), 0600)
 			Expect(err).ToNot(HaveOccurred())
 
+			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(defaultArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
 			By("logging into the Argo CD CLI")
-			err = argocd.LogInToDefaultArgoCDInstance()
+			err = argocdFixture.LogInToDefaultArgoCDInstance()
 			Expect(err).ToNot(HaveOccurred(), "Failed to login to Argo CD")
 
 			By("Creating ArgoCD Application CR using the typed schema")
@@ -178,7 +184,7 @@ labels:
 			})
 
 			By("syncing the application using the local dir")
-			out, err := argocd.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--timeout", "100")
+			out, err := argocdFixture.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--timeout", "100")
 			Expect(err).ToNot(HaveOccurred(), "Failed to sync app with local flag: %s", out)
 
 			By("verifying both templates were created")
@@ -198,7 +204,7 @@ labels:
 			Expect(err).ToNot(HaveOccurred())
 
 			By("syncing the application again this time with the prune flag enabled")
-			out, err = argocd.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--prune", "--timeout", "100")
+			out, err = argocdFixture.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--prune", "--timeout", "100")
 			Expect(err).ToNot(HaveOccurred(), "Failed to sync and prune app: %s", out)
 
 			By("verifying the deleted template was pruned from the cluster")

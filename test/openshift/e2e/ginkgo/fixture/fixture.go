@@ -26,9 +26,9 @@ import (
 
 	"github.com/onsi/gomega/format"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -69,7 +69,7 @@ func EnsureParallelCleanSlate() {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(defaultOpenShiftGitOpsArgoCD), defaultOpenShiftGitOpsArgoCD)
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailableWithCustomSleepTime(3 * time.Second))
+		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailableWithCustomSleepTime(3 * time.Second))
 	}
 	// Unlike sequential clean slate, parallel clean slate cannot assume that there are no other tests running. This limits our ability to clean up old test artifacts.
 }
@@ -119,7 +119,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
 			ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
 		}
-		Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8s.ExistByName())
+		Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 
 		// Ensure that default state of ArgoCD CR in openshift-gitops is restored
 		if err := updateWithoutConflict(defaultOpenShiftGitOpsArgoCD, func(obj client.Object) {
@@ -201,7 +201,7 @@ func EnsureSequentialCleanSlateWithError() error {
 
 		// Finally, wait for default openshift-gitops instance to be ready.
 		failure := InterceptGomegaFailure(func() {
-			Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
+			Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 		})
 		// Output debug information on argo startup failure
 		if failure != nil {
@@ -930,6 +930,17 @@ func OutputDebug(namespaceParams ...any) {
 		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
+
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "statefulsets", "-n", namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to get statefulsets for namespace", err, kubectlOutput)
+		} else {
+			GinkgoWriter.Println("")
+			GinkgoWriter.Println("----------------------------------------------------------------")
+			GinkgoWriter.Println("'kubectl get statefulsets -n " + namespace + ":")
+			GinkgoWriter.Println(kubectlOutput)
+			GinkgoWriter.Println("----------------------------------------------------------------")
+		}
 
 		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "events", "-n", namespace)
 		if err != nil {
