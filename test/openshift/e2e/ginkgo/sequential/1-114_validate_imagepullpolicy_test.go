@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -84,7 +84,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: ns.Name},
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
-				Eventually(depl, "2m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 				// Verify all containers in the deployment have the correct imagePullPolicy
 				Expect(depl.Spec.Template.Spec.Containers).ToNot(BeEmpty())
@@ -129,7 +129,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
 				// Eventually the imagePullPolicy should be updated
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ns.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 					"Deployment %s should have all containers with ImagePullPolicy set to IfNotPresent", deplName)
 			}
 
@@ -177,7 +177,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 					"openshift-gitops Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 			}
 
@@ -221,7 +221,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, "openshift-gitops", corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 					"openshift-gitops Deployment %s should have all containers with ImagePullPolicy set to default(IfNotPresent)", deplName)
 			}
 
@@ -286,8 +286,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
-			Eventually(operatorControllerDepl).Should(deployment.HaveAvailableReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReadyReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveAvailableReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying first ArgoCD deployment has ImagePullPolicy set to Always")
 			for _, deplName := range deploymentNames {
@@ -296,7 +296,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns1.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ns1.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should inherit operator-level imagePullPolicy (Always)", deplName, ns1.Name)
 			}
 
@@ -336,7 +336,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns2.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ns2.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should inherit operator-level imagePullPolicy (Always)", deplName, ns2.Name)
 			}
 
@@ -379,7 +379,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ns3.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ns3.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 					"Deployment %s in namespace %s should use explicit imagePullPolicy (IfNotPresent) overriding operator default", deplName, ns3.Name)
 			}
 

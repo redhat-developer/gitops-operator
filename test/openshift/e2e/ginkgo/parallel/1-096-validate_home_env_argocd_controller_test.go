@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
+	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -46,7 +46,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(ss).Should(k8sFixture.ExistByName())
 
-			Expect(ss).Should(statefulset.HaveContainerWithEnvVar("HOME", "/home/argocd", 0))
+			Expect(ss).Should(statefulsetFixture.HaveContainerWithEnvVar("HOME", "/home/argocd", 0))
 
 			By("verifying REDIS_PASSWORD env var is no longer set (replaced by redis-initial-pass volume mount)")
 			container := ss.Spec.Template.Spec.Containers[0]

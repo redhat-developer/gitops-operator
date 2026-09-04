@@ -123,6 +123,12 @@ func gather() string {
 		true, true,
 		"oc", "adm", "must-gather", "--image", mustGatherImage(), "--dest-dir", destDir,
 	)
+
+	if err != nil && strings.Contains(stdout, "unable to pull image: ImagePullBackOff: Back-off pulling image \"quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather") {
+		_ = os.RemoveAll(destDir)
+		Skip("skip the case where image can't be retrieved from quay.io: failure to retrieve the image prevents further testing, it should not fail the image itself")
+	}
+
 	Expect(err).ToNot(HaveOccurred())
 
 	errorLines := make([]string, 0)

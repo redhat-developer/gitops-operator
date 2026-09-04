@@ -25,8 +25,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
@@ -132,8 +132,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					expectedReadyReplicas = 2
 					expectedReplicas = 2
 				}
-				Eventually(depl).Should(deployment.HaveReplicas(expectedReplicas))
-				Eventually(depl, "2m", "5s").Should(deployment.HaveReadyReplicas(expectedReadyReplicas))
+				Eventually(depl).Should(deploymentFixture.HaveReplicas(expectedReplicas))
+				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(expectedReadyReplicas))
 			}
 
 			ss := &appsv1.StatefulSet{
@@ -147,8 +147,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(ss, "2m", "5s").Should(statefulsetFixture.HaveReadyReplicas(1))
 
 			By("verifying the Application has deployed successfully")
-			Eventually(app, "4m", "5s").Should(application.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app, "4m", "5s").Should(application.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("updating repo server replicas back to 1")
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
@@ -160,8 +160,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-repo-server", Namespace: defaultArgoCD.Namespace},
 			}
 			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
-			Eventually(repoServerDepl).Should(deployment.HaveReplicas(1))
-			Eventually(repoServerDepl, "2m", "5s").Should(deployment.HaveReadyReplicas(1))
+			Eventually(repoServerDepl).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(repoServerDepl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 		})
 

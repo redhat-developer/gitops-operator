@@ -9,7 +9,7 @@ import (
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -36,7 +36,7 @@ func getOCPVersion() string {
 }
 
 func addDynamicPluginEnv(csv *olmv1alpha1.ClusterServiceVersion, ocVersion string) {
-	clusterserviceversion.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
+	clusterserviceversionFixture.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
 		envList := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 		envList = append(envList, corev1.EnvVar{Name: "DYNAMIC_PLUGIN_START_OCP_VERSION", Value: ocVersion})
 		csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env = envList
@@ -74,7 +74,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can take in custom resource constraints", Label("openshift"), func() {
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -155,7 +155,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates that GitOpsService can update resource constraints", Label("openshift"), func() {
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -226,7 +226,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("validates gitops plugin and backend can have different resource constraints", Label("openshift"), func() {
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 

@@ -27,11 +27,11 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/notificationsconfiguration"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
+	notificationsconfigurationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/notificationsconfiguration"
+	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -281,7 +281,7 @@ Xq+NinfrqOLJkIZ/u/PJu4KqN3M=
 			}
 
 			Expect(k8sClient.Create(ctx, depl)).To(Succeed())
-			Eventually(depl, "4m", "5s").Should(deployment.HaveAvailableReplicas(1))
+			Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveAvailableReplicas(1))
 
 			argocd := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
@@ -350,7 +350,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 			}
 			Eventually(nc).Should(k8sFixture.ExistByName())
 
-			notificationsconfiguration.Update(nc, func(nc *argov1alpha1api.NotificationsConfiguration) {
+			notificationsconfigurationFixture.Update(nc, func(nc *argov1alpha1api.NotificationsConfiguration) {
 
 				nc.Spec.Services = map[string]string{
 					"service.webhook.test-webhook": "url: https://webhook/hooks/example",
@@ -377,7 +377,7 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 				},
 			}
 			Eventually(notifConfigMap).Should(k8sFixture.ExistByName())
-			Eventually(notifConfigMap).Should(configmap.HaveStringDataKeyValueContainsSubstring("template.test-app-created", `{"created":"{{.app.metadata.name}}","type":"{{(call .repo.GetAppDetails).Type}}"}`))
+			Eventually(notifConfigMap).Should(configmapFixture.HaveStringDataKeyValueContainsSubstring("template.test-app-created", `{"created":"{{.app.metadata.name}}","type":"{{(call .repo.GetAppDetails).Type}}"}`))
 
 			By("creating an Argo CD Application that contains a notification annotation, which will trigger the notifications controller")
 			app := &argocdv1alpha1.Application{
@@ -403,14 +403,14 @@ UVwpFuaKz5vTCD36Gmmy/u8y
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-			out, err := os.ExecCommand("kubectl", "-n", ns.Name, "logs", "deployment.apps/argocd-notifications-controller")
+			out, err := osFixture.ExecCommand("kubectl", "-n", ns.Name, "logs", "deployment.apps/argocd-notifications-controller")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(out).ToNot(ContainSubstring("x509"))
 
 			By("waiting for notifications controller to POST to the webhook workload, indicating that the workload event was successfully processed")
 			Eventually(func() bool {
 
-				out, err := os.ExecCommand("kubectl", "-n", ns.Name, "logs", "deployment.apps/webhook")
+				out, err := osFixture.ExecCommand("kubectl", "-n", ns.Name, "logs", "deployment.apps/webhook")
 				if err != nil {
 					GinkgoWriter.Println(err)
 					return false

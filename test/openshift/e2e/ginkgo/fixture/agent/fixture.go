@@ -29,7 +29,7 @@ import (
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/certutil"
+	certutilFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/certutil"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -158,8 +158,8 @@ func CreateRequiredSecrets(cfg PrincipalSecretsConfig) {
 	}
 	Expect(k8sClient.Create(ctx, jwtSecret)).To(Succeed())
 
-	caKey, caCert, caCertPEM := certutil.GenerateCertificateAuthority(caSubject)
-	caKeyPEM := certutil.EncodePrivateKeyToPEM(caKey)
+	caKey, caCert, caCertPEM := certutilFixture.GenerateCertificateAuthority(caSubject)
+	caKeyPEM := certutilFixture.EncodePrivateKeyToPEM(caKey)
 
 	caSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -176,7 +176,7 @@ func CreateRequiredSecrets(cfg PrincipalSecretsConfig) {
 	Expect(k8sClient.Create(ctx, caSecret)).To(Succeed())
 
 	principalDNS, principalIPs := aggregateSANs(cfg.PrincipalNamespaceName, cfg.PrincipalServiceName, cfg.AdditionalPrincipalSANs)
-	principalCertPEM, principalKeyPEM := certutil.IssueCertificate(caCert, caKey, certutil.CertificateRequest{
+	principalCertPEM, principalKeyPEM := certutilFixture.IssueCertificate(caCert, caKey, certutilFixture.CertificateRequest{
 		CommonName:  cfg.PrincipalServiceName,
 		DNSNames:    principalDNS,
 		IPAddresses: principalIPs,
@@ -185,7 +185,7 @@ func CreateRequiredSecrets(cfg PrincipalSecretsConfig) {
 	createTLSSecret(ctx, k8sClient, cfg.PrincipalNamespaceName, cfg.PrincipalTLSSecretName, principalCertPEM, principalKeyPEM, caCertPEM)
 
 	resourceProxyDNS, resourceProxyIPs := aggregateSANs(cfg.PrincipalNamespaceName, cfg.ResourceProxyServiceName, cfg.AdditionalResourceProxySANs)
-	resourceProxyCertPEM, resourceProxyKeyPEM := certutil.IssueCertificate(caCert, caKey, certutil.CertificateRequest{
+	resourceProxyCertPEM, resourceProxyKeyPEM := certutilFixture.IssueCertificate(caCert, caKey, certutilFixture.CertificateRequest{
 		CommonName:  cfg.ResourceProxyServiceName,
 		DNSNames:    resourceProxyDNS,
 		IPAddresses: resourceProxyIPs,
@@ -218,7 +218,7 @@ func CreateRequiredAgentSecrets(cfg AgentSecretsConfig) {
 	caKey := parsePrivateKey(caKeyPEM)
 
 	clientDNS, clientIPs := aggregateClientSANs(cfg.ClientDNSNames)
-	clientCertPEM, clientKeyPEM := certutil.IssueCertificate(caCert, caKey, certutil.CertificateRequest{
+	clientCertPEM, clientKeyPEM := certutilFixture.IssueCertificate(caCert, caKey, certutilFixture.CertificateRequest{
 		CommonName:  cfg.ClientCommonName,
 		DNSNames:    clientDNS,
 		IPAddresses: clientIPs,

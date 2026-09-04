@@ -18,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 )
 
 // Update will update an ArgoCD CR. Update will keep trying to update object until it succeeds, or times out.
@@ -267,26 +269,20 @@ func fetchArgoCD(f func(*argov1beta1api.ArgoCD) bool) matcher.GomegaMatcher {
 
 }
 
+// NOTE: this should only be called from sequential tests. If you call it from a parallel test, there is a risk that another test will login to a different Argo CD instance.
 func LogInToDefaultArgoCDInstance() error {
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	if err != nil {
 		return err
 	}
 
-	var routeList routev1.RouteList
-	Expect(k8sClient.List(context.Background(), &routeList, client.InNamespace("openshift-gitops"))).To(Succeed())
+	route := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
 
-	var route *routev1.Route
-	for idx := range routeList.Items {
-		idxRoute := routeList.Items[idx]
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(route), route)
+	}, "3m", "2s").Should(Succeed())
 
-		if idxRoute.Name == "openshift-gitops-server" {
-			route = &idxRoute
-		}
-	}
-	if route == nil {
-		return fmt.Errorf("unable to locate route")
-	}
+	Eventually(route, "3m", "2s").Should(routeFixture.HaveAdmittedIngress())
 
 	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-cluster", Namespace: "openshift-gitops"}}
 	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(secret), secret); err != nil {
@@ -307,6 +303,7 @@ func LogInToDefaultArgoCDInstance() error {
 
 }
 
+// NOTE: this should only be called from sequential tests. If you call it from a parallel test, there is a risk that another test will login to a different Argo CD instance.
 func RunArgoCDCLI(args ...string) (string, error) {
 
 	cmdArgs := append([]string{"argocd"}, args...)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -32,6 +32,7 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-132_validate_sensitive_annotation_masking_test", func() {
 
@@ -61,7 +62,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate() // This test runs in sequential because it uses Argo CD CLI login
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -146,7 +147,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					"--skip-test-tls",
 				)
 				if loginErr != nil {
+					// In the failing case, output the error, and also the current contents of the Route
 					GinkgoWriter.Println("CLI login error:", loginErr, "output:", output)
+
+					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDRoute), argoCDRoute)
+					if err != nil {
+						GinkgoWriter.Println("Unable to retrieve Route", err)
+						return false
+					}
+					GinkgoWriter.Println("Route contents:", argoCDRoute.Spec.Host, "|", argoCDRoute.Status.Ingress)
+
 					return false
 				}
 				return strings.Contains(output, "logged in successfully")
@@ -185,12 +195,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("simulating OpenShift behavior: adding openshift.io/token-secret.value to the live secret")
 			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "dockercfg-token-secret", Namespace: appNS.Name}}
 			Eventually(secret).Should(k8sFixture.ExistByName())
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(secret), secret)).To(Succeed())
-			if secret.Annotations == nil {
-				secret.Annotations = map[string]string{}
-			}
-			secret.Annotations[tokenAnnotationKey] = sensitiveToken
-			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
+			secretFixture.Update(secret, func(s *corev1.Secret) {
+				if s.Annotations == nil {
+					s.Annotations = map[string]string{}
+				}
+				s.Annotations[tokenAnnotationKey] = sensitiveToken
+			})
 
 			By("forcing a single ArgoCD refresh so the live state is re-evaluated")
 			// --grpc-web suppresses the gRPC-over-HTTP2 warning emitted by newer ArgoCD CLIs
