@@ -268,23 +268,39 @@ spec:
             type: RuntimeDefault" > ${WORK_DIR}/security-context.yaml
 }
 
+function apply_bundle_env_image_override() {
+  local var_name="$1"
+  local env_name="$2"
+  local bundle_value
+
+  bundle_value=$(cat "${WORK_DIR}"/container.yaml | ${YQ} ".env[] | select(.name==\"${env_name}\").value")
+  if [ -n "${bundle_value}" ] && [ "${bundle_value}" != "null" ]; then
+    eval "${var_name}=\"${bundle_value}\""
+  fi
+}
+
 function extract_component_images_from_bundle_image() {
   ${REGCTL} image get-file "${BUNDLE_IMG}" manifests/gitops-operator.clusterserviceversion.yaml "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml
 
   CONTAINER_YAML=$(cat "${WORK_DIR}"/gitops-operator.clusterserviceversion.yaml | ${YQ} '.spec.install.spec | .deployments[0].spec.template.spec.containers[0]' > "${WORK_DIR}"/container.yaml)
 
   # Get the operator image from the CSV of the operator bundle
-  OPERATOR_IMG=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.image')
+  local bundle_operator_img
+  bundle_operator_img=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.image')
+  if [ -n "${bundle_operator_img}" ] && [ "${bundle_operator_img}" != "null" ]; then
+    OPERATOR_IMG="${bundle_operator_img}"
+  fi
 
-  # Get the component images from the CSV of the operator bundle
-  ARGOCD_DEX_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_DEX_IMAGE").value')
-  ARGOCD_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_IMAGE").value')
-  ARGOCD_KEYCLOAK_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_KEYCLOAK_IMAGE").value')
-  ARGOCD_REDIS_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_REDIS_IMAGE").value')
-  ARGOCD_REDIS_HA_PROXY_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="ARGOCD_REDIS_HA_PROXY_IMAGE").value')
-  BACKEND_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="BACKEND_IMAGE").value')
-  GITOPS_CONSOLE_PLUGIN_IMAGE=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="GITOPS_CONSOLE_PLUGIN_IMAGE").value')
-  GITOPS_CONSOLE_PLUGIN_IMAGE_PF5=$(cat "${WORK_DIR}"/container.yaml | ${YQ} '.env[] | select(.name=="GITOPS_CONSOLE_PLUGIN_IMAGE_PF5").value')
+  # Get the component images from the CSV of the operator bundle.
+  # Preserve script defaults when the bundle CSV omits a variable or value is empty.
+  apply_bundle_env_image_override ARGOCD_DEX_IMAGE ARGOCD_DEX_IMAGE
+  apply_bundle_env_image_override ARGOCD_IMAGE ARGOCD_IMAGE
+  apply_bundle_env_image_override ARGOCD_KEYCLOAK_IMAGE ARGOCD_KEYCLOAK_IMAGE
+  apply_bundle_env_image_override ARGOCD_REDIS_IMAGE ARGOCD_REDIS_IMAGE
+  apply_bundle_env_image_override ARGOCD_REDIS_HA_PROXY_IMAGE ARGOCD_REDIS_HA_PROXY_IMAGE
+  apply_bundle_env_image_override BACKEND_IMAGE BACKEND_IMAGE
+  apply_bundle_env_image_override GITOPS_CONSOLE_PLUGIN_IMAGE GITOPS_CONSOLE_PLUGIN_IMAGE
+  apply_bundle_env_image_override GITOPS_CONSOLE_PLUGIN_IMAGE_PF5 GITOPS_CONSOLE_PLUGIN_IMAGE_PF5
 }
 
 # Initialize a temporary work directory to store the artifacts and 
