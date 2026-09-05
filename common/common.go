@@ -48,6 +48,10 @@ const (
 	InfraNodeSelectorAnnotation = "openshift.io/node-selector"
 	// InfraNodeSelectorAnnotationValue is the value for the infra node selector annotation
 	InfraNodeSelectorAnnotationValue = "node-role.kubernetes.io/infra="
+	// NodePlacementManagedByGitopsServiceAnnotation marks NodePlacement on the default ArgoCD CR
+	// that was applied by the GitopsService controller. Used to distinguish GitopsService-managed
+	// placement from admin edits on the ArgoCD CR directly.
+	NodePlacementManagedByGitopsServiceAnnotation = "gitops.openshift.io/node-placement-managed-by-gitopsservice"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes
