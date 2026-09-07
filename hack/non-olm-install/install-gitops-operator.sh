@@ -275,7 +275,7 @@ function apply_bundle_env_image_override() {
 
   bundle_value=$(cat "${WORK_DIR}"/container.yaml | ${YQ} ".env[] | select(.name==\"${env_name}\").value")
   if [ -n "${bundle_value}" ] && [ "${bundle_value}" != "null" ]; then
-    eval "${var_name}=\"${bundle_value}\""
+    printf -v "$var_name" '%s' "$bundle_value"
   fi
 }
 
