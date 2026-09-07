@@ -201,6 +201,131 @@ func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
 	assertNoError(t, err)
 	assert.Check(t, existingArgoCD.Spec.NodePlacement != nil)
 	assert.DeepEqual(t, existingArgoCD.Spec.NodePlacement.NodeSelector, gitopsService.Spec.NodeSelector)
+	assert.Equal(t, existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation], "true")
+}
+
+func TestReconcileDefaultArgoCDNodePlacementPreservesDirectEdit(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+	}
+
+	directNodePlacement := &argoapp.ArgoCDNodePlacementSpec{
+		NodeSelector: map[string]string{
+			"machine.openshift.io/cluster-api-machineset": "cl01-infra-0",
+		},
+		Tolerations: []corev1.Toleration{{
+			Effect: corev1.TaintEffectNoSchedule,
+			Key:    "infra",
+			Value:  "reserved",
+		}},
+	}
+
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	existingArgoCD := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      serviceNamespace,
+			Namespace: serviceNamespace,
+		},
+		Spec: argoapp.ArgoCDSpec{
+			NodePlacement: directNodePlacement,
+			Server: argoapp.ArgoCDServerSpec{
+				Route: argoapp.ArgoCDRouteSpec{
+					Enabled: true,
+				},
+			},
+			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Provider: "dex",
+				Dex: &argoapp.ArgoCDDexSpec{
+					Config: "test-config",
+				},
+			},
+		},
+	}
+
+	err := fakeClient.Create(context.TODO(), existingArgoCD)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		existingArgoCD)
+	assertNoError(t, err)
+	assert.DeepEqual(t, existingArgoCD.Spec.NodePlacement, directNodePlacement)
+	_, hasManagedAnnotation := existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation]
+	assert.Assert(t, !hasManagedAnnotation)
+}
+
+func TestReconcileDefaultArgoCDNodePlacementClearsWhenGitopsServiceCleared(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			NodeSelector: map[string]string{
+				"key1": "value1",
+			},
+		},
+	}
+
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	existingArgoCD := &argoapp.ArgoCD{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      serviceNamespace,
+			Namespace: serviceNamespace,
+		},
+		Spec: argoapp.ArgoCDSpec{
+			Server: argoapp.ArgoCDServerSpec{
+				Route: argoapp.ArgoCDRouteSpec{
+					Enabled: true,
+				},
+			},
+			ApplicationSet: &argoapp.ArgoCDApplicationSet{},
+			SSO: &argoapp.ArgoCDSSOSpec{
+				Provider: "dex",
+				Dex: &argoapp.ArgoCDDexSpec{
+					Config: "test-config",
+				},
+			},
+		},
+	}
+
+	err := fakeClient.Create(context.TODO(), existingArgoCD)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, gitopsService)
+	assertNoError(t, err)
+	gitopsService.Spec.NodeSelector = nil
+	err = fakeClient.Update(context.TODO(), gitopsService)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		existingArgoCD)
+	assertNoError(t, err)
+	assert.Assert(t, existingArgoCD.Spec.NodePlacement == nil)
+	_, hasManagedAnnotation := existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation]
+	assert.Assert(t, !hasManagedAnnotation)
 }
 
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
