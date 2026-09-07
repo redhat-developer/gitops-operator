@@ -328,6 +328,52 @@ func TestReconcileDefaultArgoCDNodePlacementClearsWhenGitopsServiceCleared(t *te
 	assert.Assert(t, !hasManagedAnnotation)
 }
 
+func TestReconcileDefaultArgoCDNodePlacementClearsWhenCreatedByReconcile(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{
+			Name: serviceName,
+		},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			NodeSelector: map[string]string{
+				"key1": "value1",
+			},
+		},
+	}
+
+	fakeClient := fake.NewFakeClient(gitopsService)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	existingArgoCD := &argoapp.ArgoCD{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		existingArgoCD)
+	assertNoError(t, err)
+	assert.Check(t, existingArgoCD.Spec.NodePlacement != nil)
+	assert.Equal(t, existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation], "true")
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName}, gitopsService)
+	assertNoError(t, err)
+	gitopsService.Spec.NodeSelector = nil
+	err = fakeClient.Update(context.TODO(), gitopsService)
+	assertNoError(t, err)
+
+	_, err = reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
+		existingArgoCD)
+	assertNoError(t, err)
+	assert.Assert(t, existingArgoCD.Spec.NodePlacement == nil)
+	_, hasManagedAnnotation := existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation]
+	assert.Assert(t, !hasManagedAnnotation)
+}
+
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is not created.
 func TestReconcileDisableDefault(t *testing.T) {
 
