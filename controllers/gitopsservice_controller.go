@@ -495,6 +495,14 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		}
 	}
 
+	gitopsServiceConfiguresNodePlacement := len(instance.Spec.NodeSelector) > 0 || len(instance.Spec.Tolerations) > 0
+	if gitopsServiceConfiguresNodePlacement {
+		if defaultArgoCDInstance.Annotations == nil {
+			defaultArgoCDInstance.Annotations = map[string]string{}
+		}
+		defaultArgoCDInstance.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] = "true"
+	}
+
 	// Get or create ArgoCD instance in default namespace
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
@@ -562,7 +570,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 
 		// Sync NodePlacement when GitopsService configures placement fields. Do not wipe NodePlacement
 		// that admins set directly on the ArgoCD CR when GitopsService placement fields are empty.
-		gitopsServiceConfiguresNodePlacement := len(instance.Spec.NodeSelector) > 0 || len(instance.Spec.Tolerations) > 0
 		if gitopsServiceConfiguresNodePlacement {
 			if defaultArgoCDInstance.Spec.NodePlacement != nil {
 				if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
