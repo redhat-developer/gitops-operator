@@ -169,12 +169,12 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
@@ -187,12 +187,12 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 ##@ Build
 
