@@ -560,15 +560,33 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		// if user is patching nodePlacement through GitopsService CR, then existingArgoCD NodePlacement is updated.
-		if defaultArgoCDInstance.Spec.NodePlacement != nil {
-			if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+		// Sync NodePlacement when GitopsService configures placement fields. Do not wipe NodePlacement
+		// that admins set directly on the ArgoCD CR when GitopsService placement fields are empty.
+		gitopsServiceConfiguresNodePlacement := len(instance.Spec.NodeSelector) > 0 || len(instance.Spec.Tolerations) > 0
+		if gitopsServiceConfiguresNodePlacement {
+			if defaultArgoCDInstance.Spec.NodePlacement != nil {
+				if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
+					existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
+					changed = true
+				}
+			} else if existingArgoCD.Spec.NodePlacement != nil {
 				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 				changed = true
 			}
-			// Handle the case where NodePlacement should be removed
-		} else if existingArgoCD.Spec.NodePlacement != nil {
-			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
+			if existingArgoCD.Annotations == nil {
+				existingArgoCD.Annotations = map[string]string{}
+			}
+			if existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] != "true" {
+				existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] = "true"
+				changed = true
+			}
+		} else if existingArgoCD.Annotations != nil &&
+			existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] == "true" {
+			if existingArgoCD.Spec.NodePlacement != nil {
+				existingArgoCD.Spec.NodePlacement = nil
+				changed = true
+			}
+			delete(existingArgoCD.Annotations, common.NodePlacementManagedByGitopsServiceAnnotation)
 			changed = true
 		}
 
