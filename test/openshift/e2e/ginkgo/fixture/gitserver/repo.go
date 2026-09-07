@@ -26,7 +26,7 @@ type Repo struct {
 	repoName string
 
 	cloneDir  *os.Root
-	transport Transport
+	clonedOver Transport
 }
 
 // GetRepoHttpURL returns the HTTPS clone URL reachable from inside the cluster.
@@ -54,10 +54,10 @@ func (r Repo) getRepoSshURLLocal() string {
 	return fmt.Sprintf("ssh://%s@127.0.0.1:%d/%s/%s.git", giteaSSHLogin, r.server.localSSHPort, r.server.httpUsername, r.repoName)
 }
 
-func (r *Repo) Clone(t Transport) (cleanup func(), err error) {
-	r.transport = t
+func (r *Repo) Clone(transport Transport) (cleanup func(), err error) {
+	r.clonedOver = transport
 
-	if t == TransportSSH {
+	if transport == TransportSSH {
 		if _, err := r.server.getSSHKeyFile(); err != nil {
 			return nil, err
 		}
@@ -80,11 +80,11 @@ func (r *Repo) Clone(t Transport) (cleanup func(), err error) {
 	}
 
 	cloneURL := r.getRepoSshURLLocal()
-	if t == TransportHTTPS {
+	if transport == TransportHTTPS {
 		cloneURL = r.getRepoHttpURLWithCredentials()
 	}
 
-	GinkgoWriter.Println("Cloning repo:", cloneURL)
+	GinkgoWriter.Println("Cloning repo %q over %s", r.repoName, transport)
 
 	out, err := r.git("clone", cloneURL, ".")
 	if err != nil {
@@ -149,7 +149,7 @@ func (r *Repo) git(args ...string) (string, error) {
 
 	cmd := exec.Command("git", args...) // #nosec G204 // Binary is specified by literal
 	cmd.Dir = r.cloneDir.Name()
-	if r.transport == TransportHTTPS {
+	if r.clonedOver == TransportHTTPS {
 		cmd.Env = append(os.Environ(), "GIT_SSL_NO_VERIFY=true")
 	} else {
 		sshKeyFile, err := r.server.getSSHKeyFile()
