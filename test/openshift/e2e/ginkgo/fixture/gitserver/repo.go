@@ -25,7 +25,7 @@ type Repo struct {
 	server   *Server
 	repoName string
 
-	cloneDir  *os.Root
+	cloneDir   *os.Root
 	clonedOver Transport
 }
 
@@ -84,7 +84,7 @@ func (r *Repo) Clone(transport Transport) (cleanup func(), err error) {
 		cloneURL = r.getRepoHttpURLWithCredentials()
 	}
 
-	GinkgoWriter.Println("Cloning repo %q over %s", r.repoName, transport)
+	GinkgoWriter.Printf("Cloning repo %q over %s", r.repoName, transport)
 
 	out, err := r.git("clone", cloneURL, ".")
 	if err != nil {
