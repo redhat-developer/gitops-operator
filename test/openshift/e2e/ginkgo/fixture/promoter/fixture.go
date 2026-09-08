@@ -16,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/certutil"
+	certutilFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/certutil"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
@@ -49,7 +49,7 @@ func CreateAPIServerTLSSecrets(cfg PromoterAPIServerTLSSecretConfig) {
 
 	By("Creating API Server TLS secrets")
 
-	caKey, caCert, caCertPEM := certutil.GenerateCertificateAuthority(caSubject)
+	caKey, caCert, caCertPEM := certutilFixture.GenerateCertificateAuthority(caSubject)
 	caBundleSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cfg.CABundleSecretName,
@@ -61,7 +61,7 @@ func CreateAPIServerTLSSecrets(cfg PromoterAPIServerTLSSecretConfig) {
 	}
 	Expect(k8sClient.Create(ctx, caBundleSecret)).To(Succeed())
 
-	apiServerCertPEM, apiServerKeyPEM := certutil.IssueCertificate(caCert, caKey, certutil.CertificateRequest{
+	apiServerCertPEM, apiServerKeyPEM := certutilFixture.IssueCertificate(caCert, caKey, certutilFixture.CertificateRequest{
 		CommonName: cfg.APIServerServiceName,
 		DNSNames: []string{
 			cfg.APIServerServiceName,
