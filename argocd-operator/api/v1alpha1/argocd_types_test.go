@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 func Test_ArgoCD_ApplicationInstanceLabelKey(t *testing.T) {

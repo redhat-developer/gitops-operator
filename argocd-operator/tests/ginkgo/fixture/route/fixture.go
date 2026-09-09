@@ -15,7 +15,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 func HaveConditionTypeStatus(expectedConditionType routev1.RouteIngressConditionType, expectedConditionStatus corev1.ConditionStatus) matcher.GomegaMatcher {

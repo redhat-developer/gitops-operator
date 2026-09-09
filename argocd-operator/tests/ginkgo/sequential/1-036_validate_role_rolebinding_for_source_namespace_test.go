@@ -7,12 +7,12 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	namespaceFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/namespace"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/namespace"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"

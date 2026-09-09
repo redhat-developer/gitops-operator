@@ -35,15 +35,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocdexport"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdexport"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	notificationsConfig "github.com/argoproj-labs/argocd-operator/controllers/notificationsconfiguration"
+	notificationsConfig "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/notificationsconfiguration"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -64,11 +64,11 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	v1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	v1beta1 "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/pkg/cacheutils"
-	cw "github.com/argoproj-labs/argocd-operator/pkg/clientwrapper"
-	"github.com/argoproj-labs/argocd-operator/version"
+	v1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
+	v1beta1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/cacheutils"
+	cw "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/clientwrapper"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/version"
 	//+kubebuilder:scaffold:imports
 )
 

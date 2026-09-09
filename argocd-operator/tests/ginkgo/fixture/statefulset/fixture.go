@@ -12,8 +12,8 @@ import (
 	matcher "github.com/onsi/gomega/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

@@ -20,10 +20,10 @@ import (
 	"github.com/sethvargo/go-password/password"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	argoprojv1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // generateBackupKey will generate and return the backup key for the export process.

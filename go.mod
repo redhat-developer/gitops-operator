@@ -3,9 +3,9 @@ module github.com/redhat-developer/gitops-operator
 go 1.26.5
 
 // Internalized from a separate repo
-require github.com/argoproj-labs/argocd-operator v0.20.0-rc1
+require github.com/argoproj-labs/gitops-operator/argocd-operator v0.20.0-rc1
 
-replace github.com/argoproj-labs/argocd-operator => ./argocd-operator
+replace github.com/argoproj-labs/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20260826124203-67002e569d7f

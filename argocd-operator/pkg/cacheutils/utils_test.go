@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 // TestStripDataFromSecretOrConfigMapTransform tests the StripDataFromSecretOrConfigMapTransform function

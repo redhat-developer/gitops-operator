@@ -27,7 +27,7 @@ import (
 	logr "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 )
 
 var log = logr.Log.WithName("controller_argocdexport")

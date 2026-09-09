@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgotools "k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 // StripDataFromSecretOrConfigMap returns a TransformFunc that strips data from both

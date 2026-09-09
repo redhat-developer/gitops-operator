@@ -27,8 +27,8 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // reconcileStatus will ensure that all of the Status properties are updated for the given ArgoCD.

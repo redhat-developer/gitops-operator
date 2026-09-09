@@ -18,7 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 
-	v1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	v1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 )
 
 // reconcileNotificationsConfigurationResources will reconcile all the resources for the given CR.

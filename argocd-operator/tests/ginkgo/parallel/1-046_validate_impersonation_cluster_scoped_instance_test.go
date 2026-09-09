@@ -27,14 +27,14 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	applicationFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/application"
-	appprojectFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/appproject"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	configmapFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/configmap"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	applicationFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
+	appprojectFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/appproject"
+	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	configmapFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/configmap"
+	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )

@@ -33,7 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 const (

@@ -1,7 +1,7 @@
 package appproject
 
 import (
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 
 	"k8s.io/client-go/util/retry"
 

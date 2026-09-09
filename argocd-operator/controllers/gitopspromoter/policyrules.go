@@ -20,8 +20,8 @@ import (
 
 	rbacv1 "k8s.io/api/rbac/v1"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 // policyRuleConfig provides relevant data for Cluster Roles and Roles that need to be created

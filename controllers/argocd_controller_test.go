@@ -21,7 +21,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"

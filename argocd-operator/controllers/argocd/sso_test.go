@@ -30,7 +30,7 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 func TestReconcile_illegalSSOConfiguration(t *testing.T) {

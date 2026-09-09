@@ -15,7 +15,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj-labs/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 // recordingClient wraps a client and notes whether Get/Patch were called.

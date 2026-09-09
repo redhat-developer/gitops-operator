@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
+	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"

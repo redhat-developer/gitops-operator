@@ -13,11 +13,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 
-	"github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 )
 
 type notificationsOpts func(*v1alpha1.NotificationsConfiguration)

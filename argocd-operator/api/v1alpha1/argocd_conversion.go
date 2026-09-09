@@ -6,7 +6,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 var conversionLogger = ctrl.Log.WithName("conversion-webhook")

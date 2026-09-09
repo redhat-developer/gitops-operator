@@ -31,9 +31,9 @@ import (
 	"github.com/go-logr/logr"
 	v1 "k8s.io/api/rbac/v1"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
+	argoprojv1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 )
 
 const (

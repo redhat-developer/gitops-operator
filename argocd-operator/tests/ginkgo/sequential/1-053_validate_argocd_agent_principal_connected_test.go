@@ -38,24 +38,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
+	osFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	agentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/agent"
-	appFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/application"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	agentFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/agent"
+	appFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
+	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
+	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 /*

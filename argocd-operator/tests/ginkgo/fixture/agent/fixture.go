@@ -26,13 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/certutil"
-	k8sFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/k8s"
-	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/utils"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/certutil"
+	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	osFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 const caSubject = "argocd-agent-ca"

@@ -19,7 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 )
 
 // reconcileArgoCDExportResources will reconcile all ArgoCDExport resources for the give CR.

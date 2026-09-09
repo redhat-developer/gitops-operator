@@ -16,10 +16,10 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	podFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/pod"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	podFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/pod"
 )
 
 const (

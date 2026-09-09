@@ -25,7 +25,7 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 
-	argoproj "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 func makeExistingControllerConfiguration(cr *argoproj.ArgoCD) *promoter.ControllerConfiguration {

@@ -11,7 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	v1beta1 "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	v1beta1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 type argoCDAlphaOpt func(*ArgoCD)

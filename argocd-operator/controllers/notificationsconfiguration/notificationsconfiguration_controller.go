@@ -19,7 +19,7 @@ package notificationsconfiguration
 import (
 	"context"
 
-	v1alpha1 "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	v1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
