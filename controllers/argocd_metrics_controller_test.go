@@ -29,6 +29,7 @@ import (
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -337,6 +338,116 @@ func TestReconciler_add_prometheus_rule(t *testing.T) {
 		assert.Equal(t, string(*rule.Spec.Groups[0].Rules[0].For), "5m")
 		expr := fmt.Sprintf("argocd_app_info{namespace=\"%s\",sync_status=\"OutOfSync\"} > 0", tc.namespace)
 		assert.Equal(t, rule.Spec.Groups[0].Rules[0].Expr.StrVal, expr)
+	}
+}
+
+func TestReconciler_add_sync_loop_prometheus_rule(t *testing.T) {
+	testCases := []struct {
+		instanceName string
+		namespace    string
+	}{
+		{
+			instanceName: argoCDInstanceName,
+			namespace:    "openshift-gitops",
+		},
+		{
+			instanceName: "instance-two",
+			namespace:    "namespace-two",
+		},
+	}
+	flagPtr := false
+	for _, tc := range testCases {
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, &flagPtr)
+		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
+		assert.NilError(t, err)
+
+		rule := monitoringv1.PrometheusRule{}
+		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: syncLoopAlertRuleName, Namespace: tc.namespace}, &rule)
+		assert.NilError(t, err)
+
+		assert.Assert(t, is.Len(rule.OwnerReferences, 1))
+		assert.Equal(t, rule.OwnerReferences[0].Kind, argocdKind)
+		assert.Equal(t, rule.OwnerReferences[0].Name, tc.instanceName)
+
+		assert.Equal(t, rule.Spec.Groups[0].Name, "GitOpsOperatorArgoCDSyncLoop")
+		assert.Assert(t, is.Len(rule.Spec.Groups[0].Rules, 5))
+
+		recordRule := rule.Spec.Groups[0].Rules[0]
+		assert.Equal(t, recordRule.Record, "gitops:argocd_app_sync:rate10m")
+		assert.Equal(t, recordRule.Expr.StrVal,
+			fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s"}[10m]))`, tc.namespace))
+
+		failureRecordRule := rule.Spec.Groups[0].Rules[1]
+		assert.Equal(t, failureRecordRule.Record, "gitops:argocd_app_sync_failed:rate10m")
+		assert.Equal(t, failureRecordRule.Expr.StrVal,
+			fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s",phase=~"Error|Failed"}[10m]))`, tc.namespace))
+
+		warning := rule.Spec.Groups[0].Rules[2]
+		assert.Equal(t, warning.Alert, "ArgoCDAppSyncLoopWarning")
+		assert.Equal(t, string(*warning.For), "20m")
+		assert.Equal(t, warning.Labels["severity"], "warning")
+		assert.Equal(t, warning.Expr.StrVal,
+			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.01`, tc.namespace))
+		assert.Assert(t, warning.Annotations["summary"] != "")
+		assert.Assert(t, warning.Annotations["description"] != "")
+
+		critical := rule.Spec.Groups[0].Rules[3]
+		assert.Equal(t, critical.Alert, "ArgoCDAppSyncLoopCritical")
+		assert.Equal(t, string(*critical.For), "10m")
+		assert.Equal(t, critical.Labels["severity"], "critical")
+		assert.Equal(t, critical.Expr.StrVal,
+			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.1`, tc.namespace))
+		assert.Assert(t, critical.Annotations["summary"] != "")
+		assert.Assert(t, critical.Annotations["description"] != "")
+
+		failureLoop := rule.Spec.Groups[0].Rules[4]
+		assert.Equal(t, failureLoop.Alert, "ArgoCDAppSyncFailureLoop")
+		assert.Equal(t, string(*failureLoop.For), "15m")
+		assert.Equal(t, failureLoop.Labels["severity"], "warning")
+		assert.Equal(t, failureLoop.Expr.StrVal,
+			fmt.Sprintf(`gitops:argocd_app_sync_failed:rate10m{namespace="%s"} > 0.005`, tc.namespace))
+		assert.Assert(t, failureLoop.Annotations["summary"] != "")
+		assert.Assert(t, failureLoop.Annotations["description"] != "")
+	}
+}
+
+func TestReconcile_remove_prometheus_rules(t *testing.T) {
+	testCases := []struct {
+		instanceName string
+		namespace    string
+	}{
+		{
+			instanceName: argoCDInstanceName,
+			namespace:    "openshift-gitops",
+		},
+		{
+			instanceName: "instance-two",
+			namespace:    "namespace-two",
+		},
+	}
+
+	for _, tc := range testCases {
+		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, new(false))
+		request := newRequest(tc.namespace, tc.instanceName)
+
+		_, err := r.Reconcile(context.TODO(), request)
+		assert.NilError(t, err)
+
+		argocd := &argoapp.ArgoCD{}
+		err = r.Client.Get(context.TODO(), request.NamespacedName, argocd)
+		assert.NilError(t, err)
+		argocd.Spec.Monitoring.DisableMetrics = new(true)
+		err = r.Client.Update(context.TODO(), argocd)
+		assert.NilError(t, err)
+
+		_, err = r.Reconcile(context.TODO(), request)
+		assert.NilError(t, err)
+
+		for _, name := range []string{alertRuleName, syncLoopAlertRuleName} {
+			rule := &monitoringv1.PrometheusRule{}
+			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: tc.namespace}, rule)
+			assert.Assert(t, apierrors.IsNotFound(err))
+		}
 	}
 }
 
