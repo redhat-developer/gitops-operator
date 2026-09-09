@@ -19,7 +19,6 @@ package sequential
 import (
 	"context"
 
-	"github.com/anandrkskd/argocd-operator/tests/ginkgo/fixture/deployment"
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -186,7 +185,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ArgocdNamespace.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ArgocdNamespace.Name, corev1.PullAlways), "3m", "5s").Should(BeTrue(),
 					ArgocdNamespace.Name+" Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 			}
 
@@ -236,7 +235,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(deployment.VerifyDeploymentImagePullPolicy(deplName, ArgocdNamespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
+				Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, ArgocdNamespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
 					"openshift-gitops Deployment %s should have all containers with ImagePullPolicy set to default(IfNotPresent)", deplName)
 			}
 
