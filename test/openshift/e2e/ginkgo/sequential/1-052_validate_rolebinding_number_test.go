@@ -30,12 +30,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-052_validate_rolebinding_number", func() {
 		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
+
+		var (
+			k8sClient client.Client
+			ctx       context.Context
+		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
