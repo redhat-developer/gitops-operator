@@ -7,7 +7,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Termination:                   routev1.TLSTerminationReencrypt,
 			}))
 
-			Eventually(serverRoute, "3m", "5s").Should(route.HaveAdmittedIngress())
+			Eventually(serverRoute, "3m", "5s").Should(routeFixture.HaveAdmittedIngress())
 
 			Expect(serverRoute.Spec.Host).ToNot(BeEmpty())
 

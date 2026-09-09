@@ -45,7 +45,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -163,7 +162,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			deployPrincipal(ctx, k8sClient, registerCleanup, true)
 
 			By("Enable exec feature in ArgoCD server configuration")
-			enableExecInArgoCD(ctx, k8sClient, argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal)
+			enableExecInArgoCD(argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal)
 
 			By("Wait for ArgoCD server to restart with exec enabled")
 			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
@@ -319,23 +318,24 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 // enableExecInArgoCD configures the ArgoCD CR to enable the web-based terminal.
 // through spec.extraConfig and grant the admin role exec permission via spec.rbac.policy.
-func enableExecInArgoCD(ctx context.Context, k8sClient client.Client, argocdName, namespace string) {
+func enableExecInArgoCD(argocdName, namespace string) {
 	GinkgoHelper()
 
-	argoCD := &argov1beta1api.ArgoCD{}
-	Expect(k8sClient.Get(ctx, types.NamespacedName{
-		Name:      argocdName,
-		Namespace: namespace,
-	}, argoCD)).To(Succeed())
-
-	if argoCD.Spec.ExtraConfig == nil {
-		argoCD.Spec.ExtraConfig = map[string]string{}
+	argoCD := &argov1beta1api.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      argocdName,
+			Namespace: namespace,
+		},
 	}
-	argoCD.Spec.ExtraConfig["exec.enabled"] = "true"
-	argoCD.Spec.ExtraConfig["exec.shells"] = "bash,sh,ash,/bin/bash,/bin/sh,/bin/ash"
 
-	execPolicy := "p, role:admin, exec, create, */*, allow"
-	argoCD.Spec.RBAC.Policy = &execPolicy
+	argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+		if ac.Spec.ExtraConfig == nil {
+			ac.Spec.ExtraConfig = map[string]string{}
+		}
+		ac.Spec.ExtraConfig["exec.enabled"] = "true"
+		ac.Spec.ExtraConfig["exec.shells"] = "bash,sh,ash,/bin/bash,/bin/sh,/bin/ash"
 
-	Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+		execPolicy := "p, role:admin, exec, create, */*, allow"
+		ac.Spec.RBAC.Policy = &execPolicy
+	})
 }

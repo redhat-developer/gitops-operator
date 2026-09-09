@@ -90,6 +90,9 @@ GINKGO_VERSION := $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2
 # XKS_LABEL_FILTER is the label filter for XKS tests.
 XKS_LABEL_FILTER ?= "!openshift"
 
+# OCP_LABEL_FILTER is the label filter for OCP tests.
+OCP_LABEL_FILTER ?= "!xks"
+
 .PHONY: all
 all: build
 
@@ -166,12 +169,12 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
@@ -184,12 +187,12 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 ##@ Build
 
@@ -199,7 +202,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
+	ARGOCD_OPERATOR_NAMESPACE=openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
