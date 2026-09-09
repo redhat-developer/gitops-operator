@@ -279,8 +279,8 @@ func CreateRandomE2ETestNamespaceWithCleanupFunc() (*corev1.Namespace, func()) {
 // cleanup func that deletes the namespace.
 func CreateNamespaceWithArgoCDInstance(instanceName string) (*argov1beta1api.ArgoCD, *corev1.Namespace, func()) {
 	ns, cleanupFunc := CreateRandomE2ETestNamespaceWithCleanupFunc()
-	argoCDInstance := argocd.CreateNewArgoCDInstance(instanceName, ns.Name)
-	Eventually(argoCDInstance, "5m", "5s").Should(argocd.BeAvailable())
+	argoCDInstance := argocdFixture.CreateNewArgoCDInstance(instanceName, ns.Name)
+	Eventually(argoCDInstance, "5m", "5s").Should(argocdFixture.BeAvailable())
 	return argoCDInstance, ns, cleanupFunc
 }
 
