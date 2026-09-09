@@ -174,6 +174,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 			return reconcile.Result{}, err
 		}
 
+		// Create alert rule
 		err = r.createPrometheusRulesIfAbsent(request.Namespace, argocd, reqLogger)
 		if err != nil {
 			return reconcile.Result{}, err
