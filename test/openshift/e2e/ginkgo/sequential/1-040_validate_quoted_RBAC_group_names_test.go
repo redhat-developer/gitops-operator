@@ -11,6 +11,7 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -20,6 +21,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		var (
 			cancelPortForward func()
 			cleanupNamespace  func()
+			k8sClient         client.Client
+			ctx               context.Context
 		)
 
 		BeforeEach(func() {
