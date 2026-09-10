@@ -383,22 +383,25 @@ func TestReconciler_add_sync_loop_prometheus_rule(t *testing.T) {
 			fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s",phase=~"Error|Failed"}[10m]))`, tc.namespace))
 
 		warning := rule.Spec.Groups[0].Rules[2]
-		assert.Equal(t, warning.Alert, "ArgoCDAppSyncLoopWarning")
+		assert.Equal(t, warning.Alert, "ArgoCDAppSyncLoop")
 		assert.Equal(t, string(*warning.For), "20m")
 		assert.Equal(t, warning.Labels["severity"], "warning")
 		assert.Equal(t, warning.Expr.StrVal,
 			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.01`, tc.namespace))
 		assert.Assert(t, warning.Annotations["summary"] != "")
 		assert.Assert(t, warning.Annotations["description"] != "")
+		_, hasWarningRunbook := warning.Annotations["runbook_url"]
+		assert.Assert(t, !hasWarningRunbook)
 
 		critical := rule.Spec.Groups[0].Rules[3]
-		assert.Equal(t, critical.Alert, "ArgoCDAppSyncLoopCritical")
+		assert.Equal(t, critical.Alert, "ArgoCDAppSyncLoop")
 		assert.Equal(t, string(*critical.For), "10m")
 		assert.Equal(t, critical.Labels["severity"], "critical")
 		assert.Equal(t, critical.Expr.StrVal,
 			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.1`, tc.namespace))
 		assert.Assert(t, critical.Annotations["summary"] != "")
 		assert.Assert(t, critical.Annotations["description"] != "")
+		assert.Equal(t, critical.Annotations["runbook_url"], argoCDAppSyncLoopRunbookURL)
 
 		failureLoop := rule.Spec.Groups[0].Rules[4]
 		assert.Equal(t, failureLoop.Alert, "ArgoCDAppSyncFailureLoop")
