@@ -48,11 +48,13 @@ const (
 	readRoleBindingNameFormat = "%s-prometheus-k8s-read-binding"
 	alertRuleName             = "gitops-operator-argocd-alerts"
 	// Use a separate rule so upgrades install the sync-loop alerts.
-	syncLoopAlertRuleName      = "gitops-operator-argocd-sync-loop-alerts"
-	dashboardNamespace         = "openshift-config-managed"
-	dashboardFolder            = "dashboards"
-	operatorMetricsServiceName = "openshift-gitops-operator-metrics-service"
-	operatorMetricsMonitorName = "openshift-gitops-operator-metrics-monitor"
+	syncLoopAlertRuleName = "gitops-operator-argocd-sync-loop-alerts"
+	// Canonical runbook for the critical ArgoCDAppSyncLoop alert (openshift/runbooks).
+	argoCDAppSyncLoopRunbookURL = "https://github.com/openshift/runbooks/blob/master/alerts/gitops-operator/ArgoCDAppSyncLoop.md"
+	dashboardNamespace          = "openshift-config-managed"
+	dashboardFolder             = "dashboards"
+	operatorMetricsServiceName  = "openshift-gitops-operator-metrics-service"
+	operatorMetricsMonitorName  = "openshift-gitops-operator-metrics-monitor"
 )
 
 type ArgoCDMetricsReconciler struct {
@@ -666,18 +668,21 @@ func newSyncLoopPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 							fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s"}[10m]))`, namespace)),
 						newRecordingRule("gitops:argocd_app_sync_failed:rate10m",
 							fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s",phase=~"Error|Failed"}[10m]))`, namespace)),
-						newAlertRule("ArgoCDAppSyncLoopWarning", "warning", "20m",
+						newAlertRule("ArgoCDAppSyncLoop", "warning", "20m",
 							fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.01`, namespace),
 							"Argo CD application is syncing continuously",
-							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.01/s (about one sync every ~100s) for 20m. This often indicates a selfHeal conflict (for example HPA fighting declared replicas). Check application sync history, diff, and conflicting controllers."),
-						newAlertRule("ArgoCDAppSyncLoopCritical", "critical", "10m",
+							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.01/s (about one sync every ~100s) for 20m. This often indicates a selfHeal conflict (for example HPA fighting declared replicas). Check application sync history, diff, and conflicting controllers.",
+							""),
+						newAlertRule("ArgoCDAppSyncLoop", "critical", "10m",
 							fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.1`, namespace),
 							"Argo CD application sync loop is aggressive",
-							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.1/s (about one sync every ~10s) for 10m. Investigate conflicting controllers or tight reconcile settings immediately."),
+							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.1/s (about one sync every ~10s) for 10m. Investigate conflicting controllers or tight reconcile settings immediately.",
+							argoCDAppSyncLoopRunbookURL),
 						newAlertRule("ArgoCDAppSyncFailureLoop", "warning", "15m",
 							fmt.Sprintf(`gitops:argocd_app_sync_failed:rate10m{namespace="%s"} > 0.005`, namespace),
 							"Argo CD application syncs are failing repeatedly",
-							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained failed sync rate above 0.005/s for 15m. Investigate the application operation status and sync errors."),
+							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained failed sync rate above 0.005/s for 15m. Investigate the application operation status and sync errors.",
+							""),
 					},
 				},
 			},
@@ -692,15 +697,19 @@ func newRecordingRule(name, expr string) monitoringv1.Rule {
 	}
 }
 
-func newAlertRule(name, severity, duration, expr, summary, description string) monitoringv1.Rule {
+func newAlertRule(name, severity, duration, expr, summary, description, runbookURL string) monitoringv1.Rule {
+	annotations := map[string]string{
+		"summary":     summary,
+		"description": description,
+	}
+	if runbookURL != "" {
+		annotations["runbook_url"] = runbookURL
+	}
 	return monitoringv1.Rule{
-		Alert: name,
-		Annotations: map[string]string{
-			"summary":     summary,
-			"description": description,
-		},
-		Expr: intstr.FromString(expr),
-		For:  ptr.To(monitoringv1.Duration(duration)),
+		Alert:       name,
+		Annotations: annotations,
+		Expr:        intstr.FromString(expr),
+		For:         ptr.To(monitoringv1.Duration(duration)),
 		Labels: map[string]string{
 			"severity": severity,
 		},
