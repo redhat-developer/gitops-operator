@@ -34,6 +34,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
+		// TODO: check if this can be ported for xKS testing
 		It("verifies operator can delete resourcequotas", func() {
 
 			if fixture.EnvNonOLM() {

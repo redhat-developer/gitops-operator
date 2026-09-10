@@ -40,7 +40,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(ns)
 		})
 
-		It("validates that the operator configures Redis using auto-gen TLS certificates when HA is disabled", func() {
+		It("validates that the operator configures Redis using auto-gen TLS certificates when HA is disabled", Label("openshift"), func() {
 
 			expectComponentsAreRunning := func() {
 				deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server"}

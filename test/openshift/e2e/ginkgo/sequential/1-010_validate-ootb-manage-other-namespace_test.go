@@ -27,7 +27,7 @@ import (
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -39,6 +39,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-010_validate-ootb-manage-other-namespace", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx                context.Context
@@ -65,7 +66,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", func() {
+		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", Label("openshift"), func() {
 
 			By("creating a new namespace that is managed by openshift-gitops Argo CD instance")
 			nsTest_1_10_custom, nsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")
@@ -132,7 +133,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("removing managed-by label from the other namespace")
-			namespace.Update(nsTest_1_10_custom, func(n *corev1.Namespace) {
+			namespaceFixture.Update(nsTest_1_10_custom, func(n *corev1.Namespace) {
 				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 

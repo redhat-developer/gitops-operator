@@ -31,7 +31,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -83,7 +82,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						Enabled: true,
 					},
 					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 					},
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: argov1beta1api.SSOProviderTypeDex,

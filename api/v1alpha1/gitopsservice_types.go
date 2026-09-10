@@ -86,7 +86,3 @@ type GitopsServiceList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []GitopsService `json:"items"`
 }
-
-func init() {
-	SchemeBuilder.Register(&GitopsService{}, &GitopsServiceList{})
-}

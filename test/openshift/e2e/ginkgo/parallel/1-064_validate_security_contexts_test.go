@@ -30,7 +30,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -74,24 +73,28 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Notifications: argov1beta1api.ArgoCDNotifications{
 						Enabled: true,
 					},
-					SSO: &argov1beta1api.ArgoCDSSOSpec{
-						Provider: argov1beta1api.SSOProviderTypeDex,
-						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
-							Resources: &corev1.ResourceRequirements{
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("500m"),
-									corev1.ResourceMemory: resource.MustParse("256Mi"),
-								},
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("250m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
-								},
+				},
+			}
+
+			if fixture.RunningOnOpenShift() {
+				argoCD.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
+					Provider: argov1beta1api.SSOProviderTypeDex,
+					Dex: &argov1beta1api.ArgoCDDexSpec{
+						OpenShiftOAuth: true,
+						Resources: &corev1.ResourceRequirements{
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("500m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
+							},
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("250m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
 							},
 						},
 					},
-				},
+				}
 			}
+
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
@@ -99,7 +102,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying that each Argo CD deployment has expected security context")
 
-			deployments := []string{"argocd-applicationset-controller", "argocd-dex-server", "argocd-notifications-controller", "argocd-redis", "argocd-repo-server", "argocd-server"}
+			deployments := []string{"argocd-applicationset-controller", "argocd-notifications-controller", "argocd-redis", "argocd-repo-server", "argocd-server"}
+			if fixture.RunningOnOpenShift() {
+				deployments = []string{"argocd-applicationset-controller", "argocd-dex-server", "argocd-notifications-controller", "argocd-redis", "argocd-repo-server", "argocd-server"}
+			}
 			for _, deployment := range deployments {
 
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deployment, Namespace: ns.Name}}
@@ -118,9 +124,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-applicationset-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						ReadOnlyRootFilesystem:   ptr.To(true),
-						RunAsNonRoot:             ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						ReadOnlyRootFilesystem:   new(true),
+						RunAsNonRoot:             new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -129,9 +135,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-dex-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -140,23 +146,23 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-notifications-controller":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
 						},
 					}))
 
-					Expect(depl.Spec.Template.Spec.SecurityContext.RunAsNonRoot).To(Equal(ptr.To(true)))
+					Expect(depl.Spec.Template.Spec.SecurityContext.RunAsNonRoot).To(Equal(new(true)))
 
 				case "argocd-redis":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -166,9 +172,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-repo-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,
@@ -178,9 +184,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				case "argocd-server":
 					Expect(*secContext).To(Equal(corev1.SecurityContext{
 						Capabilities:             &corev1.Capabilities{Drop: []corev1.Capability{"ALL"}},
-						AllowPrivilegeEscalation: ptr.To(false),
-						RunAsNonRoot:             ptr.To(true),
-						ReadOnlyRootFilesystem:   ptr.To(true),
+						AllowPrivilegeEscalation: new(false),
+						RunAsNonRoot:             new(true),
+						ReadOnlyRootFilesystem:   new(true),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type:             corev1.SeccompProfileTypeRuntimeDefault,
 							LocalhostProfile: nil,

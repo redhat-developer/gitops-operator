@@ -62,7 +62,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -70,7 +70,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent))
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -78,6 +78,73 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
+	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13})
+		var gotTLSMinVersion string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+		}
+	})
+
+	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12})
+		var gotTLSMinVersion string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.2")
+		}
+	})
+
+	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+		var gotTLSMinVersion string
+		var gotTLSCiphers string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+			if env.Name == "TLS_CIPHER_SUITES" {
+				gotTLSCiphers = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1")
+		}
+	})
+
+	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
+		var gotTLSMinVersion string
+		var gotTLSCiphers string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_MIN_VERSION" {
+				gotTLSMinVersion = env.Value
+				break
+			}
+			if env.Name == "TLS_CIPHER_SUITES" {
+				gotTLSCiphers = env.Value
+				break
+			}
+		}
+		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1:dummy2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1:dummy2")
+		}
+	})
 }
 
 func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
@@ -227,7 +294,7 @@ func TestReconcile(t *testing.T) {
 	s := scheme.Scheme
 	addKnownTypesToScheme(s)
 
-	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.15.1"), newGitopsService())
+	fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.19.0"), newGitopsService())
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
@@ -471,13 +538,13 @@ func TestReconcile_BackendSecurityContext(t *testing.T) {
 
 	securityContext := deployment.Spec.Template.Spec.Containers[0].SecurityContext
 	want := &corev1.SecurityContext{
-		AllowPrivilegeEscalation: util.BoolPtr(false),
+		AllowPrivilegeEscalation: new(false),
 		Capabilities: &corev1.Capabilities{
 			Drop: []corev1.Capability{
 				"ALL",
 			},
 		},
-		RunAsNonRoot: util.BoolPtr(true),
+		RunAsNonRoot: new(true),
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
 		},
@@ -1084,6 +1151,66 @@ func assertNoError(t *testing.T, err error) {
 	t.Helper()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestReconcile_PluginVersionSelection(t *testing.T) {
+	defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+	util.SetConsoleAPIFound(true)
+
+	tests := []struct {
+		name           string
+		clusterVersion string
+		expectPlugin   bool
+		expectedImage  string
+	}{
+		{
+			name:           "OCP below minimum (4.17) skips plugin entirely",
+			clusterVersion: "4.17.0",
+			expectPlugin:   false,
+		},
+		{
+			name:           "OCP 4.18 installs PF5 plugin",
+			clusterVersion: "4.18.1",
+			expectPlugin:   true,
+			expectedImage:  common.DefaultConsoleImagePF5 + ":" + common.DefaultConsoleVersionPF5,
+		},
+		{
+			name:           "OCP 4.19 installs PF6 plugin",
+			clusterVersion: "4.19.0",
+			expectPlugin:   true,
+			expectedImage:  common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion,
+		},
+		{
+			name:           "OCP 4.20 installs PF6 plugin",
+			clusterVersion: "4.20.0",
+			expectPlugin:   true,
+			expectedImage:  common.DefaultConsoleImage + ":" + common.DefaultConsoleVersion,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s := scheme.Scheme
+			addKnownTypesToScheme(s)
+
+			fakeClient := fake.NewFakeClient(util.NewClusterVersion(test.clusterVersion), newGitopsService())
+			reconciler := newReconcileGitOpsService(fakeClient, s)
+
+			_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+			assertNoError(t, err)
+
+			pluginDeploy := &appsv1.Deployment{}
+			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, pluginDeploy)
+
+			if !test.expectPlugin {
+				assert.Assert(t, errors.IsNotFound(err), "expected plugin deployment to be absent for OCP %s, but it exists", test.clusterVersion)
+				return
+			}
+
+			assertNoError(t, err)
+			assert.Equal(t, pluginDeploy.Spec.Template.Spec.Containers[0].Image, test.expectedImage)
+		})
 	}
 }
 

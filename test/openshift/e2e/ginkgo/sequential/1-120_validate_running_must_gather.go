@@ -62,7 +62,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verified the files collected for must gather are valid", func() {
+		It("verified the files collected for must gather are valid", Label("openshift"), func() {
 			By("creating namespace-scoped Argo CD instance")
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
@@ -123,10 +123,16 @@ func gather() string {
 		true, true,
 		"oc", "adm", "must-gather", "--image", mustGatherImage(), "--dest-dir", destDir,
 	)
+
+	if err != nil && strings.Contains(stdout, "unable to pull image: ImagePullBackOff: Back-off pulling image \"quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/gitops-must-gather") {
+		_ = os.RemoveAll(destDir)
+		Skip("skip the case where image can't be retrieved from quay.io: failure to retrieve the image prevents further testing, it should not fail the image itself")
+	}
+
 	Expect(err).ToNot(HaveOccurred())
 
 	errorLines := make([]string, 0)
-	for _, line := range strings.Split(stdout, "\n") {
+	for line := range strings.SplitSeq(stdout, "\n") {
 		if strings.Contains(line, "error:") {
 			errorLines = append(errorLines, line)
 		}

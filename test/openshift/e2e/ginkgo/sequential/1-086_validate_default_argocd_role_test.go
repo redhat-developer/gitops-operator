@@ -13,13 +13,13 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-086_validate_default_argocd_role", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", func() {
+		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", Label("openshift"), func() {
 
 			By("verifying default ArgoCD in openshift-gitops is running and has defined expected RBAC values in ConfigMap argocd-rbac-cm")
 
@@ -77,7 +77,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy-empty", Namespace: test_1_086_custom2NS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
-						DefaultPolicy: ptr.To(""),
+						DefaultPolicy: new(""),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
 						Route: argov1beta1api.ArgoCDRouteSpec{
@@ -92,7 +92,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy-admin", Namespace: test_1_086_custom3NS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
-						DefaultPolicy: ptr.To("role:admin"),
+						DefaultPolicy: new("role:admin"),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
 						Route: argov1beta1api.ArgoCDRouteSpec{

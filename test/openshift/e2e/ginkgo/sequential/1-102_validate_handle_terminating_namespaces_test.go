@@ -33,7 +33,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -167,8 +166,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Project: "default",
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    ptr.To(true),
-							SelfHeal: ptr.To(true),
+							Prune:    new(true),
+							SelfHeal: new(true),
 						},
 					},
 				},

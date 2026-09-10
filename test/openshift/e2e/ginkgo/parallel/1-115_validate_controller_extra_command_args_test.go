@@ -146,7 +146,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				statusProcessorsCount := 0
 				kubectlLimitCount := 0
 
-				for i := 0; i < len(cmd); i++ {
+				for i := range cmd {
 					if cmd[i] == "--status-processors" {
 						statusProcessorsCount++
 					}
@@ -180,7 +180,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				cmd := appControllerSS.Spec.Template.Spec.Containers[0].Command
 
 				metricVals := []string{}
-				for i := 0; i < len(cmd); i++ {
+				for i := range cmd {
 					if cmd[i] == "--metrics-application-labels" && i+1 < len(cmd) {
 						metricVals = append(metricVals, cmd[i+1])
 					}

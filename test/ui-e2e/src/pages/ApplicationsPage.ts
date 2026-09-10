@@ -1,5 +1,17 @@
 import { Page, expect, Locator } from '@playwright/test';
 
+//timeouts
+const TIMEOUTS = {
+  short: 3000,
+  modal: 5000,
+  panel: 10000,
+  default: 15000,
+  load: 20000,
+  render: 30000,
+  sync: 120000,
+  status: 180000
+};
+
 export class ApplicationsPage {
   readonly page: Page;
   readonly newAppButton: Locator;
@@ -43,13 +55,18 @@ export class ApplicationsPage {
     const errorBanner = this.page.getByText('try again');
     try {
       //wait 3 secs
-      await errorBanner.waitFor({ state: 'visible', timeout: 3000 });
+      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
       await errorBanner.click(); 
     } catch (error) {
-      //banner didn't appear so just continue
+      //ignore if the banner timed out (wasn't present)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        //banner didn't appear so just continue
+      } else {
+        throw error;
+      }
     }
     
-    await expect(this.newAppButton).toBeVisible({ timeout: 15000 });
+    await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.default });
   }
 
   //helper for fields that need to have select a pre existing option
@@ -57,15 +74,30 @@ export class ApplicationsPage {
     await locator.click();
     await locator.pressSequentially(value, { delay: 50 }); 
     
-    //Wait for the dropdown 
-    await expect(locator).toHaveValue(value, { timeout: 5000 });
+    //wait for the dropdown 
+    await expect(locator).toHaveValue(value, { timeout: TIMEOUTS.modal });
     
     await locator.press('Enter');
   }
 
   async createApp(appName: string, repoUrl: string, repoPath: string) {
     await this.newAppButton.click();
-    await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: 15000 });
+    
+    //handle the "failed to load data" banner if it appears inside the slide-out panel
+    const errorBanner = this.page.getByText('try again');
+    try {
+      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
+      await errorBanner.click(); 
+    } catch (error) {
+      //ignore if the banner timed out (wasn't present)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        // banner didn't appear so just continue
+      } else {
+        throw error;
+      }
+    }
+
+    await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: TIMEOUTS.default });
 
     await this.appNameInput.fill(appName);
     await this.fillDropdown(this.projectInput, 'default'); 
@@ -77,45 +109,76 @@ export class ApplicationsPage {
     //dest
     await this.clusterUrlInput.fill('https://kubernetes.default.svc');
     
-    //deploy
-    await this.namespaceInput.fill('openshift-gitops');
+    //deploy to namespace
+    await this.namespaceInput.fill('openshift-gitops'); 
+
     await this.createButton.click();
   }
 
-async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
+  async syncApplication(appName: string, expectedResource: string = 'spring-petclinic') {
     //search for app
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
 
     const appContainer = this.page.locator('.white-box, .argo-table-list__row').filter({ hasText: appName });
-    await appContainer.waitFor({ state: 'visible', timeout: 20000 });
-    await appContainer.getByText('Sync', { exact: true }).click();
+    await appContainer.waitFor({ state: 'visible', timeout: TIMEOUTS.load });
     
-    //slideout panel 
-    // Wait for the manifests to fetch from Git and render on the panel
-    await expect(this.page.getByText(expectedResource).first()).toBeVisible({ timeout: 15000 });
+    await expect(appContainer.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({ timeout: TIMEOUTS.sync });
 
-    //click 'all' to ensure all resource checkboxes are ticked across all Argo CD versions
-    const allLink = this.page.getByRole('link', { name: 'all', exact: true });
+    //safe to open the panel now
+    await appContainer.getByText('Sync', { exact: true }).click();
+
+    const slideOutPanel = this.page.locator('.sliding-panel').filter({ visible: true });
+    
+    //slideOutPanel
+    const allLink = slideOutPanel.getByRole('link', { name: 'all', exact: true });
     try {
-      await allLink.waitFor({ state: 'visible', timeout: 3000 });
+      await allLink.waitFor({ state: 'visible', timeout: TIMEOUTS.modal });
       await allLink.click();
     } catch (error) {
-      //all link didn't appear within 3 sec
+      //ignore if the link timed out (absent in older versions)
+      if (error instanceof Error && error.name === 'TimeoutError') {
+        //'all' link didn't appear which is normal for this version so do nothing.
+      } else {
+        throw error;
+      }
     }
-    //click the main sync button
-    await this.page.getByRole('button', { name: /^synchronize$/i }).first().click();
 
-    //wait for the panel to  close 
-    await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: 10000 });
+    await expect(slideOutPanel.getByText(expectedResource).first()).toBeVisible({ timeout: TIMEOUTS.render });
+
+    await slideOutPanel.getByRole('button', { name: /^synchronize$/i }).first().click();
+
+    //wait for the panel to close 
+    await expect(this.page.getByText('SYNCHRONIZE RESOURCES')).toBeHidden({ timeout: TIMEOUTS.panel });
   }
 
   async verifyStatus(appName: string) {
-    //re-apply search filter just in case
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
     const appContainer = this.page.locator('.white-box, .argo-table-list__row').filter({ hasText: appName });
     
-    //90 secs
-    await expect(appContainer.getByText(/synced/i)).toBeVisible({ timeout: 90000 });
-    await expect(appContainer.getByText(/healthy/i)).toBeVisible({ timeout: 90000 });
+    //pass the message
+    await expect(
+      appContainer.getByText(/Sync failed/i), 
+      `Argo CD failed to sync the application manifests for ${appName}.`
+    ).toBeHidden({ timeout: TIMEOUTS.panel });
+
+    //if it didn't fail to wait for success states
+    await expect(appContainer.getByText(/synced/i)).toBeVisible({ timeout: TIMEOUTS.status });
+    await expect(appContainer.getByText(/healthy/i)).toBeVisible({ timeout: TIMEOUTS.status });
+  }
+
+  async openApplication(appName: string) {
+    //re-apply search filter just in case the UI refreshed
+    await this.page.getByPlaceholder(/Search applications/i).fill(appName);
+    
+    //find the container, then specifically click the link of the app name
+    const appLink = this.page.locator('.white-box, .argo-table-list__row')
+                         .filter({ has: this.page.getByText(appName, { exact: true }) })
+                         .getByRole('link', { name: appName, exact: true });
+                             
+    await appLink.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
+    await appLink.click();
+    
+    //wait for the URL to change to the details page to ensure the click worked
+    await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: TIMEOUTS.default });
   }
 }

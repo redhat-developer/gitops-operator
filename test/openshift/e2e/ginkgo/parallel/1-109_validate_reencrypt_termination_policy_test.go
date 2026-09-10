@@ -7,7 +7,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -19,7 +19,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureParallelCleanSlate()
 		})
 
-		It("ensure the openshift-gitops default argo cd server route has expected TLS  Config values: insecure redirect and reencrypt, and the route ingress is sucessfully admitted", func() {
+		It("ensure the openshift-gitops default argo cd server route has expected TLS  Config values: insecure redirect and reencrypt, and the route ingress is sucessfully admitted", Label("openshift"), func() {
 
 			By("ensuring that default openshift-gitops has expecter route settings and an admitted ingress")
 			openshiftGitOpsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Termination:                   routev1.TLSTerminationReencrypt,
 			}))
 
-			Eventually(serverRoute, "3m", "5s").Should(route.HaveAdmittedIngress())
+			Eventually(serverRoute, "3m", "5s").Should(routeFixture.HaveAdmittedIngress())
 
 			Expect(serverRoute.Spec.Host).ToNot(BeEmpty())
 

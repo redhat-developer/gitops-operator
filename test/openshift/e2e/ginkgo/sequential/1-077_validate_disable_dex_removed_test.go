@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-077_validate_disable_dex_removed", func() {
 
@@ -40,12 +40,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
+		// TODO: skipped on xKS, check if this can be ported for xKS testing
 		It("verifies that DISABLE_DEX is not specified in the Subscription/CSV that was used to install the operator", func() {
 
 			if fixture.EnvNonOLM() || fixture.EnvLocalRun() {

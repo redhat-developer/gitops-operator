@@ -590,8 +590,8 @@ var _ = Describe("GitOpsServiceController", func() {
 						continue
 					}
 					if namespaces, ok := secret.Data["namespaces"]; ok {
-						namespaceList := strings.Split(string(namespaces), ",")
-						for _, ns := range namespaceList {
+						namespaceList := strings.SplitSeq(string(namespaces), ",")
+						for ns := range namespaceList {
 							if strings.TrimSpace(ns) == argocdTargetNamespace {
 								err := fmt.Errorf("namespace %v still present in cluster secret namespace list", argocdTargetNamespace)
 								GinkgoT().Log(err.Error())

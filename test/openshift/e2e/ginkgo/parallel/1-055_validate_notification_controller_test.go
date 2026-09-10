@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -109,8 +109,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(notifDepl).Should(k8sFixture.ExistByName())
 
-			Eventually(notifDepl).Should(deployment.HaveConditionTypeStatus(appsv1.DeploymentAvailable, corev1.ConditionTrue))
-			Eventually(notifDepl).Should(deployment.HaveConditionTypeStatus(appsv1.DeploymentProgressing, corev1.ConditionTrue))
+			Eventually(notifDepl).Should(deploymentFixture.HaveConditionTypeStatus(appsv1.DeploymentAvailable, corev1.ConditionTrue))
+			Eventually(notifDepl).Should(deploymentFixture.HaveConditionTypeStatus(appsv1.DeploymentProgressing, corev1.ConditionTrue))
 
 			notifSecret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{

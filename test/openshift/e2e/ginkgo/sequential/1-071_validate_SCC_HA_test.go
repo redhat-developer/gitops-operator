@@ -27,11 +27,10 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	nodeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/node"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/pod"
+	podFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/pod"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -50,7 +49,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates SCC and ensure HA Argo CD starts as expected", func() {
+		It("creates SCC and ensure HA Argo CD starts as expected", Label("openshift"), func() {
 
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
@@ -75,7 +74,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				AllowHostNetwork:         false,
 				AllowHostPID:             false,
 				AllowHostPorts:           false,
-				AllowPrivilegeEscalation: ptr.To(false),
+				AllowPrivilegeEscalation: new(false),
 				AllowPrivilegedContainer: false,
 				AllowedCapabilities:      nil,
 				DefaultAddCapabilities:   nil,
@@ -181,11 +180,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			redisServer1Pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-1", Namespace: ns.Name}}
 			Eventually(redisServer1Pod, "3m", "1s").Should(k8sFixture.ExistByName())
-			Eventually(redisServer1Pod, "3m", "1s").Should(pod.HavePhase(corev1.PodRunning))
+			Eventually(redisServer1Pod, "3m", "1s").Should(podFixture.HavePhase(corev1.PodRunning))
 
 			redisServer2Pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-2", Namespace: ns.Name}}
 			Eventually(redisServer2Pod, "3m", "1s").Should(k8sFixture.ExistByName())
-			Eventually(redisServer2Pod, "3m", "1s").Should(pod.HavePhase(corev1.PodRunning))
+			Eventually(redisServer2Pod, "3m", "1s").Should(podFixture.HavePhase(corev1.PodRunning))
 
 		})
 

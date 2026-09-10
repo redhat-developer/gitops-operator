@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -47,7 +46,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		}
 
-		It("verifies Argo CD metrics can be disabled and re-enabled", func() {
+		It("verifies Argo CD metrics can be disabled and re-enabled", Label("openshift"), func() {
 
 			By("verifying Argo CD metrics are enabled by default in openshift-gitops")
 
@@ -60,7 +59,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("disabling metrics via ArgoCD CR .spec.monitoring.disableMetrics")
 
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Monitoring.DisableMetrics = ptr.To(true)
+				ac.Spec.Monitoring.DisableMetrics = new(true)
 			})
 
 			By("verifying all metrics resources are in disabled state")
@@ -83,7 +82,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("re-enabling metrics")
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Monitoring.DisableMetrics = ptr.To(false)
+				ac.Spec.Monitoring.DisableMetrics = new(false)
 			})
 
 			By("verifying metrics are re-enabled")

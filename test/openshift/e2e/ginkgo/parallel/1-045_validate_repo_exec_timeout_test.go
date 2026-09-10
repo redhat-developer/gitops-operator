@@ -24,12 +24,11 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -67,7 +66,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("setting execTimeout on repo server via ArgoCD CR")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Repo.ExecTimeout = ptr.To(300)
+				ac.Spec.Repo.ExecTimeout = new(300)
 			})
 
 			By("verifying that argocd-repo-server has execTimeout value we set on ArgoCD CR")
@@ -75,7 +74,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 
-			Eventually(depl).Should(deployment.HaveContainerWithEnvVar("ARGOCD_EXEC_TIMEOUT", "300s", 0))
+			Eventually(depl).Should(deploymentFixture.HaveContainerWithEnvVar("ARGOCD_EXEC_TIMEOUT", "300s", 0))
 		})
 
 	})

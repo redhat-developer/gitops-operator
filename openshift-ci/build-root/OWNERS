@@ -1,7 +1,6 @@
 # See the OWNERS docs: https://git.k8s.io/community/contributors/guide/owners.md
 
 approvers:
-- wtam2018
 - chetan-rns
 - anandf
 - varshab1210
@@ -10,7 +9,6 @@ approvers:
 - Naveena-058
 
 reviewers:
-- wtam2018
 - chetan-rns
 - keithchong
 - anandf
@@ -18,3 +16,6 @@ reviewers:
 - adamsaleh
 - trdoyle81
 - Naveena-058
+
+emeritus_approvers:
+- wtam2018

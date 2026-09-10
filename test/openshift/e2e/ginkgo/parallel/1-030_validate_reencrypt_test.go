@@ -35,7 +35,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,8 +44,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-030_validate_reencrypt", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx             context.Context
+			k8sClient       client.Client
+			test_1_30_argo1 *corev1.Namespace
+			cleanupFunc     func()
 		)
 
 		BeforeEach(func() {
@@ -55,12 +56,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", func() {
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(test_1_30_argo1)
+
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+
+		})
+
+		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", Label("openshift"), func() {
 
 			By("creating namespace-scoped Argo CD instance with rencrypt Route")
 
-			test_1_30_argo1, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
-			defer cleanupFunc()
+			test_1_30_argo1, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_30_argo1.Name},
@@ -87,7 +97,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Expect(r).Should(routeFixture.HavePort(intstr.FromString("https")))
 			Expect(r).Should(routeFixture.HaveTLS(routev1.TLSTerminationReencrypt, routev1.InsecureEdgeTerminationPolicyRedirect))
-			Expect(r).Should(routeFixture.HaveTo(routev1.RouteTargetReference{Kind: "Service", Name: "argocd-server", Weight: ptr.To(int32(100))}))
+			Expect(r).Should(routeFixture.HaveTo(routev1.RouteTargetReference{Kind: "Service", Name: "argocd-server", Weight: new(int32(100))}))
 
 			By("verifying the Route was successfully admitted, and ths TLS Secret exists")
 			Eventually(func() bool {
@@ -158,6 +168,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				// Print the response body
 				GinkgoWriter.Println(string(body))
+
+				GinkgoWriter.Println(r.Status.Ingress, r.Spec.Host)
 
 				return strings.Contains(string(body), "Your browser does not support JavaScript.")
 

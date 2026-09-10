@@ -28,7 +28,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -103,21 +102,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				{
 					Name: "ssh-known-hosts", VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							DefaultMode:          ptr.To(int32(420)),
+							DefaultMode:          new(int32(420)),
 							LocalObjectReference: corev1.LocalObjectReference{Name: "argocd-ssh-known-hosts-cm"}},
 					},
 				},
 				{
 					Name: "tls-certs", VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							DefaultMode:          ptr.To(int32(420)),
+							DefaultMode:          new(int32(420)),
 							LocalObjectReference: corev1.LocalObjectReference{Name: "argocd-tls-certs-cm"}},
 					},
 				},
 				{
 					Name: "gpg-keys", VolumeSource: corev1.VolumeSource{
 						ConfigMap: &corev1.ConfigMapVolumeSource{
-							DefaultMode: ptr.To(int32(420)),
+							DefaultMode: new(int32(420)),
 							LocalObjectReference: corev1.LocalObjectReference{
 								Name: "argocd-gpg-keys-cm",
 							},

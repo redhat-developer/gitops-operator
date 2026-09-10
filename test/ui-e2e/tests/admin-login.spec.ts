@@ -11,7 +11,7 @@ test('Log into Argo CD as local admin', async ({ browser }) => {
       { timeout: 15000, stdio: 'pipe' }
     ).toString();
   } catch (error) {
-    throw new Error("Failed to extract admin password. Please check your cluster connection and oc CLI.");
+    throw new Error("Failed to extract admin password. Please check your cluster connection and oc CLI.", { cause: error });
   }
   
   //get credentials
@@ -27,7 +27,7 @@ test('Log into Argo CD as local admin', async ({ browser }) => {
       { timeout: 15000, stdio: 'pipe' }
     ).toString().trim();
   } catch (error) {
-    throw new Error("Failed to fetch Argo CD route. Please check your cluster connection and oc CLI.");
+    throw new Error("Failed to fetch Argo CD route. Please check your cluster connection and oc CLI.", { cause: error });
   }
 
   //Fresh context to avoid any cached state issues

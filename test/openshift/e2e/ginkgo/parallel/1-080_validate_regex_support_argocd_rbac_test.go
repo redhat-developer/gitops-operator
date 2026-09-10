@@ -29,7 +29,6 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -68,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("set regex Policy Matcher Mode")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.RBAC.PolicyMatcherMode = ptr.To("regex")
+				ac.Spec.RBAC.PolicyMatcherMode = new("regex")
 			})
 
 			By("verifying it gets set on argocd-rbac-cm ConfigMap")
@@ -92,7 +91,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("verifying we can also set glob, and it is set in the ConfigMap")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.RBAC.PolicyMatcherMode = ptr.To("glob")
+				ac.Spec.RBAC.PolicyMatcherMode = new("glob")
 			})
 			Eventually(argocdRBACCM).Should(configmapFixture.HaveStringDataKeyValue("policy.matchMode", "glob"))
 

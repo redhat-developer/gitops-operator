@@ -25,7 +25,7 @@ import (
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -37,7 +37,7 @@ import (
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-115-validate_imagepullpolicy_gitopsservice", func() {
+	Context("1-115-validate_imagepullpolicy_gitopsservice", Label("openshift"), func() {
 
 		var (
 			ctx       context.Context
@@ -68,7 +68,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -208,7 +208,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -265,7 +265,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 		return
 		// 	}
 
-		// 	csv := clusterserviceversion.Get(ctx, k8sClient)
+		// 	csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 		// 	Expect(csv).ToNot(BeNil())
 		// 	defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 

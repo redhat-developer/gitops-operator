@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -35,12 +35,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-018_validate_disable_default_instance", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that the default ArgoCD instance from openshift-gitops namespace is recreated when deleted manually", func() {
+		It("verifies that the default ArgoCD instance from openshift-gitops namespace is recreated when deleted manually", Label("openshift"), func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())
@@ -93,14 +94,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"},
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
-				Eventually(depl, "5m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl, "5m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			Eventually(ss, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(ss, "5m", "5s").Should(statefulsetFixture.HaveReadyReplicas(1))
 		})
 
-		It("verifies that DISABLE_DEFAULT_ARGOCD_INSTANCE env var will delete the argo cd instance from openshift-gitops, and that default Argo CD instance will be restored when the env var is removed", func() {
+		It("verifies that DISABLE_DEFAULT_ARGOCD_INSTANCE env var will delete the argo cd instance from openshift-gitops, and that default Argo CD instance will be restored when the env var is removed", Label("openshift"), func() {
 			if fixture.EnvLocalRun() {
 				Skip("when running locally, there is no subscription or operator deployment to modify, so this test is skipped.")
 				return
@@ -122,10 +123,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
-			Eventually(operatorControllerDepl).Should(deployment.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveAvailableReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReadyReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveAvailableReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying ArgoCD CR no longer exists")
 			openshiftGitopsArgoCD = &v1beta1.ArgoCD{
@@ -166,8 +167,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(depl).Should(deployment.HaveReplicas(1))
-				Eventually(depl, "2m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl).Should(deploymentFixture.HaveReplicas(1))
+				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			ss := &appsv1.StatefulSet{

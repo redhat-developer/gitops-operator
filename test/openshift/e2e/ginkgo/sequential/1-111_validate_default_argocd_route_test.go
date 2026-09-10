@@ -12,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -24,7 +23,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("ensuring that default openshift-gitops instance has expected default Argo CD server route, and that it is possible to modify the values on that default instance", func() {
+		It("ensuring that default openshift-gitops instance has expected default Argo CD server route, and that it is possible to modify the values on that default instance", Label("openshift"), func() {
 
 			By("verifying route of openshift-gitops Argo CD instance has expected values")
 			openshiftArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
@@ -53,7 +52,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(serverRoute.Spec.To).Should(Equal(routev1.RouteTargetReference{
 				Kind:   "Service",
 				Name:   "openshift-gitops-server",
-				Weight: ptr.To(int32(100)),
+				Weight: new(int32(100)),
 			}))
 
 			By("verifying Route has admitted ingress")

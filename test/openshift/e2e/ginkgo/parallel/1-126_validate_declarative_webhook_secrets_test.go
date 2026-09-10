@@ -84,16 +84,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, userSecret)).To(Succeed())
 
 			By("setting spec.webhookSecrets.github.webhookSecretRef on the ArgoCD CR")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{
-						Name: "github-webhook-credentials",
-						Key:  "token",
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{
+							Name: "github-webhook-credentials",
+							Key:  "token",
+						},
 					},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+				}
+			})
 
 			By("waiting for argocd-secret to contain webhook.github.secret matching the referenced Secret")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -133,16 +133,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, userSecret)).To(Succeed())
 
 			By("setting spec.webhookSecrets.gitlab.webhookSecretRef on the ArgoCD CR")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{
-						Name: "gitlab-webhook-credentials",
-						Key:  "secret",
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{
+							Name: "gitlab-webhook-credentials",
+							Key:  "secret",
+						},
 					},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+				}
+			})
 
 			By("waiting for argocd-secret to contain webhook.gitlab.secret matching the referenced Secret")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -186,20 +186,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, userSecret)).To(Succeed())
 
 			By("setting spec.webhookSecrets.azureDevOps on the ArgoCD CR")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
-					UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{
-						Name: "ado-webhook-credentials",
-						Key:  "username",
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
+						UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{
+							Name: "ado-webhook-credentials",
+							Key:  "username",
+						},
+						PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{
+							Name: "ado-webhook-credentials",
+							Key:  "password",
+						},
 					},
-					PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{
-						Name: "ado-webhook-credentials",
-						Key:  "password",
-					},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+				}
+			})
 
 			By("waiting for both Azure DevOps keys in argocd-secret")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -247,16 +247,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			})).To(Succeed())
 
 			By("setting spec.webhookSecrets.github and spec.webhookSecrets.gitlab on the ArgoCD CR")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-creds", Key: "token"},
-				},
-				GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gl-creds", Key: "secret"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-creds", Key: "token"},
+					},
+					GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gl-creds", Key: "secret"},
+					},
+				}
+			})
 
 			By("waiting for argocd-secret to contain GitHub and GitLab webhook keys")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -310,19 +310,19 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			})).To(Succeed())
 
 			By("setting spec.webhookSecrets for Bitbucket Cloud, Bitbucket Server, and Gogs on the ArgoCD CR")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				Bitbucket: &argov1beta1api.ArgoCDWebhookSecretsBitbucket{
-					WebhookUUIDSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "bb-cloud-creds", Key: "uuid"},
-				},
-				BitbucketServer: &argov1beta1api.ArgoCDWebhookSecretsBitbucketServer{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "bb-server-creds", Key: "secret"},
-				},
-				Gogs: &argov1beta1api.ArgoCDWebhookSecretsGogs{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gogs-creds", Key: "secret"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					Bitbucket: &argov1beta1api.ArgoCDWebhookSecretsBitbucket{
+						WebhookUUIDSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "bb-cloud-creds", Key: "uuid"},
+					},
+					BitbucketServer: &argov1beta1api.ArgoCDWebhookSecretsBitbucketServer{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "bb-server-creds", Key: "secret"},
+					},
+					Gogs: &argov1beta1api.ArgoCDWebhookSecretsGogs{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gogs-creds", Key: "secret"},
+					},
+				}
+			})
 
 			By("waiting for argocd-secret to contain Bitbucket Cloud, Bitbucket Server, and Gogs webhook keys")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -399,13 +399,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StringData: map[string]string{"token": token},
 			})).To(Succeed())
 
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-nil-stanza-creds", Key: "token"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-nil-stanza-creds", Key: "token"},
+					},
+				}
+			})
 
 			Eventually(argocdSecret, "2m", "3s").Should(
 				secretFixture.HaveDataKeyValue(common.ArgoCDKeyGitHubWebhookSecret, []byte(token)),
@@ -452,13 +452,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StringData: map[string]string{"token": token},
 			})).To(Succeed())
 
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-clear-creds", Key: "token"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "gh-clear-creds", Key: "token"},
+					},
+				}
+			})
 
 			By("waiting for argocd-secret to contain webhook.github.secret")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -510,16 +510,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StringData: map[string]string{"secret": glSec},
 			})).To(Succeed())
 
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "partial-gh", Key: "token"},
-				},
-				GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
-					WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "partial-gl", Key: "secret"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					GitHub: &argov1beta1api.ArgoCDWebhookSecretsGitHub{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "partial-gh", Key: "token"},
+					},
+					GitLab: &argov1beta1api.ArgoCDWebhookSecretsGitLab{
+						WebhookSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "partial-gl", Key: "secret"},
+					},
+				}
+			})
 
 			By("waiting for argocd-secret to contain GitHub and GitLab webhook keys")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -574,14 +574,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StringData: map[string]string{"username": u, "password": p},
 			})).To(Succeed())
 
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
-					UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-drop-creds", Key: "username"},
-					PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-drop-creds", Key: "password"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
+						UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-drop-creds", Key: "username"},
+						PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-drop-creds", Key: "password"},
+					},
+				}
+			})
 
 			By("waiting for argocd-secret to contain Azure DevOps webhook username and password")
 			Eventually(argocdSecret, "2m", "3s").Should(
@@ -633,14 +633,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				StringData: map[string]string{"username": u, "password": p},
 			})).To(Succeed())
 
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
-			argoCD.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
-				AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
-					UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-atomic-creds", Key: "username"},
-					PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-atomic-creds", Key: "password"},
-				},
-			}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.WebhookSecrets = &argov1beta1api.ArgoCDWebhookSecretsSpec{
+					AzureDevOps: &argov1beta1api.ArgoCDWebhookSecretsAzureDevOps{
+						UsernameSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-atomic-creds", Key: "username"},
+						PasswordSecretRef: &argov1beta1api.WebhookSecretKeySelector{Name: "ado-atomic-creds", Key: "password"},
+					},
+				}
+			})
 
 			Eventually(argocdSecret, "2m", "3s").Should(
 				And(

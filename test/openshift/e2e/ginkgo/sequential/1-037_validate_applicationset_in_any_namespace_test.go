@@ -3,6 +3,7 @@ package sequential
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
@@ -1237,37 +1238,37 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating an ApplicationSet in the target namespace")
 			appset := &unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "argoproj.io/v1alpha1",
 					"kind":       "ApplicationSet",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "guestbook-appset",
 						"namespace": targetNS.Name,
 					},
-					"spec": map[string]interface{}{
-						"generators": []interface{}{
-							map[string]interface{}{
-								"list": map[string]interface{}{
-									"elements": []interface{}{
-										map[string]interface{}{
+					"spec": map[string]any{
+						"generators": []any{
+							map[string]any{
+								"list": map[string]any{
+									"elements": []any{
+										map[string]any{
 											"name": "guestbook",
 										},
 									},
 								},
 							},
 						},
-						"template": map[string]interface{}{
-							"metadata": map[string]interface{}{
+						"template": map[string]any{
+							"metadata": map[string]any{
 								"name": "{{name}}",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"project": "default",
-								"source": map[string]interface{}{
+								"source": map[string]any{
 									"repoURL":        "https://github.com/argoproj/argocd-example-apps.git",
 									"targetRevision": "HEAD",
 									"path":           "guestbook",
 								},
-								"destination": map[string]interface{}{
+								"destination": map[string]any{
 									"server":    "https://kubernetes.default.svc",
 									"namespace": targetNS.Name,
 								},
@@ -1410,13 +1411,7 @@ func removeListVerbFromNamespacesRules(rules []rbacv1.PolicyRule) ([]rbacv1.Poli
 			continue
 		}
 
-		hasList := false
-		for _, verb := range rule.Verbs {
-			if verb == "list" {
-				hasList = true
-				break
-			}
-		}
+		hasList := slices.Contains(rule.Verbs, "list")
 		if !hasList {
 			modifiedRules = append(modifiedRules, rule)
 			continue

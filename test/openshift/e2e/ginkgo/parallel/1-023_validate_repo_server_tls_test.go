@@ -59,7 +59,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.OutputDebugOnFail(nsTest_1_23_custom)
 		})
 
-		It("verifying ArgoCD .spec.repo AutoTLS and verifyTLS work as expected", func() {
+		It("verifying ArgoCD .spec.repo AutoTLS and verifyTLS work as expected", Label("openshift"), func() {
 
 			By("creating a namespace scoped Argo instance with AutoTLS set to 'openshift'")
 
@@ -86,7 +86,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				ac.Spec.Repo.VerifyTLS = true
 			})
 
-			Eventually(func() bool {
+			// Check that the service has what we need, here.
+
+			checkArgoCDServer := func() bool {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: nsTest_1_23_custom.Name}}
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(depl), depl); err != nil {
 					GinkgoWriter.Println(err)
@@ -105,18 +107,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					"--staticassets",
 					"/shared/app",
 					"--dex-server",
-					"https://argocd-dex-server.test-1-23-custom.svc.cluster.local:5556",
+					"https://argocd-dex-server.test-1-23-custom.svc.cluster.local.:5556",
 					"--repo-server",
-					"argocd-repo-server.test-1-23-custom.svc.cluster.local:8081",
+					"argocd-repo-server.test-1-23-custom.svc.cluster.local.:8081",
 					"--redis",
-					"argocd-redis.test-1-23-custom.svc.cluster.local:6379",
+					"argocd-redis.test-1-23-custom.svc.cluster.local.:6379",
 					"--loglevel",
 					"info",
 					"--logformat",
 					"text",
 				})
 
-			}).Should(BeTrue())
+			}
+
+			Eventually(checkArgoCDServer).Should(BeTrue())
+			Consistently(checkArgoCDServer, "20s", "5s").Should(BeTrue())
 
 			Eventually(argoCDTest_1_23_custom, "5m", "5s").Should(argocdFixture.BeAvailable())
 
