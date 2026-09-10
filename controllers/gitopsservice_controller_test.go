@@ -22,9 +22,9 @@ import (
 	"os"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"

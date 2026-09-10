@@ -11,8 +11,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
+	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
+	osFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
 )
 
 const (

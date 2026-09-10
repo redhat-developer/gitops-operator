@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"

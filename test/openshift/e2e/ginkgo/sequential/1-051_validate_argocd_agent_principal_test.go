@@ -31,9 +31,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	agentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/agent"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"

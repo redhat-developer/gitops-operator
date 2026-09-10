@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
