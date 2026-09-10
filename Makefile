@@ -161,6 +161,7 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
+	cd argocd-operator && make test
 	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
 
 
