@@ -43,11 +43,12 @@ func allowedNamespace(current string, namespaces string) bool {
 const OperatorNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 
 func GetOperatorNamespace() (string, error) {
+	// Env var takes priority — allows test and dev overrides even when running inside a pod.
+	if ns := os.Getenv("ARGOCD_OPERATOR_NAMESPACE"); ns != "" {
+		return ns, nil
+	}
+
 	if _, err := os.Stat(OperatorNamespaceFile); os.IsNotExist(err) {
-		// read from env variable ARGOCD_OPERATOR_NAMESPACE for local run
-		if os.Getenv("ARGOCD_OPERATOR_NAMESPACE") != "" {
-			return os.Getenv("ARGOCD_OPERATOR_NAMESPACE"), nil
-		}
 		// If you are seeing this error:
 		// - You are likely running the operator outside a cluster (e.g. within development/test environment via Makefile)
 		// - You likely need to set `ARGOCD_OPERATOR_NAMESPACE` env var before starting operator (or running unit test). You could also temporarily hardcode it if that's easier for your use case.
