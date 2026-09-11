@@ -42,7 +42,6 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-083_validate_apps_in_any_namespace", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -55,32 +54,40 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that namespaces added to .spec.sourceNamespaces are managed by openshift-gitops Argo CD instance, except when those namespaces also have managed-by label. Both addition and removal of values from this field are tested", Label("openshift"), func() {
+		It("verifies that namespaces added to .spec.sourceNamespaces are managed by an Argo CD instance, except when those namespaces also have managed-by label. Both addition and removal of values from this field are tested", func() {
 
-			By("1) create test-1-24-custom namespace managed by openshift-gitops instance")
+			const argocdName = "argocd-083"
 
-			test_1_24_customNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-24-custom", "openshift-gitops")
+			By("creating a new ArgoCD instance")
+			argocdInstance, argocdNS, cleanupArgoCD := fixture.CreateNamespaceWithArgoCDInstance(argocdName)
+			defer cleanupArgoCD()
+
+			// sourceNamespaces reconciliation is gated on ARGOCD_CLUSTER_CONFIG_NAMESPACES in argocd-operator
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, "+argocdNS.Name)
+
+			By("enabling ApplicationSet controller on argocd-083 instance")
+			argocdFixture.Update(argocdInstance, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.ApplicationSet = &v1beta1.ArgoCDApplicationSet{}
+			})
+			Eventually(argocdInstance, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("1) create test-1-24-custom namespace managed by argocd-083 instance")
+
+			test_1_24_customNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-24-custom", argocdNS.Name)
 			defer cleanupFunc()
 
-			By("verifying openshift-gitops workloads exist and are running")
+			By("verifying argocd-083 workloads exist and are running")
 
-			openshiftGitOpsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
-
-			Eventually(openshiftGitOpsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-
-			deploymentsToVerify := []string{
-				"openshift-gitops-redis",
-				"openshift-gitops-repo-server",
-				"openshift-gitops-server",
-				"openshift-gitops-applicationset-controller",
-			}
-
-			for _, deploymentToVerify := range deploymentsToVerify {
+			for _, deploymentToVerify := range []string{
+				argocdName + "-redis",
+				argocdName + "-repo-server",
+				argocdName + "-server",
+				argocdName + "-applicationset-controller",
+			} {
 				depl := &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      deploymentToVerify,
-						Namespace: "openshift-gitops",
+						Namespace: argocdNS.Name,
 					},
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
@@ -88,23 +95,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
-			appControllerSS := &appsv1.StatefulSet{
+			argocdAppController := &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-application-controller",
-					Namespace: "openshift-gitops",
+					Name:      argocdName + "-application-controller",
+					Namespace: argocdNS.Name,
 				},
 			}
-			Eventually(appControllerSS).Should(k8sFixture.ExistByName())
+			Eventually(argocdAppController).Should(k8sFixture.ExistByName())
 
-			Eventually(test_1_24_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
+			Eventually(test_1_24_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", argocdNS.Name))
 
 			ensureRolesAndRoleBindingsHaveExpectedValuesInTest1_2_24Namespace := func() {
 
-				By("verifying that " + test_1_24_customNS.Name + " namespace has the expected server/app controller roles/rolebindings, and that the rolebindings grant access to openshift-gitops Argo CD instance")
+				By("verifying that " + test_1_24_customNS.Name + " namespace has the expected server/app controller roles/rolebindings, and that the rolebindings grant access to argocd-083 Argo CD instance")
 
 				appControllerRole := &rbacv1.Role{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops-argocd-application-controller",
+						Name:      argocdName + "-argocd-application-controller",
 						Namespace: test_1_24_customNS.Name,
 					},
 				}
@@ -112,7 +119,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 				serverRole := &rbacv1.Role{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops-argocd-server",
+						Name:      argocdName + "-argocd-server",
 						Namespace: test_1_24_customNS.Name,
 					},
 				}
@@ -120,7 +127,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 				appcontrollerRoleBinding := &rbacv1.RoleBinding{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops-argocd-application-controller",
+						Name:      argocdName + "-argocd-application-controller",
 						Namespace: test_1_24_customNS.Name,
 					},
 				}
@@ -128,105 +135,101 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Eventually(appcontrollerRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
 					APIGroup: "rbac.authorization.k8s.io",
 					Kind:     "Role",
-					Name:     "openshift-gitops-argocd-application-controller",
+					Name:     argocdName + "-argocd-application-controller",
 				}))
 				Eventually(appcontrollerRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 					Kind:      "ServiceAccount",
-					Name:      "openshift-gitops-argocd-application-controller",
-					Namespace: "openshift-gitops",
+					Name:      argocdName + "-argocd-application-controller",
+					Namespace: argocdNS.Name,
 				}))
 
 				argocdServerRoleBinding := &rbacv1.RoleBinding{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops-argocd-server",
-						Namespace: "test-1-24-custom",
+						Name:      argocdName + "-argocd-server",
+						Namespace: test_1_24_customNS.Name,
 					},
 				}
 				Eventually(argocdServerRoleBinding).Should(k8sFixture.ExistByName())
 				Eventually(argocdServerRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
 					APIGroup: "rbac.authorization.k8s.io",
 					Kind:     "Role",
-					Name:     "openshift-gitops-argocd-server",
+					Name:     argocdName + "-argocd-server",
 				}))
 				Eventually(argocdServerRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 					Kind:      "ServiceAccount",
-					Name:      "openshift-gitops-argocd-server",
-					Namespace: "openshift-gitops",
+					Name:      argocdName + "-argocd-server",
+					Namespace: argocdNS.Name,
 				}))
 
 			}
 			ensureRolesAndRoleBindingsHaveExpectedValuesInTest1_2_24Namespace()
 
-			By("2) Adding 'test-1-24-custom' as a source NS to openshift-gitops .spec.sourceNamespaces")
+			By("2) Adding 'test-1-24-custom' as a source NS to argocd-083 .spec.sourceNamespaces")
 
-			argocdFixture.Update(openshiftGitOpsArgoCD, func(ac *v1beta1.ArgoCD) {
+			argocdFixture.Update(argocdInstance, func(ac *v1beta1.ArgoCD) {
 				ac.Spec.SourceNamespaces = []string{
 					"test-1-24-custom",
 				}
 			})
 
-			By("verifying openshift-gitops instance should become ready")
-			openshiftGitOpsServer := &appsv1.Deployment{
+			By("verifying argocd-083 instance should become ready")
+			argocdServer := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-server",
-					Namespace: "openshift-gitops",
+					Name:      argocdName + "-server",
+					Namespace: argocdNS.Name,
 				},
 			}
-			Eventually(openshiftGitOpsServer).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsServer, "3m", "5s").Should(deploymentFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsServer, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+			Eventually(argocdServer).Should(k8sFixture.ExistByName())
+			Eventually(argocdServer, "3m", "5s").Should(deploymentFixture.HaveReplicas(1))
+			Eventually(argocdServer, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
-			openshiftGitOpsAppController := &appsv1.StatefulSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-application-controller",
-					Namespace: "openshift-gitops",
-				},
-			}
-			Eventually(openshiftGitOpsAppController).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
+			Eventually(argocdAppController).Should(k8sFixture.ExistByName())
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReplicas(1))
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
 
 			By("verifing expected managed labels on test-1-24-custom, both managed-by and managed-by-cluster-argocd")
-			Eventually(test_1_24_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
+			Eventually(test_1_24_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", argocdNS.Name))
 
 			ensureRolesAndRoleBindingsHaveExpectedValuesInTest1_2_24Namespace()
 
-			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "openshift-gitops"))
+			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", argocdNS.Name))
 
-			By("verify 'openshift-gitops_test-1-24-custom' role/rolebinding does not exist in test-1-24-custom")
-			openshift_gitops_test_1_24_customRole := &rbacv1.Role{
+			sourceNSRoleName := argocdName + "_test-1-24-custom"
+
+			By("verify '" + sourceNSRoleName + "' role/rolebinding does not exist in test-1-24-custom")
+			sourceNSRole := &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops_test-1-24-custom",
+					Name:      sourceNSRoleName,
 					Namespace: "test-1-24-custom",
 				},
 			}
-			Eventually(openshift_gitops_test_1_24_customRole).Should(k8sFixture.NotExistByName())
+			Eventually(sourceNSRole).Should(k8sFixture.NotExistByName())
 
-			openshift_gitops_test_1_24_customRoleBinding := &rbacv1.RoleBinding{
+			sourceNSRoleBinding := &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops_test-1-24-custom",
+					Name:      sourceNSRoleName,
 					Namespace: "test-1-24-custom",
 				},
 			}
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(k8sFixture.NotExistByName())
+			Eventually(sourceNSRoleBinding).Should(k8sFixture.NotExistByName())
 
 			By("3) Delete the 'test-1-24-custom' namespace. In this test, the main reason to do this is to remove the managed-by labels and any other remaining roles/rolebindings")
 			Expect(k8sClient.Delete(ctx, test_1_24_customNS)).To(Succeed())
 
-			By("4) Remove source namespace (added in previous steps) from openshift-gitops")
+			By("4) Remove source namespace (added in previous steps) from argocd-083")
 
-			argocdFixture.Update(openshiftGitOpsArgoCD, func(ac *v1beta1.ArgoCD) {
+			argocdFixture.Update(argocdInstance, func(ac *v1beta1.ArgoCD) {
 				ac.Spec.SourceNamespaces = []string{}
 			})
 
 			By("verifying Argo CD instance becomes ready")
-			Eventually(openshiftGitOpsServer).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReadyReplicas(1))
+			Eventually(argocdServer).Should(k8sFixture.ExistByName())
+			Eventually(argocdServer).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(argocdServer).Should(deploymentFixture.HaveReadyReplicas(1))
 
-			Eventually(openshiftGitOpsAppController).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
+			Eventually(argocdAppController).Should(k8sFixture.ExistByName())
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReplicas(1))
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
 
 			Eventually(test_1_24_customNS).Should(k8sFixture.NotExistByName())
 
@@ -238,66 +241,66 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, test_1_24_customNS)).To(Succeed())
-			argocdFixture.Update(openshiftGitOpsArgoCD, func(ac *v1beta1.ArgoCD) {
+			argocdFixture.Update(argocdInstance, func(ac *v1beta1.ArgoCD) {
 				ac.Spec.SourceNamespaces = []string{
 					"test-1-24-custom",
 				}
 			})
 
-			By("verify openshift-gitops workloads become ready")
-			Eventually(openshiftGitOpsServer).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReadyReplicas(1))
+			By("verify argocd-083 workloads become ready")
+			Eventually(argocdServer).Should(k8sFixture.ExistByName())
+			Eventually(argocdServer).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(argocdServer).Should(deploymentFixture.HaveReadyReplicas(1))
 
-			Eventually(openshiftGitOpsAppController).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
+			Eventually(argocdAppController).Should(k8sFixture.ExistByName())
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReplicas(1))
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
 
 			By("verifying test-1-24-custom has managed-by-cluster-argocd label")
-			Eventually(test_1_24_customNS, "2m", "5s").Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "openshift-gitops"))
+			Eventually(test_1_24_customNS, "2m", "5s").Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", argocdNS.Name))
 
-			By("verify openshift-roles and rolebindings exist. In previous step, they would not exist due to labels on test-1-24-custom. NOW, in this step, they should.")
-			openshift_gitops_test_1_24_customRole = &rbacv1.Role{
+			By("verify roles and rolebindings exist. In previous step, they would not exist due to labels on test-1-24-custom. NOW, in this step, they should.")
+			sourceNSRole = &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops_test-1-24-custom",
+					Name:      sourceNSRoleName,
 					Namespace: "test-1-24-custom",
 				},
 			}
-			Eventually(openshift_gitops_test_1_24_customRole).Should(k8sFixture.ExistByName())
+			Eventually(sourceNSRole).Should(k8sFixture.ExistByName())
 
-			openshift_gitops_test_1_24_customRoleBinding = &rbacv1.RoleBinding{
+			sourceNSRoleBinding = &rbacv1.RoleBinding{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops_test-1-24-custom",
+					Name:      sourceNSRoleName,
 					Namespace: "test-1-24-custom",
 				},
 			}
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
+			Eventually(sourceNSRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "Role",
-				Name:     "openshift-gitops_test-1-24-custom",
+				Name:     sourceNSRoleName,
 			}))
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
+			Eventually(sourceNSRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 				Kind:      "ServiceAccount",
-				Name:      "openshift-gitops-argocd-application-controller",
-				Namespace: "openshift-gitops",
+				Name:      argocdName + "-argocd-application-controller",
+				Namespace: argocdNS.Name,
 			}))
 
 			By("6) Add the managed-by label to test-1-24-custom namespace")
 
 			namespaceFixture.Update(test_1_24_customNS, func(n *corev1.Namespace) {
-				n.Labels["argocd.argoproj.io/managed-by"] = "openshift-gitops"
+				n.Labels["argocd.argoproj.io/managed-by"] = argocdNS.Name
 			})
 
 			ensureRolesAndRoleBindingsHaveExpectedValuesInTest1_2_24Namespace()
 
 			By("now that the managed-by label has been added, the custom roles should be deleted, and should stay deleted")
-			Eventually(openshift_gitops_test_1_24_customRole).ShouldNot(k8sFixture.ExistByName())
-			Consistently(openshift_gitops_test_1_24_customRole).ShouldNot(k8sFixture.ExistByName())
+			Eventually(sourceNSRole).ShouldNot(k8sFixture.ExistByName())
+			Consistently(sourceNSRole).ShouldNot(k8sFixture.ExistByName())
 
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).ShouldNot(k8sFixture.ExistByName())
-			Consistently(openshift_gitops_test_1_24_customRoleBinding).ShouldNot(k8sFixture.ExistByName())
+			Eventually(sourceNSRoleBinding).ShouldNot(k8sFixture.ExistByName())
+			Consistently(sourceNSRoleBinding).ShouldNot(k8sFixture.ExistByName())
 
-			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "openshift-gitops"))
+			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", argocdNS.Name))
 
 			By("7) Remove managed-by from test-1-24-custom and verify the roles exist again")
 			namespaceFixture.Update(test_1_24_customNS, func(n *corev1.Namespace) {
@@ -305,50 +308,50 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("restarts the server and app controller workloads. I presume this is because their startup is too slow to pick up the RBAC changes we have made (removing the label)")
-			_, err = osFixture.ExecCommand("oc", "rollout", "restart", "deployment.apps/openshift-gitops-server", "-n", "openshift-gitops")
+			_, err := osFixture.ExecCommand("kubectl", "rollout", "restart", "deployment.apps/"+argocdName+"-server", "-n", argocdNS.Name)
 			Expect(err).ToNot(HaveOccurred())
 
-			_, err = osFixture.ExecCommand("oc", "rollout", "restart", "statefulset.apps/openshift-gitops-application-controller", "-n", "openshift-gitops")
+			_, err = osFixture.ExecCommand("kubectl", "rollout", "restart", "statefulset.apps/"+argocdName+"-application-controller", "-n", argocdNS.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("workloads should become available")
-			Eventually(openshiftGitOpsServer).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsServer).Should(deploymentFixture.HaveReadyReplicas(1))
+			Eventually(argocdServer).Should(k8sFixture.ExistByName())
+			Eventually(argocdServer).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(argocdServer).Should(deploymentFixture.HaveReadyReplicas(1))
 
-			Eventually(openshiftGitOpsAppController).Should(k8sFixture.ExistByName())
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReplicas(1))
-			Eventually(openshiftGitOpsAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
+			Eventually(argocdAppController).Should(k8sFixture.ExistByName())
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReplicas(1))
+			Eventually(argocdAppController).Should(statefulsetFixture.HaveReadyReplicas(1))
 
-			By("role rolebindings to openshift-gitops instance should exist")
-			Eventually(openshift_gitops_test_1_24_customRole).Should(k8sFixture.ExistByName())
+			By("role rolebindings to argocd-083 instance should exist")
+			Eventually(sourceNSRole).Should(k8sFixture.ExistByName())
 
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
+			Eventually(sourceNSRoleBinding).Should(rolebindingFixture.HaveRoleRef(rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "Role",
-				Name:     "openshift-gitops_test-1-24-custom",
+				Name:     sourceNSRoleName,
 			}))
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
+			Eventually(sourceNSRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 				Kind:      "ServiceAccount",
-				Name:      "openshift-gitops-argocd-application-controller",
-				Namespace: "openshift-gitops",
+				Name:      argocdName + "-argocd-application-controller",
+				Namespace: argocdNS.Name,
 			}))
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
+			Eventually(sourceNSRoleBinding).Should(rolebindingFixture.HaveSubject(rbacv1.Subject{
 				Kind:      "ServiceAccount",
-				Name:      "openshift-gitops-argocd-server",
-				Namespace: "openshift-gitops",
+				Name:      argocdName + "-argocd-server",
+				Namespace: argocdNS.Name,
 			}))
 
 			By("8) Remove namespaces from .spec.sourceNamespaces")
-			argocdFixture.Update(openshiftGitOpsArgoCD, func(ac *v1beta1.ArgoCD) {
+			argocdFixture.Update(argocdInstance, func(ac *v1beta1.ArgoCD) {
 				ac.Spec.SourceNamespaces = []string{}
 			})
 
 			By("verifying managed-by-cluster-argocd label is removed, and the custom role/binding are deleted")
-			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", "openshift-gitops"))
+			Eventually(test_1_24_customNS).ShouldNot(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by-cluster-argocd", argocdNS.Name))
 
-			Eventually(openshift_gitops_test_1_24_customRole).Should(k8sFixture.NotExistByName())
-			Eventually(openshift_gitops_test_1_24_customRoleBinding).Should(k8sFixture.NotExistByName())
+			Eventually(sourceNSRole).Should(k8sFixture.NotExistByName())
+			Eventually(sourceNSRoleBinding).Should(k8sFixture.NotExistByName())
 
 		})
 	})
