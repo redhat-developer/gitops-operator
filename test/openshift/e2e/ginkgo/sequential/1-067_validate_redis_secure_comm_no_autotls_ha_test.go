@@ -206,7 +206,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					}
 				}
 				return false
-			}).Should(BeTrue(), "server-0 still isn't the post-tls pod")
+			}, "2m", "5s").Should(BeTrue(), "server-0 still isn't the post-tls pod")
 
 			By("extracting the contents of /data/conf/redis.conf and checking it contains expected values")
 			expectedRedisConfig := []string{
