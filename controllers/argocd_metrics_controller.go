@@ -44,9 +44,11 @@ import (
 )
 
 const (
-	readRoleNameFormat         = "%s-read"
-	readRoleBindingNameFormat  = "%s-prometheus-k8s-read-binding"
-	alertRuleName              = "gitops-operator-argocd-alerts"
+	readRoleNameFormat        = "%s-read"
+	readRoleBindingNameFormat = "%s-prometheus-k8s-read-binding"
+	alertRuleName             = "gitops-operator-argocd-alerts"
+	// Use a separate rule so upgrades install the sync-loop alerts.
+	syncLoopAlertRuleName      = "gitops-operator-argocd-sync-loop-alerts"
 	dashboardNamespace         = "openshift-config-managed"
 	dashboardFolder            = "dashboards"
 	operatorMetricsServiceName = "openshift-gitops-operator-metrics-service"
@@ -173,7 +175,7 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 		}
 
 		// Create alert rule
-		err = r.createPrometheusRuleIfAbsent(request.Namespace, argocd, reqLogger)
+		err = r.createPrometheusRulesIfAbsent(request.Namespace, argocd, reqLogger)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -238,13 +240,15 @@ func (r *ArgoCDMetricsReconciler) Reconcile(ctx context.Context, request reconci
 				return reconcile.Result{}, err
 			}
 
-			// Delete alert rule
-			err = r.Client.Delete(context.TODO(), &monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Namespace: request.Namespace, Name: alertRuleName}})
-			if err != nil {
-				if !errors.IsNotFound(err) {
-					reqLogger.Error(err, "Error deleting prometheus in ",
-						"Namespace", request.Namespace)
-					return reconcile.Result{}, err
+			// Delete alert rules
+			for _, name := range []string{alertRuleName, syncLoopAlertRuleName} {
+				err = r.Client.Delete(context.TODO(), &monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Namespace: request.Namespace, Name: name}})
+				if err != nil {
+					if !errors.IsNotFound(err) {
+						reqLogger.Error(err, "Error deleting prometheus rule",
+							"Namespace", request.Namespace, "Name", name)
+						return reconcile.Result{}, err
+					}
 				}
 			}
 
@@ -406,8 +410,19 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 	return nil
 }
 
-func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
-	alertRule := newPrometheusRule(namespace)
+func (r *ArgoCDMetricsReconciler) createPrometheusRulesIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
+	for _, alertRule := range []*monitoringv1.PrometheusRule{
+		newPrometheusRule(namespace),
+		newSyncLoopPrometheusRule(namespace),
+	} {
+		if err := r.createPrometheusRuleIfAbsent(alertRule, argocd, reqLogger); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(alertRule *monitoringv1.PrometheusRule, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
 	existingAlertRule := &monitoringv1.PrometheusRule{}
 	err := r.Client.Get(context.TODO(), types.NamespacedName{Name: alertRule.Name, Namespace: alertRule.Namespace}, existingAlertRule)
 	if err == nil {
@@ -415,29 +430,28 @@ func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(namespace string,
 			"Namespace", existingAlertRule.Namespace, "Name", existingAlertRule.Name)
 		return nil
 	}
-	if errors.IsNotFound(err) {
-		reqLogger.Info("Creating new alert rule",
+	if !errors.IsNotFound(err) {
+		reqLogger.Error(err, "Error querying for existing alert rule",
 			"Namespace", alertRule.Namespace, "Name", alertRule.Name)
-
-		// Set the ArgoCD instance as the owner and controller
-		if err := controllerutil.SetControllerReference(argocd, alertRule, r.Scheme); err != nil {
-			reqLogger.Error(err, "Error setting read role owner ref",
-				"Namespace", alertRule.Namespace, "Name", alertRule.Name, "ArgoCD Name", argocd.Name)
-			return err
-		}
-
-		err := r.Client.Create(context.TODO(), alertRule)
-		if err != nil {
-			reqLogger.Error(err, "Error creating a new alert rule",
-				"Namespace", alertRule.Namespace, "Name", alertRule.Name)
-			return err
-		}
-
-		return nil
+		return err
 	}
-	reqLogger.Error(err, "Error querying for existing alert rule",
-		"Namespace", namespace, "Name", alertRuleName)
-	return err
+
+	reqLogger.Info("Creating new alert rule",
+		"Namespace", alertRule.Namespace, "Name", alertRule.Name)
+
+	if err := controllerutil.SetControllerReference(argocd, alertRule, r.Scheme); err != nil {
+		reqLogger.Error(err, "Error setting alert rule owner ref",
+			"Namespace", alertRule.Namespace, "Name", alertRule.Name, "ArgoCD Name", argocd.Name)
+		return err
+	}
+
+	if err := r.Client.Create(context.TODO(), alertRule); err != nil {
+		reqLogger.Error(err, "Error creating a new alert rule",
+			"Namespace", alertRule.Namespace, "Name", alertRule.Name)
+		return err
+	}
+
+	return nil
 }
 
 func (r *ArgoCDMetricsReconciler) reconcileDashboards(reqLogger logr.Logger) error {
@@ -633,5 +647,58 @@ func newPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
 	return &monitoringv1.PrometheusRule{
 		ObjectMeta: objectMeta,
 		Spec:       spec,
+	}
+}
+
+// newSyncLoopPrometheusRule defines alerts for sustained application sync rates.
+func newSyncLoopPrometheusRule(namespace string) *monitoringv1.PrometheusRule {
+	return &monitoringv1.PrometheusRule{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      syncLoopAlertRuleName,
+			Namespace: namespace,
+		},
+		Spec: monitoringv1.PrometheusRuleSpec{
+			Groups: []monitoringv1.RuleGroup{
+				{
+					Name: "GitOpsOperatorArgoCDSyncLoop",
+					Rules: []monitoringv1.Rule{
+						newRecordingRule("gitops:argocd_app_sync:rate10m",
+							fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s"}[10m]))`, namespace)),
+						newRecordingRule("gitops:argocd_app_sync_failed:rate10m",
+							fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s",phase=~"Error|Failed"}[10m]))`, namespace)),
+						newAlertRule("ArgoCDAppSyncLoop", "warning", "20m",
+							fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.01`, namespace),
+							"Argo CD application is syncing continuously",
+							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.01/s (about one sync every ~100s) for 20m. This often indicates a selfHeal conflict (for example HPA fighting declared replicas). Check application sync history, diff, and conflicting controllers."),
+						newAlertRule("ArgoCDAppSyncFailureLoop", "warning", "15m",
+							fmt.Sprintf(`gitops:argocd_app_sync_failed:rate10m{namespace="%s"} > 0.005`, namespace),
+							"Argo CD application syncs are failing repeatedly",
+							"Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained failed sync rate above 0.005/s for 15m. Investigate the application operation status and sync errors."),
+					},
+				},
+			},
+		},
+	}
+}
+
+func newRecordingRule(name, expr string) monitoringv1.Rule {
+	return monitoringv1.Rule{
+		Record: name,
+		Expr:   intstr.FromString(expr),
+	}
+}
+
+func newAlertRule(name, severity, duration, expr, summary, description string) monitoringv1.Rule {
+	return monitoringv1.Rule{
+		Alert: name,
+		Annotations: map[string]string{
+			"summary":     summary,
+			"description": description,
+		},
+		Expr: intstr.FromString(expr),
+		For:  ptr.To(monitoringv1.Duration(duration)),
+		Labels: map[string]string{
+			"severity": severity,
+		},
 	}
 }
