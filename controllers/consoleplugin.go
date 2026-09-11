@@ -145,7 +145,7 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy, isPF5 bool) corev1.Po
 	return podSpec
 }
 
-func pluginDeployment(crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.Deployment {
+func pluginDeployment(namespace string, crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.Deployment {
 	podSpec := getPluginPodSpec(crImagePullPolicy, isPF5)
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -159,13 +159,13 @@ func pluginDeployment(crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.D
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gitopsPluginName,
-			Namespace: serviceNamespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				kubeAppLabelApp:              gitopsPluginName,
 				kubeAppLabelComponent:        gitopsPluginName,
 				kubeAppLabelInstance:         gitopsPluginName,
 				kubeAppLabelPartOf:           gitopsPluginName,
-				kubeAppLabelRuntimeNamespace: serviceNamespace,
+				kubeAppLabelRuntimeNamespace: namespace,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -180,7 +180,7 @@ func pluginDeployment(crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.D
 	}
 }
 
-func consolePlugin() *consolev1.ConsolePlugin {
+func consolePlugin(namespace string) *consolev1.ConsolePlugin {
 	return &consolev1.ConsolePlugin{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: gitopsPluginName,
@@ -191,7 +191,7 @@ func consolePlugin() *consolev1.ConsolePlugin {
 				Type: consolev1.Service,
 				Service: &consolev1.ConsolePluginService{
 					Name:      gitopsPluginName,
-					Namespace: serviceNamespace,
+					Namespace: namespace,
 					Port:      servicePort,
 					BasePath:  "/",
 				},
@@ -203,7 +203,7 @@ func consolePlugin() *consolev1.ConsolePlugin {
 	}
 }
 
-func pluginService() *corev1.Service {
+func pluginService(namespace string) *corev1.Service {
 	spec := corev1.ServiceSpec{
 		Selector: map[string]string{
 			kubeAppLabelApp: gitopsPluginName,
@@ -219,7 +219,7 @@ func pluginService() *corev1.Service {
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gitopsPluginName,
-			Namespace: serviceNamespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				kubeAppLabelApp:       gitopsPluginName,
 				kubeAppLabelComponent: gitopsPluginName,
@@ -281,13 +281,13 @@ ServerRoot "/etc/httpd"
 }
 
 // pluginConfigMap creates the ConfigMap with dynamic httpd.conf
-func (r *ReconcileGitopsService) pluginConfigMap() *corev1.ConfigMap {
+func (r *ReconcileGitopsService) pluginConfigMap(namespace string) *corev1.ConfigMap {
 	httpdConfig := r.buildHttpdConfig()
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      httpdConfigMapName,
-			Namespace: serviceNamespace,
+			Namespace: namespace,
 			Labels: map[string]string{
 				kubeAppLabelApp:    gitopsPluginName,
 				kubeAppLabelPartOf: gitopsPluginName,
@@ -371,7 +371,7 @@ func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
 
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap, isPF5 bool) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginDeployment := pluginDeployment(cr.Spec.ImagePullPolicy, isPF5)
+	newPluginDeployment := pluginDeployment(r.PluginNamespace, cr.Spec.ImagePullPolicy, isPF5)
 
 	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -456,7 +456,7 @@ func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.Gitop
 
 func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	pluginServiceRef := pluginService()
+	pluginServiceRef := pluginService(r.PluginNamespace)
 	// Set GitopsService instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, pluginServiceRef, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -496,7 +496,7 @@ func (r *ReconcileGitopsService) reconcileService(instance *pipelinesv1alpha1.Gi
 
 func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newConsolePlugin := consolePlugin()
+	newConsolePlugin := consolePlugin(r.PluginNamespace)
 
 	if err := controllerutil.SetControllerReference(instance, newConsolePlugin, r.Scheme); err != nil {
 		return reconcile.Result{}, err
@@ -507,7 +507,7 @@ func (r *ReconcileGitopsService) reconcileConsolePlugin(instance *pipelinesv1alp
 	if err := r.Client.Get(context.TODO(), types.NamespacedName{Name: gitopsPluginName},
 		existingPlugin); err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new ConsolePlugin", "Namespace", serviceNamespace, "Name", gitopsPluginName)
+			reqLogger.Info("Creating a new ConsolePlugin", "Namespace", r.PluginNamespace, "Name", gitopsPluginName)
 			err = r.Client.Create(context.TODO(), newConsolePlugin)
 			if err != nil {
 				reqLogger.Error(err, "Error creating a new console plugin",
@@ -583,6 +583,41 @@ func (r *ReconcileGitopsService) reconcileConfigMap(instance *pipelinesv1alpha1.
 	return reconcile.Result{}, nil
 }
 
+// cleanupOldPluginResources removes plugin resources from the old namespace (openshift-gitops) after they have been moved to the operator namespace, since owner references on the cluster-scoped GitopsService CR won't trigger garbage collection.
+func (r *ReconcileGitopsService) cleanupOldPluginResources(ctx context.Context) error {
+	if r.PluginNamespace == serviceNamespace {
+		return nil
+	}
+
+	reqLogger := logs.WithValues()
+
+	oldDeploy := &appsv1.Deployment{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, oldDeploy); err == nil {
+		reqLogger.Info("Cleaning up old plugin Deployment from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldDeploy); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin Deployment from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	oldSvc := &corev1.Service{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: gitopsPluginName, Namespace: serviceNamespace}, oldSvc); err == nil {
+		reqLogger.Info("Cleaning up old plugin Service from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldSvc); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin Service from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	oldCM := &corev1.ConfigMap{}
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: httpdConfigMapName, Namespace: serviceNamespace}, oldCM); err == nil {
+		reqLogger.Info("Cleaning up old plugin ConfigMap from previous namespace", "Namespace", serviceNamespace)
+		if err := r.Client.Delete(ctx, oldCM); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete old plugin ConfigMap from namespace %s: %w", serviceNamespace, err)
+		}
+	}
+
+	return nil
+}
+
 // reconcilePlugin is the entry point for reconciling all console plugin resources.
 // isPF5 selects the PatternFly 5 image (OCP 4.18.x) vs the PatternFly 6 image (OCP >= 4.19).
 func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, isPF5 bool) (reconcile.Result, error) {
@@ -593,7 +628,7 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 	}
 
 	// Generate ConfigMap once
-	newPluginConfigMap := r.pluginConfigMap()
+	newPluginConfigMap := r.pluginConfigMap(r.PluginNamespace)
 
 	if result, err := r.reconcileService(instance, request); err != nil {
 		return result, err

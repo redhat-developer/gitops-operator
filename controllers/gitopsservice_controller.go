@@ -150,6 +150,10 @@ type ReconcileGitopsService struct {
 	DisableDefaultInstall bool
 	//CentralTLSProfile contains MinVersion and CipherSuites
 	CentralTLSProfile configv1.TLSProfileSpec
+
+	// PluginNamespace is the namespace where console plugin resources (Deployment, Service, ConfigMap) are deployed.
+	// This is typically the operator's own namespace (e.g. "openshift-gitops-operator").
+	PluginNamespace string
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
@@ -284,6 +288,10 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 
 	r.cleanKAMResources(ctx, reqLogger)
 
+	if err := r.cleanupOldPluginResources(ctx); err != nil {
+		reqLogger.Error(err, "Failed to cleanup old plugin resources")
+	}
+
 	if !r.DisableDefaultInstall {
 		// Create/reconcile the default Argo CD instance, unless default install is disabled
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
@@ -299,6 +307,25 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 
 	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
 		return result, err
+	}
+
+	if r.PluginNamespace != namespace {
+		pluginNS := &corev1.Namespace{}
+		err = r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, pluginNS)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating plugin namespace", "Name", r.PluginNamespace)
+				pluginNS = &corev1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{Name: r.PluginNamespace},
+				}
+				err = r.Client.Create(ctx, pluginNS)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
@@ -338,6 +365,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	if clusterVersion.LessThan(pf6MinVersion) {
 		return r.reconcilePlugin(instance, request, true) // PF5: >= 4.18 && < 4.19
 	}
+
 	return r.reconcilePlugin(instance, request, false) // PF6: >= 4.19
 }
 
