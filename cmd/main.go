@@ -78,6 +78,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj-labs/argocd-operator/pkg/tlsprofile"
+	"github.com/samber/lo"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -382,6 +383,9 @@ func main() {
 			DisableClusterTLSProfile: disableClusterTLSProfile,
 			MinVersion:               profile.MinTLSVersion,
 			Ciphers:                  profile.Ciphers,
+			CurvePreferences: lo.Map(profile.Groups, func(group configv1.TLSGroup, _ int) string {
+				return string(group)
+			}),
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
