@@ -63,6 +63,16 @@ make test
 make test-e2e
 ```
 
+#### Accessing redacted OpenShift CI logs
+
+When the CI log file is deemed to contains information resembling passphrases or secret keys, the platform will not make it unavailable with:
+
+> This file contained potentially sensitive information and has been removed
+
+To access the file (as a Red Hat associate), visit https://redhat.tines.com/pages/leaktk-test-platform-results-redaction-self-service and paste there the raw log file URL to see the contents, and the offending piece of information.
+
+Remember to file PR updating the test producing the undesired output.
+
 ## Re-build and Deploy
 
 This operator currently deploys the following payload:
