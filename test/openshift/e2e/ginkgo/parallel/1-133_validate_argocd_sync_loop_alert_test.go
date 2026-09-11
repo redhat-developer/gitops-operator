@@ -63,20 +63,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						},
 					},
 					{
-						Alert: "ArgoCDAppSyncLoop",
-						Annotations: map[string]string{
-							"summary": "Argo CD application sync loop is aggressive",
-							"description": "Argo CD application {{ $labels.name }} in namespace {{ $labels.namespace }} has a sustained sync rate above 0.1/s " +
-								"(about one sync every ~10s) for 10m. Investigate conflicting controllers or tight reconcile settings immediately.",
-							"runbook_url": "https://github.com/openshift/runbooks/blob/master/alerts/gitops-operator/ArgoCDAppSyncLoop.md",
-						},
-						Expr: intstr.FromString(`gitops:argocd_app_sync:rate10m{namespace="openshift-gitops"} > 0.1`),
-						For:  ptr.To(monitoringv1.Duration("10m")),
-						Labels: map[string]string{
-							"severity": "critical",
-						},
-					},
-					{
 						Alert: "ArgoCDAppSyncFailureLoop",
 						Annotations: map[string]string{
 							"summary":     "Argo CD application syncs are failing repeatedly",

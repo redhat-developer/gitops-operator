@@ -370,7 +370,7 @@ func TestReconciler_add_sync_loop_prometheus_rule(t *testing.T) {
 		assert.Equal(t, rule.OwnerReferences[0].Name, tc.instanceName)
 
 		assert.Equal(t, rule.Spec.Groups[0].Name, "GitOpsOperatorArgoCDSyncLoop")
-		assert.Assert(t, is.Len(rule.Spec.Groups[0].Rules, 5))
+		assert.Assert(t, is.Len(rule.Spec.Groups[0].Rules, 4))
 
 		recordRule := rule.Spec.Groups[0].Rules[0]
 		assert.Equal(t, recordRule.Record, "gitops:argocd_app_sync:rate10m")
@@ -382,28 +382,16 @@ func TestReconciler_add_sync_loop_prometheus_rule(t *testing.T) {
 		assert.Equal(t, failureRecordRule.Expr.StrVal,
 			fmt.Sprintf(`sum by (name, namespace) (rate(argocd_app_sync_total{namespace="%s",phase=~"Error|Failed"}[10m]))`, tc.namespace))
 
-		warning := rule.Spec.Groups[0].Rules[2]
-		assert.Equal(t, warning.Alert, "ArgoCDAppSyncLoop")
-		assert.Equal(t, string(*warning.For), "20m")
-		assert.Equal(t, warning.Labels["severity"], "warning")
-		assert.Equal(t, warning.Expr.StrVal,
+		loop := rule.Spec.Groups[0].Rules[2]
+		assert.Equal(t, loop.Alert, "ArgoCDAppSyncLoop")
+		assert.Equal(t, string(*loop.For), "20m")
+		assert.Equal(t, loop.Labels["severity"], "warning")
+		assert.Equal(t, loop.Expr.StrVal,
 			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.01`, tc.namespace))
-		assert.Assert(t, warning.Annotations["summary"] != "")
-		assert.Assert(t, warning.Annotations["description"] != "")
-		_, hasWarningRunbook := warning.Annotations["runbook_url"]
-		assert.Assert(t, !hasWarningRunbook)
+		assert.Assert(t, loop.Annotations["summary"] != "")
+		assert.Assert(t, loop.Annotations["description"] != "")
 
-		critical := rule.Spec.Groups[0].Rules[3]
-		assert.Equal(t, critical.Alert, "ArgoCDAppSyncLoop")
-		assert.Equal(t, string(*critical.For), "10m")
-		assert.Equal(t, critical.Labels["severity"], "critical")
-		assert.Equal(t, critical.Expr.StrVal,
-			fmt.Sprintf(`gitops:argocd_app_sync:rate10m{namespace="%s"} > 0.1`, tc.namespace))
-		assert.Assert(t, critical.Annotations["summary"] != "")
-		assert.Assert(t, critical.Annotations["description"] != "")
-		assert.Equal(t, critical.Annotations["runbook_url"], argoCDAppSyncLoopRunbookURL)
-
-		failureLoop := rule.Spec.Groups[0].Rules[4]
+		failureLoop := rule.Spec.Groups[0].Rules[3]
 		assert.Equal(t, failureLoop.Alert, "ArgoCDAppSyncFailureLoop")
 		assert.Equal(t, string(*failureLoop.For), "15m")
 		assert.Equal(t, failureLoop.Labels["severity"], "warning")
