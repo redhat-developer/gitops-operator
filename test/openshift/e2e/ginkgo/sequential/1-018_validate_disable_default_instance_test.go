@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -94,7 +94,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"},
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
-				Eventually(depl, "5m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl, "5m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			Eventually(ss, "3m", "5s").Should(k8sFixture.ExistByName())
@@ -123,10 +123,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
-			Eventually(operatorControllerDepl).Should(deployment.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveAvailableReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReadyReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveAvailableReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying ArgoCD CR no longer exists")
 			openshiftGitopsArgoCD = &v1beta1.ArgoCD{
@@ -167,8 +167,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(depl).Should(deployment.HaveReplicas(1))
-				Eventually(depl, "2m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl).Should(deploymentFixture.HaveReplicas(1))
+				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			ss := &appsv1.StatefulSet{

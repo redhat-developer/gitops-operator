@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -74,7 +74,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 
-			Eventually(depl).Should(deployment.HaveContainerWithEnvVar("ARGOCD_EXEC_TIMEOUT", "300s", 0))
+			Eventually(depl).Should(deploymentFixture.HaveContainerWithEnvVar("ARGOCD_EXEC_TIMEOUT", "300s", 0))
 		})
 
 	})

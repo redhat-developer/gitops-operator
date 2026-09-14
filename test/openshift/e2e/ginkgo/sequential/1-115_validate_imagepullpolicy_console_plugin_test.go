@@ -25,7 +25,7 @@ import (
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -68,7 +68,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -92,7 +92,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("verifying console plugin deployment has ImagePullPolicy set to Always")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
@@ -208,7 +208,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(argoCD).Should(k8sFixture.ExistByName())
 			Eventually(argoCD).Should(argocdFixture.BeAvailable())
 
-			csv := clusterserviceversion.Get(ctx, k8sClient)
+			csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 			Expect(csv).ToNot(BeNil())
 			defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 
@@ -243,7 +243,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "3m", "5s").Should(BeTrue())
 
 			By("verifying plugin deployment defaults to IfNotPresent")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
@@ -265,7 +265,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 		return
 		// 	}
 
-		// 	csv := clusterserviceversion.Get(ctx, k8sClient)
+		// 	csv := clusterserviceversionFixture.Get(ctx, k8sClient)
 		// 	Expect(csv).ToNot(BeNil())
 		// 	defer func() { Expect(fixture.RemoveDynamicPluginFromCSV(ctx, k8sClient)).To(Succeed()) }()
 

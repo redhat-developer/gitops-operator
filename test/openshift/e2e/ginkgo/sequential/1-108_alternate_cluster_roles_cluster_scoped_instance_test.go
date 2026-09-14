@@ -28,7 +28,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterrole"
+	clusterroleFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterrole"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	persistentvolumeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/persistentvolume"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -371,7 +371,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}).Should(BeTrue())
 
 			By("adding permissions back to the clusterrole")
-			clusterrole.Update(crAppController, func(cr *rbacv1.ClusterRole) {
+			clusterroleFixture.Update(crAppController, func(cr *rbacv1.ClusterRole) {
 				cr.Rules = []rbacv1.PolicyRule{
 					{
 						Verbs:     []string{"get", "list", "watch"},

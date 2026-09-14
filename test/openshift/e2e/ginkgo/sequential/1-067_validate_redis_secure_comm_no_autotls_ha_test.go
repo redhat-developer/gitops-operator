@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"regexp"
+	"strings"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
@@ -38,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-067_validate_redis_secure_comm_no_autotls_ha", func() {
 
@@ -50,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
@@ -82,7 +85,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			expectComponentsAreRunning := func() {
 
-				// In BeAvailable() we wait 15 seconds for ArgoCD CR to be reconciled, this SHOULD be enough time.
+				// In BeAvailable() we wait 10 seconds for ArgoCD CR to be reconciled, this SHOULD be enough time.
 
 				By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 				Eventually(argoCD, "10m", "10s").Should(argocdFixture.BeAvailable())
@@ -160,8 +163,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			expectComponentsAreRunning()
 
 			By("extracting the contents of /data/conf/redis.conf and checking it contains expected values")
-			redisConf, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/redis.conf")
-			Expect(err).ToNot(HaveOccurred())
 			expectedRedisConfig := []string{
 				"port 0",
 				"tls-port 6379",
@@ -171,17 +172,31 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				"tls-replication yes",
 				"tls-auth-clients no",
 			}
-			for _, line := range expectedRedisConfig {
-				Expect(redisConf).To(ContainSubstring(line))
+
+			// redisConfHasExpectedValues extracts the contents of /data/conf/redis.conf and
+			// returns an error if any of the expected values are missing.
+			redisConfHasExpectedValues := func() error {
+				redisConf, err := osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis", "--", "cat", "/data/conf/redis.conf")
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("redis conf has length:", len(redisConf))
+
+				for _, line := range expectedRedisConfig {
+					if !strings.Contains(redisConf, line) {
+						return fmt.Errorf("redis.conf does not contain expected value: %s", line)
+					}
+				}
+				return nil
 			}
 
+			// First, wait for redis.conf to eventually contain the expected values, then
+			// verify it consistently contains them.
+			Eventually(redisConfHasExpectedValues, "10m", "5s").Should(Succeed())
+			Consistently(redisConfHasExpectedValues, "30s", "5s").Should(Succeed())
+
 			By("extracting the contents of /data/conf/sentinel.conf and checking it contains expected values")
-			sentinelConf, err := osFixture.ExecCommandWithOutputParam(
-				false, true,
-				"kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis",
-				"--", "cat", "/data/conf/sentinel.conf",
-			)
-			Expect(err).ToNot(HaveOccurred())
 			expectedSentinelConfig := []string{
 				"port 0",
 				"tls-port 26379",
@@ -192,9 +207,37 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				"tls-replication yes",
 				"tls-auth-clients no",
 			}
-			for _, line := range expectedSentinelConfig {
-				Expect(sentinelConf).To(MatchRegexp(line))
+
+			// sentinelConfHasExpectedValues extracts the contents of /data/conf/sentinel.conf
+			// and returns an error if any of the expected values are missing.
+			sentinelConfHasExpectedValues := func() error {
+				sentinelConf, err := osFixture.ExecCommandWithOutputParam(
+					false, true,
+					"kubectl", "exec", "-i", "pod/argocd-redis-ha-server-0", "-n", ns.Name, "-c", "redis",
+					"--", "cat", "/data/conf/sentinel.conf",
+				)
+				if err != nil {
+					return err
+				}
+
+				fmt.Println("sentinel conf has length:", len(sentinelConf))
+
+				for _, line := range expectedSentinelConfig {
+					matched, err := regexp.MatchString(line, sentinelConf)
+					if err != nil {
+						return err
+					}
+					if !matched {
+						return fmt.Errorf("sentinel.conf does not contain expected value: %s", line)
+					}
+				}
+				return nil
 			}
+
+			// First, wait for sentinel.conf to eventually contain the expected values, then
+			// verify it consistently contains them.
+			Eventually(sentinelConfHasExpectedValues, "2m", "5s").Should(Succeed())
+			Consistently(sentinelConfHasExpectedValues, "30s", "5s").Should(Succeed())
 
 			fqdnSuffix := ".svc.cluster.local.:"
 

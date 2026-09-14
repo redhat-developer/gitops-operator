@@ -11,7 +11,9 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -72,27 +74,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("labeling the namespace for monitoring")
 			// prometheus will only scrape user workload namespaces that have this label
-			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(nsNamespaced), nsNamespaced)
-			Expect(err).NotTo(HaveOccurred())
-
-			if nsNamespaced.Labels == nil {
-				nsNamespaced.Labels = make(map[string]string)
-			}
-			nsNamespaced.Labels["openshift.io/cluster-monitoring"] = "true"
-			err = k8sClient.Update(ctx, nsNamespaced)
-			Expect(err).NotTo(HaveOccurred())
+			namespaceFixture.Update(nsNamespaced, func(n *corev1.Namespace) {
+				if n.Labels == nil {
+					n.Labels = make(map[string]string)
+				}
+				n.Labels["openshift.io/cluster-monitoring"] = "true"
+			})
 
 			By("enabling user workload monitoring in the cluster monitoring config map")
 			existingCM := &corev1.ConfigMap{}
-			err = k8sClient.Get(ctx, client.ObjectKeyFromObject(uwmConfigMap), existingCM)
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(uwmConfigMap), existingCM)
 
 			cmExisted := (err == nil)
 			var originalData map[string]string
 
 			if cmExisted {
 				originalData = existingCM.Data
-				existingCM.Data = uwmConfigMap.Data
-				Expect(k8sClient.Update(ctx, existingCM)).To(Succeed(), "Failed to update existing UWM ConfigMap")
+				configmapFixture.Update(existingCM, func(cm *corev1.ConfigMap) {
+					cm.Data = uwmConfigMap.Data
+				})
 			} else if errors.IsNotFound(err) {
 				Expect(k8sClient.Create(ctx, uwmConfigMap)).To(Succeed(), "Failed to create UWM ConfigMap")
 			} else {
@@ -102,10 +102,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			DeferCleanup(func() {
 				By("restoring or deleting cluster monitoring config")
 				if cmExisted {
-					revertCM := &corev1.ConfigMap{}
-					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(uwmConfigMap), revertCM)).To(Succeed())
-					revertCM.Data = originalData
-					Expect(k8sClient.Update(ctx, revertCM)).To(Succeed())
+					revertCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: uwmConfigMap.Name, Namespace: uwmConfigMap.Namespace}}
+					configmapFixture.Update(revertCM, func(cm *corev1.ConfigMap) {
+						cm.Data = originalData
+					})
 				} else {
 					_ = k8sClient.Delete(ctx, uwmConfigMap)
 				}

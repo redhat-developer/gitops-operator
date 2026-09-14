@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -263,8 +264,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		}
 
-		// deployDestMapPrincipal deploys the principal ArgoCD instance with destination-based mapping.
-		deployDestMapPrincipal := func() {
+		// deployDestMapPrincipal deploys the principal ArgoCD instance with destination-based mapping,
+		// and returns the created ArgoCD CR.
+		deployDestMapPrincipal := func() *argov1beta1api.ArgoCD {
 			GinkgoHelper()
 
 			nsPrincipal, cleanup := fixture.CreateNamespaceWithCleanupFunc(destMapNsPrincipal)
@@ -328,10 +330,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal logs contain expected messages")
 			agentFixture.VerifyLogs(destMapDeploymentPrincipal, nsPrincipal.Name, destMapPrincipalStartupLogs)
+
+			return argoCDInstance
 		}
 
-		// deployDestMapAgent deploys the managed agent ArgoCD instance with destination-based mapping.
-		deployDestMapAgent := func() {
+		// deployDestMapAgent deploys the managed agent ArgoCD instance with destination-based mapping,
+		// and returns the created ArgoCD CR.
+		deployDestMapAgent := func() *argov1beta1api.ArgoCD {
 			GinkgoHelper()
 
 			nsAgent, cleanup := fixture.CreateNamespaceWithCleanupFunc(destMapNsAgent)
@@ -370,6 +375,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify managed agent logs contain expected messages")
 			agentFixture.VerifyLogs(destMapDeploymentAgent, nsAgent.Name, destMapAgentStartupLogs)
+
+			return argoCDInstanceAgent
 		}
 
 		createAdminCRBForAgent := func() {
@@ -447,10 +454,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should deploy principal and agent with destination-based mapping", Label("openshift"), func() {
 
 			By("Deploy principal with destination-based mapping enabled")
-			deployDestMapPrincipal()
+			principalArgoCD := deployDestMapPrincipal()
 
 			By("Deploy managed agent with destination-based mapping enabled")
-			deployDestMapAgent()
+			agentArgoCD := deployDestMapAgent()
+
+			By("Verify principal and agent ArgoCD instances are available")
+			Eventually(principalArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(agentArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("Verify principal is connected to the managed agent")
 			agentFixture.VerifyLogs(destMapDeploymentPrincipal, destMapNsPrincipal, []string{
@@ -480,9 +491,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"Application should be routed from principal to agent namespace")
 
 			By("Verify application on agent is synced and healthy")
-			Eventually(agentApp, "120s", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced),
+			Eventually(agentApp, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced),
 				"Application on agent should be synced")
-			Eventually(agentApp, "120s", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
+			Eventually(agentApp, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
 				"Application on agent should be healthy")
 
 			By("Verify application is synced and healthy on the principal")

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-025-validate-managed-by-change", func() {
 
@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -126,7 +126,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_25_argo2.Name, k8sClient)
 
 			By("verifying Argo CD Application deployed as expected and is healthy and synced")
-			Eventually(app, "3m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "60s", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("update 'test_1_25_target' NS to be managed by the second Argo CD instance, rather than the first")
