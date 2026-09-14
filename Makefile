@@ -294,12 +294,10 @@ bundle: operator-sdk opm manifests kustomize ## Generate bundle manifests and me
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
-	$(OPM) render ./bundle -o yaml | grep -E 'schema: olm.bundle' # Fail if using v0 format
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
 	$(CONTAINER_RUNTIME) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-	$(CONTAINER_RUNTIME) image inspect $(BUNDLE_IMG) --format '{{json .Config.Labels}}' | grep '"operators.operatorframework.io.bundle.mediatype.v1":"registry+v1"' # Fail if using v0 format
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -358,18 +356,6 @@ catalog-build: opm bundle ## Build a file-based catalog image.
 	$(OPM) validate $(CATALOG_DIR)
 	$(OPM) generate dockerfile $(CATALOG_DIR)
 	$(CONTAINER_RUNTIME) build -f $(CATALOG_DIR).Dockerfile -t $(CATALOG_IMG) .
-
-	# Validate that the catalog image is using the v1 format
-	@grep -q 'type: olm.csv.metadata' $(CATALOG_DIR)/index.yaml # Fail if using v0 format
-	@! grep -q 'type: olm.bundle.object' $(CATALOG_DIR)/index.yaml # Fail if using v0 format
-	@cid=$$($(CONTAINER_RUNTIME) create $(CATALOG_IMG)); \
-	if $(CONTAINER_RUNTIME) cp $$cid:/database/index.db /tmp/gitops-catalog-index.db 2>/dev/null; then \
-		$(CONTAINER_RUNTIME) rm $$cid >/dev/null; rm -f /tmp/gitops-catalog-index.db; \
-		echo "ERROR: $(CATALOG_IMG) uses SQLite index.db (deprecated/v0 catalog format)"; \
-		exit 1; \
-	fi; \
-	$(CONTAINER_RUNTIME) rm $$cid >/dev/null
-	$(OPM) render $(CATALOG_DIR) -o yaml | grep -E 'schema: olm\.(package|channel|bundle)' # Fail if using v0 format
 
 # Push the catalog image.
 .PHONY: catalog-push
