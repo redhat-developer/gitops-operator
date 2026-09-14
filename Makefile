@@ -289,7 +289,7 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: bundle
-bundle: operator-sdk manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
+bundle: operator-sdk opm manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
@@ -322,7 +322,7 @@ ifeq (,$(shell which opm 2>/dev/null))
 	set -e ;\
 	mkdir -p $(dir $(OPM)) ;\
 	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
+	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.72.0/$${OS}-$${ARCH}-opm ;\
 	chmod +x $(OPM) ;\
 	}
 else
@@ -331,30 +331,36 @@ endif
 endif
 
 
-# A comma-separated list of bundle images (e.g. make catalog-build BUNDLE_IMGS=example.com/operator-bundle:v0.1.0,example.com/operator-bundle:v0.2.0).
-# These images MUST exist in a registry and be pull-able.
-BUNDLE_IMGS ?= $(BUNDLE_IMG)
-
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
 CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
 
-# Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
-ifneq ($(origin CATALOG_BASE_IMG), undefined)
-FROM_INDEX_OPT := --from-index $(CATALOG_BASE_IMG)
-endif
+# File-based catalog (FBC) output directory. Dockerfile is generated beside it as $(CATALOG_DIR).Dockerfile.
+CATALOG_DIR = catalog
 
-# Build a catalog image by adding bundle images to an empty catalog using the operator package manager tool, 'opm'.
-# This recipe invokes 'opm' in 'semver' bundle add mode. For more information on add modes, see:
-# https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
+# Build a file-based catalog image from the local registry+v1 bundle (./bundle).
+# BUNDLE_IMG is stamped into the olm.bundle entry so OLM can pull the published bundle.
 .PHONY: catalog-build
-catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool $(shell basename $(CONTAINER_RUNTIME)) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+catalog-build: opm bundle ## Build a file-based catalog image.
+	rm -rf $(CATALOG_DIR) $(CATALOG_DIR).Dockerfile
+	mkdir -p $(CATALOG_DIR)
+	$(OPM) init gitops-operator --default-channel=$(DEFAULT_CHANNEL) -o yaml > $(CATALOG_DIR)/index.yaml
+	$(OPM) render ./bundle -o yaml --alpha-image-ref-template '$(BUNDLE_IMG)' --migrate-level=bundle-object-to-csv-metadata >> $(CATALOG_DIR)/index.yaml
+	for ch in $$(echo $(CHANNELS) | tr -d '"' | tr ',' ' '); do \
+		echo '---'; \
+		echo 'schema: olm.channel'; \
+		echo "package: gitops-operator"; \
+		echo "name: $${ch}"; \
+		echo 'entries:'; \
+		echo "  - name: gitops-operator.v$(VERSION)"; \
+	done >> $(CATALOG_DIR)/index.yaml
+	$(OPM) validate $(CATALOG_DIR)
+	$(OPM) generate dockerfile $(CATALOG_DIR)
+	$(CONTAINER_RUNTIME) build -f $(CATALOG_DIR).Dockerfile -t $(CATALOG_IMG) .
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
-
 
 .PHONY: gosec
 gosec: go_sec
