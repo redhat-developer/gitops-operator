@@ -71,7 +71,7 @@ When the CI log file is deemed to contain information resembling passphrases or 
 
 To access the file and identify the offending piece of information, visit https://redhat.tines.com/pages/leaktk-test-platform-results-redaction-self-service and paste there the raw log file URL to see the contents.
 
-Remember to file a PR updating the test producing the undesired output.
+Remember to file a PR updating the test that is producing the undesired output identified by Tines, and redact it.
 
 ## Re-build and Deploy
 
