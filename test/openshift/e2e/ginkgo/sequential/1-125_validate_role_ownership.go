@@ -37,6 +37,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		var (
 			ctx       context.Context
 			k8sClient client.Client
+			argoCD    *argov1beta1api.ArgoCD
 		)
 		const (
 			applicationControllerClusterRoleName           = "openshift-gitops-openshift-gitops-argocd-application-controller"
@@ -48,12 +49,28 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops")
+
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+
+			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("openshift-gitops")
+			defer cleanupFunc()
+
+			argoCD = &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "openshift-gitops",
+					Namespace: ns.Name,
+				},
+			}
 		})
 
 		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
+
+			By("creating cluster scoped ArgoCD instance")
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("checking that the default ClusterRole and clusterroleBinding for the ArgoCD Application Controller and Server exists")
 			defaultControllerClusterRole := &rbacv1.ClusterRole{
@@ -100,16 +117,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			initialControllerRoleBindingUid := defaultControllerClusterRoleBinding.GetUID()
 			initialApplicationSetControllerRoleBindingUid := defaultApplicationSetControllerClusterRoleBinding.GetUID()
 			initialServerRoleBindingUid := defaultServerClusterRoleBinding.GetUID()
-
-			defaultArgocd := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops",
-					Namespace: "openshift-gitops",
-				},
-			}
-
-			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
-			Eventually(defaultArgocd, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating new namespace scoped ArgoCD instance to create the condition where clusterrole and clusterrolebinding are deleted by namespaced scoped resources")
 			ns, nsCleanup := fixture.CreateNamespaceWithCleanupFunc("gitops")

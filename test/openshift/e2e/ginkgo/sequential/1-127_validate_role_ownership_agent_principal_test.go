@@ -255,7 +255,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 		}
 
-		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name for Agent Principal", func() {
+		It("validates for Agent Principal that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 			By("Create ArgoCD instance")
 
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())

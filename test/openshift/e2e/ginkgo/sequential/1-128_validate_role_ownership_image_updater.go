@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			imageUpdaterControllerClusterRoleBindingName = "image-updater-image-updater-argocd-image-updater-controller"
 		)
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -63,7 +63,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name for Image Updater", func() {
+		It("validates for Image Updater that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 			By("create a simple namespace scoped ArgoCD instance with image updater enabled and watch namespace set to '*'")
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("image-updater")
 
