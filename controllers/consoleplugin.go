@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/controllers/util"

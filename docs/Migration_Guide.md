@@ -24,9 +24,13 @@ Please refer to the below table to understand the correct version of GitOps oper
 
 | GitOps Operator | Argo CD Operator | Default Argo CD Version |
 | -------- | -------- | -------- |
-| v1.5.z | v0.3.z | v2.3.z |
-| v1.4.z | v0.2.z | v2.2.z |
-| v1.3.z | v0.1.z | v2.1.z |
+| v1.20.z | v0.18.z | v3.3.z |
+| v1.19.z | v0.17.z | v3.1.z |
+| v1.18.z | v0.16.z | v3.1.z |
+| v1.16.z | v0.14.z | v2.14.z |
+| v1.15.z | v0.13.z | v2.13.z |
+
+**Note:** For exact component versions, see the [Red Hat OpenShift GitOps release notes](https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/).
 
 **Note**: If you are running < `v0.1.0` version of Argo CD operator, Please upgrade to `v0.1.0` or above before you consider migrating to GitOps operator.
 
