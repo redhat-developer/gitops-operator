@@ -77,7 +77,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/argoproj-labs/argocd-operator/pkg/tlsprofile"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/samber/lo"
 	//+kubebuilder:scaffold:imports
 )
