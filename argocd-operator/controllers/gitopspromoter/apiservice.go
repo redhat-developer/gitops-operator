@@ -61,7 +61,6 @@ func ReconcilePromoterAPIServerAPIService(client client.Client, compName string,
 			// This safe guards from another ArgoCD CR instance from deleting the APIService even if the promoter is disabled
 			// If the service field is for some reason nil be safe and skip deleting anyway
 			ownsAPISvc := apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
-
 			if !ownsAPISvc {
 				return apiSvc, nil
 			}
@@ -158,8 +157,13 @@ func buildAPIServiceSpec(client client.Client, compName string, cr *argoproj.Arg
 }
 
 // DeleteAPIServices deletes a list of API Services
-func DeleteAPIServices(c client.Client, apiSvcList *apiregistrationv1.APIServiceList) error {
+func DeleteAPIServices(c client.Client, apiSvcList *apiregistrationv1.APIServiceList, compName string, cr *argoproj.ArgoCD) error {
 	for _, apiSvc := range apiSvcList.Items {
+		ownsAPISvc := apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
+		if !ownsAPISvc {
+			continue
+		}
+
 		argoutil.LogResourceDeletion(log, &apiSvc, "cleaning up cluster resources")
 		if err := c.Delete(context.TODO(), &apiSvc); err != nil {
 			return fmt.Errorf("failed to delete APIService %s during cleanup: %w", apiSvc.Name, err)
