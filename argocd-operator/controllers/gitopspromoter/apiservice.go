@@ -56,18 +56,17 @@ func ReconcilePromoterAPIServerAPIService(client client.Client, compName string,
 	}
 
 	if exists {
-		if !cr.Spec.Promoter.IsEnabled() || !enabled || !allowed {
-			// Check to see if referenced service was created by the CR if it is not do not delete
-			// This safe guards from another ArgoCD CR instance from deleting the APIService even if the promoter is disabled
-			// If the service field is for some reason nil be safe and skip deleting anyway
-			ownsAPISvc := apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
-			if !ownsAPISvc {
-				return apiSvc, nil
-			}
+		// Check to see if referenced service was created by the CR if it is not do not do any operations on it
+		// This safe guards from another ArgoCD CR instance from deleting the APIService even if the promoter is disabled
+		// If the service field is for some reason nil be safe and skip deleting anyway
+		if !ownsAPISvc(compName, cr, apiSvc) {
+			return apiSvc, nil
+		}
 
+		if !cr.Spec.Promoter.IsEnabled() || !enabled || !allowed {
 			argoutil.LogResourceDeletion(log, apiSvc, fmt.Sprintf("promoter apiservice for component %s is being deleted due to being disabled", compName))
 			if err := client.Delete(context.Background(), apiSvc); err != nil {
-				return nil, fmt.Errorf("failed to delete promoter service %s: %v", apiSvc.Name, err)
+				return nil, fmt.Errorf("failed to delete promoter api service %s: %v", apiSvc.Name, err)
 			}
 			return apiSvc, nil
 		}
@@ -159,8 +158,7 @@ func buildAPIServiceSpec(client client.Client, compName string, cr *argoproj.Arg
 // DeleteAPIServices deletes a list of API Services
 func DeleteAPIServices(c client.Client, apiSvcList *apiregistrationv1.APIServiceList, compName string, cr *argoproj.ArgoCD) error {
 	for _, apiSvc := range apiSvcList.Items {
-		ownsAPISvc := apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
-		if !ownsAPISvc {
+		if !ownsAPISvc(compName, cr, &apiSvc) {
 			continue
 		}
 
@@ -170,4 +168,8 @@ func DeleteAPIServices(c client.Client, apiSvcList *apiregistrationv1.APIService
 		}
 	}
 	return nil
+}
+
+func ownsAPISvc(compName string, cr *argoproj.ArgoCD, apiSvc *apiregistrationv1.APIService) bool {
+	return apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
 }

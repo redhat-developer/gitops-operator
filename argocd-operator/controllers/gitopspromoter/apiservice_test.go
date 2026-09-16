@@ -370,8 +370,6 @@ func TestReconcilePromoterAPIServerAPIService_Exists_Update(t *testing.T) {
 	cr := makeTestArgoCD(withPromoterEnabled(true), withPromoterAPIServerEnabled(true))
 
 	existingAPIService := makeExistingAPIService(cr)
-	existingAPIService.Spec.Service.Name = "not-a-real-service"
-	existingAPIService.Spec.Service.Namespace = "not-a-real-namespace"
 	existingAPIService.Spec.Service.Port = ptr.To(int32(25565))
 
 	resObjs := []client.Object{cr, existingAPIService}
