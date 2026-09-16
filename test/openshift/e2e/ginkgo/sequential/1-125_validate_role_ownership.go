@@ -54,21 +54,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+		})
+
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 
 			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("openshift-gitops")
 			defer cleanupFunc()
 
+			By("creating cluster scoped ArgoCD instance")
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops",
 					Namespace: ns.Name,
 				},
 			}
-		})
-
-		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
-
-			By("creating cluster scoped ArgoCD instance")
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
