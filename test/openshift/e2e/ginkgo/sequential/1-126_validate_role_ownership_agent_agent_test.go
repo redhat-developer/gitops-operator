@@ -44,7 +44,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		clusterRoleBindingName = "argocd-agent-argocd-agent-agent-agent"
 	)
 
-	Context("1-125_validate_role_ownership_agent_agent", func() {
+	Context("1-125_validate_agent_agent_role_ownership", func() {
 		var (
 			k8sClient       client.Client
 			ctx             context.Context

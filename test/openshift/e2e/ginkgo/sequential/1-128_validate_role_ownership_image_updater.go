@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
-	Context("1-125_validate_role_ownership_image_updater", func() {
+	Context("1-125_validate_image_updater_role_ownership", func() {
 
 		var (
 			ctx         context.Context

@@ -40,7 +40,7 @@ import (
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-125_validate_role_ownership_agent_principal", func() {
+	Context("1-125_validate_agent_principal_role_ownership", func() {
 
 		var (
 			k8sClient                client.Client
