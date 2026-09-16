@@ -25,6 +25,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -358,12 +359,12 @@ func TestReconciler_add_sync_loop_prometheus_rule(t *testing.T) {
 	flagPtr := false
 	for _, tc := range testCases {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, &flagPtr)
-		_, err := r.Reconcile(context.TODO(), newRequest(tc.namespace, tc.instanceName))
-		assert.NilError(t, err)
+		_, err := r.Reconcile(t.Context(), newRequest(tc.namespace, tc.instanceName))
+		require.NoError(t, err)
 
 		rule := monitoringv1.PrometheusRule{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: syncLoopAlertRuleName, Namespace: tc.namespace}, &rule)
-		assert.NilError(t, err)
+		err = r.Client.Get(t.Context(), types.NamespacedName{Name: syncLoopAlertRuleName, Namespace: tc.namespace}, &rule)
+		require.NoError(t, err)
 
 		assert.Assert(t, is.Len(rule.OwnerReferences, 1))
 		assert.Equal(t, rule.OwnerReferences[0].Kind, argocdKind)
@@ -421,22 +422,22 @@ func TestReconcile_remove_prometheus_rules(t *testing.T) {
 		r := newMetricsReconciler(t, tc.namespace, tc.instanceName, new(false))
 		request := newRequest(tc.namespace, tc.instanceName)
 
-		_, err := r.Reconcile(context.TODO(), request)
-		assert.NilError(t, err)
+		_, err := r.Reconcile(t.Context(), request)
+		require.NoError(t, err)
 
 		argocd := &argoapp.ArgoCD{}
-		err = r.Client.Get(context.TODO(), request.NamespacedName, argocd)
-		assert.NilError(t, err)
+		err = r.Client.Get(t.Context(), request.NamespacedName, argocd)
+		require.NoError(t, err)
 		argocd.Spec.Monitoring.DisableMetrics = new(true)
-		err = r.Client.Update(context.TODO(), argocd)
-		assert.NilError(t, err)
+		err = r.Client.Update(t.Context(), argocd)
+		require.NoError(t, err)
 
-		_, err = r.Reconcile(context.TODO(), request)
-		assert.NilError(t, err)
+		_, err = r.Reconcile(t.Context(), request)
+		require.NoError(t, err)
 
 		for _, name := range []string{alertRuleName, syncLoopAlertRuleName} {
 			rule := &monitoringv1.PrometheusRule{}
-			err = r.Client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: tc.namespace}, rule)
+			err = r.Client.Get(t.Context(), types.NamespacedName{Name: name, Namespace: tc.namespace}, rule)
 			assert.Assert(t, apierrors.IsNotFound(err))
 		}
 	}

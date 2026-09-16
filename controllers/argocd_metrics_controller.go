@@ -411,15 +411,10 @@ func (r *ArgoCDMetricsReconciler) reconcileOperatorMetricsServiceMonitor(reqLogg
 }
 
 func (r *ArgoCDMetricsReconciler) createPrometheusRulesIfAbsent(namespace string, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {
-	for _, alertRule := range []*monitoringv1.PrometheusRule{
-		newPrometheusRule(namespace),
-		newSyncLoopPrometheusRule(namespace),
-	} {
-		if err := r.createPrometheusRuleIfAbsent(alertRule, argocd, reqLogger); err != nil {
-			return err
-		}
+	if err := r.createPrometheusRuleIfAbsent(newPrometheusRule(namespace), argocd, reqLogger); err != nil {
+		return err
 	}
-	return nil
+	return r.createPrometheusRuleIfAbsent(newSyncLoopPrometheusRule(namespace), argocd, reqLogger)
 }
 
 func (r *ArgoCDMetricsReconciler) createPrometheusRuleIfAbsent(alertRule *monitoringv1.PrometheusRule, argocd *argoapp.ArgoCD, reqLogger logr.Logger) error {

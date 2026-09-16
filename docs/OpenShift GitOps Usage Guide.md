@@ -905,14 +905,14 @@ spec:
 
 #### False positives
 
-Short bursts should not fire. The long `for` windows are the filter:
+Short bursts should not fire. The alert only fires if the rate stays above the threshold for the full duration (`ArgoCDAppSyncLoop` 20m, `ArgoCDAppSyncFailureLoop` 15m):
 
 | Scenario | Why it looks busy | Why it should not fire |
 |----------|-------------------|------------------------|
 | Rapid legitimate commits | Many syncs in a few minutes | Burst ends inside 20m |
 | ApplicationSet creates many apps | Spike in sync activity | Rate is **per Application**; one initial sync is tiny |
-| Cluster upgrade / node churn | Temporary re-sync | Usually resolves inside `for` |
-| One `kubectl edit` + selfHeal | Single corrective sync | Does not sustain |
+| Cluster upgrade / node churn | Temporary re-sync | Usually settles before the duration elapses |
+| One `kubectl edit` + selfHeal | Single corrective sync | Does not last 20m |
 
 #### Scope and tuning
 
