@@ -92,7 +92,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			By("verifying console plugin deployment has ImagePullPolicy set to Always")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)
@@ -243,7 +243,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "3m", "5s").Should(BeTrue())
 
 			By("verifying plugin deployment defaults to IfNotPresent")
-			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: argoCD.Namespace}}
+			pluginDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(pluginDepl).Should(k8sFixture.ExistByName())
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDepl), pluginDepl)

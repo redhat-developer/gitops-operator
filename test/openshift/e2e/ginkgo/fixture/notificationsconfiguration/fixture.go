@@ -8,7 +8,7 @@ import (
 
 	matcher "github.com/onsi/gomega/types"
 
-	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
+	argov1alpha1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"

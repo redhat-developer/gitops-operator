@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
