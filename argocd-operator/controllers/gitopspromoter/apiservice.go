@@ -57,6 +57,15 @@ func ReconcilePromoterAPIServerAPIService(client client.Client, compName string,
 
 	if exists {
 		if !cr.Spec.Promoter.IsEnabled() || !enabled || !allowed {
+			// Check to see if referenced service was created by the CR if it is not do not delete
+			// This safe guards from another ArgoCD CR instance from deleting the APIService even if the promoter is disabled
+			// If the service field is for some reason nil be safe and skip deleting anyway
+			ownsAPISvc := apiSvc.Spec.Service != nil && cr.Namespace == apiSvc.Spec.Service.Namespace && generatePromoterResourceName(compName, cr) == apiSvc.Spec.Service.Name
+
+			if !ownsAPISvc {
+				return apiSvc, nil
+			}
+
 			argoutil.LogResourceDeletion(log, apiSvc, fmt.Sprintf("promoter apiservice for component %s is being deleted due to being disabled", compName))
 			if err := client.Delete(context.Background(), apiSvc); err != nil {
 				return nil, fmt.Errorf("failed to delete promoter service %s: %v", apiSvc.Name, err)
