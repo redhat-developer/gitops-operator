@@ -47,7 +47,7 @@ const (
 	operatorMetricsControllerSAName      = "openshift-gitops-operator-controller-manager"
 
 	// Mirror controller renewal settings: 20% of the requested one-hour TTL (~12 minutes).
-	operatorMetricsTokenExpiry         = time.Minute * 10
+	operatorMetricsTokenExpiry         = time.Hour
 	operatorMetricsTokenRenewalPercent = 20
 
 	// Bumping this annotation triggers a reconcile via the ServiceMonitor or Secret watch.
@@ -170,9 +170,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
-
-		It("verifies metrics bearer token Secret stores token and expiry with valid timestamps", func() {
-			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+		//TODO: Port this to xKS compatible test with cert-manager
+		It("verifies metrics bearer token Secret stores token and expiry with valid timestamps", Label("openshift"), func() {
+			if fixture.EnvLocalRun() {
 				Skip("this test requires the operator to be installed via OLM in openshift-gitops-operator namespace")
 			}
 
@@ -218,8 +218,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("refreshes metrics bearer token when expiry is in the past", func() {
-			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+		//TODO: Port this to xKS compatible test with cert-manager
+		It("refreshes metrics bearer token when expiry is in the past", Label("openshift"), func() {
+			if fixture.EnvLocalRun() {
 				Skip("this test requires the operator to be installed via OLM in openshift-gitops-operator namespace")
 			}
 
@@ -289,8 +290,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "2m", "5s").Should(Succeed())
 		})
 
-		It("does not refresh valid metrics bearer token before renewal deadline", func() {
-			if fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+		//TODO: Port this to xKS compatible test with cert-manager
+		It("does not refresh valid metrics bearer token before renewal deadline", Label("openshift"), func() {
+			if fixture.EnvLocalRun() {
 				Skip("this test requires the operator to be installed via OLM in openshift-gitops-operator namespace")
 			}
 

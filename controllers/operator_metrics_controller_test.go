@@ -19,11 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"gotest.tools/assert"
@@ -42,6 +41,11 @@ import (
 
 const testOperatorNamespace = "openshift-gitops-operator"
 
+func setTestOperatorNamespace(t *testing.T, namespace string) {
+	t.Helper()
+	t.Setenv("ARGOCD_OPERATOR_NAMESPACE", namespace)
+}
+
 type fakeTokenRequester struct {
 	token  string
 	expiry time.Time
@@ -53,20 +57,6 @@ func (f *fakeTokenRequester) RequestToken(_ context.Context, _, _ string, _ int6
 		return "", time.Time{}, f.err
 	}
 	return f.token, f.expiry, nil
-}
-
-func writeOperatorNamespaceFile(t *testing.T, namespace string) {
-	t.Helper()
-	dir := t.TempDir()
-	namespaceFile := filepath.Join(dir, "namespace")
-	if err := os.WriteFile(namespaceFile, []byte(namespace), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	oldPath := operatorPodNamespacePath
-	operatorPodNamespacePath = namespaceFile
-	t.Cleanup(func() {
-		operatorPodNamespacePath = oldPath
-	})
 }
 
 func newOperatorMetricsTokenScheme() *runtime.Scheme {
@@ -127,21 +117,12 @@ func newOperatorMetricsServiceMonitor(namespace string, useLegacyAuth bool) *mon
 	return sm
 }
 
-func TestGetOperatorNamespace_trimsNewline(t *testing.T) {
-	dir := t.TempDir()
-	namespaceFile := filepath.Join(dir, "namespace")
-	if err := os.WriteFile(namespaceFile, []byte("openshift-gitops-operator\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	oldPath := operatorPodNamespacePath
-	operatorPodNamespacePath = namespaceFile
-	t.Cleanup(func() {
-		operatorPodNamespacePath = oldPath
-	})
+func TestGetOperatorNamespace_viaEnv(t *testing.T) {
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
-	ns, err := getOperatorNamespace()
+	ns, err := argoutil.GetOperatorNamespace()
 	assert.NilError(t, err)
-	assert.Equal(t, ns, "openshift-gitops-operator")
+	assert.Equal(t, ns, testOperatorNamespace)
 }
 
 func TestBearerTokenRenewalLead(t *testing.T) {
@@ -170,7 +151,7 @@ func TestMetricsBearerTokenSecretMustReplace(t *testing.T) {
 }
 
 func TestOperatorMetricsTokenReconciler_replacesIncompatibleSecretType(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	incompatibleSecret := &corev1.Secret{
@@ -226,7 +207,7 @@ func TestBearerTokenRequeueAfterMint(t *testing.T) {
 }
 
 func TestOperatorMetricsTokenReconciler_schedulesRequeueForShortGrantedLifetime(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	c := fake.NewClientBuilder().WithScheme(s).Build()
@@ -269,7 +250,7 @@ func TestEvaluateBearerTokenRenewal(t *testing.T) {
 }
 
 func TestOperatorMetricsTokenReconciler_createsServiceMonitorAfterSecret(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	c := fake.NewClientBuilder().WithScheme(s).Build()
@@ -313,7 +294,7 @@ func TestOperatorMetricsTokenReconciler_createsServiceMonitorAfterSecret(t *test
 }
 
 func TestOperatorMetricsTokenReconciler_migratesServiceMonitorAuth(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, true)
@@ -351,7 +332,7 @@ func TestOperatorMetricsTokenReconciler_migratesServiceMonitorAuth(t *testing.T)
 }
 
 func TestOperatorMetricsTokenReconciler_replacesLegacySecret(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
@@ -407,7 +388,7 @@ func TestOperatorMetricsTokenReconciler_replacesLegacySecret(t *testing.T) {
 }
 
 func TestOperatorMetricsTokenReconciler_keepsLegacySecretIfTokenRequestFails(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	legacySecret := &corev1.Secret{
@@ -456,7 +437,7 @@ func TestOperatorMetricsTokenReconciler_keepsLegacySecretIfTokenRequestFails(t *
 }
 
 func TestOperatorMetricsTokenReconciler_refreshesExpiredToken(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
@@ -510,7 +491,7 @@ func TestOperatorMetricsTokenReconciler_refreshesExpiredToken(t *testing.T) {
 }
 
 func TestOperatorMetricsTokenReconciler_refreshesSecretWithMissingToken(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
@@ -554,7 +535,7 @@ func TestOperatorMetricsTokenReconciler_refreshesSecretWithMissingToken(t *testi
 }
 
 func TestOperatorMetricsTokenReconciler_schedulesRenewalFromExpiry(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
@@ -609,7 +590,7 @@ func TestOperatorMetricsTokenReconciler_schedulesRenewalFromExpiry(t *testing.T)
 }
 
 func TestOperatorMetricsTokenReconciler_refreshesTokenAtRenewalDeadline(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	serviceMonitor := newOperatorMetricsServiceMonitor(testOperatorNamespace, false)
@@ -668,7 +649,7 @@ func TestOperatorMetricsTokenReconciler_refreshesTokenAtRenewalDeadline(t *testi
 }
 
 func TestOperatorMetricsTokenReconciler_skipsOtherNamespaces(t *testing.T) {
-	writeOperatorNamespaceFile(t, testOperatorNamespace)
+	setTestOperatorNamespace(t, testOperatorNamespace)
 
 	s := newOperatorMetricsTokenScheme()
 	c := fake.NewClientBuilder().WithScheme(s).Build()

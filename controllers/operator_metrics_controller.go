@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"time"
 
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -163,7 +163,7 @@ func (r *OperatorMetricsTokenReconciler) Reconcile(ctx context.Context, request 
 	reqLogger := logf.Log.WithName("controller_operator_metrics_token").
 		WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 
-	operatorNS, err := getOperatorNamespace()
+	operatorNS, err := argoutil.GetOperatorNamespace()
 	if err != nil {
 		if os.IsNotExist(err) {
 			reqLogger.Info(fmt.Sprintf("Unable to retrieve the operator's running namespace via '%s': you should only see this message when running within unit tests, otherwise it is an error.", operatorPodNamespacePath))
@@ -202,14 +202,6 @@ func (r *OperatorMetricsTokenReconciler) Reconcile(ctx context.Context, request 
 		reqLogger.Info("Scheduling bearer token renewal", "after", requeueAfter.String())
 	}
 	return reconcile.Result{RequeueAfter: requeueAfter}, nil
-}
-
-func getOperatorNamespace() (string, error) {
-	data, err := os.ReadFile(operatorPodNamespacePath)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(data)), nil
 }
 
 // desiredOperatorMetricsServiceMonitor returns the ServiceMonitor spec written by
