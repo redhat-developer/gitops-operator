@@ -67,6 +67,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Name:      "openshift-gitops",
 					Namespace: ns.Name,
 				},
+				Spec: argov1beta1api.ArgoCDSpec{
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{},
+				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
@@ -125,6 +128,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "openshift-gitops-openshift",
 					Namespace: ns.Name,
+				},
+				Spec: argov1beta1api.ArgoCDSpec{
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
