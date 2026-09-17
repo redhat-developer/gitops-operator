@@ -36,9 +36,8 @@ import (
 
 var _ = Describe("GitOps Operator Parallel E2E Test", func() {
 	const (
-		argoCDName   = "example-argocd"
-		appName      = "guestbook"
-		appNamespace = "guestbook-1-120"
+		argoCDName = "example-argocd"
+		appName    = "guestbook"
 	)
 
 	var (
@@ -83,7 +82,7 @@ var _ = Describe("GitOps Operator Parallel E2E Test", func() {
 			}}
 			Eventually(ss).Should(ssFixture.HaveReadyReplicas(1))
 
-			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace, ns.Name)
+			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(ns.Name+"-guestbook", ns.Name)
 			defer cleanupFunc()
 
 			By("Creating ArgoCD Application CR")
@@ -162,7 +161,7 @@ var _ = Describe("GitOps Operator Parallel E2E Test", func() {
 			}}
 			Eventually(ss).Should(ssFixture.HaveReadyReplicas(1))
 
-			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace, ns.Name)
+			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(ns.Name+"-guestbook", ns.Name)
 			defer cleanupFunc()
 
 			By("Creating ArgoCD Application CR")
