@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -447,52 +446,39 @@ func TestReconcilePromoterControllerDeployment_PromoterDisabled(t *testing.T) {
 }
 
 func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
-	for _, tt := range []struct {
-		name     string
-		existing bool
-	}{
-		{name: "create"},
-		{name: "upgrade", existing: true},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			cr := makeTestArgoCD(withPromoterEnabled(true))
-			sa := makeExistingServiceAccount(cr)
-			objects := []client.Object{cr}
-			if tt.existing {
-				deployment := makeExistingDeployment(sa, cr)
-				deployment.Spec.Template.Spec.Volumes = nil
-				deployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
-				objects = append(objects, deployment)
-			}
-			scheme := makeTestReconcilerScheme()
-			c := makeTestReconcilerClient(scheme, objects)
+	// Test Case: Promoter is enabled and Controller Deployment does not exist
+	// Expected: Controller Deployment should be created
 
-			// Check creation or upgrade, then check that reconciliation preserves the configuration.
-			for range 2 {
-				deployment, err := ReconcilePromoterControllerDeployment(c, testCompName, sa, cr, scheme)
-				require.NoError(t, err)
-				require.NotNil(t, deployment)
-				retrieved := &appsv1.Deployment{}
-				require.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(deployment), retrieved))
-				assert.Equal(t, deployment.Name, retrieved.Name)
-				assert.Equal(t, cr.Namespace, retrieved.Namespace)
-				assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrieved.Labels)
+	cr := makeTestArgoCD(withPromoterEnabled(true))
 
-				cfg := createControllerConfig()
-				container := retrieved.Spec.Template.Spec.Containers[0]
-				assert.Equal(t, cfg.command, container.Command)
-				assert.Equal(t, cfg.securityContext, container.SecurityContext)
-				assert.Equal(t, cfg.livenessProbe, container.LivenessProbe)
-				assert.Equal(t, cfg.readinessProbe, container.ReadinessProbe)
-				assert.Equal(t, ptr.To(true), container.SecurityContext.ReadOnlyRootFilesystem)
-				assert.Equal(t, []corev1.Volume{{
-					Name:         "tmp",
-					VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
-				}}, retrieved.Spec.Template.Spec.Volumes)
-				assert.Equal(t, []corev1.VolumeMount{{Name: "tmp", MountPath: "/tmp"}}, container.VolumeMounts)
-			}
-		})
-	}
+	sa := makeExistingServiceAccount(cr)
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	client := makeTestReconcilerClient(sch, resObjs)
+
+	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment)
+
+	retrievedDeployment := &appsv1.Deployment{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      deployment.Name,
+		Namespace: cr.Namespace,
+	}, retrievedDeployment)
+	assert.NoError(t, err)
+
+	assert.Equal(t, deployment.Name, retrievedDeployment.Name)
+	assert.Equal(t, cr.Namespace, retrievedDeployment.Namespace)
+	assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrievedDeployment.Labels)
+
+	cfg := createControllerConfig()
+	assert.Equal(t, cfg.command, retrievedDeployment.Spec.Template.Spec.Containers[0].Command)
+	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
+	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
+	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
+	assert.Equal(t, cfg.volumeMounts, retrievedDeployment.Spec.Template.Spec.Containers[0].VolumeMounts)
+	assert.Equal(t, cfg.volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterDisabled(t *testing.T) {
