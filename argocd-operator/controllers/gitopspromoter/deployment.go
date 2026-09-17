@@ -68,6 +68,21 @@ func createControllerConfig() deploymentConfig {
 		securityContext: buildControllerSecurityContext(),
 		livenessProbe:   buildControllerLivenessProbe(),
 		readinessProbe:  buildControllerReadinessProbe(),
+		// Git clones and temporary index files need writable storage.
+		volumes: []corev1.Volume{
+			{
+				Name: "tmp",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		volumeMounts: []corev1.VolumeMount{
+			{
+				Name:      "tmp",
+				MountPath: "/tmp",
+			},
+		},
 	}
 }
 
