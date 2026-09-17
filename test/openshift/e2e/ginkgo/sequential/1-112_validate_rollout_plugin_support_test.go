@@ -8,8 +8,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -114,7 +114,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(depl).Should(k8sFixture.ExistByName())
-			Eventually(depl, "3m", "5s").Should(deployment.HaveReadyReplicas(1))
+			Eventually(depl, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 			metricsService := &corev1.Service{
 				ObjectMeta: metav1.ObjectMeta{
@@ -132,7 +132,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(rolloutsConfigMap).Should(k8sFixture.ExistByName())
-			Eventually(rolloutsConfigMap).Should(configmap.HaveStringDataKeyValue("metricProviderPlugins", `
+			Eventually(rolloutsConfigMap).Should(configmapFixture.HaveStringDataKeyValue("metricProviderPlugins", `
 - name: argoproj-labs/sample-prometheus
   location: https://github.com/argoproj-labs/sample-rollouts-metric-plugin/releases/download/v0.0.4/metric-plugin-linux-amd64
   sha256: af83581a496cebad569c6ddca4e1b7beef1c6f51573d6cd235cebe4390d3a767`))
@@ -157,7 +157,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
   location: file:/plugins/rollouts-trafficrouter-openshift/openshift-route-plugin
   sha256: ""`
 			}
-			Eventually(rolloutsConfigMap).Should(configmap.HaveStringDataKeyValue("trafficRouterPlugins", expectedTrafficRouterPluginsVal))
+			Eventually(rolloutsConfigMap).Should(configmapFixture.HaveStringDataKeyValue("trafficRouterPlugins", expectedTrafficRouterPluginsVal))
 
 		})
 

@@ -17,14 +17,14 @@ limitations under the License.
 package sequential
 
 import (
-	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/node"
+	nodeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/node"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -45,7 +45,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("validates Redis HA and Non-HA", Label("openshift"), func() {
 
 			// This test enables HA, so it needs to be running on a cluster with at least 3 nodes
-			node.ExpectHasAtLeastXNodes(3)
+			nodeFixture.ExpectHasAtLeastXNodes(3)
 
 			By("ensuring the openshift-gitops Argo CD instance is running")
 			gitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

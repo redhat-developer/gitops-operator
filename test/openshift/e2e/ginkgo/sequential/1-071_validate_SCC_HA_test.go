@@ -19,7 +19,7 @@ package sequential
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	securityv1 "github.com/openshift/api/security/v1"
@@ -27,7 +27,7 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	nodeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/node"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/pod"
+	podFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/pod"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -180,11 +180,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			redisServer1Pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-1", Namespace: ns.Name}}
 			Eventually(redisServer1Pod, "3m", "1s").Should(k8sFixture.ExistByName())
-			Eventually(redisServer1Pod, "3m", "1s").Should(pod.HavePhase(corev1.PodRunning))
+			Eventually(redisServer1Pod, "3m", "1s").Should(podFixture.HavePhase(corev1.PodRunning))
 
 			redisServer2Pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-ha-server-2", Namespace: ns.Name}}
 			Eventually(redisServer2Pod, "3m", "1s").Should(k8sFixture.ExistByName())
-			Eventually(redisServer2Pod, "3m", "1s").Should(pod.HavePhase(corev1.PodRunning))
+			Eventually(redisServer2Pod, "3m", "1s").Should(podFixture.HavePhase(corev1.PodRunning))
 
 		})
 

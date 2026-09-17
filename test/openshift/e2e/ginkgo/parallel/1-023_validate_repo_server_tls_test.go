@@ -20,7 +20,7 @@ import (
 	"context"
 	"reflect"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -86,7 +86,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				ac.Spec.Repo.VerifyTLS = true
 			})
 
-			Eventually(func() bool {
+			// Check that the service has what we need, here.
+
+			checkArgoCDServer := func() bool {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: nsTest_1_23_custom.Name}}
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(depl), depl); err != nil {
 					GinkgoWriter.Println(err)
@@ -116,7 +118,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					"text",
 				})
 
-			}).Should(BeTrue())
+			}
+
+			Eventually(checkArgoCDServer).Should(BeTrue())
+			Consistently(checkArgoCDServer, "20s", "5s").Should(BeTrue())
 
 			Eventually(argoCDTest_1_23_custom, "5m", "5s").Should(argocdFixture.BeAvailable())
 

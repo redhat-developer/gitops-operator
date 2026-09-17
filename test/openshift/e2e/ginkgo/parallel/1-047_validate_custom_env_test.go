@@ -19,14 +19,14 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
+	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -78,13 +78,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				By("verifying the Deployment " + depl.Name + " has expected env var")
 
-				Eventually(depl, "60s", "5s").Should(deployment.HaveContainerWithEnvVar("FOO", "bar", 0))
+				Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveContainerWithEnvVar("FOO", "bar", 0))
 			}
 
 			ss := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
 			By("verifying the StatefulSet " + ss.Name + " has expected env var")
 			Eventually(ss).Should(k8sFixture.ExistByName())
-			Eventually(ss, "60s", "5s").Should(statefulset.HaveContainerWithEnvVar("FOO", "bar", 0))
+			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("FOO", "bar", 0))
 
 		})
 

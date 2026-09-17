@@ -90,6 +90,9 @@ GINKGO_VERSION := $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo/v2
 # XKS_LABEL_FILTER is the label filter for XKS tests.
 XKS_LABEL_FILTER ?= "!openshift"
 
+# OCP_LABEL_FILTER is the label filter for OCP tests.
+OCP_LABEL_FILTER ?= "!xks"
+
 .PHONY: all
 all: build
 
@@ -115,6 +118,7 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role webhook crd paths="./..." output:crd:artifacts:config=config/crd/bases
+	rm -f config/crd/bases/argoproj.io_argocdexports.yaml # TODO: Remove once removed from the argocd-operator subdirectory, when controller-gen stops producing it
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -157,6 +161,7 @@ test-gitopsservice-nondefault:
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
+	cd argocd-operator && make test
 	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
 
 
@@ -166,12 +171,12 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
@@ -184,12 +189,12 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
 
 ##@ Build
 
@@ -199,7 +204,7 @@ build: generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
+	ARGOCD_OPERATOR_NAMESPACE=openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
@@ -256,7 +261,7 @@ olm-deploy: ## Build the operator bundle and deploy it to OpenShift through OLM
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 .PHONY: controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.18.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 .PHONY: kustomize
@@ -299,16 +304,6 @@ bundle-build: ## Build the bundle image.
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
-
-ARGOCD_OPERATOR_BRANCH ?= master
-
-# To run propagate-manifests target with the default argocd-operator master branch:
-#  make propagate-manifests
-# To run propagate-manifests target with a custom argocd-operator branch or tag:
-#  ARGOCD_OPERATOR_BRANCH=release-0.19 make propagate-manifests
-.PHONY: propagate-manifests
-propagate-manifests: ## compare and propagate manifests from argocd-operator repo
-	./hack/propagate.sh --from-branch $(ARGOCD_OPERATOR_BRANCH)
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -355,12 +350,13 @@ catalog-push: ## Push a catalog image.
 
 .PHONY: gosec
 gosec: go_sec
-	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager"  ./...
+	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager" --exclude-dir "argocd-operator/hack/"  ./...
 
 .PHONY: lint
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
 	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+	cd argocd-operator && $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
 
 
 GO_SEC = $(shell pwd)/bin/gosec

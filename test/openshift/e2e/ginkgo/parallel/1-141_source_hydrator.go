@@ -14,15 +14,15 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitserver"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	gitserverFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitserver"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
@@ -307,7 +307,7 @@ patches:
 		It("hydrate kustomize to another branch via ssh", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
-			server, cleanup := gitserver.StartServer(ctx, k8sClient, ns)
+			server, cleanup := gitserverFixture.StartServer(ctx, k8sClient, ns)
 			gitServerCleanup = cleanup
 
 			argoCD := &argov1beta1api.ArgoCD{
@@ -339,10 +339,10 @@ patches:
 			repo := server.CreateRepo("hydrator-kustomize")
 
 			By("pushing dry source before creating the Application")
-			cleanup, err := repo.Clone(gitserver.TransportSSH)
+			cleanup, err := repo.Clone(gitserverFixture.TransportSSH)
 			Expect(err).NotTo(HaveOccurred())
 			gitRepoCleanup = cleanup
-			dryCommit := gitserver.Commit{
+			dryCommit := gitserverFixture.Commit{
 				Branch: "dry",
 				Files:  kustomizeDrySourceFiles,
 			}
@@ -388,8 +388,8 @@ patches:
 					Equal(argocdv1alpha1.HydrateOperationPhaseHydrated),
 				)
 			}, "1m", "5s").Should(Succeed())
-			Expect(app).Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
-			Expect(app).Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 
 			By("verifying prod overlay patch was applied to the synced ConfigMap")
 			syncedCM := &corev1.ConfigMap{
@@ -413,7 +413,7 @@ patches:
 		It("hydrate helm to another directory via https", Label("openshift"), func() {
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
-			server, cleanup := gitserver.StartServer(ctx, k8sClient, ns)
+			server, cleanup := gitserverFixture.StartServer(ctx, k8sClient, ns)
 			gitServerCleanup = cleanup
 
 			argoCD := &argov1beta1api.ArgoCD{
@@ -446,10 +446,10 @@ patches:
 			repo := server.CreateRepo("hydrator-helm")
 
 			By("pushing dry source before creating the Application")
-			cleanup, err := repo.Clone(gitserver.TransportHTTPS)
+			cleanup, err := repo.Clone(gitserverFixture.TransportHTTPS)
 			Expect(err).NotTo(HaveOccurred())
 			gitRepoCleanup = cleanup
-			dryCommit := gitserver.Commit{
+			dryCommit := gitserverFixture.Commit{
 				Branch: "main",
 				Files:  helmDrySourceFiles,
 			}

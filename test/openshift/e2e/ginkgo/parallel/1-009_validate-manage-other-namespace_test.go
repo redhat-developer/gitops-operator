@@ -19,7 +19,7 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,7 +28,7 @@ import (
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argoCDInRandomNS, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("modifying the labels of another namespace to add the argocd managed-by label")
-			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
+			namespaceFixture.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
 				n.Labels["argocd.argoproj.io/managed-by"] = argoCDInRandomNS.Namespace
 			})
 
@@ -113,7 +113,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("removing managed-by label from that other Namespace")
-			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
+			namespaceFixture.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
 				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 
