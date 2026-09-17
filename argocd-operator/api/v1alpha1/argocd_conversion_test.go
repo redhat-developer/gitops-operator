@@ -966,6 +966,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						Server: &PrincipalServerSpec{
 							Service: ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeNodePort,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(true),
@@ -1055,6 +1058,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 							KeepAliveMinInterval: "30s",
 							Service: ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeExternalName,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(false),
