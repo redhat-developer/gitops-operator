@@ -447,50 +447,18 @@ func TestReconcilePromoterControllerDeployment_PromoterDisabled(t *testing.T) {
 }
 
 func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
-	// Test Case: Promoter is enabled and Controller Deployment does not exist
-	// Expected: Controller Deployment should be created
-
-	cr := makeTestArgoCD(withPromoterEnabled(true))
-
-	sa := makeExistingServiceAccount(cr)
-
-	resObjs := []client.Object{cr}
-	sch := makeTestReconcilerScheme()
-	client := makeTestReconcilerClient(sch, resObjs)
-
-	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch)
-	assert.NoError(t, err)
-	assert.NotNil(t, deployment)
-
-	retrievedDeployment := &appsv1.Deployment{}
-	err = client.Get(context.Background(), types.NamespacedName{
-		Name:      deployment.Name,
-		Namespace: cr.Namespace,
-	}, retrievedDeployment)
-	assert.NoError(t, err)
-
-	assert.Equal(t, deployment.Name, retrievedDeployment.Name)
-	assert.Equal(t, cr.Namespace, retrievedDeployment.Namespace)
-	assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrievedDeployment.Labels)
-
-	cfg := createControllerConfig()
-	assert.Equal(t, cfg.command, retrievedDeployment.Spec.Template.Spec.Containers[0].Command)
-	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
-	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
-	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
-}
-
-func TestReconcilePromoterControllerDeployment_WritableTmp(t *testing.T) {
-	for _, existing := range []bool{false, true} {
-		name := "create"
-		if existing {
-			name = "upgrade"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		existing bool
+	}{
+		{name: "create"},
+		{name: "upgrade", existing: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
 			cr := makeTestArgoCD(withPromoterEnabled(true))
 			sa := makeExistingServiceAccount(cr)
 			objects := []client.Object{cr}
-			if existing {
+			if tt.existing {
 				deployment := makeExistingDeployment(sa, cr)
 				deployment.Spec.Template.Spec.Volumes = nil
 				deployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
@@ -499,14 +467,23 @@ func TestReconcilePromoterControllerDeployment_WritableTmp(t *testing.T) {
 			scheme := makeTestReconcilerScheme()
 			c := makeTestReconcilerClient(scheme, objects)
 
-			// Check creation or upgrade, then check that another reconciliation preserves the mount.
+			// Check creation or upgrade, then check that reconciliation preserves the configuration.
 			for range 2 {
 				deployment, err := ReconcilePromoterControllerDeployment(c, testCompName, sa, cr, scheme)
 				require.NoError(t, err)
 				require.NotNil(t, deployment)
 				retrieved := &appsv1.Deployment{}
 				require.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(deployment), retrieved))
+				assert.Equal(t, deployment.Name, retrieved.Name)
+				assert.Equal(t, cr.Namespace, retrieved.Namespace)
+				assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrieved.Labels)
+
+				cfg := createControllerConfig()
 				container := retrieved.Spec.Template.Spec.Containers[0]
+				assert.Equal(t, cfg.command, container.Command)
+				assert.Equal(t, cfg.securityContext, container.SecurityContext)
+				assert.Equal(t, cfg.livenessProbe, container.LivenessProbe)
+				assert.Equal(t, cfg.readinessProbe, container.ReadinessProbe)
 				assert.Equal(t, ptr.To(true), container.SecurityContext.ReadOnlyRootFilesystem)
 				assert.Equal(t, []corev1.Volume{{
 					Name:         "tmp",
