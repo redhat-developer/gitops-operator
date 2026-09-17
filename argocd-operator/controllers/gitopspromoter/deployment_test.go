@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -477,6 +478,44 @@ func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
 	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
 	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
 	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
+}
+
+func TestReconcilePromoterControllerDeployment_WritableTmp(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		name := "create"
+		if existing {
+			name = "upgrade"
+		}
+		t.Run(name, func(t *testing.T) {
+			cr := makeTestArgoCD(withPromoterEnabled(true))
+			sa := makeExistingServiceAccount(cr)
+			objects := []client.Object{cr}
+			if existing {
+				deployment := makeExistingDeployment(sa, cr)
+				deployment.Spec.Template.Spec.Volumes = nil
+				deployment.Spec.Template.Spec.Containers[0].VolumeMounts = nil
+				objects = append(objects, deployment)
+			}
+			scheme := makeTestReconcilerScheme()
+			c := makeTestReconcilerClient(scheme, objects)
+
+			// Check creation or upgrade, then check that another reconciliation preserves the mount.
+			for range 2 {
+				deployment, err := ReconcilePromoterControllerDeployment(c, testCompName, sa, cr, scheme)
+				require.NoError(t, err)
+				require.NotNil(t, deployment)
+				retrieved := &appsv1.Deployment{}
+				require.NoError(t, c.Get(context.Background(), client.ObjectKeyFromObject(deployment), retrieved))
+				container := retrieved.Spec.Template.Spec.Containers[0]
+				assert.Equal(t, ptr.To(true), container.SecurityContext.ReadOnlyRootFilesystem)
+				assert.Equal(t, []corev1.Volume{{
+					Name:         "tmp",
+					VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+				}}, retrieved.Spec.Template.Spec.Volumes)
+				assert.Equal(t, []corev1.VolumeMount{{Name: "tmp", MountPath: "/tmp"}}, container.VolumeMounts)
+			}
+		})
+	}
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterDisabled(t *testing.T) {
