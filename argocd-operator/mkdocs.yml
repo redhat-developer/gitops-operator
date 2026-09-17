@@ -1,4 +1,4 @@
-site_name: Argo CD Operator
+site_name: GitOps Operator
 site_url: https://gitops-operator.readthedocs.io/en/latest/
 repo_url: https://github.com/redhat-developer/gitops-operator
 strict: true
