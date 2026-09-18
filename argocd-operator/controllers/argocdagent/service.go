@@ -18,6 +18,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -91,6 +93,7 @@ func ReconcilePrincipalService(client client.Client, compName string, cr *argopr
 			return nil
 		}
 
+		needsUpdate := false
 		if !reflect.DeepEqual(service.Spec.Ports, expectedSpec.Ports) ||
 			!reflect.DeepEqual(service.Spec.Selector, expectedSpec.Selector) ||
 			!reflect.DeepEqual(service.Spec.Type, expectedSpec.Type) {
@@ -98,7 +101,14 @@ func ReconcilePrincipalService(client client.Client, compName string, cr *argopr
 			service.Spec.Type = expectedSpec.Type
 			service.Spec.Ports = expectedSpec.Ports
 			service.Spec.Selector = expectedSpec.Selector
+			needsUpdate = true
+		}
 
+		if reconcilePrincipalServiceAnnotations(service, desiredPrincipalServiceAnnotations(cr)) {
+			needsUpdate = true
+		}
+
+		if needsUpdate {
 			argoutil.LogResourceUpdate(log, service, "updating principal service spec")
 			if err := client.Update(context.TODO(), service); err != nil {
 				return fmt.Errorf("failed to update principal service %s: %v", service.Name, err)
@@ -119,6 +129,7 @@ func ReconcilePrincipalService(client client.Client, compName string, cr *argopr
 	service.Spec.Type = expectedSpec.Type
 	service.Spec.Ports = expectedSpec.Ports
 	service.Spec.Selector = expectedSpec.Selector
+	reconcilePrincipalServiceAnnotations(service, desiredPrincipalServiceAnnotations(cr))
 
 	argoutil.LogResourceCreation(log, service)
 	if err := client.Create(context.TODO(), service); err != nil {
@@ -375,6 +386,50 @@ func ReconcilePrincipalHealthzService(client client.Client, compName string, cr 
 	return nil
 }
 
+// reconcilePrincipalServiceAnnotations adds, updates, or removes operator-managed annotations on
+// the principal service. Only annotation keys previously applied by the operator are removed
+// when they are no longer present in the CR spec; other annotations on the service are preserved.
+// Returns true when the service annotations were modified.
+func reconcilePrincipalServiceAnnotations(svc *corev1.Service, desired map[string]string) bool {
+	if desired == nil {
+		desired = map[string]string{}
+	}
+	if svc.Annotations == nil {
+		svc.Annotations = make(map[string]string)
+	}
+
+	previouslyOwned := parseOwnedAnnotationKeys(svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations])
+
+	changed := false
+	for _, key := range previouslyOwned {
+		if _, stillDesired := desired[key]; !stillDesired {
+			if _, exists := svc.Annotations[key]; exists {
+				delete(svc.Annotations, key)
+				changed = true
+			}
+		}
+	}
+
+	for key, value := range desired {
+		if svc.Annotations[key] != value {
+			svc.Annotations[key] = value
+			changed = true
+		}
+	}
+
+	newOwnedValue := formatOwnedAnnotationKeys(desired)
+	if svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations] != newOwnedValue {
+		if newOwnedValue == "" {
+			delete(svc.Annotations, common.AnnotationOwnedPrincipalServiceAnnotations)
+		} else {
+			svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations] = newOwnedValue
+		}
+		changed = true
+	}
+
+	return changed
+}
+
 func buildPrincipalServiceSpec(compName string, cr *argoproj.ArgoCD) corev1.ServiceSpec {
 	return corev1.ServiceSpec{
 		Ports: []corev1.ServicePort{
@@ -479,4 +534,40 @@ func getPrincipalServiceType(cr *argoproj.ArgoCD) corev1.ServiceType {
 		return cr.Spec.ArgoCDAgent.Principal.Server.Service.Type
 	}
 	return corev1.ServiceTypeClusterIP
+}
+
+// desiredPrincipalServiceAnnotations returns the principal service annotations from the CR spec.
+func desiredPrincipalServiceAnnotations(cr *argoproj.ArgoCD) map[string]string {
+	if !hasServer(cr) {
+		return nil
+	}
+	return cr.Spec.ArgoCDAgent.Principal.Server.Service.Annotations
+}
+
+func parseOwnedAnnotationKeys(owned string) []string {
+	if owned == "" {
+		return nil
+	}
+
+	keys := strings.Split(owned, ",")
+	result := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if key != "" {
+			result = append(result, key)
+		}
+	}
+	return result
+}
+
+func formatOwnedAnnotationKeys(desired map[string]string) string {
+	if len(desired) == 0 {
+		return ""
+	}
+
+	keys := make([]string, 0, len(desired))
+	for key := range desired {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ",")
 }
