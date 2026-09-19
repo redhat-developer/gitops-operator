@@ -22,10 +22,10 @@ import (
 	"context"
 	"reflect"
 
+	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -61,9 +61,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-113_validate_controller_role", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
-			testNS    *corev1.Namespace
+			ctx              context.Context
+			k8sClient        client.Client
+			testNS           *corev1.Namespace
+			ArgocdNamespace  *corev1.Namespace
+			cleanupNamespace func()
+			argocdInstance   *argov1beta1api.ArgoCD
 		)
 
 		BeforeEach(func() {
@@ -73,24 +76,33 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			fixture.OutputDebugOnFail(testNS, "openshift-gitops")
+			fixture.OutputDebugOnFail(testNS, ArgocdNamespace.Name)
+			if cleanupNamespace != nil {
+				cleanupNamespace()
+			}
 		})
 
-		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", Label("openshift"), func() {
+		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", func() {
 
-			By("creating a namespace managed by openshift-gitops")
-			testNS = fixture.CreateManagedNamespace("test-1-113-ns", "openshift-gitops")
+			By("creating a namespace and argocd instance for the test")
+			argocdInstance, ArgocdNamespace, cleanupNamespace = fixture.CreateNamespaceWithArgoCDInstance("test-1-113")
+
+			By("setting the ARGOCD_CLUSTER_CONFIG_NAMESPACES environment variable to the namespace")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argocdInstance.Namespace)
+
+			By("creating a namespace managed by an argocd instance")
+			testNS = fixture.CreateManagedNamespace("test-1-113-ns", argocdInstance.Namespace)
 			defer func() {
 				Expect(k8sClient.Delete(ctx, testNS)).To(Succeed())
 			}()
 
-			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
-			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			// openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			// Expect(err).ToNot(HaveOccurred())
+			// Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			appControllerRole := &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops-argocd-application-controller",
+					Name:      argocdInstance.Name + "-argocd-application-controller",
 					Namespace: testNS.Name,
 				},
 			}
