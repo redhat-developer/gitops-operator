@@ -2,8 +2,9 @@ import { test, expect } from '../src/fixtures';
 import { execFileSync } from 'child_process';
 
 test.describe('Clean Application Deletion (Pruning)', () => {
-  //make app name unique for test isolation
-  const appName = `ui-deletion-${Date.now()}`;
+  const stamp = Date.now();
+  const appName = `ui-deletion-${stamp}`;
+  const destNs = `ui-deletion-ns-${stamp}`;
   //pin revision to immutable commit SHA for reproducibility
   const targetCommit = '8088f4c0d970abb09e250248cc97e35623447cb5';
 
@@ -25,7 +26,7 @@ test.describe('Clean Application Deletion (Pruning)', () => {
       .map((kind) =>
         execFileSync(
           'oc',
-          ['get', kind, 'guestbook-ui', '-n', 'openshift-gitops', '--ignore-not-found', '-o', 'name'],
+          ['get', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '-o', 'name'],
           { stdio: 'pipe', timeout: 5000 }
         ).toString().trim()
       )
@@ -34,11 +35,10 @@ test.describe('Clean Application Deletion (Pruning)', () => {
   };
 
   test.beforeAll(async ({}, testInfo) => {
-    //set timeout to 150s (sync poll can take ~90s after a fresh install)
-    testInfo.setTimeout(150000);
+    //RBAC wait + sync can exceed 3m
+    testInfo.setTimeout(240000);
     console.log(`\n[setup] Deploying dummy application '${appName}' via CLI...`);
 
-    //define standard guestbook app yaml targeting openshift-gitops namespace
     const appYaml = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -47,7 +47,7 @@ metadata:
   namespace: openshift-gitops
 spec:
   destination:
-    namespace: openshift-gitops
+    namespace: ${destNs}
     server: https://kubernetes.default.svc
   project: default
   source:
@@ -60,11 +60,38 @@ spec:
       selfHeal: true
 `;
     try {
+      execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
+      //needed for controller write access
+      execFileSync(
+        'oc',
+        ['label', 'namespace', destNs, 'argocd.argoproj.io/managed-by=openshift-gitops', '--overwrite'],
+        { stdio: 'pipe', timeout: 15000 }
+      );
+      let rbacReady = false;
+      for (let i = 1; i <= 30; i++) {
+        const rbs = execFileSync(
+          'oc',
+          ['get', 'rolebinding', '-n', destNs, '-o', 'name'],
+          { stdio: 'pipe', timeout: 5000 }
+        ).toString();
+        if (/argocd-application-controller/i.test(rbs)) {
+          rbacReady = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      if (!rbacReady) {
+        throw new Error(
+          `Namespace '${destNs}' never received openshift-gitops application-controller RoleBinding ` +
+            `(label argocd.argoproj.io/managed-by=openshift-gitops).`
+        );
+      }
+
       //clear leftover guestbook children that can leave a new app stuck Unknown/OutOfSync
       for (const kind of ['deploy', 'svc'] as const) {
         execFileSync(
           'oc',
-          ['delete', kind, 'guestbook-ui', '-n', 'openshift-gitops', '--ignore-not-found', '--wait=false'],
+          ['delete', kind, 'guestbook-ui', '-n', destNs, '--ignore-not-found', '--wait=false'],
           { stdio: 'pipe', timeout: 15000 }
         );
       }
@@ -77,6 +104,7 @@ spec:
       let lastSync = '';
       let lastHealth = '';
       let lastMessage = '';
+      let lastOpMessage = '';
       for (let i = 1; i <= 30; i++) {
         try {
           lastSync = execFileSync(
@@ -92,6 +120,14 @@ spec:
           lastMessage = execFileSync(
             'oc',
             ['get', 'application', appName, '-n', 'openshift-gitops', '-o', 'jsonpath={.status.conditions[0].message}'],
+            { stdio: 'pipe', timeout: 3000 }
+          ).toString().trim();
+          lastOpMessage = execFileSync(
+            'oc',
+            [
+              'get', 'application', appName, '-n', 'openshift-gitops',
+              '-o', 'jsonpath={.status.operationState.message}',
+            ],
             { stdio: 'pipe', timeout: 3000 }
           ).toString().trim();
           console.log(
@@ -110,7 +146,8 @@ spec:
       if (!isSynced) {
         throw new Error(
           `Dummy application '${appName}' never reached Synced status ` +
-            `(last sync='${lastSync || '-'}' health='${lastHealth || '-'}' message='${lastMessage || '-'}').`
+            `(last sync='${lastSync || '-'}' health='${lastHealth || '-'}' ` +
+            `condition='${lastMessage || '-'}' operation='${lastOpMessage || '-'}').`
         );
       }
     } catch (e) {
@@ -120,11 +157,9 @@ spec:
   });
 
   test.afterAll(async ({}, testInfo) => {
-    //set hook timeout to 60s
     testInfo.setTimeout(60000);
-    console.log('\n[teardown] Ensuring application is cleaned up...');
+    console.log(`\n[teardown] Ensuring '${appName}' and '${destNs}' are cleaned up...`);
 
-    //attempt fallback cleanup if ui deletion failed or was skipped
     try {
       execFileSync(
         'oc',
@@ -135,14 +170,18 @@ spec:
       console.warn(`[teardown] Initial cleanup command failed: ${(e as Error).message}`);
     }
 
-    //verify resource is completely absent from cluster
+    execFileSync(
+      'oc',
+      ['delete', 'namespace', destNs, '--ignore-not-found', '--wait=false'],
+      { stdio: 'pipe', timeout: 15000 }
+    );
+
     let isDeleted = false;
     for (let i = 1; i <= 5; i++) {
       if (!applicationExists()) {
         isDeleted = true;
         break;
       }
-      //resource still exists, wait before checking again
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
