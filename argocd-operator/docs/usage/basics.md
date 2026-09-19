@@ -1,6 +1,6 @@
 # Usage Basics
 
-See the [ArgoCD Reference][argocd_reference] for the full list of properties and defaults to configure the Argo CD cluster.
+See the [ArgoCD CRD Reference][argocd_reference] for the full list of properties and defaults to configure the Argo CD cluster.
 
 The following example shows the most minimal valid manifest to create a new Argo CD cluster with the default configuration.
 
@@ -214,14 +214,14 @@ The Argo CD instance created above can also be used to manage the cluster scoped
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: argocd-operator
+  name: gitops-operator
 spec:
   config:
    env: 
     - name: ARGOCD_CLUSTER_CONFIG_NAMESPACES
       value: <list of namespaces of cluster-scoped Argo CD instances>
   channel: alpha
-  name: argocd-operator
+  name: gitops-operator
   source: argocd-catalog
   sourceNamespace: olm
 ```
