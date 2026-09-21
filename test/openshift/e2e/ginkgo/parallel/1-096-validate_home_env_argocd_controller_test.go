@@ -45,7 +45,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", Label("openshift"), func() {
+		It("verifies app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer cleanupFunc()
