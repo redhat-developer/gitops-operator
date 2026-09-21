@@ -40,17 +40,17 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			argoCD    *argov1beta1api.ArgoCD
 		)
 		const (
-			applicationControllerClusterRoleName           = "openshift-gitops-openshift-gitops-argocd-application-controller"
-			applicationSetControllerClusterRoleName        = "openshift-gitops-openshift-gitops-argocd-applicationset-controller"
-			serverClusterRoleName                          = "openshift-gitops-openshift-gitops-argocd-server"
-			applicationControllerClusterRoleBindingName    = "openshift-gitops-openshift-gitops-argocd-application-controller"
-			applicationSetControllerClusterRoleBindingName = "openshift-gitops-openshift-gitops-argocd-applicationset-controller"
-			serverClusterRoleBindingName                   = "openshift-gitops-openshift-gitops-argocd-server"
+			applicationControllerClusterRoleName           = "openshift-gitops125-openshift-gitops125-argocd-application-controller"
+			applicationSetControllerClusterRoleName        = "openshift-gitops125-openshift-gitops125-argocd-applicationset-controller"
+			serverClusterRoleName                          = "openshift-gitops125-openshift-gitops125-argocd-server"
+			applicationControllerClusterRoleBindingName    = "openshift-gitops125-openshift-gitops125-argocd-application-controller"
+			applicationSetControllerClusterRoleBindingName = "openshift-gitops125-openshift-gitops125-argocd-applicationset-controller"
+			serverClusterRoleBindingName                   = "openshift-gitops125-openshift-gitops125-argocd-server"
 		)
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops125")
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
@@ -58,13 +58,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
 
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("openshift-gitops")
+			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("openshift-gitops125")
 			defer cleanupFunc()
 
 			By("creating cluster scoped ArgoCD instance")
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "openshift-gitops",
+					Name:      "openshift-gitops125",
 					Namespace: ns.Name,
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
