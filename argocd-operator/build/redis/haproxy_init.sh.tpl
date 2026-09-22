@@ -33,12 +33,16 @@ if [ -z "$ANNOUNCE_IP2" ]; then
 fi
 sed -i "s/REPLACE_ANNOUNCE2/$ANNOUNCE_IP2/" "$HAPROXY_CONF"
 
-AUTH="$(cat /app/config/redis-auth/auth)"
-if [ -z "${AUTH}" ]; then
+redis_pwd="$(cat /app/config/redis-auth/auth)"
+if [ -z "${redis_pwd}" ]; then
     echo "Error: Redis password not mounted correctly"
-    exit 1
+    if [ ! -z "$AUTH" ]; then
+        redis_pwd="$AUTH"
+    else
+        exit 1
+    fi
 fi
 echo "Setting redis auth values.."
-ESCAPED_AUTH=$(echo "${AUTH}" | sed -e 's/[\/&]/\\&/g');
+ESCAPED_AUTH=$(echo "${redis_pwd}" | sed -e 's/[\/&]/\\&/g');
 sed -i "s/__REPLACE_DEFAULT_AUTH__/${ESCAPED_AUTH}/" "$HAPROXY_CONF"
 

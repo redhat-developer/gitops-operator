@@ -1,7 +1,11 @@
 redis_pwd="$(cat /app/config/redis-auth/auth)"
 if [ -z "$redis_pwd" ]; then
     echo "Error: Redis password not mounted correctly"
-    exit 1
+    if [ ! -z "$AUTH" ]; then
+        redis_pwd="$AUTH"
+    else
+        exit 1
+    fi
 fi
 response=$(
   env REDISCLI_AUTH="${redis_pwd}" redis-cli \
