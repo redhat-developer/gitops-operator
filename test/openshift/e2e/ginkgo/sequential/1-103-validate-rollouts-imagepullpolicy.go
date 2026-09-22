@@ -108,17 +108,18 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"Deployment %s should have all containers with ImagePullPolicy set to Always", deplName)
 
 			By("updating the RolloutManager CR to set imagePullPolicy to Never")
-			patch := client.MergeFrom(rm.DeepCopy())
-			rm.Spec.ImagePullPolicy = corev1.PullNever
-			Expect(k8sClient.Patch(ctx, rm, patch)).To(Succeed())
+			k8sFixture.Update(rm, func(obj client.Object) {
+				obj.(*rolloutmanagerv1alpha1.RolloutManager).Spec.ImagePullPolicy = corev1.PullNever
+			})
 
 			By("verifying deployment has ImagePullPolicy set to the CR value(Never)")
 			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullNever), "3m", "5s").Should(BeTrue(),
 				"Deployment %s should have all containers with ImagePullPolicy set to Never", deplName)
 
 			By("Removing the imagePullPolicy from the CR and check if the deployment has the imagePullPolicy set to default(IfNotPresent)")
-			rm.Spec.ImagePullPolicy = ""
-			Expect(k8sClient.Patch(ctx, rm, patch)).To(Succeed())
+			k8sFixture.Update(rm, func(obj client.Object) {
+				obj.(*rolloutmanagerv1alpha1.RolloutManager).Spec.ImagePullPolicy = ""
+			})
 
 			By("verifying deployment has ImagePullPolicy set to default(IfNotPresent)")
 			Eventually(deploymentFixture.VerifyDeploymentImagePullPolicy(deplName, namespace.Name, corev1.PullIfNotPresent), "3m", "5s").Should(BeTrue(),
