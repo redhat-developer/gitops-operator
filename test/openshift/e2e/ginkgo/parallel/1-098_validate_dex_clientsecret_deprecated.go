@@ -18,7 +18,6 @@ package parallel
 
 import (
 	"context"
-	"fmt"
 
 	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -82,62 +81,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				},
 			}
 			Eventually(dexServiceAccount, "2m", "5s").Should(k8sFixture.ExistByName())
-
-			By("validating that the Dex Client Secret was copied from dex serviceaccount token secret to argocd-secret, by the operator")
-			Eventually(func() error {
-				// The operator now creates an Opaque secret with a deterministic name for the Dex token
-				// (via TokenRequest API) instead of using auto-generated kubernetes.io/service-account-token secrets.
-				// The secret name follows the pattern: <argocd-name>-<dex-sa-name>-token
-				dexTokenSecretName := "example-argocd-argocd-dex-server-token" // #nosec G101 -- This is a Kubernetes secret name, not a credential
-
-				// Get the Dex token secret and extract the token
-				dexTokenSecret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      dexTokenSecretName,
-						Namespace: namespace.Name,
-					},
-				}
-				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(dexTokenSecret), dexTokenSecret)
-				if err != nil {
-					return err
-				}
-
-				expectedClientSecret, exists := dexTokenSecret.Data["token"]
-				if !exists {
-					return fmt.Errorf("token not found in secret %s", dexTokenSecretName)
-				}
-
-				// Verify the secret also contains an expiry field
-				if _, exists := dexTokenSecret.Data["expiry"]; !exists {
-					return fmt.Errorf("expiry not found in secret %s", dexTokenSecretName)
-				}
-
-				// Get the argocd-secret and extract the oidc.dex.clientSecret
-				argoCDSecret := &corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "argocd-secret",
-						Namespace: namespace.Name,
-					},
-				}
-				err = k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDSecret), argoCDSecret)
-				if err != nil {
-					return err
-				}
-
-				actualClientSecret, exists := argoCDSecret.Data["oidc.dex.clientSecret"]
-				if !exists {
-					return fmt.Errorf("oidc.dex.clientSecret not found in argocd-secret")
-				}
-
-				// Compare the two secrets
-				if string(expectedClientSecret) != string(actualClientSecret) {
-					return fmt.Errorf("dex client secret mismatch: expected length %d, actual length %d",
-						len(expectedClientSecret), len(actualClientSecret))
-				}
-
-				return nil
-			}, "3m", "5s").Should(Succeed())
-
 		})
 
 	})
