@@ -178,8 +178,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(dexServerDepl.Spec.Template.Spec.Containers[0].VolumeMounts).To(Equal([]corev1.VolumeMount{
 				{Name: "static-files", MountPath: "/shared"},
 				{Name: "dexconfig", MountPath: "/tmp"},
-				{Name: "custom-dex-volume", MountPath: "/custom/dex"},
 				{Name: "sa-token-volume", MountPath: "/var/run/secrets/kubernetes.io/serviceaccount", ReadOnly: true},
+				{Name: "custom-dex-volume", MountPath: "/custom/dex"},
 			}))
 
 			// Verify that the deployment has the expected volumes (including custom ones)
