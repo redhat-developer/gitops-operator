@@ -367,6 +367,9 @@ type ArgoCDImageUpdaterSpec struct {
 	// Enabled defines whether argocd image updater controller should be deployed or not
 	Enabled bool `json:"enabled"`
 
+	// Image is the image to be used for the Argo CD Image Updater
+	Image string `json:"image,omitempty"`
+
 	// Env let you specify environment variables for ImageUpdater pods
 	Env []corev1.EnvVar `json:"env,omitempty"`
 

@@ -22017,6 +22017,10 @@ spec:
                       - name
                       type: object
                     type: array
+                  image:
+                    description: Image is the image to be used for the Argo CD Image
+                      Updater
+                    type: string
                   resources:
                     description: Resources defines the Compute Resources required
                       by the container for Argo CD Image Updater.
