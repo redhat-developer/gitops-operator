@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that dex runs when serviceaccount has anyuid SCC", func() {
+		It("validates that dex runs when serviceaccount has anyuid SCC", Label("openshift"), func() {
 
 			By("creating an Argo CD instance with Dex OpenShift Auth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
