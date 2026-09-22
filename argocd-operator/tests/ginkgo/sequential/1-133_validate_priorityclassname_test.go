@@ -91,6 +91,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			return result
 		}
 
+		// ensureTestPriorityClass deletes a leftover e2e PriorityClass with the
+		// same name (if any), then creates it. Same pattern as cluster-scoped
+		// setup in 1-053.
+		var ensureTestPriorityClass = func(name string, value int32) {
+			pc := &schedulingv1.PriorityClass{
+				ObjectMeta: metav1.ObjectMeta{Name: name},
+				Value:      value,
+			}
+			existing := pc.DeepCopy()
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(existing), existing); err == nil {
+				Expect(k8sClient.Delete(ctx, existing)).To(Succeed())
+			} else if !apierrors.IsNotFound(err) {
+				Expect(err).ToNot(HaveOccurred())
+			}
+			Expect(k8sClient.Create(ctx, pc)).To(Succeed())
+		}
+
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
@@ -117,19 +134,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verifies spec.priorityClassName is applied to all operator-managed workloads", func() {
 
 			By("creating PriorityClass resources for the test")
-			pc := &schedulingv1.PriorityClass{
-				ObjectMeta: metav1.ObjectMeta{Name: testPriorityClassName},
-				Value:      int32(1000000),
-			}
-			err := k8sClient.Create(ctx, pc)
-			Expect(err == nil || apierrors.IsAlreadyExists(err)).To(BeTrue(), "create PriorityClass %s: %v", testPriorityClassName, err)
-
-			pcUpdated := &schedulingv1.PriorityClass{
-				ObjectMeta: metav1.ObjectMeta{Name: testPriorityClassNameUpdated},
-				Value:      int32(500000),
-			}
-			err = k8sClient.Create(ctx, pcUpdated)
-			Expect(err == nil || apierrors.IsAlreadyExists(err)).To(BeTrue(), "create PriorityClass %s: %v", testPriorityClassNameUpdated, err)
+			ensureTestPriorityClass(testPriorityClassName, 1000000)
+			ensureTestPriorityClass(testPriorityClassNameUpdated, 500000)
 
 			By("creating a namespace-scoped ArgoCD instance with priorityClassName and all optional components enabled")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
