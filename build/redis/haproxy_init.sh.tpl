@@ -37,6 +37,7 @@ redis_pwd="$(cat /app/config/redis-auth/auth)"
 if [ -z "${redis_pwd}" ]; then
     echo "Error: Redis password not mounted correctly"
     if [ ! -z "$AUTH" ]; then
+        # TODO: Remove. For migration from before 1.21. https://github.com/redhat-developer/gitops-operator/pull/1307
         redis_pwd="$AUTH"
     else
         exit 1
