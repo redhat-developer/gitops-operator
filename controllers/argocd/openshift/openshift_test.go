@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"

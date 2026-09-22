@@ -19,8 +19,8 @@ package argocd
 import (
 	"context"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argoappController "github.com/argoproj-labs/argocd-operator/controllers/argocd"
+	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argoappController "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	v1 "k8s.io/api/core/v1"
 	resourcev1 "k8s.io/apimachinery/pkg/api/resource"

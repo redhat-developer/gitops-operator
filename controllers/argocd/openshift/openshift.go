@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
+	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	"golang.org/x/mod/semver"
 	appsv1 "k8s.io/api/apps/v1"

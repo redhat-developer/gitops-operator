@@ -32,11 +32,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	configmapFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/configmap"
-	secretFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/secret"
+	configmapFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/configmap"
+	secretFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/secret"
 
-	appFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/application"
-	osFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/os"
+	appFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
+	osFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,9 +47,9 @@ import (
 
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/argocd"
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
