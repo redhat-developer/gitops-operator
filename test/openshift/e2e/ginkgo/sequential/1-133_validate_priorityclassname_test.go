@@ -119,13 +119,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: testPriorityClassName},
 				Value:      int32(1000000),
 			}
-			Expect(k8sClient.Create(ctx, pc)).To(Succeed())
+			err := k8sClient.Create(ctx, pc)
+			Expect(err == nil || apierrors.IsAlreadyExists(err)).To(BeTrue(), "create PriorityClass %s: %v", testPriorityClassName, err)
 
 			pcUpdated := &schedulingv1.PriorityClass{
 				ObjectMeta: metav1.ObjectMeta{Name: testPriorityClassNameUpdated},
 				Value:      int32(500000),
 			}
-			Expect(k8sClient.Create(ctx, pcUpdated)).To(Succeed())
+			err = k8sClient.Create(ctx, pcUpdated)
+			Expect(err == nil || apierrors.IsAlreadyExists(err)).To(BeTrue(), "create PriorityClass %s: %v", testPriorityClassNameUpdated, err)
 
 			By("creating a namespace-scoped ArgoCD instance with priorityClassName and all optional components enabled")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -140,6 +142,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					Notifications: argov1beta1api.ArgoCDNotifications{
 						Enabled: true,
+					},
+					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
+						Enabled: &enabled,
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
 						Route: argov1beta1api.ArgoCDRouteSpec{
@@ -188,6 +193,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					Notifications: argov1beta1api.ArgoCDNotifications{
 						Enabled: true,
+					},
+					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
+						Enabled: &enabled,
 					},
 				},
 			}

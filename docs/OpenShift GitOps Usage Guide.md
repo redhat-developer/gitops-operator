@@ -788,9 +788,28 @@ Note: The operator also has default nodeSelector for Linux, and runOnInfra toggl
 
 ## Using PriorityClass for Argo CD workloads
 
-Set `spec.priorityClassName` on the ArgoCD CR so GitOps pods can stay scheduled when the cluster is under resource pressure. The Operator applies that class to all operator-managed component pods for that instance (application controller, repo-server, server, Redis, ApplicationSet, Dex, and other enabled components).
+Set `spec.priorityClassName` on the ArgoCD CR so GitOps pods can stay scheduled when the cluster is under resource pressure. The Operator applies that class to all operator-managed component pods for that instance (application controller, repo-server, server, Redis, ApplicationSet, Dex, commit-server when source hydrator is enabled, and other enabled components).
 
-Create the PriorityClass first, then set the field on the Argo CD instance (including the default instance in `openshift-gitops`):
+`PriorityClass` is cluster-scoped and typically requires cluster-admin. See the Kubernetes docs on [Pod Priority and Preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/).
+
+Create a PriorityClass first. Leave `globalDefault: false` so only pods that name this class use it:
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gitops-high-priority
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority   # or Never — schedule ahead but never evict
+description: Priority class for OpenShift GitOps workloads
+```
+
+```
+oc apply -f priorityclass.yaml
+```
+
+Then set the field on the Argo CD instance (including the default instance in `openshift-gitops`):
 
 ```yaml
 apiVersion: argoproj.io/v1beta1
@@ -798,7 +817,7 @@ kind: ArgoCD
 metadata:
   name: example-argocd
 spec:
-  priorityClassName: high-priority
+  priorityClassName: gitops-high-priority
 ```
 
 Changing or clearing the field updates the workloads on reconcile. This is configured on the ArgoCD CR, not on `GitopsService`. If the field is omitted, pods use the cluster default priority (typically 0).
