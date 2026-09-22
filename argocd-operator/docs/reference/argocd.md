@@ -543,12 +543,12 @@ spec:
 
 The following properties are available for configuring the Image Updater controller component.
 
-| Name      | Default                                     | Description                                                                                                  |
-|-----------|---------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| Enabled   | `false`                                     | The toggle that determines whether image updater controller should be started or not.                        |
-| Image     | `quay.io/argoprojlabs/argocd-image-updater` | The container image for Image Updater. This overrides the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable. |
-| Env       | [Empty]                                     | Environment to set for the image updater workloads.                                                          |
-| Resources | [Empty]                                     | The container compute resources.                                                                             |
+| Name      | Default                                            | Description                                                                                                  |
+|-----------|----------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| Enabled   | `false`                                            | The toggle that determines whether image updater controller should be started or not.                        |
+| Image     | `quay.io/argoprojlabs/argocd-image-updater:v1.3.0` | The container image for Image Updater. This overrides the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable. |
+| Env       | [Empty]                                            | Environment to set for the image updater workloads.                                                          |
+| Resources | [Empty]                                            | The container compute resources.                                                                             |
 
 ### Image Updater Controller Example
 
