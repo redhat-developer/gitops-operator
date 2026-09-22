@@ -262,7 +262,7 @@ else
     setup_defaults
 fi
 
-redis_pwd="$(cat /app/config/redis-auth/auth)"
+redis_pwd="$(cat /app/config/redis-auth/auth)" || true
 if [ -z "${redis_pwd}" ]; then
     echo "Error: Redis password not mounted correctly"
     if [ ! -z "$AUTH" ]; then
