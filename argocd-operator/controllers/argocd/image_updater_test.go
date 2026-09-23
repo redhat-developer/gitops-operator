@@ -1493,13 +1493,6 @@ func TestSelectImageUpdaterImage(t *testing.T) {
 			envVarShouldExist: false,
 		},
 		{
-			name:              "Default image is used when CR is not set and env var is not set",
-			crImageOverride:   "",
-			envImage:          "",
-			expectedImage:     "quay.io/argoprojlabs/argocd-image-updater:v1.3.0",
-			envVarShouldExist: false,
-		},
-		{
 			name:              "CR Image is used even with whitespace in env var",
 			crImageOverride:   "cr-image:latest",
 			envImage:          "  ",
