@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	matcher "github.com/onsi/gomega/types"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 )
 
 // Update will update an ArgoCD CR. Update will keep trying to update object until it succeeds, or times out.
@@ -292,6 +294,44 @@ func LogInToDefaultArgoCDInstance() error {
 
 	// Note: '--skip-test-tls' parameter was added in Feb 2025, to work around OpenShift Routes not supporting HTTP2 by default, along with Argo CD upstream bugs https://github.com/argoproj/argo-cd/issues/21764, and https://github.com/argoproj/argo-cd/issues/20121
 	output, err := RunArgoCDCLI("login", server, "--username", "admin", "--password", string(secret.Data["admin.password"]), "--insecure", "--skip-test-tls")
+	if err != nil {
+		return err
+	}
+
+	if !strings.Contains(string(output), "'admin:login' logged in successfully") {
+		return fmt.Errorf("unable to log in to Argo CD")
+	}
+
+	return nil
+
+}
+
+// NOTE: this should only be called from sequential tests. If you call it from a parallel test, there is a risk that another test will login to a different Argo CD instance.
+//
+// Unlike LogInToDefaultArgoCDInstance, this logs in via the 'openshift-gitops-server' Route rather than a
+// port-forward. Only use this if the test specifically needs to exercise the OpenShift Router code path (for
+// example, a regression test for a bug that only reproduces when traffic passes through the Route).
+func LogInToDefaultArgoCDInstanceViaRoute() error {
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	if err != nil {
+		return err
+	}
+
+	route := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-server", Namespace: "openshift-gitops"}}
+
+	Eventually(func() error {
+		return k8sClient.Get(context.Background(), client.ObjectKeyFromObject(route), route)
+	}, "3m", "2s").Should(Succeed())
+
+	Eventually(route, "3m", "2s").Should(routeFixture.HaveAdmittedIngress())
+
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-cluster", Namespace: "openshift-gitops"}}
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(secret), secret); err != nil {
+		return fmt.Errorf("unable to locate 'openshift-gitops-cluster' Secret")
+	}
+
+	// Note: '--skip-test-tls' parameter was added in Feb 2025, to work around OpenShift Routes not supporting HTTP2 by default, along with Argo CD upstream bugs https://github.com/argoproj/argo-cd/issues/21764, and https://github.com/argoproj/argo-cd/issues/20121
+	output, err := RunArgoCDCLI("login", route.Spec.Host, "--username", "admin", "--password", string(secret.Data["admin.password"]), "--insecure", "--skip-test-tls")
 	if err != nil {
 		return err
 	}

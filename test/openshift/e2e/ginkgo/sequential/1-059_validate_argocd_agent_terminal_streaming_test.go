@@ -29,7 +29,8 @@ import (
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdClient "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocdclient"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
-	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -37,6 +38,8 @@ import (
 
 	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+
+	routev1 "github.com/openshift/api/route/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -198,15 +201,23 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(application, "180s", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
 				"Application should be healthy")
 
-			By("Port-forward to the ArgoCD server Service")
-			portForwardCleanup := portforwardFixture.StartPortForward(namespaceAgentPrincipal, "service/argocd-hub-server", "8443:https")
-			registerCleanup(portForwardCleanup)
+			By("Wait for ArgoCD server Route to be created")
+			serverRoute := &routev1.Route{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-server", argoCDAgentInstanceNamePrincipal),
+					Namespace: namespaceAgentPrincipal,
+				},
+			}
+			Eventually(serverRoute, "120s", "5s").Should(k8sFixture.ExistByName())
+			Eventually(serverRoute, "120s", "5s").Should(routeFixture.HaveAdmittedIngress())
 
-			// Create ArgoCD client using the port-forwarded ArgoCD server Service and admin password.
+			// Create ArgoCD client using the ArgoCD server Route and admin password.
 			// ArgoCD Client is acting as a browser and trying to open a terminal session
-			// to the application in the managed-cluster.
-			By("Get ArgoCD admin password and login via port-forward")
-			argoEndpoint := "127.0.0.1:8443"
+			// to the application in the managed-cluster. We deliberately go via the Route (rather than a
+			// port-forward) so that this test exercises the same OpenShift Router path a real browser would use.
+			By("Get ArgoCD admin password and login via Route")
+			argoEndpoint := serverRoute.Spec.Host
+			GinkgoWriter.Printf("ArgoCD server Route host: %s\n", argoEndpoint)
 
 			password := argocdFixture.GetInitialAdminSecretPassword(argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal, k8sClient)
 			_, sessionToken, closer, err := argocdFixture.CreateArgoCDAPIClient(ctx, argoEndpoint, password)
