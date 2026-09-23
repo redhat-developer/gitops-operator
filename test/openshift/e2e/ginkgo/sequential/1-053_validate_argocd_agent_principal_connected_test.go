@@ -17,7 +17,6 @@ limitations under the License.
 package sequential
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -25,7 +24,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -36,6 +34,7 @@ import (
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
+	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -555,7 +554,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Deploy application for managed mode")
 			deployAndValidateApplication(applicationOfManagedAgent)
 
-			portForwardCleanup := portForward(namespaceAgentPrincipal, "service/argocd-hub-server", "8443:https")
+			portForwardCleanup := portforwardFixture.StartPortForward(namespaceAgentPrincipal, "service/argocd-hub-server", "8443:https")
 			cleanupFuncs = append(cleanupFuncs, portForwardCleanup)
 
 			principalArgocdPassword := argocdFixture.GetInitialAdminSecretPassword(argoCDAgentInstanceNamePrincipal, namespaceAgentPrincipal, k8sClient)
@@ -940,90 +939,6 @@ func buildApplicationResource(applicationName, nsName, agentName, argocdInstance
 		}
 	}
 	return application
-}
-
-func portForward(namespace string, subject string, port string) func() {
-
-	cmdArgs := []string{"kubectl", "port-forward", "-n", namespace, subject, port}
-
-	GinkgoWriter.Println("executing command:", cmdArgs)
-
-	// #nosec G204
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-
-	// Create pipes for stdout and stderr to stream output in real-time
-	stdout, err := cmd.StdoutPipe()
-	Expect(err).ToNot(HaveOccurred())
-
-	stderr, err := cmd.StderrPipe()
-	Expect(err).ToNot(HaveOccurred())
-
-	// Channel to signal when port-forward is ready (after seeing "Forwarding from" messages)
-	ready := make(chan struct{})
-
-	// streamOutput reads from a pipe and writes to GinkgoWriter in real-time.
-	// It signals readiness when it sees the expected "Forwarding from" message.
-	streamOutput := func(pipe io.Reader, signalReady func()) {
-		defer GinkgoRecover()
-
-		// 'kubectl port-forward' will print this output indicating it has successfully started port-forwarding:
-		// Forwarding from 127.0.0.1:8443 -> 8080
-		// Forwarding from [::1]:8443 -> 8080
-
-		scanner := bufio.NewScanner(pipe)
-		for scanner.Scan() {
-			line := scanner.Text()
-			GinkgoWriter.Println("port-forward:", line)
-
-			// Signal ready when we see the first "Forwarding from" message
-			if signalReady != nil && strings.HasPrefix(line, "Forwarding from") {
-				signalReady()
-				signalReady = nil // Only signal once
-			}
-		}
-		if scanErr := scanner.Err(); scanErr != nil {
-			GinkgoWriter.Println("port-forward scanner error:", scanErr)
-		}
-	}
-
-	// Start the command
-	err = cmd.Start()
-	Expect(err).ToNot(HaveOccurred())
-
-	// Stream stdout (with ready signaling) and stderr in separate goroutines
-	go streamOutput(stdout, func() { close(ready) })
-	go streamOutput(stderr, nil)
-
-	// Wait for the process to complete in a separate goroutine
-	go func() {
-		defer GinkgoRecover()
-
-		err := cmd.Wait()
-		if err != nil && !strings.Contains(err.Error(), "killed") && !strings.Contains(err.Error(), "signal: killed") {
-			GinkgoWriter.Println("port-forward process error:", err)
-		}
-	}()
-
-	// Wait for the port-forward to be ready before returning
-	select {
-	case <-ready:
-		GinkgoWriter.Println("port-forward is ready")
-	case <-time.After(60 * time.Second):
-		Fail("timed out waiting for port-forward to be ready")
-	}
-
-	return func() {
-
-		GinkgoWriter.Println("terminating port forward")
-
-		if cmd.Process != nil {
-			err := cmd.Process.Kill()
-			if err != nil && !strings.Contains(err.Error(), "process already finished") {
-				GinkgoWriter.Println("error on process kill:", err)
-			}
-		}
-	}
-
 }
 
 func createRBACForResourceProxyTest(agentK8sClient client.Client, agentInstallNamespace string) func() {
