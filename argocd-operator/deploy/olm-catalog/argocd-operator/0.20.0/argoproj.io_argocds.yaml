@@ -1037,6 +1037,11 @@ spec:
                               When enabled, agents with valid credentials can automatically register on connection.
                             type: boolean
                         type: object
+                        x-kubernetes-validations:
+                        - message: clientCertSecretName must be set when self-registration
+                            is enabled
+                          rule: '!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName)
+                            && self.clientCertSecretName != "")'
                       server:
                         description: Server defines the server options for the Principal
                           component.
@@ -14213,6 +14218,11 @@ spec:
                               When enabled, agents with valid credentials can automatically register on connection.
                             type: boolean
                         type: object
+                        x-kubernetes-validations:
+                        - message: clientCertSecretName must be set when self-registration
+                            is enabled
+                          rule: '!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName)
+                            && self.clientCertSecretName != "")'
                       server:
                         description: Server defines the server options for the Principal
                           component.

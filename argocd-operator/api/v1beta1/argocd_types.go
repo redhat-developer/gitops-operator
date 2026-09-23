@@ -1495,6 +1495,7 @@ type PrincipalSpec struct {
 	SelfRegistration *PrincipalSelfRegistrationSpec `json:"selfRegistration,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
 type PrincipalSelfRegistrationSpec struct {
 	// Enabled is the flag to enable self-registration of agents.
 	// When enabled, agents with valid credentials can automatically register on connection.
