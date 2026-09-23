@@ -16,7 +16,8 @@ import (
 )
 
 const (
-	giteaImage      = "ghcr.io/go-gitea/gitea:1.26.4-rootless"
+	// Use latest for multi-arch support
+	giteaImage      = "ghcr.io/go-gitea/gitea:latest-rootless"
 	giteaCustomPath = "/data/gitea"
 )
 

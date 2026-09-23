@@ -67,6 +67,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(imageUpdater).Should(k8sFixture.NotExistByName())
 			}
 
+			if ns != nil {
+				By("deleting ArgoCD CR before namespace cleanup")
+				argoCD := &argov1beta1api.ArgoCD{ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name}}
+				_ = k8sClient.Delete(ctx, argoCD)
+				Eventually(argoCD).Should(k8sFixture.NotExistByName())
+			}
+
 			if cleanupFunc != nil {
 				cleanupFunc()
 			}
@@ -159,6 +166,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(app, "8m", "10s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy), "Application did not reach healthy status within timeout")
 			Eventually(app, "8m", "10s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced), "Application did not sync within timeout")
 
+			By("debugging: checking initial Application image")
+			err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
+			Expect(err).NotTo(HaveOccurred())
+			if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
+				GinkgoWriter.Printf("INITIAL Application image: %s\n", string(app.Spec.Source.Kustomize.Images[0]))
+			} else {
+				GinkgoWriter.Printf("INITIAL Application has NO Kustomize images yet\n")
+			}
+
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
@@ -198,11 +214,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				// We must check that it and its Images field exist before trying to access them.
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
 					imageStr := string(app.Spec.Source.Kustomize.Images[0])
-					GinkgoWriter.Printf("Found Kustomize image: %s\n", imageStr)
+					GinkgoWriter.Printf("Current Application image: %s\n", imageStr)
+					if imageStr == "quay.io/devtools_gitops/guestbook_go:29437546.0" {
+						GinkgoWriter.Printf("SUCCESS: Image updated to 29437546.0\n")
+					}
 					return imageStr
 				}
 
 				// Return an empty string to signify the condition is not yet met.
+				GinkgoWriter.Printf("Waiting: Application Kustomize images not yet present\n")
 				return ""
 			}, "10m", "10s").Should(Equal("quay.io/devtools_gitops/guestbook_go:29437546.0"), "Image Updater did not update the Application image within timeout")
 		})

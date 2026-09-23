@@ -299,7 +299,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("should create argocd agent principal resources, but pod should fail to start as image does not exist", func() {
 			// Change log level to trace and custom image name
 			argoCD.Spec.ArgoCDAgent.Principal.LogLevel = "trace"
-			argoCD.Spec.ArgoCDAgent.Principal.Image = "quay.io/user/argocd-agent:v1"
+			argoCD.Spec.ArgoCDAgent.Principal.Image = "quay.io/nonexistent/image:v1.0.0"
 
 			By("Create ArgoCD instance")
 
@@ -313,7 +313,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal("quay.io/user/argocd-agent:v1"))
+			Expect(container.Image).To(Equal("quay.io/nonexistent/image:v1.0.0"))
 
 			By("Verify environment variables are set correctly")
 
@@ -354,7 +354,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
+
+			if fixture.EnvCI() || fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+				Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
+			} else {
+				Expect(container.Image).To(HavePrefix("registry.redhat.io/openshift-gitops-1/argocd-agent-rhel9"))
+			}
 
 			By("Create required secrets and certificates for principal pod to start properly")
 
@@ -432,7 +437,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.ArgoCDAgent.Principal.LogFormat = "json"
 				ac.Spec.ArgoCDAgent.Principal.Server.KeepAliveMinInterval = "60s"
 				ac.Spec.ArgoCDAgent.Principal.Server.EnableWebSocket = new(true)
-				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/argocd-agent-rhel9:v1.22.0"
 
 				ac.Spec.ArgoCDAgent.Principal.Namespace.AllowedNamespaces = []string{"agent-managed", "agent-autonomous"}
 				ac.Spec.ArgoCDAgent.Principal.Namespace.EnableNamespaceCreate = new(true)
@@ -478,7 +483,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+					return container.Image == "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/argocd-agent-rhel9:v1.22.0"
 				}, "120s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
 
 			By("verify that deployment is in Ready state")
