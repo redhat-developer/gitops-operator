@@ -391,9 +391,7 @@ func ReconcilePrincipalHealthzService(client client.Client, compName string, cr 
 // when they are no longer present in the CR spec; other annotations on the service are preserved.
 // Returns true when the service annotations were modified.
 func reconcilePrincipalServiceAnnotations(svc *corev1.Service, desired map[string]string) bool {
-	if desired == nil {
-		desired = map[string]string{}
-	}
+	desired = filterDesiredPrincipalServiceAnnotations(desired)
 	if svc.Annotations == nil {
 		svc.Annotations = make(map[string]string)
 	}
@@ -411,7 +409,8 @@ func reconcilePrincipalServiceAnnotations(svc *corev1.Service, desired map[strin
 	}
 
 	for key, value := range desired {
-		if svc.Annotations[key] != value {
+		current, exists := svc.Annotations[key]
+		if !exists || current != value {
 			svc.Annotations[key] = value
 			changed = true
 		}
@@ -542,6 +541,21 @@ func desiredPrincipalServiceAnnotations(cr *argoproj.ArgoCD) map[string]string {
 		return nil
 	}
 	return cr.Spec.ArgoCDAgent.Principal.Server.Service.Annotations
+}
+
+// filterDesiredPrincipalServiceAnnotations filters out the principal service annotations that are not owned by the operator.
+func filterDesiredPrincipalServiceAnnotations(desired map[string]string) map[string]string {
+	if desired == nil {
+		return map[string]string{}
+	}
+	filtered := make(map[string]string, len(desired))
+	for key, value := range desired {
+		if key == common.AnnotationOwnedPrincipalServiceAnnotations {
+			continue
+		}
+		filtered[key] = value
+	}
+	return filtered
 }
 
 func parseOwnedAnnotationKeys(owned string) []string {

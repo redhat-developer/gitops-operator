@@ -1539,6 +1539,88 @@ func TestReconcilePrincipalService_ServiceAnnotations_PreserveThirdPartyOnClear(
 	assert.NotContains(t, svc.Annotations, common.AnnotationOwnedPrincipalServiceAnnotations)
 }
 
+func TestReconcilePrincipalServiceAnnotations_IgnoreOwnershipMarker(t *testing.T) {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{},
+		},
+	}
+	desired := map[string]string{
+		"a.example.io/key": "1",
+		common.AnnotationOwnedPrincipalServiceAnnotations: "stale-owned-list",
+	}
+
+	changed := reconcilePrincipalServiceAnnotations(svc, desired)
+	assert.True(t, changed)
+	assert.Equal(t, "1", svc.Annotations["a.example.io/key"])
+	assert.Equal(t, "a.example.io/key", svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations])
+
+	changed = reconcilePrincipalServiceAnnotations(svc, desired)
+	assert.False(t, changed)
+}
+
+func TestReconcilePrincipalService_ServiceAnnotations_IgnoreOwnershipMarker_ReconcileTwice(t *testing.T) {
+	annotations := map[string]string{
+		"metallb.universe.tf/address-pool":                "address-pool",
+		common.AnnotationOwnedPrincipalServiceAnnotations: "metallb.universe.tf/address-pool",
+	}
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withServiceAnnotations(annotations))
+
+	expectedSpec := buildPrincipalServiceSpec(testCompName, cr)
+	existingSvc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateAgentResourceName(cr.Name, testCompName),
+			Namespace: testNamespace,
+			Labels:    buildLabelsForAgentPrincipal(cr.Name, testCompName),
+		},
+		Spec: expectedSpec,
+	}
+
+	resObjs := []client.Object{cr, existingSvc}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalService(cl, testCompName, cr, sch)
+	assert.NoError(t, err)
+
+	svc := &corev1.Service{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: testNamespace,
+	}, svc)
+	assert.NoError(t, err)
+	resourceVersionAfterFirst := svc.ResourceVersion
+	assert.Equal(t, "address-pool", svc.Annotations["metallb.universe.tf/address-pool"])
+	assert.Equal(t, "metallb.universe.tf/address-pool", svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations])
+
+	err = ReconcilePrincipalService(cl, testCompName, cr, sch)
+	assert.NoError(t, err)
+
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: testNamespace,
+	}, svc)
+	assert.NoError(t, err)
+	assert.Equal(t, resourceVersionAfterFirst, svc.ResourceVersion)
+}
+
+func TestReconcilePrincipalServiceAnnotations_EmptyValue(t *testing.T) {
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{},
+		},
+	}
+	desired := map[string]string{
+		"example.io/empty": "",
+	}
+
+	changed := reconcilePrincipalServiceAnnotations(svc, desired)
+	assert.True(t, changed)
+	assert.Contains(t, svc.Annotations, "example.io/empty")
+	assert.Equal(t, "", svc.Annotations["example.io/empty"])
+	assert.Equal(t, "example.io/empty", svc.Annotations[common.AnnotationOwnedPrincipalServiceAnnotations])
+}
+
 func TestReconcilePrincipalService_ServiceAnnotations_Default(t *testing.T) {
 	cr := makeTestArgoCD(withPrincipalEnabled(true))
 
