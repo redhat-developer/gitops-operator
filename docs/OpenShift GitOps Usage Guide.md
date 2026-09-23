@@ -9,19 +9,20 @@
 5. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
 6. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
 7. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
-8. [Monitoring](#monitoring)  
+8. [Using PriorityClass for Argo CD workloads](#using-priorityclass-for-argo-cd-workloads)
+9. [Monitoring](#monitoring)
     a. [Application alerts](#application-alerts)  
     b. [Sync-loop alerts](#sync-loop-alerts)  
     c. [Querying Argo CD metrics](#querying-argo-cd-metrics)  
-9. [Logging](#logging)  
-10. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
-11. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
-12. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
-13. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-14. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
-15. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
-16. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
-17. [Using ApplicationSets](#using-applicationsets)
+10. [Logging](#logging)
+11. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)
+12. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)
+13. [Health status of OpenShift resources](#health-status-of-openshift-resources)
+14. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)
+15. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)
+16. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards)
+17. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
+18. [Using ApplicationSets](#using-applicationsets)
 
 ## Installing OpenShift GitOps
 
@@ -784,7 +785,42 @@ spec:
 ```
 	
 Note: The operator also has default nodeSelector for Linux, and runOnInfra toggle also sets Infrastructure nodeSelector in the workloads. All these nodeSelectors will be merged with precedence given to the custom nodeSelector in case the keys match.
-	
+
+## Using PriorityClass for Argo CD workloads
+
+Set `spec.priorityClassName` on the ArgoCD CR so GitOps pods can stay scheduled when the cluster is under resource pressure. The Operator applies that class to all operator-managed component pods for that instance (application controller, repo-server, server, Redis, ApplicationSet, Dex, commit-server when source hydrator is enabled, and other enabled components).
+
+`PriorityClass` is cluster-scoped and typically requires cluster-admin. See the Kubernetes docs on [Pod Priority and Preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/).
+
+Create a PriorityClass first. Leave `globalDefault: false` so only pods that name this class use it:
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gitops-high-priority
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority   # or Never — schedule ahead but never evict
+description: Priority class for OpenShift GitOps workloads
+```
+
+```
+oc apply -f priorityclass.yaml
+```
+
+Then set the field on the Argo CD instance (including the default instance in `openshift-gitops`):
+
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  priorityClassName: gitops-high-priority
+```
+
+Changing or clearing the field updates the workloads on reconcile. This is configured on the ArgoCD CR, not on `GitopsService`. If the field is omitted, pods use the cluster default priority (typically 0).
 
 ## Managing MachineSets with OpenShift GitOps
 
