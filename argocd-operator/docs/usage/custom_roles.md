@@ -8,7 +8,7 @@ Example: Custom role environment variables in operator Subscription:
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: argocd-operator
+  name: gitops-operator
   namespace: argocd
 spec:
   config:
@@ -25,7 +25,7 @@ Example: Custom role environment variables in operator Deployment:
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: argocd-operator-controller-manager
+  name: gitops-operator-controller-manager
   namespace: argocd
 spec:
   replicas: 1

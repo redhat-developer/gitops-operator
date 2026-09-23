@@ -1,6 +1,6 @@
-site_name: Argo CD Operator
-site_url: https://argocd-operator.readthedocs.io/en/latest/
-repo_url: https://github.com/argoproj-labs/argocd-operator
+site_name: GitOps Operator
+site_url: https://gitops-operator.readthedocs.io/en/latest/
+repo_url: https://github.com/redhat-developer/gitops-operator
 strict: true
 theme:
   name: material
@@ -30,19 +30,14 @@ markdown_extensions:
     permalink: true
 nav:
 - Overview: index.md
-- Release Process: release-process.md
-- Security: SECURITY.md
 - Install:
   - Getting Started: install/start.md
   - OpenShift: install/openshift.md
-  - Operator Lifecycle Manager: install/olm.md
-  - Manual Installation: install/manual.md
 - Usage:
   - Basics: usage/basics.md
   - Config Management: usage/config_management_2.0.md
   - Custom Tooling: usage/customization.md
   - Deploy Resources to Different Namespaces: usage/deploy-to-different-namespaces.md
-  - Export: usage/export.md
   - ExtraConfig: usage/extra-config.md
   - High Availability:
     - Redis: usage/ha/redis.md
@@ -67,16 +62,14 @@ nav:
   - ArgoCD: reference/argocd.md
   - ApplicationSet:
     - Policies: reference/applicationSet.md
-  - ArgoCDExport: reference/argocdexport.md
   - API Docs (v1beta1): reference/api-v1beta1.md
   - API Docs (v1alpha1): reference/api-v1alpha1.md
   - NotificationsConfiguration: reference/notificationsconfiguration.md
 - Contributing:
-  - Contributing: developer-guide/contributing.md
   - Development:
     - Setup: developer-guide/development.md
     - E2E Testing: developer-guide/e2e-test-guide.md
     - OLM Environment: developer-guide/olm-env.md
     - OpenAPI: developer-guide/openapi.md
-- Releases ⧉: https://github.com/argoproj-labs/argocd-operator/releases
+- Releases ⧉: https://github.com/redhat-developer/gitops-operator/releases
 - Upgrading: upgrading.md

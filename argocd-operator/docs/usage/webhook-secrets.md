@@ -29,7 +29,7 @@ This approach provides several benefits:
 When `spec.webhookSecrets` is configured, the operator automatically populates the appropriate keys in the `argocd-secret` Secret that Argo CD uses internally—using the **same `argocd-secret` data key names** documented in Argo CD’s [Git Webhook Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/) (for example `webhook.github.secret`, `webhook.bitbucket.uuid`).
 
 A minimal GitHub-focused sample that can be adapted and applied lives in the operator repository:
-[examples/argocd-webhook-secrets.yaml](https://github.com/argoproj-labs/argocd-operator/blob/master/examples/argocd-webhook-secrets.yaml).
+[examples/argocd-webhook-secrets.yaml](https://github.com/redhat-developer/gitops-operator/blob/master/examples/argocd-webhook-secrets.yaml).
 
 ## Configuring webhook secrets
 
@@ -53,7 +53,7 @@ For repository webhooks in the Git provider (payload URL `/api/webhook`, optiona
 | Gogs | `gogs` | `webhookSecretRef` | Webhook secret (→ `webhook.gogs.secret`) |
 | Azure DevOps | `azureDevOps` | `usernameSecretRef` and `passwordSecretRef` (both required) | Basic-auth username and password or PAT (→ `webhook.azuredevops.username` / `webhook.azuredevops.password`) |
 
-The **`argocd-secret` keys** below match Argo CD’s [Git Webhook Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/) section **Configure Argo CD With The WebHook Secret**. The operator uses the same string constants as upstream Argo CD (see [`common/keys.go`](https://github.com/argoproj-labs/argocd-operator/blob/master/common/keys.go) for the exact key name constants).
+The **`argocd-secret` keys** below match Argo CD’s [Git Webhook Configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/) section **Configure Argo CD With The WebHook Secret**. The operator uses the same string constants as upstream Argo CD (see [`common/keys.go`](https://github.com/redhat-developer/gitops-operator/blob/master/argocd-operator/common/keys.go) for the exact key name constants).
 
 | Provider | Key in `argocd-secret` |
 |----------|-------------------------|
