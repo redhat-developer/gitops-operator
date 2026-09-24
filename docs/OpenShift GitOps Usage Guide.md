@@ -9,16 +9,20 @@
 5. [Configure resource quota/requests for OpenShift GitOps workloads](#configure-resource-quotarequests-for-openshift-gitops-workloads)  
 6. [Running default Gitops workloads on Infrastructure Nodes](#running-default-gitops-workloads-on-infrastructure-nodes)  
 7. [Using NodeSelector and Tolerations in Default Instance of Openshift GitOps](#using-nodeselector-and-tolerations-in-default-instance-of-openshift-gitops)
-8. [Monitoring](#monitoring)  
-9. [Logging](#logging)  
-10. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)  
-11. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)  
-12. [Health status of OpenShift resources](#health-status-of-openshift-resources)  
-13. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)  
-14. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga) 
-15. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards) 
-16. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
-17. [Using ApplicationSets](#using-applicationsets)
+8. [Using PriorityClass for Argo CD workloads](#using-priorityclass-for-argo-cd-workloads)
+9. [Monitoring](#monitoring)
+    a. [Application alerts](#application-alerts)  
+    b. [Sync-loop alerts](#sync-loop-alerts)  
+    c. [Querying Argo CD metrics](#querying-argo-cd-metrics)  
+10. [Logging](#logging)
+11. [Prevent auto-reboot during Argo CD sync with machine configs](#prevent-auto-reboot-during-argo-cd-sync-with-machine-configs)
+12. [Machine configs and Argo CD: Performance challenges](#machine-configs-and-argo-cd-performance-challenges)
+13. [Health status of OpenShift resources](#health-status-of-openshift-resources)
+14. [Upgrade GitOps Operator from v1.0.1 to v1.1.0 (GA)](#upgrade-gitops-operator-from-v101-to-v110-ga)
+15. [Upgrade GitOps Operator from v1.1.2 to v1.2.0 (GA)](#upgrade-gitops-operator-from-v112-to-v120-ga)
+16. [GitOps Monitoring Dashboards](#gitops-monitoring-dashboards)
+17. [Integrate GitOps with Secrets Management](Integrate%20GitOps%20with%20Secrets%20Management.md)
+18. [Using ApplicationSets](#using-applicationsets)
 
 ## Installing OpenShift GitOps
 
@@ -781,7 +785,42 @@ spec:
 ```
 	
 Note: The operator also has default nodeSelector for Linux, and runOnInfra toggle also sets Infrastructure nodeSelector in the workloads. All these nodeSelectors will be merged with precedence given to the custom nodeSelector in case the keys match.
-	
+
+## Using PriorityClass for Argo CD workloads
+
+Set `spec.priorityClassName` on the ArgoCD CR so GitOps pods can stay scheduled when the cluster is under resource pressure. The Operator applies that class to all operator-managed component pods for that instance (application controller, repo-server, server, Redis, ApplicationSet, Dex, commit-server when source hydrator is enabled, and other enabled components).
+
+`PriorityClass` is cluster-scoped and typically requires cluster-admin. See the Kubernetes docs on [Pod Priority and Preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/).
+
+Create a PriorityClass first. Leave `globalDefault: false` so only pods that name this class use it:
+
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: gitops-high-priority
+value: 1000000
+globalDefault: false
+preemptionPolicy: PreemptLowerPriority   # or Never — schedule ahead but never evict
+description: Priority class for OpenShift GitOps workloads
+```
+
+```
+oc apply -f priorityclass.yaml
+```
+
+Then set the field on the Argo CD instance (including the default instance in `openshift-gitops`):
+
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  priorityClassName: gitops-high-priority
+```
+
+Changing or clearing the field updates the workloads on reconcile. This is configured on the ArgoCD CR, not on `GitopsService`. If the field is omitted, pods use the cluster default priority (typically 0).
 
 ## Managing MachineSets with OpenShift GitOps
 
@@ -810,7 +849,121 @@ On following these steps, users should be able to manage their machinesets using
 
 ## Monitoring 
 
-OpenShift GitOps automatically detects Argo CD instances on the cluster and wires them up with the cluster monitoring stack with one alert installed out-of-the-box for reporting out-of-sync apps. No additional configuration is required.
+OpenShift GitOps automatically detects Argo CD instances on the cluster and wires them up with the cluster monitoring stack. Instances in an `openshift-*` namespace need no extra configuration. Instances in other namespaces need user-workload monitoring: set `enableUserWorkload: true` in the `cluster-monitoring-config` ConfigMap in `openshift-monitoring`. Alerts appear under **Observe → Alerting**.
+
+### Application alerts
+
+By default, the Operator creates two `PrometheusRule` objects in the Argo CD instance namespace:
+
+- `gitops-operator-argocd-alerts` — `ArgoCDSyncAlert` (warning): Application is OutOfSync for 5m (Git ≠ cluster).
+- `gitops-operator-argocd-sync-loop-alerts` — `ArgoCDAppSyncLoop` and `ArgoCDAppSyncFailureLoop` (warning).
+
+`ArgoCDSyncAlert` reports **drift**. Sync-loop alerts report **thrashing**: the Application keeps syncing and does not settle. An app can be OutOfSync for hours waiting on a human, or OutOfSync because it is syncing every minute forever. Only the second case trips the sync-loop alerts.
+
+`spec.monitoring.disableMetrics: true` on the Argo CD CR removes the rules **and** stops all Argo CD metrics collection (ServiceMonitors, the Prometheus read role, and the namespace monitoring label), not just the alerts. To change or silence an individual alert, edit the `PrometheusRule` in place (see [Scope and tuning](#scope-and-tuning)).
+
+### Sync-loop alerts
+
+A separate `PrometheusRule` is used so upgrades install these alerts without changing the existing OutOfSync rule.
+
+| Alert | Condition | `for` | What it means |
+|-------|-----------|-------|----------------|
+| `ArgoCDAppSyncLoop` | `gitops:argocd_app_sync:rate10m > 0.01` (~1 sync every ~100s) | 20m | Sustained high sync rate (any outcome) |
+| `ArgoCDAppSyncFailureLoop` | `gitops:argocd_app_sync_failed:rate10m > 0.005` | 15m | Sustained Error/Failed sync rate |
+
+Recording rules (same object):
+
+```promql
+gitops:argocd_app_sync:rate10m
+  = sum by (name, namespace) (rate(argocd_app_sync_total{namespace="<argo-ns>"}[10m]))
+
+gitops:argocd_app_sync_failed:rate10m
+  = sum by (name, namespace) (rate(argocd_app_sync_total{namespace="<argo-ns>",phase=~"Error|Failed"}[10m]))
+```
+
+`<argo-ns>` is the Argo CD instance namespace (for example `openshift-gitops`).
+
+#### Interpreting the signal
+
+| Firing | Typical pattern | Likely cause |
+|--------|-----------------|--------------|
+| `ArgoCDAppSyncLoop` only | Syncs **succeed**, app stays OutOfSync / Progressing | Controller conflict or admission defaulting (HPA vs Git `replicas`, mutating webhook, LimitRange, another operator) |
+| `ArgoCDAppSyncFailureLoop` (with or without `ArgoCDAppSyncLoop`) | Syncs **Error/Failed**, auto-sync retries | Bad manifest, webhook reject, immutable field, missing permissions |
+| `ArgoCDSyncAlert` only | Drift, little or no sync rate | Waiting on a manual sync / human action — not a loop |
+
+Prometheus can tell failing loops from succeeding loops via the `phase` label. It cannot tell “HPA conflict” from “mutating webhook”; those share the same metric signature.
+
+Impact: extra load on the application-controller, repo-server, and Kubernetes API; the app may never settle; other apps on the same instance can starve under heavy load.
+
+#### Recommended operator actions
+
+1. Identify the Application from the alert labels (`name` is the Application; `namespace` is the Argo CD instance namespace).
+2. Inspect sync / operation status:
+
+   ```console
+   $ oc get application <name> -n <namespace> -o yaml
+   $ oc get application <name> -n <namespace> -o jsonpath='{.status.operationState}{"\n"}'
+   ```
+
+3. Check Diff in the Argo CD UI or CLI for fields that keep changing.
+4. Look for conflicting controllers on the same resources (HPA, other operators, mutating webhooks, LimitRanges):
+
+   ```console
+   $ oc get hpa -A
+   $ oc get mutatingwebhookconfiguration
+   ```
+
+5. Confirm the metric rate in Observe → Metrics:
+
+   ```promql
+   gitops:argocd_app_sync:rate10m{name="<name>",namespace="<namespace>"}
+   gitops:argocd_app_sync_failed:rate10m{name="<name>",namespace="<namespace>"}
+   ```
+
+   Application `status.history` length is a poor loop detector: re-applying the same revision often does not grow history. Use `argocd_app_sync_total`.
+
+Then mitigate:
+
+- Temporarily disable `selfHeal` / automated sync while you fix the conflict.
+- Fix failing manifests, RBAC, or webhook policies if `ArgoCDAppSyncFailureLoop` is firing.
+
+Known anti-pattern: Git wants `replicas: 1`, HPA sets `minReplicas: 3`, Application has `automated.selfHeal: true`. Syncs succeed, the app stays OutOfSync, and `ArgoCDAppSyncLoop` fires. Remove `replicas` from Git, or ignore that JSON pointer on the Application CR:
+
+```yaml
+# Argo CD Application CR
+spec:
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+```
+
+#### False positives
+
+Short bursts should not fire. The alert only fires if the rate stays above the threshold for the full duration (`ArgoCDAppSyncLoop` 20m, `ArgoCDAppSyncFailureLoop` 15m):
+
+| Scenario | Why it looks busy | Why it should not fire |
+|----------|-------------------|------------------------|
+| Rapid legitimate commits | Many syncs in a few minutes | Burst ends inside 20m |
+| ApplicationSet creates many apps | Spike in sync activity | Rate is **per Application**; one initial sync is tiny |
+| Cluster upgrade / node churn | Temporary re-sync | Usually settles before the duration elapses |
+| One `kubectl edit` + selfHeal | Single corrective sync | Does not last 20m |
+
+#### Scope and tuning
+
+- Rules are scoped with `namespace="<Argo CD instance namespace>"`, the same pattern as `ArgoCDSyncAlert`. Application CRs that live **only** in other namespaces (apps-in-any-namespace) are not included.
+- The Operator creates the `PrometheusRule` if it is absent and does not overwrite user edits. Delete the rule to recreate Operator defaults:
+
+  ```console
+  $ oc delete prometheusrule gitops-operator-argocd-sync-loop-alerts -n <argo-ns>
+  ```
+
+- To change thresholds, edit `gitops-operator-argocd-sync-loop-alerts` in place; the Operator will not revert your changes. Adding a separate `PrometheusRule` with the same alert name does not override the shipped one; both will fire. The Operator does not expose tunables on the Argo CD CR.
+
+A failing loop with a high enough total rate can fire both `ArgoCDAppSyncFailureLoop` and `ArgoCDAppSyncLoop`. The Operator does not manage Alertmanager. If you want a single notification, inhibit the `ArgoCDAppSyncFailureLoop` warning when the failure alert is already firing for the same Application (`name` and `namespace`).
+
+### Querying Argo CD metrics
 
 Note that the metrics provided are for the Argo CD instance itself, and don’t include metrics provided by the applications.
 

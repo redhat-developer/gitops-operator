@@ -831,6 +831,35 @@ func TestAlphaToBetaConversion(t *testing.T) {
 				}
 			}),
 		},
+		{
+			name: "ArgoCD Example - Agent Principal with SelfRegistration",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+		},
 	}
 
 	for _, test := range tests {
@@ -1249,6 +1278,35 @@ func TestBetaToAlphaConversion(t *testing.T) {
 				cr.Spec.Notifications.Metrics = &ArgoCDMetricsSpec{
 					Interval:      "45s",
 					ScrapeTimeout: "20s",
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Principal with SelfRegistration",
+			input: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
 				}
 			}),
 		},

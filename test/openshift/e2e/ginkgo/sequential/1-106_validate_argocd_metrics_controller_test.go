@@ -41,8 +41,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Eventually(&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-prometheus-k8s-read-binding", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
 
-			// PrometheusRule
+			// PrometheusRules
 			Eventually(&monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Name: "gitops-operator-argocd-alerts", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Name: "gitops-operator-argocd-sync-loop-alerts", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
 
 		}
 
@@ -79,6 +80,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-prometheus-k8s-read-binding", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
 
 			Eventually(&monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Name: "gitops-operator-argocd-alerts", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
+			Eventually(&monitoringv1.PrometheusRule{ObjectMeta: metav1.ObjectMeta{Name: "gitops-operator-argocd-sync-loop-alerts", Namespace: "openshift-gitops"}}).Should(k8sFixture.NotExistByName())
 
 			By("re-enabling metrics")
 			argocdFixture.Update(defaultArgoCD, func(ac *argov1beta1api.ArgoCD) {

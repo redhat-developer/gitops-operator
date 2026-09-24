@@ -21,6 +21,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
@@ -245,6 +246,9 @@ func ProxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {
 	proxyKeys := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 	for _, p := range proxyKeys {
 		if k, v := caseInsensitiveGetenv(p); k != "" {
+			if p == "NO_PROXY" {
+				v = addToNoProxy(v, ".cluster.local.") // add .cluster.local. (with trailing dot) to allow entry typically not added by OpenShift
+			}
 			result = append(result, corev1.EnvVar{Name: k, Value: v})
 		}
 	}
@@ -260,6 +264,17 @@ func caseInsensitiveGetenv(s string) (string, string) {
 		return ls, v
 	}
 	return "", ""
+}
+
+func addToNoProxy(noProxy string, entry string) string {
+	if noProxy == "" {
+		return entry
+	}
+
+	if !slices.Contains(strings.Split(noProxy, ","), entry) {
+		return fmt.Sprintf("%s,%s", noProxy, entry)
+	}
+	return noProxy
 }
 
 func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec) {
