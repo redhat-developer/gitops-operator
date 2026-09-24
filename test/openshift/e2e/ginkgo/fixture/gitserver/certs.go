@@ -1,7 +1,8 @@
 package gitserver
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/pem"
 	"fmt"
@@ -19,11 +20,23 @@ type sshKeyPair struct {
 	publicKey     string
 }
 
+// generateSSHKeyPair returns the key the tests register with the Git server and hand to Argo CD
+// as repository credentials.
+//
+// ECDSA P-256 rather than Ed25519, because Ed25519 is not FIPS-approved: with the RHEL 9 crypto
+// policy set to FIPS, OpenSSH offers only
+//
+//	ecdsa-sha2-nistp256/384/521 and rsa-sha2-256/512
+//
+// for public key authentication, so a repo-server on a FIPS cluster cannot authenticate with an
+// Ed25519 key at all. 1-141's "hydrate kustomize to another branch via ssh" failed there with
+// "Permission denied (publickey)" while its https variant passed. P-256 is accepted in FIPS mode
+// and out of it, so this needs no branching on the cluster's mode.
 func generateSSHKeyPair() sshKeyPair {
-	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	Expect(err).NotTo(HaveOccurred())
 
-	sshPublicKey, err := ssh.NewPublicKey(publicKey)
+	sshPublicKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
 	Expect(err).NotTo(HaveOccurred())
 
 	privateKeyBlock, err := ssh.MarshalPrivateKey(privateKey, "")
