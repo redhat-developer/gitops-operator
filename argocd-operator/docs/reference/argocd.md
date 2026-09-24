@@ -543,11 +543,12 @@ spec:
 
 The following properties are available for configuring the Image Updater controller component.
 
-Name | Default | Description
---- | --- | ---
-Enabled | `false` | The toggle that determines whether image updater controller should be started or not.
-Env | [Empty] | Environment to set for the image updater workloads.
-Resources | [Empty] | The container compute resources.
+| Name      | Default | Description                                                                                                                                                                                                                          |
+|-----------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Enabled   | `false` | The toggle that determines whether image updater controller should be started or not.                                                                                                                                                |
+| Image     | [Empty] | The container image for Image Updater. Takes precedence over the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable; when both are unset, defaults to the stable Image Updater image at quay.io for this version of OpenShift GitOps. |
+| Env       | [Empty] | Environment to set for the image updater workloads.                                                                                                                                                                                  |
+| Resources | [Empty] | The container compute resources.                                                                                                                                                                                                     |
 
 ### Image Updater Controller Example
 

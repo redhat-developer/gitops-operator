@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -1458,6 +1459,78 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			for _, expected := range tt.expectedArgs {
 				assert.Contains(t, args, expected)
 			}
+		})
+	}
+}
+
+func TestSelectImageUpdaterImage(t *testing.T) {
+	tests := []struct {
+		name              string
+		crImageOverride   string // .Spec.ImageUpdater.Image
+		envImage          string // ARGOCD_IMAGE_UPDATER_IMAGE env var
+		expectedImage     string // expected result
+		envVarShouldExist bool   // whether the env var should be set for this test
+	}{
+		{
+			name:              "CR Image takes priority over environment variable",
+			crImageOverride:   "my-registry.io/custom-image-updater:custom-tag",
+			envImage:          "env-registry.io/env-image-updater:env-tag",
+			expectedImage:     "my-registry.io/custom-image-updater:custom-tag",
+			envVarShouldExist: true,
+		},
+		{
+			name:              "Environment variable is used when CR Image is empty",
+			crImageOverride:   "",
+			envImage:          "env-registry.io/env-image-updater:env-tag",
+			expectedImage:     "env-registry.io/env-image-updater:env-tag",
+			envVarShouldExist: true,
+		},
+		{
+			name:              "Default image is used when both CR and env are empty",
+			crImageOverride:   "",
+			envImage:          "",
+			expectedImage:     argoutil.CombineImageTag(DefaultImageUpdaterImage, DefaultImageUpdaterTag),
+			envVarShouldExist: false,
+		},
+		{
+			name:              "CR Image is used even with whitespace in env var",
+			crImageOverride:   "cr-image:latest",
+			envImage:          "  ",
+			expectedImage:     "cr-image:latest",
+			envVarShouldExist: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original env var value
+			originalEnv, wasSet := os.LookupEnv(common.ArgoCDImageUpdaterImageEnvName)
+			defer func() {
+				if wasSet {
+					os.Setenv(common.ArgoCDImageUpdaterImageEnvName, originalEnv)
+				} else {
+					os.Unsetenv(common.ArgoCDImageUpdaterImageEnvName)
+				}
+			}()
+
+			// Set or unset the env var
+			if tt.envVarShouldExist {
+				os.Setenv(common.ArgoCDImageUpdaterImageEnvName, tt.envImage)
+			} else {
+				os.Unsetenv(common.ArgoCDImageUpdaterImageEnvName)
+			}
+
+			// Create test ArgoCD CR
+			cr := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Enabled = true
+				a.Spec.ImageUpdater.Image = tt.crImageOverride
+			})
+
+			// Test the function
+			result := selectImageUpdaterImage(cr)
+
+			// Verify the result matches expected image
+			assert.Equal(t, tt.expectedImage, result, "selectImageUpdaterImage returned unexpected image")
 		})
 	}
 }
