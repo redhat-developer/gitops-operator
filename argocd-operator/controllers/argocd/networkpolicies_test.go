@@ -359,14 +359,18 @@ func TestApplicationSetControllerNetworkPolicy(t *testing.T) {
 	assert.Equal(t, "argocd-applicationset-controller", np.Spec.PodSelector.MatchLabels["app.kubernetes.io/name"])
 	assert.Equal(t, networkingv1.PolicyTypeIngress, np.Spec.PolicyTypes[0])
 
-	// ingress: from any namespace on 7000 and 8080
-	assert.Equal(t, 1, len(np.Spec.Ingress))
+	// ingress: webhook on 7000, metrics on 8080
+	assert.Equal(t, 2, len(np.Spec.Ingress))
 	assert.Equal(t, 1, len(np.Spec.Ingress[0].From))
 	assert.NotNil(t, np.Spec.Ingress[0].From[0].NamespaceSelector)
 	assert.Equal(t, metav1.LabelSelector{}, *np.Spec.Ingress[0].From[0].NamespaceSelector)
-	assert.Equal(t, 2, len(np.Spec.Ingress[0].Ports))
+	assert.Equal(t, 1, len(np.Spec.Ingress[0].Ports))
 	assert.Equal(t, intstr.FromInt(7000), *np.Spec.Ingress[0].Ports[0].Port)
-	assert.Equal(t, intstr.FromInt(8080), *np.Spec.Ingress[0].Ports[1].Port)
+	assert.Equal(t, 1, len(np.Spec.Ingress[1].From))
+	assert.NotNil(t, np.Spec.Ingress[1].From[0].NamespaceSelector)
+	assert.Equal(t, metav1.LabelSelector{}, *np.Spec.Ingress[1].From[0].NamespaceSelector)
+	assert.Equal(t, 1, len(np.Spec.Ingress[1].Ports))
+	assert.Equal(t, intstr.FromInt(8080), *np.Spec.Ingress[1].Ports[0].Port)
 }
 
 func TestApplicationSetControllerNetworkPolicyDisabledDeletesExisting(t *testing.T) {
