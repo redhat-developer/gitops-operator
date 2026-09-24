@@ -120,6 +120,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}, "3m", "5s").Should(k8sFixture.ExistByName())
 			}
 
+			By("verifying no NetworkPolicy uses an unscoped namespaceSelector")
+			for _, npName := range expectedNPs {
+				np := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}
+				Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(np), np)).To(Succeed())
+				Expect(networkPolicyHasUnscopedNamespaceSelector(np)).To(BeFalse(), npName+" has namespaceSelector: {}")
+			}
+
 			By("verifying repo-server NetworkPolicy ingress peers/ports")
 			repoNP := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-repo-server-network-policy", Namespace: nsObj.Name}}
 			Eventually(func() bool {
@@ -146,8 +153,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if !foundAppSet {
 					return false
 				}
-				// Rule 2: any namespace on 8084 (metrics)
-				if repoNP.Spec.Ingress[1].From == nil || len(repoNP.Spec.Ingress[1].From) != 1 || repoNP.Spec.Ingress[1].From[0].NamespaceSelector == nil {
+				// Rule 2: OpenShift monitoring on 8084 (metrics)
+				if repoNP.Spec.Ingress[1].From == nil || len(repoNP.Spec.Ingress[1].From) != 1 || !networkPolicyPeerSelectsMonitoring(repoNP.Spec.Ingress[1].From[0]) {
 					return false
 				}
 				if len(repoNP.Spec.Ingress[1].Ports) != 1 || repoNP.Spec.Ingress[1].Ports[0].Port == nil || repoNP.Spec.Ingress[1].Ports[0].Port.IntVal != 8084 {
@@ -180,6 +187,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if len(dexNP.Spec.Ingress[1].Ports) != 1 || dexNP.Spec.Ingress[1].Ports[0].Port == nil || dexNP.Spec.Ingress[1].Ports[0].Port.IntVal != common.ArgoCDDefaultDexMetricsPort {
 					return false
 				}
+				if len(dexNP.Spec.Ingress[1].From) != 1 || !networkPolicyPeerSelectsMonitoring(dexNP.Spec.Ingress[1].From[0]) {
+					return false
+				}
 				return true
 			}, "3m", "5s").Should(BeTrue())
 
@@ -195,7 +205,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if len(notifNP.Spec.Ingress) != 1 {
 					return false
 				}
-				if notifNP.Spec.Ingress[0].From == nil || len(notifNP.Spec.Ingress[0].From) != 1 || notifNP.Spec.Ingress[0].From[0].NamespaceSelector == nil {
+				if notifNP.Spec.Ingress[0].From == nil || len(notifNP.Spec.Ingress[0].From) != 1 || !networkPolicyPeerSelectsMonitoring(notifNP.Spec.Ingress[0].From[0]) {
 					return false
 				}
 				if len(notifNP.Spec.Ingress[0].Ports) != 1 || notifNP.Spec.Ingress[0].Ports[0].Port == nil || notifNP.Spec.Ingress[0].Ports[0].Port.IntVal != 9001 {
@@ -214,19 +224,22 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if appSetNP.Spec.PodSelector.MatchLabels[common.ArgoCDKeyName] != expectedAppSetSelectorLabel {
 					return false
 				}
-				if len(appSetNP.Spec.Ingress) != 1 {
+				if len(appSetNP.Spec.Ingress) != 2 {
 					return false
 				}
-				if appSetNP.Spec.Ingress[0].From == nil || len(appSetNP.Spec.Ingress[0].From) != 1 || appSetNP.Spec.Ingress[0].From[0].NamespaceSelector == nil {
+				if appSetNP.Spec.Ingress[0].From == nil || !networkPolicyPeerSelectsIngress(appSetNP.Spec.Ingress[0].From) {
 					return false
 				}
-				if len(appSetNP.Spec.Ingress[0].Ports) != 2 {
+				if len(appSetNP.Spec.Ingress[0].Ports) != 1 {
 					return false
 				}
 				if appSetNP.Spec.Ingress[0].Ports[0].Port == nil || appSetNP.Spec.Ingress[0].Ports[0].Port.IntVal != 7000 {
 					return false
 				}
-				if appSetNP.Spec.Ingress[0].Ports[1].Port == nil || appSetNP.Spec.Ingress[0].Ports[1].Port.IntVal != 8080 {
+				if len(appSetNP.Spec.Ingress[1].From) != 1 || !networkPolicyPeerSelectsMonitoring(appSetNP.Spec.Ingress[1].From[0]) {
+					return false
+				}
+				if len(appSetNP.Spec.Ingress[1].Ports) != 1 || appSetNP.Spec.Ingress[1].Ports[0].Port == nil || appSetNP.Spec.Ingress[1].Ports[0].Port.IntVal != 8080 {
 					return false
 				}
 				return true
@@ -263,7 +276,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if len(appControllerNP.Spec.Ingress) != 1 {
 					return false
 				}
-				if appControllerNP.Spec.Ingress[0].From == nil || len(appControllerNP.Spec.Ingress[0].From) != 1 || appControllerNP.Spec.Ingress[0].From[0].NamespaceSelector == nil {
+				if appControllerNP.Spec.Ingress[0].From == nil || len(appControllerNP.Spec.Ingress[0].From) != 1 || !networkPolicyPeerSelectsMonitoring(appControllerNP.Spec.Ingress[0].From[0]) {
 					return false
 				}
 				if len(appControllerNP.Spec.Ingress[0].Ports) != 1 || appControllerNP.Spec.Ingress[0].Ports[0].Port == nil || appControllerNP.Spec.Ingress[0].Ports[0].Port.IntVal != 8082 {
@@ -376,3 +389,41 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 	})
 })
+
+func networkPolicyPeerSelectsMonitoring(peer networkingv1.NetworkPolicyPeer) bool {
+	if peer.NamespaceSelector == nil {
+		return false
+	}
+	return peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "monitoring"
+}
+
+func networkPolicyPeerSelectsIngress(peers []networkingv1.NetworkPolicyPeer) bool {
+	foundPolicyGroup := false
+	foundOVNPolicyGroup := false
+	for _, peer := range peers {
+		if peer.NamespaceSelector == nil {
+			continue
+		}
+		if peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "ingress" {
+			foundPolicyGroup = true
+		}
+		if _, ok := peer.NamespaceSelector.MatchLabels["policy-group.network.openshift.io/ingress"]; ok {
+			foundOVNPolicyGroup = true
+		}
+	}
+	return foundPolicyGroup && foundOVNPolicyGroup
+}
+
+func networkPolicyHasUnscopedNamespaceSelector(np *networkingv1.NetworkPolicy) bool {
+	for _, rule := range np.Spec.Ingress {
+		for _, peer := range rule.From {
+			if peer.NamespaceSelector == nil {
+				continue
+			}
+			if len(peer.NamespaceSelector.MatchLabels) == 0 && len(peer.NamespaceSelector.MatchExpressions) == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}

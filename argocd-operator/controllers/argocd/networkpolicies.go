@@ -45,6 +45,16 @@ const (
 	ArgoCDApplicationSetControllerNetworkPolicy = "applicationset-controller-network-policy"
 	// ImageUpdaterNetworkPolicy is the name of the network policy which controls Image Updater traffic
 	ImageUpdaterNetworkPolicy = "image-updater-network-policy"
+
+	// NetworkPolicyGroupLabelSelectorKey is applied by OpenShift to platform namespaces
+	// (monitoring and ingress).
+	NetworkPolicyGroupLabelSelectorKey = "network.openshift.io/policy-group"
+	MonitoringLabelSelectorValue       = "monitoring"
+	IngressLabelSelectorValue          = "ingress"
+
+	// openShiftIngressOVNPolicyGroupLabel is the OVN-Kubernetes recommended selector
+	// for namespaces that host the ingress controller (including hostNetwork pods).
+	openShiftIngressOVNPolicyGroupLabel = "policy-group.network.openshift.io/ingress"
 )
 
 func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
@@ -140,7 +150,8 @@ func (r *ReconcileArgoCD) deleteArgoCDNetworkPolicies(cr *argoproj.ArgoCD) error
 }
 
 // ReconcileDexServerNetworkPolicy creates and reconciles network policy for Dex Server
-// This network policy allows ingress traffic to the dex server from the server and any namespace.
+// This network policy allows ingress traffic to the dex server from the Argo CD server
+// and metrics scraping from OpenShift monitoring namespaces.
 // Referenced from https://github.com/argoproj/argo-cd/blob/master/manifests/base/dex/argocd-dex-server-network-policy.yaml
 func (r *ReconcileArgoCD) ReconcileDexServerNetworkPolicy(cr *argoproj.ArgoCD) error {
 
@@ -179,7 +190,7 @@ func (r *ReconcileArgoCD) ReconcileDexServerNetworkPolicy(cr *argoproj.ArgoCD) e
 			{
 				From: []networkingv1.NetworkPolicyPeer{
 					{
-						NamespaceSelector: &metav1.LabelSelector{},
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
 					},
 				},
 				Ports: []networkingv1.NetworkPolicyPort{
@@ -262,7 +273,8 @@ func (r *ReconcileArgoCD) ReconcileDexServerNetworkPolicy(cr *argoproj.ArgoCD) e
 }
 
 // ReconcileApplicationSetControllerNetworkPolicy creates and reconciles network policy for ApplicationSet Controller
-// This network policy allows ingress traffic to the applicationset controller from any namespace.
+// This network policy allows webhook traffic from the OpenShift ingress controller and
+// metrics scraping from OpenShift monitoring namespaces.
 // Referenced from https://github.com/argoproj/argo-cd/blob/master/manifests/base/applicationset-controller/argocd-applicationset-controller-network-policy.yaml
 func (r *ReconcileArgoCD) ReconcileApplicationSetControllerNetworkPolicy(cr *argoproj.ArgoCD) error {
 
@@ -278,16 +290,21 @@ func (r *ReconcileArgoCD) ReconcileApplicationSetControllerNetworkPolicy(cr *arg
 		},
 		Ingress: []networkingv1.NetworkPolicyIngressRule{
 			{
-				From: []networkingv1.NetworkPolicyPeer{
-					{
-						NamespaceSelector: &metav1.LabelSelector{},
-					},
-				},
+				From: getIngressNamespacePeers(),
 				Ports: []networkingv1.NetworkPolicyPort{
 					{
 						Protocol: TCPProtocol,
 						Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 7000},
 					},
+				},
+			},
+			{
+				From: []networkingv1.NetworkPolicyPeer{
+					{
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
+					},
+				},
+				Ports: []networkingv1.NetworkPolicyPort{
 					{
 						Protocol: TCPProtocol,
 						Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 8080},
@@ -634,7 +651,7 @@ func (r *ReconcileArgoCD) ReconcileRedisHANetworkPolicy(cr *argoproj.ArgoCD) err
 }
 
 // ReconcileNotificationsControllerNetworkPolicy creates and reconciles network policy for Notifications Controller
-// This network policy allows ingress traffic to the notifications controller from any namespace.
+// This network policy allows metrics scraping from OpenShift monitoring namespaces.
 // Referenced from https://github.com/argoproj/argo-cd/blob/master/manifests/base/notifications-controller/argocd-notifications-controller-network-policy.yaml
 func (r *ReconcileArgoCD) ReconcileNotificationsControllerNetworkPolicy(cr *argoproj.ArgoCD) error {
 
@@ -652,7 +669,7 @@ func (r *ReconcileArgoCD) ReconcileNotificationsControllerNetworkPolicy(cr *argo
 			{
 				From: []networkingv1.NetworkPolicyPeer{
 					{
-						NamespaceSelector: &metav1.LabelSelector{},
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
 					},
 				},
 				Ports: []networkingv1.NetworkPolicyPort{
@@ -815,7 +832,7 @@ func (r *ReconcileArgoCD) ReconcileArgoCDServerNetworkPolicy(cr *argoproj.ArgoCD
 }
 
 // ReconcileArgoCDApplicationControllerNetworkPolicy creates and reconciles network policy for Argo CD Application Controller
-// This network policy allows ingress traffic to the application controller from any namespace.
+// This network policy allows metrics scraping from OpenShift monitoring namespaces.
 // Referenced from https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-network-policy.yaml
 func (r *ReconcileArgoCD) ReconcileArgoCDApplicationControllerNetworkPolicy(cr *argoproj.ArgoCD) error {
 	desired := returnNetworkPolicyHeaders(cr, ArgoCDApplicationControllerNetworkPolicy)
@@ -833,7 +850,7 @@ func (r *ReconcileArgoCD) ReconcileArgoCDApplicationControllerNetworkPolicy(cr *
 			{
 				From: []networkingv1.NetworkPolicyPeer{
 					{
-						NamespaceSelector: &metav1.LabelSelector{},
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
 					},
 				},
 				Ports: []networkingv1.NetworkPolicyPort{
@@ -910,7 +927,8 @@ func (r *ReconcileArgoCD) ReconcileArgoCDApplicationControllerNetworkPolicy(cr *
 }
 
 // ReconcileArgoCDRepoServerNetworkPolicy creates and reconciles network policy for Argo CD Repo Server
-// This network policy allows ingress traffic to the repo server from the application controller, server, notifications controller, applicationset controller, and any namespace.
+// This network policy allows ingress traffic to the repo server from Argo CD control-plane
+// components, plus metrics scraping from OpenShift monitoring namespaces.
 // Referenced from https://github.com/argoproj/argo-cd/blob/master/manifests/base/repo-server/argocd-repo-server-network-policy.yaml
 func (r *ReconcileArgoCD) ReconcileArgoCDRepoServerNetworkPolicy(cr *argoproj.ArgoCD) error {
 
@@ -975,7 +993,7 @@ func (r *ReconcileArgoCD) ReconcileArgoCDRepoServerNetworkPolicy(cr *argoproj.Ar
 			{
 				From: []networkingv1.NetworkPolicyPeer{
 					{
-						NamespaceSelector: &metav1.LabelSelector{},
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
 					},
 				},
 				Ports: []networkingv1.NetworkPolicyPort{
@@ -1140,6 +1158,63 @@ func returnNetworkPolicyHeaders(cr *argoproj.ArgoCD, NetworkPolicyName string) *
 			Name:      nameWithSuffix(NetworkPolicyName, cr),
 			Namespace: cr.Namespace,
 			Labels:    argoutil.LabelsForCluster(cr),
+		},
+	}
+}
+
+// getMonitoringNamespaceLabelSelector returns the namespace label selector for selecting
+// the namespace where prometheus related pods run.
+// for openshift, it is going to be network.openshift.io/policy-group: monitoring
+// for non-openshift clusters, all namespaces will be selected.
+func getMonitoringNamespaceLabelSelector() *metav1.LabelSelector {
+	if !IsOpenShiftCluster() {
+		return &metav1.LabelSelector{}
+	}
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			NetworkPolicyGroupLabelSelectorKey: MonitoringLabelSelectorValue,
+		},
+	}
+}
+
+// getIngressNamespaceLabelSelector returns the namespace label selector for selecting the
+// namespace where ingress controller related pods run.
+// for openshift clusters, it is going to be network.openshift.io/policy-group: ingress
+// for non-openshift clusters, all namespaces will be selected.
+func getIngressNamespaceLabelSelector() *metav1.LabelSelector {
+	if !IsOpenShiftCluster() {
+		return &metav1.LabelSelector{}
+	}
+	return &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			NetworkPolicyGroupLabelSelectorKey: IngressLabelSelectorValue,
+		},
+	}
+}
+
+// getIngressNamespacePeers allows traffic from OpenShift router pods. On OpenShift
+// this is both network.openshift.io/policy-group=ingress and the OVN-Kubernetes
+// policy-group.network.openshift.io/ingress="" label. An empty PodSelector is
+// required so hostNetwork ingress-controller pods match.
+func getIngressNamespacePeers() []networkingv1.NetworkPolicyPeer {
+	nsSelector := getIngressNamespaceLabelSelector()
+	if !IsOpenShiftCluster() {
+		return []networkingv1.NetworkPolicyPeer{
+			{NamespaceSelector: nsSelector},
+		}
+	}
+	return []networkingv1.NetworkPolicyPeer{
+		{
+			NamespaceSelector: nsSelector,
+			PodSelector:       &metav1.LabelSelector{},
+		},
+		{
+			NamespaceSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					openShiftIngressOVNPolicyGroupLabel: "",
+				},
+			},
+			PodSelector: &metav1.LabelSelector{},
 		},
 	}
 }
