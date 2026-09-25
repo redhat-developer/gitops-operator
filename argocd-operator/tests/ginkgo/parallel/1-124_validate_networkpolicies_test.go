@@ -417,7 +417,7 @@ func networkPolicyPeerSelectsIngress(peers []networkingv1.NetworkPolicyPeer) boo
 		if peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "ingress" {
 			foundPolicyGroup = true
 		}
-		if _, ok := peer.NamespaceSelector.MatchLabels["policy-group.network.openshift.io/ingress"]; ok {
+		if value, ok := peer.NamespaceSelector.MatchLabels["policy-group.network.openshift.io/ingress"]; ok && value == "" {
 			foundOVNPolicyGroup = true
 		}
 	}

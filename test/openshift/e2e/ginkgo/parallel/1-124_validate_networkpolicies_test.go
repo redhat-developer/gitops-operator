@@ -118,11 +118,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}, "3m", "5s").Should(k8sFixture.ExistByName())
 			}
 
-			By("verifying no NetworkPolicy uses an unscoped namespaceSelector")
-			for _, npName := range expectedNPs {
-				np := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}
-				Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(np), np)).To(Succeed())
-				Expect(networkPolicyHasUnscopedNamespaceSelector(np)).To(BeFalse(), npName+" has namespaceSelector: {}")
+			if fixture.RunningOnOpenShift() {
+				By("verifying no NetworkPolicy uses an unscoped namespaceSelector")
+				for _, npName := range expectedNPs {
+					np := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(np), np)).To(Succeed())
+					Expect(networkPolicyHasUnscopedNamespaceSelector(np)).To(BeFalse(), npName+" has namespaceSelector: {}")
+				}
 			}
 
 			By("verifying repo-server NetworkPolicy ingress peers/ports")
@@ -392,10 +394,18 @@ func networkPolicyPeerSelectsMonitoring(peer networkingv1.NetworkPolicyPeer) boo
 	if peer.NamespaceSelector == nil {
 		return false
 	}
-	return peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "monitoring"
+	if fixture.RunningOnOpenShift() {
+		return peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "monitoring"
+	}
+	return len(peer.NamespaceSelector.MatchLabels) == 0 && len(peer.NamespaceSelector.MatchExpressions) == 0
 }
 
 func networkPolicyPeerSelectsIngress(peers []networkingv1.NetworkPolicyPeer) bool {
+	if !fixture.RunningOnOpenShift() {
+		return len(peers) == 1 && peers[0].NamespaceSelector != nil &&
+			len(peers[0].NamespaceSelector.MatchLabels) == 0 &&
+			len(peers[0].NamespaceSelector.MatchExpressions) == 0
+	}
 	foundPolicyGroup := false
 	foundOVNPolicyGroup := false
 	for _, peer := range peers {
@@ -405,7 +415,7 @@ func networkPolicyPeerSelectsIngress(peers []networkingv1.NetworkPolicyPeer) boo
 		if peer.NamespaceSelector.MatchLabels["network.openshift.io/policy-group"] == "ingress" {
 			foundPolicyGroup = true
 		}
-		if _, ok := peer.NamespaceSelector.MatchLabels["policy-group.network.openshift.io/ingress"]; ok {
+		if value, ok := peer.NamespaceSelector.MatchLabels["policy-group.network.openshift.io/ingress"]; ok && value == "" {
 			foundOVNPolicyGroup = true
 		}
 	}
