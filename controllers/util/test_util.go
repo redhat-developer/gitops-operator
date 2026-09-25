@@ -54,3 +54,16 @@ func SetOAuthAPIFound(found bool) {
 func SetOLMAPIFound(found bool) {
 	olmAPIFound = found
 }
+
+// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
+// SetVerifyAPI overrides the API verification function used by InspectCluster.
+// Call with nil to restore the default (argoutil.VerifyAPI).
+func SetVerifyAPI(fn func(string, string) (bool, error)) {
+	if fn == nil {
+		fn = defaultVerifyAPI
+	}
+	verifyAPI = fn
+}
+
+// defaultVerifyAPI stores the original verifyAPI value for restoring in tests.
+var defaultVerifyAPI = verifyAPI
