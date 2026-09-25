@@ -54,6 +54,10 @@ var (
 	appsAPIFound       = false
 	oauthAPIFound      = false
 	olmAPIFound        = false
+
+	// verifyAPI is the function used to check API group availability.
+	// It defaults to argoutil.VerifyAPI and can be overridden in tests.
+	verifyAPI = argoutil.VerifyAPI
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -131,7 +135,7 @@ func IsOpenShiftCluster() bool {
 
 // verify if the Config.Openshift.io API is found
 func verifyConfigAPI() error {
-	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
+	found, err := verifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -145,7 +149,7 @@ func IsConsoleAPIFound() bool {
 }
 
 func verifyConsoleAPI() error {
-	found, err := argoutil.VerifyAPI(console.GroupName, console.GroupVersion.Version)
+	found, err := verifyAPI(console.GroupName, console.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -159,7 +163,7 @@ func IsRouteAPIFound() bool {
 }
 
 func verifyRouteAPI() error {
-	found, err := argoutil.VerifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
+	found, err := verifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -168,7 +172,7 @@ func verifyRouteAPI() error {
 }
 
 func verifyMonitoringAPI() error {
-	found, err := argoutil.VerifyAPI(
+	found, err := verifyAPI(
 		monitoringv1.SchemeGroupVersion.Group,
 		monitoringv1.SchemeGroupVersion.Version,
 	)
@@ -190,7 +194,7 @@ func IsTemplateAPIFound() bool {
 }
 
 func verifyTemplateAPI() error {
-	found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
+	found, err := verifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -204,7 +208,7 @@ func IsAppsAPIFound() bool {
 }
 
 func verifyAppsAPI() error {
-	found, err := argoutil.VerifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
+	found, err := verifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -218,7 +222,7 @@ func IsOAuthAPIFound() bool {
 }
 
 func verifyOAuthAPI() error {
-	found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
+	found, err := verifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -232,7 +236,7 @@ func IsOLMAPIFound() bool {
 }
 
 func verifyOLMAPI() error {
-	found, err := argoutil.VerifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
+	found, err := verifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
