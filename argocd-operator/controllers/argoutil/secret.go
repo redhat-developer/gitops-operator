@@ -77,6 +77,8 @@ func NewSecretWithSuffix(cr *argoproj.ArgoCD, suffix string) *corev1.Secret {
 
 // GetSecretNameWithSuffix returns the secret name using truncated CR name + full suffix.
 // This function should be used when referencing secret names in other resources.
+
+// seems I dont need to change it as it just a util and there is no hardcoded value
 func GetSecretNameWithSuffix(cr *argoproj.ArgoCD, suffix string) string {
 	truncatedCRName := GetTruncatedCRName(cr)
 	return fmt.Sprintf("%s-%s", truncatedCRName, suffix)

@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
@@ -22,6 +23,8 @@ import (
 
 func TestReconcileArgoCD_reconcileStatusSSO(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
+
+	fmt.Println("===================== FAILING =====================")
 
 	tests := []struct {
 		name          string

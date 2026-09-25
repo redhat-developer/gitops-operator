@@ -315,6 +315,7 @@ func TruncateWithHash(input string, maxLength int) string {
 }
 
 // TruncateCRName truncates an ArgoCD CR name to allow for the longest possible suffix
+// CHANGE ME HERE
 // This ensures that when suffixes like "redis-initial-password" are appended,
 // the total length stays within Kubernetes 63-character limit
 func TruncateCRName(crName string) string {

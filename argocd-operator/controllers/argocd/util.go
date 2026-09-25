@@ -425,6 +425,7 @@ func getArgoControllerParallelismLimit(cr *argoproj.ArgoCD) int32 {
 
 // nameWithSuffix will return a name based on the given ArgoCD using the better truncation approach.
 // The CR name is truncated first, then the full suffix is appended to preserve suffix readability.
+// CHANGE HERE
 // Example: Given a long ArgoCD name, this ensures suffixes like "redis-initial-password" remain intact.
 func nameWithSuffix(suffix string, cr *argoproj.ArgoCD) string {
 	return argoutil.NameWithSuffix(cr.ObjectMeta, suffix)
