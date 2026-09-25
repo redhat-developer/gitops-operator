@@ -95,6 +95,7 @@ func TestReconcileImageUpdater_CreateClusterRoles(t *testing.T) {
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.ImageUpdater.Enabled = true
 	})
+	allowClusterConfigNamespaces(t, a.Namespace)
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
@@ -207,6 +208,7 @@ func TestReconcileImageUpdater_CreateClusterRoleBinding(t *testing.T) {
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.ImageUpdater.Enabled = true
 	})
+	allowClusterConfigNamespaces(t, a.Namespace)
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
@@ -507,6 +509,7 @@ func TestDeleteImageUpdaterClusterRBAC(t *testing.T) {
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.ImageUpdater.Enabled = true
 	})
+	allowClusterConfigNamespaces(t, a.Namespace)
 
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
