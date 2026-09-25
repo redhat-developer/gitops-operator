@@ -92,6 +92,11 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 	}
 }
 
+// InspectCluster probes the API server to determine which optional API groups
+// (OLM, Monitoring, Route, Config, Console, Template, Apps, OAuth) are available
+// in the cluster and sets the corresponding package-level flags. On non-OpenShift
+// clusters where config.openshift.io is absent, only OLM, Monitoring, and Route
+// APIs are checked; remaining OpenShift-specific groups are skipped.
 func InspectCluster() error {
 	var errs []error
 	if err := verifyOLMAPI(); err != nil {
@@ -109,7 +114,7 @@ func InspectCluster() error {
 		return stderrors.Join(errs...)
 	}
 	if !configAPIFound {
-		return nil
+		return stderrors.Join(errs...)
 	}
 
 	for _, check := range []func() error{
