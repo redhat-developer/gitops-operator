@@ -359,9 +359,13 @@ func TestApplicationSetControllerNetworkPolicy(t *testing.T) {
 	assert.Equal(t, "argocd-applicationset-controller", np.Spec.PodSelector.MatchLabels["app.kubernetes.io/name"])
 	assert.Equal(t, networkingv1.PolicyTypeIngress, np.Spec.PolicyTypes[0])
 
+	expectedWebhookPeers := 1
+	if IsOpenShiftCluster() {
+		expectedWebhookPeers = 2
+	}
 	// ingress: webhook on 7000, metrics on 8080
 	assert.Equal(t, 2, len(np.Spec.Ingress))
-	assert.Equal(t, 1, len(np.Spec.Ingress[0].From))
+	assert.Equal(t, expectedWebhookPeers, len(np.Spec.Ingress[0].From))
 	assert.NotNil(t, np.Spec.Ingress[0].From[0].NamespaceSelector)
 	assert.Equal(t, metav1.LabelSelector{}, *np.Spec.Ingress[0].From[0].NamespaceSelector)
 	assert.Equal(t, 1, len(np.Spec.Ingress[0].Ports))
