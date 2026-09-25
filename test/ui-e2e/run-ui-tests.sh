@@ -15,11 +15,24 @@ done
 #making sure we are in the correct dir
 cd "$(dirname "$0")" || exit 1
 
-if [ -f .env ]; then
-  echo "Loading variables from .env file..."
-  set -a  #export all variables
-  source .env
-  set +a  #stop auto export
+# Load environment variables based on mode
+if [ "$ENV" = "ci" ] || [ "$ENV" = "pipeline" ]; then
+    #ci/pipeline use only exported variables from the environment
+    echo "Running in CI/pipeline mode - using exported environment variables..."
+    #warn if private repo credentials are missing
+    if [ -z "$PRIVATE_REPO_URL" ]; then
+        echo "Warning: PRIVATE_REPO_URL not set - private repo tests may be skipped"
+    fi
+else
+    #local try .env first then fall back to exported variables
+    if [ -f .env ]; then
+        echo "Loading variables from .env file..."
+        set -a  #export all variables
+        source .env
+        set +a  #stop auto export
+    else
+        echo "No .env file found, using shell-exported variables..."
+    fi
 fi
 
 #username (might be something different for rosa - can be overwritten with export CLUSTER_USER)
