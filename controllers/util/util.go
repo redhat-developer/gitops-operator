@@ -94,6 +94,9 @@ func InspectCluster() error {
 	if err := verifyMonitoringAPI(); err != nil {
 		errs = append(errs, err)
 	}
+	if err := verifyRouteAPI(); err != nil {
+		errs = append(errs, err)
+	}
 
 	if err := verifyConfigAPI(); err != nil {
 		errs = append(errs, err)
@@ -104,7 +107,6 @@ func InspectCluster() error {
 	}
 
 	for _, check := range []func() error{
-		verifyRouteAPI,
 		verifyConsoleAPI,
 		verifyTemplateAPI,
 		verifyAppsAPI,
