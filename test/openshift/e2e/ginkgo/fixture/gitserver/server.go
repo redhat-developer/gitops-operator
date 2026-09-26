@@ -1,15 +1,10 @@
 package gitserver
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"io"
-	"net"
 	"os"
-	"os/exec"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,6 +21,8 @@ import (
 	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
 	podFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/pod"
 	routev1 "github.com/openshift/api/route/v1"
+
+	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
 )
 
 const (
@@ -320,8 +317,8 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 
 	server.domain = server.httpsRoute.Status.Ingress[0].Host
 	server.httpURL = fmt.Sprintf("https://%s", server.domain)
-	server.localSSHPort = reserveLocalSSHPort()
-	server.stopPortForward = startSSHPortForward(ns.Name, service.Name, server.localSSHPort)
+	server.localSSHPort = portforwardFixture.ReserveLocalPort()
+	server.stopPortForward = portforwardFixture.StartPortForward(ns.Name, "svc/"+service.Name, fmt.Sprintf("%d:%d", server.localSSHPort, sshServicePort))
 	GinkgoWriter.Printf("Git server HTTPS endpoint: %s\n", server.httpURL)
 	GinkgoWriter.Printf("Git server local SSH endpoint: 127.0.0.1:%d\n", server.localSSHPort)
 
@@ -467,68 +464,5 @@ func (s *Server) CreateRepo(repoName string) Repo {
 	return Repo{
 		server:   s,
 		repoName: repoName,
-	}
-}
-
-func reserveLocalSSHPort() int {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	Expect(err).NotTo(HaveOccurred())
-	port := listener.Addr().(*net.TCPAddr).Port
-	Expect(listener.Close()).To(Succeed())
-	return port
-}
-
-func startSSHPortForward(namespace, serviceName string, localPort int) func() {
-	portMapping := fmt.Sprintf("%d:%d", localPort, sshServicePort)
-	cmdArgs := []string{"kubectl", "port-forward", "-n", namespace, "svc/" + serviceName, portMapping}
-	GinkgoWriter.Println("executing command:", cmdArgs)
-
-	// #nosec G204
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-
-	stdout, err := cmd.StdoutPipe()
-	Expect(err).NotTo(HaveOccurred())
-	stderr, err := cmd.StderrPipe()
-	Expect(err).NotTo(HaveOccurred())
-
-	ready := make(chan struct{})
-	streamOutput := func(pipe io.Reader, signalReady func()) {
-		defer GinkgoRecover()
-
-		scanner := bufio.NewScanner(pipe)
-		for scanner.Scan() {
-			line := scanner.Text()
-			GinkgoWriter.Println("port-forward:", line)
-			if signalReady != nil && strings.HasPrefix(line, "Forwarding from") {
-				signalReady()
-				signalReady = nil
-			}
-		}
-		if scanErr := scanner.Err(); scanErr != nil {
-			GinkgoWriter.Println("port-forward scanner error:", scanErr)
-		}
-	}
-
-	Expect(cmd.Start()).To(Succeed())
-	go streamOutput(stdout, func() { close(ready) })
-	go streamOutput(stderr, nil)
-
-	select {
-	case <-ready:
-		GinkgoWriter.Println("SSH port-forward is ready")
-	case <-time.After(60 * time.Second):
-		Fail("timed out waiting for SSH port-forward to be ready")
-	}
-
-	go func() {
-		defer GinkgoRecover()
-		if err := cmd.Wait(); err != nil && !strings.Contains(err.Error(), "killed") {
-			GinkgoWriter.Println("port-forward process error:", err)
-		}
-	}()
-
-	return func() {
-		GinkgoWriter.Println("terminating SSH port-forward")
-		_ = cmd.Process.Kill()
 	}
 }
