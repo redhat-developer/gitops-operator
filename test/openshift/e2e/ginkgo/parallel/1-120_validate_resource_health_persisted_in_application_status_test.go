@@ -162,7 +162,7 @@ var _ = Describe("GitOps Operator Parallel E2E Test", func() {
 			}}
 			Eventually(ss).Should(ssFixture.HaveReadyReplicas(1))
 
-			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace, ns.Name)
+			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace+"1", ns.Name)
 			defer cleanupFunc()
 
 			By("Creating ArgoCD Application CR")
