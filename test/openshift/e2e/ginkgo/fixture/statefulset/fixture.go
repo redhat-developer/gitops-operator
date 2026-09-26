@@ -61,6 +61,23 @@ func HaveReadyReplicas(readyReplicas int) matcher.GomegaMatcher {
 	})
 }
 
+// ready replicas stay green mid-rollout; this waits for the new revision
+func HaveCompletedRollout(replicas int) matcher.GomegaMatcher {
+	return fetchStatefulSet(func(ss *appsv1.StatefulSet) bool {
+		GinkgoWriter.Println("StatefulSet HaveCompletedRollout:",
+			"ready:", ss.Status.ReadyReplicas,
+			"updated:", ss.Status.UpdatedReplicas,
+			"currentRev:", ss.Status.CurrentRevision,
+			"updateRev:", ss.Status.UpdateRevision,
+			"gen:", ss.Generation, "observed:", ss.Status.ObservedGeneration)
+		return int(ss.Status.ReadyReplicas) == replicas &&
+			int(ss.Status.UpdatedReplicas) == replicas &&
+			ss.Status.CurrentRevision != "" &&
+			ss.Status.CurrentRevision == ss.Status.UpdateRevision &&
+			ss.Generation == ss.Status.ObservedGeneration
+	})
+}
+
 func GetTemplateSpecInitContainerByName(name string, depl appsv1.StatefulSet) *corev1.Container {
 
 	for idx := range depl.Spec.Template.Spec.InitContainers {
