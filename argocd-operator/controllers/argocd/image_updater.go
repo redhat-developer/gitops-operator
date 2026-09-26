@@ -888,6 +888,10 @@ func (r *ReconcileArgoCD) reconcileRoleHelper(cr *argoproj.ArgoCD, desiredRole c
 	existingRole := reflect.New(reflect.TypeOf(desiredRole).Elem()).Interface().(client.Object)
 	namespace := cr.Namespace
 
+	// Re-check the cluster-config gate here for ClusterRole, rather than trusting the caller.
+	shouldExist := cr.Spec.ImageUpdater.Enabled
+	deleteReason := "image updater is disabled"
+
 	switch r := desiredRole.(type) {
 	case *rbacv1.Role:
 		if ns := desiredRole.GetNamespace(); ns != "" {
@@ -895,6 +899,10 @@ func (r *ReconcileArgoCD) reconcileRoleHelper(cr *argoproj.ArgoCD, desiredRole c
 		}
 	case *rbacv1.ClusterRole:
 		namespace = ""
+		if shouldExist && !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
+			shouldExist = false
+			deleteReason = fmt.Sprintf("namespace %q is not allowed to host cluster-scoped Argo CD resources", cr.Namespace)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported type for reconcileRoleResource, got %T", r)
 	}
@@ -905,7 +913,7 @@ func (r *ReconcileArgoCD) reconcileRoleHelper(cr *argoproj.ArgoCD, desiredRole c
 		}
 
 		// role does not exist and shouldn't, nothing to do here
-		if !cr.Spec.ImageUpdater.Enabled {
+		if !shouldExist {
 			return nil, nil
 		}
 
@@ -926,11 +934,11 @@ func (r *ReconcileArgoCD) reconcileRoleHelper(cr *argoproj.ArgoCD, desiredRole c
 	}
 
 	// role exists but shouldn't, so it should be deleted
-	if !cr.Spec.ImageUpdater.Enabled {
+	if !shouldExist {
 		if clusterRole, ok := existingRole.(*rbacv1.ClusterRole); ok && !argoutil.CheckClusterRoleOwnership(clusterRole, cr) {
 			return nil, nil
 		}
-		argoutil.LogResourceDeletion(log, existingRole, "image updater is disabled")
+		argoutil.LogResourceDeletion(log, existingRole, deleteReason)
 		return nil, r.Delete(context.TODO(), existingRole)
 	}
 
@@ -979,9 +987,17 @@ func (r *ReconcileArgoCD) reconcileRoleBindingHelper(cr *argoproj.ArgoCD, desire
 		return fmt.Errorf("unsupported type for reconcileRoleBindingResource resource, got %T", desiredRoleBinding)
 	}
 
+	// Re-check the cluster-config gate here for ClusterRoleBinding, rather than trusting the caller.
+	shouldExist := cr.Spec.ImageUpdater.Enabled
+	deleteReason := "image updater is disabled"
+
 	namespace := cr.Namespace
 	if _, ok := desiredRoleBinding.(*rbacv1.ClusterRoleBinding); ok {
 		namespace = ""
+		if shouldExist && !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
+			shouldExist = false
+			deleteReason = fmt.Sprintf("namespace %q is not allowed to host cluster-scoped Argo CD resources", cr.Namespace)
+		}
 	} else if ns := desiredRoleBinding.GetNamespace(); ns != "" {
 		namespace = ns
 	}
@@ -993,7 +1009,7 @@ func (r *ReconcileArgoCD) reconcileRoleBindingHelper(cr *argoproj.ArgoCD, desire
 		}
 
 		// roleBinding does not exist and shouldn't, nothing to do here
-		if !cr.Spec.ImageUpdater.Enabled {
+		if !shouldExist {
 			return nil
 		}
 
@@ -1011,11 +1027,11 @@ func (r *ReconcileArgoCD) reconcileRoleBindingHelper(cr *argoproj.ArgoCD, desire
 	}
 
 	// roleBinding exists but shouldn't, so it should be deleted
-	if !cr.Spec.ImageUpdater.Enabled {
+	if !shouldExist {
 		if clusterRoleBinding, ok := existingRoleBinding.(*rbacv1.ClusterRoleBinding); ok && !argoutil.CheckClusterRoleBindingOwnership(clusterRoleBinding, cr) {
 			return nil
 		}
-		argoutil.LogResourceDeletion(log, existingRoleBinding, "image updater is disabled")
+		argoutil.LogResourceDeletion(log, existingRoleBinding, deleteReason)
 		return r.Delete(context.TODO(), existingRoleBinding)
 	}
 
