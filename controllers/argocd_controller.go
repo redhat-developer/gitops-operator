@@ -55,7 +55,6 @@ const (
 
 var (
 	encodedArgoImage string
-
 	//go:embed argocd/img/argo.png
 	argoImage []byte
 )
