@@ -95,7 +95,7 @@ func controllerDefaultVolumes() []corev1.Volume {
 			Name: argoutil.RedisAuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-redis-initial-password",
+					SecretName: "argocd-redis",
 					Items: []corev1.KeyToPath{
 						{Key: "auth", Path: "auth"},
 						{Key: "auth_username", Path: "auth_username"},

@@ -26,7 +26,7 @@ func MountRedisAuthToRedis(cr *argoproj.ArgoCD) (volume corev1.Volume, mount cor
 		Name: RedisAuthVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
-				SecretName: GetSecretNameWithSuffix(cr, "redis-initial-password"),
+				SecretName: "argocd-redis",
 			},
 		},
 	}

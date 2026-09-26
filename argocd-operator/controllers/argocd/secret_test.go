@@ -524,14 +524,13 @@ func Test_ReconcileArgoCD_ReconcileShouldNotChangeWhenUpdatedAdminPass(t *testin
 }
 
 func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
-	const suffix = "redis-initial-password"
 	argocd := &argoproj.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd",
 			Namespace: "argocd-operator",
 		},
 	}
-	secretName := argoutil.NewSecretWithSuffix(argocd, suffix).Name
+	secretName := "argocd-redis"
 	secretNN := types.NamespacedName{Name: secretName, Namespace: "argocd-operator"}
 
 	resObjs := []client.Object{argocd}
@@ -567,7 +566,7 @@ func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
 
 	t.Run("Update keys and regenerate on operator upgrade", func(t *testing.T) {
 		const oldPwd = "asdfghjkl"
-		secret := argoutil.NewSecretWithSuffix(argocd, suffix)
+		secret := argoutil.NewSecretWithName(argocd, "argocd-redis")
 		secret.Data = map[string][]byte{
 			"immutable":                   []byte("true"),
 			common.ArgoCDKeyAdminPassword: []byte(oldPwd),

@@ -442,7 +442,7 @@ func TestReconcilePrincipalDeployment_VerifyDeploymentSpec(t *testing.T) {
 	redisAuthVolume := deployment.Spec.Template.Spec.Volumes[2]
 	assert.Equal(t, "redis-initial-pass", redisAuthVolume.Name)
 	assert.NotNil(t, redisAuthVolume.Secret)
-	assert.Equal(t, "argocd-redis-initial-password", redisAuthVolume.Secret.SecretName)
+	assert.Equal(t, "argocd-redis", redisAuthVolume.Secret.SecretName)
 	assert.NotEqual(t, new(true), redisAuthVolume.Secret.Optional)
 	assert.Len(t, redisAuthVolume.Secret.Items, 2)
 }
