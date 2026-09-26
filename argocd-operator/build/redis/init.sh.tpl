@@ -132,15 +132,20 @@ setup_defaults() {
 
 redis_ping() {
 set +e
-    AUTH="$(cat /app/config/redis-auth/auth)"
-    if [ -z "$AUTH" ]; then
+    redis_pwd="$(cat /app/config/redis-auth/auth)"
+    if [ -z "$redis_pwd" ]; then
         echo "Error: Redis password not mounted correctly"
-        exit 1
+        if [ ! -z "$AUTH" ]; then
+            # TODO: Remove. For migration from before 1.21. https://github.com/redhat-developer/gitops-operator/pull/1307
+            redis_pwd="$AUTH"
+        else
+            exit 1
+        fi
     fi
     if [ "$REDIS_PORT" -eq 0 ]; then
-        env REDISCLI_AUTH="${AUTH}" redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}" --tls --cacert /app/config/redis/tls/tls.crt ping
+        env REDISCLI_AUTH="${redis_pwd}" redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}" --tls --cacert /app/config/redis/tls/tls.crt ping
     else
-        env REDISCLI_AUTH="${AUTH}" redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+        env REDISCLI_AUTH="${redis_pwd}" redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
     fi
 set -e
 }
@@ -257,13 +262,18 @@ else
     setup_defaults
 fi
 
-AUTH="$(cat /app/config/redis-auth/auth)"
-if [ -z "${AUTH}" ]; then
+redis_pwd="$(cat /app/config/redis-auth/auth)" || true
+if [ -z "${redis_pwd}" ]; then
     echo "Error: Redis password not mounted correctly"
-    exit 1
+    if [ ! -z "$AUTH" ]; then
+        # TODO: Remove. For migration from before 1.21. https://github.com/redhat-developer/gitops-operator/pull/1307
+        redis_pwd="$AUTH"
+    else
+        exit 1
+    fi
 fi
 echo "Setting redis auth values.."
-ESCAPED_AUTH=$(echo "${AUTH}" | sed -e 's/[\/&]/\\&/g');
+ESCAPED_AUTH=$(echo "${redis_pwd}" | sed -e 's/[\/&]/\\&/g');
 sed -i "s/__REPLACE_DEFAULT_AUTH__/${ESCAPED_AUTH}/" "${REDIS_CONF}" "${SENTINEL_CONF}"
 
 echo "$(date) Ready..."
