@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
 	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
 )
 
@@ -270,7 +271,47 @@ func fetchArgoCD(f func(*argov1beta1api.ArgoCD) bool) matcher.GomegaMatcher {
 }
 
 // NOTE: this should only be called from sequential tests. If you call it from a parallel test, there is a risk that another test will login to a different Argo CD instance.
+//
+// This port-forwards to the 'openshift-gitops-server' Service, rather than going via the Argo CD Route, so it also
+// works on clusters/namespaces where the Route is not available. The port-forward is automatically torn down at the
+// end of the running Ginkgo spec (via DeferCleanup).
 func LogInToDefaultArgoCDInstance() error {
+	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
+	if err != nil {
+		return err
+	}
+
+	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-cluster", Namespace: "openshift-gitops"}}
+	if err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(secret), secret); err != nil {
+		return fmt.Errorf("unable to locate 'openshift-gitops-cluster' Secret")
+	}
+
+	localPort := portforwardFixture.ReserveLocalPort()
+	stopPortForward := portforwardFixture.StartPortForward("openshift-gitops", "svc/openshift-gitops-server", fmt.Sprintf("%d:https", localPort))
+	DeferCleanup(stopPortForward)
+
+	server := fmt.Sprintf("localhost:%d", localPort)
+
+	// Note: '--skip-test-tls' parameter was added in Feb 2025, to work around OpenShift Routes not supporting HTTP2 by default, along with Argo CD upstream bugs https://github.com/argoproj/argo-cd/issues/21764, and https://github.com/argoproj/argo-cd/issues/20121
+	output, err := RunArgoCDCLI("login", server, "--username", "admin", "--password", string(secret.Data["admin.password"]), "--insecure", "--skip-test-tls")
+	if err != nil {
+		return err
+	}
+
+	if !strings.Contains(string(output), "'admin:login' logged in successfully") {
+		return fmt.Errorf("unable to log in to Argo CD")
+	}
+
+	return nil
+
+}
+
+// NOTE: this should only be called from sequential tests. If you call it from a parallel test, there is a risk that another test will login to a different Argo CD instance.
+//
+// Unlike LogInToDefaultArgoCDInstance, this logs in via the 'openshift-gitops-server' Route rather than a
+// port-forward. Only use this if the test specifically needs to exercise the OpenShift Router code path (for
+// example, a regression test for a bug that only reproduces when traffic passes through the Route).
+func LogInToDefaultArgoCDInstanceViaRoute() error {
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	if err != nil {
 		return err

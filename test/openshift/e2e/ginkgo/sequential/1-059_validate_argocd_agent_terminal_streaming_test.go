@@ -213,7 +213,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Create ArgoCD client using the ArgoCD server Route and admin password.
 			// ArgoCD Client is acting as a browser and trying to open a terminal session
-			// to the application in the managed-cluster.
+			// to the application in the managed-cluster. We deliberately go via the Route (rather than a
+			// port-forward) so that this test exercises the same OpenShift Router path a real browser would use.
 			By("Get ArgoCD admin password and login via Route")
 			argoEndpoint := serverRoute.Spec.Host
 			GinkgoWriter.Printf("ArgoCD server Route host: %s\n", argoEndpoint)
