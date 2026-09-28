@@ -54,30 +54,41 @@ func StartPortForward(namespace string, subject string, portMapping string) func
 	}
 
 	Expect(cmd.Start()).To(Succeed())
-	go streamOutput(stdout, func() { close(ready) })
-	go streamOutput(stderr, nil)
 
-	go func() {
-		defer GinkgoRecover()
-		if err := cmd.Wait(); err != nil && !strings.Contains(err.Error(), "killed") && !strings.Contains(err.Error(), "signal: killed") {
-			GinkgoWriter.Println("port-forward process error:", err)
-		}
-	}()
-
-	select {
-	case <-ready:
-		GinkgoWriter.Println("port-forward is ready")
-	case <-time.After(60 * time.Second):
-		Fail("timed out waiting for port-forward to be ready")
-	}
-
-	return func() {
-		GinkgoWriter.Println("terminating port-forward")
+	kill := func() {
 		if cmd.Process != nil {
 			if err := cmd.Process.Kill(); err != nil && !strings.Contains(err.Error(), "process already finished") {
 				GinkgoWriter.Println("error on process kill:", err)
 			}
 		}
+	}
+
+	go streamOutput(stdout, func() { close(ready) })
+	go streamOutput(stderr, nil)
+
+	// Buffered so the goroutine never blocks sending, whether or not the select below consumes it.
+	exited := make(chan error, 1)
+	go func() {
+		defer GinkgoRecover()
+		exited <- cmd.Wait()
+	}()
+
+	select {
+	case <-ready:
+		GinkgoWriter.Println("port-forward is ready")
+	case err := <-exited:
+		// e.g. the local port from portMapping is already in use, so kubectl exited immediately: fail fast
+		// rather than waiting out the full timeout below.
+		GinkgoWriter.Println("port-forward process exited before becoming ready:", err)
+		Fail("port-forward process exited before becoming ready, see log for details")
+	case <-time.After(60 * time.Second):
+		kill()
+		Fail("timed out waiting for port-forward to be ready")
+	}
+
+	return func() {
+		GinkgoWriter.Println("terminating port-forward")
+		kill()
 	}
 }
 
