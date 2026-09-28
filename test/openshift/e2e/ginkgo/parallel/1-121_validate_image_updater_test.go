@@ -188,8 +188,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							NamePattern: "app*",
 							Images: []imageUpdaterApi.ImageConfig{
 								{
-									Alias:     "guestbook",
-									ImageName: "quay.io/devtools_gitops/guestbook_go:~29437546.0",
+									Alias:     "nginx",
+									ImageName: "docker.io/library/nginx:~1.24",
 									CommonUpdateSettings: &imageUpdaterApi.CommonUpdateSettings{
 										UpdateStrategy: &updateStrategy,
 									},
@@ -201,7 +201,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, imageUpdater)).To(Succeed())
 
-			By("ensuring that the Application image has `29437546.0` version after update")
+			By("ensuring that the Application image has been updated to latest nginx version")
 			Eventually(func() string {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 
@@ -215,8 +215,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
 					imageStr := string(app.Spec.Source.Kustomize.Images[0])
 					GinkgoWriter.Printf("Current Application image: %s\n", imageStr)
-					if imageStr == "quay.io/devtools_gitops/guestbook_go:29437546.0" {
-						GinkgoWriter.Printf("SUCCESS: Image updated to 29437546.0\n")
+					if strings.Contains(imageStr, "nginx:1.24") {
+						GinkgoWriter.Printf("SUCCESS: Image updated to nginx 1.24.x\n")
 					}
 					return imageStr
 				}
@@ -224,7 +224,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				// Return an empty string to signify the condition is not yet met.
 				GinkgoWriter.Printf("Waiting: Application Kustomize images not yet present\n")
 				return ""
-			}, "10m", "10s").Should(Equal("quay.io/devtools_gitops/guestbook_go:29437546.0"), "Image Updater did not update the Application image within timeout")
+			}, "10m", "10s").Should(ContainSubstring("docker.io/library/nginx:1.24"), "Image Updater did not update the Application image within timeout")
 		})
 	})
 })

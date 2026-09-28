@@ -85,9 +85,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that toolchain versions have the expected values", Label("openshift"), func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
+			// RC4 (Final Build) component versions
 			expected_kustomizeVersion := "v5.8.1"
 			expected_helmVersion := "v4.2.4"
-			expected_argocdVersion := "v3.5.2"
+			expected_argocdVersion := "v3.5.3"
 
 			var expected_dexVersion string
 			var expected_redisVersion string
@@ -100,7 +101,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			} else {
 				// when running against RC/ released version of gitops
 				expected_dexVersion = "v2.45.1"
-				expected_redisVersion = "7.2.14"
+				expected_redisVersion = "7.2.16"
 			}
 
 			By("locating pods containing toolchain in openshift-gitops")

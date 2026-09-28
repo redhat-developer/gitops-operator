@@ -3,6 +3,7 @@ package parallel
 import (
 	"context"
 	_ "embed"
+	"runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -305,6 +306,9 @@ patches:
 		})
 
 		It("hydrate kustomize to another branch via ssh", Label("openshift"), func() {
+			if runtime.GOARCH == "s390x" {
+				Skip("Gitea (gitserver) lacks s390x image. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
+			}
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			server, cleanup := gitserverFixture.StartServer(ctx, k8sClient, ns)
@@ -411,6 +415,9 @@ patches:
 		})
 
 		It("hydrate helm to another directory via https", Label("openshift"), func() {
+			if runtime.GOARCH == "s390x" {
+				Skip("Gitea (gitserver) lacks s390x image. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
+			}
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			server, cleanup := gitserverFixture.StartServer(ctx, k8sClient, ns)

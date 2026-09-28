@@ -3,6 +3,7 @@ package gitserver
 import (
 	"encoding/base64"
 	"fmt"
+	"runtime"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -16,10 +17,17 @@ import (
 )
 
 const (
-	// Use latest for multi-arch support
+	// TODO: Build s390x image (upstream lacks it). See argo-rollouts-manager pattern:
+	// https://github.com/argoproj-labs/argo-rollouts-manager/blob/67002e569d7f7de26a60a1f5a8d0b4924931b4da/hack/run-upstream-argo-rollouts-e2e-tests.sh#L31
 	giteaImage      = "ghcr.io/go-gitea/gitea:latest-rootless"
 	giteaCustomPath = "/data/gitea"
 )
+
+func init() {
+	if runtime.GOARCH == "s390x" {
+		GinkgoWriter.Printf("Gitea tests skipped on s390x (no upstream image). See TODO above.\n")
+	}
+}
 
 func giteaEnvVars(domain, internalToken string) []corev1.EnvVar {
 	return []corev1.EnvVar{
