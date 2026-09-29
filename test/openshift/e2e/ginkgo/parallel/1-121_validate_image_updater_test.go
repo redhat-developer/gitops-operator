@@ -215,8 +215,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				if app.Spec.Source.Kustomize != nil && len(app.Spec.Source.Kustomize.Images) > 0 {
 					imageStr := string(app.Spec.Source.Kustomize.Images[0])
 					GinkgoWriter.Printf("Current Application image: %s\n", imageStr)
-					if strings.Contains(imageStr, "guestbook_go:29437546") {
-						GinkgoWriter.Printf("SUCCESS: Image updated to guestbook_go 29437546.x\n")
+					if imageStr == "quay.io/devtools_gitops/guestbook_go:29437546.0" {
+						GinkgoWriter.Printf("SUCCESS: Image updated to guestbook_go 29437546.0\n")
 					}
 					return imageStr
 				}

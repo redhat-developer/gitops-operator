@@ -306,6 +306,8 @@ patches:
 		})
 
 		It("hydrate kustomize to another branch via ssh", Label("openshift"), func() {
+			// TODO: Build custom s390x Gitea image. Upstream lacks s390x support.
+			// See fixture/gitserver/gitea.go for multi-arch build pattern from argo-rollouts-manager.
 			if runtime.GOARCH == "s390x" {
 				Skip("Gitea (gitserver) lacks s390x image. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
 			}
@@ -415,6 +417,8 @@ patches:
 		})
 
 		It("hydrate helm to another directory via https", Label("openshift"), func() {
+			// TODO: Build custom s390x Gitea image. Upstream lacks s390x support.
+			// See fixture/gitserver/gitea.go for multi-arch build pattern from argo-rollouts-manager.
 			if runtime.GOARCH == "s390x" {
 				Skip("Gitea (gitserver) lacks s390x image. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
 			}
