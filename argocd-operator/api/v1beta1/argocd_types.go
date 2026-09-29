@@ -367,6 +367,9 @@ type ArgoCDImageUpdaterSpec struct {
 	// Enabled defines whether argocd image updater controller should be deployed or not
 	Enabled bool `json:"enabled"`
 
+	// Image is the image to be used for the Argo CD Image Updater
+	Image string `json:"image,omitempty"`
+
 	// Env let you specify environment variables for ImageUpdater pods
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
@@ -1490,6 +1493,20 @@ type PrincipalSpec struct {
 
 	// Metrics defines the metrics configuration for the Principal ServiceMonitor.
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+
+	// SelfRegistration defines the self-registration options for the Principal component.
+	SelfRegistration *PrincipalSelfRegistrationSpec `json:"selfRegistration,omitempty"`
+}
+
+// +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
+type PrincipalSelfRegistrationSpec struct {
+	// Enabled is the flag to enable self-registration of agents.
+	// When enabled, agents with valid credentials can automatically register on connection.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ClientCertSecretName is the name of the TLS secret containing shared client cert
+	// for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
+	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
 }
 
 type PrincipalServerSpec struct {
@@ -1562,6 +1579,9 @@ type ArgoCDAgentPrincipalServiceSpec struct {
 	// Type is the ServiceType to use for the Service resource.
 	// If not set, type ClusterIP will be used by default.
 	Type corev1.ServiceType `json:"type"`
+
+	// Annotations is the map of annotations to apply to the Service.
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // ArgoCDAgentPrincipalRouteSpec defines the options for the Route backing the ArgoCD Agent Principal component.

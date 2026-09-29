@@ -531,6 +531,9 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						Server: &PrincipalServerSpec{
 							Service: ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeClusterIP,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(true),
@@ -548,6 +551,9 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						Server: &v1beta1.PrincipalServerSpec{
 							Service: v1beta1.ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeClusterIP,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: v1beta1.ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(true),
@@ -828,6 +834,35 @@ func TestAlphaToBetaConversion(t *testing.T) {
 				cr.Spec.Notifications.Metrics = &v1beta1.ArgoCDMetricsSpec{
 					Interval:      "45s",
 					ScrapeTimeout: "20s",
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Principal with SelfRegistration",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
 				}
 			}),
 		},
@@ -940,6 +975,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						Server: &v1beta1.PrincipalServerSpec{
 							Service: v1beta1.ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeNodePort,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: v1beta1.ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(true),
@@ -957,6 +995,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						Server: &PrincipalServerSpec{
 							Service: ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeNodePort,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(true),
@@ -990,6 +1031,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 							KeepAliveMinInterval: "30s",
 							Service: v1beta1.ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeExternalName,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: v1beta1.ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(false),
@@ -1043,6 +1087,9 @@ func TestBetaToAlphaConversion(t *testing.T) {
 							KeepAliveMinInterval: "30s",
 							Service: ArgoCDAgentPrincipalServiceSpec{
 								Type: corev1.ServiceTypeExternalName,
+								Annotations: map[string]string{
+									"metallb.universe.tf/address-pool": "address-pool",
+								},
 							},
 							Route: ArgoCDAgentPrincipalRouteSpec{
 								Enabled: new(false),
@@ -1249,6 +1296,35 @@ func TestBetaToAlphaConversion(t *testing.T) {
 				cr.Spec.Notifications.Metrics = &ArgoCDMetricsSpec{
 					Interval:      "45s",
 					ScrapeTimeout: "20s",
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Principal with SelfRegistration",
+			input: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				selfRegEnabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SelfRegistration: &PrincipalSelfRegistrationSpec{
+							Enabled:              &selfRegEnabled,
+							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
 				}
 			}),
 		},
