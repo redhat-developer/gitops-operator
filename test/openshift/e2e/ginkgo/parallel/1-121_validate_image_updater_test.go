@@ -18,6 +18,7 @@ package parallel
 
 import (
 	"context"
+	"runtime"
 	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -83,6 +84,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that Image Updater will update Argo CD Application to the latest image", func() {
+			// TODO: Build multi-arch guestbook_go image. Upstream lacks s390x support.
+			// See fixture/gitserver/gitea.go for multi-arch build pattern from argo-rollouts-manager.
+			if runtime.GOARCH == "s390x" {
+				Skip("guestbook_go image lacks s390x support. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
+			}
 
 			By("creating simple namespace-scoped Argo CD instance with image updater enabled")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
