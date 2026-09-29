@@ -367,6 +367,9 @@ type ArgoCDImageUpdaterSpec struct {
 	// Enabled defines whether argocd image updater controller should be deployed or not
 	Enabled bool `json:"enabled"`
 
+	// Image is the image to be used for the Argo CD Image Updater
+	Image string `json:"image,omitempty"`
+
 	// Env let you specify environment variables for ImageUpdater pods
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
@@ -1576,6 +1579,9 @@ type ArgoCDAgentPrincipalServiceSpec struct {
 	// Type is the ServiceType to use for the Service resource.
 	// If not set, type ClusterIP will be used by default.
 	Type corev1.ServiceType `json:"type"`
+
+	// Annotations is the map of annotations to apply to the Service.
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // ArgoCDAgentPrincipalRouteSpec defines the options for the Route backing the ArgoCD Agent Principal component.

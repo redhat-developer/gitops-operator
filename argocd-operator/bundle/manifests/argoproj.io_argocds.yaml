@@ -1071,6 +1071,12 @@ spec:
                               Service defines the options for the Service backing the ArgoCD Agent component.
                               If not set, type ClusterIP will be used by default.
                             properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations is the map of annotations
+                                  to apply to the Service.
+                                type: object
                               type:
                                 description: |-
                                   Type is the ServiceType to use for the Service resource.
@@ -14252,6 +14258,12 @@ spec:
                               Service defines the options for the Service backing the ArgoCD Agent component.
                               If not set, type ClusterIP will be used by default.
                             properties:
+                              annotations:
+                                additionalProperties:
+                                  type: string
+                                description: Annotations is the map of annotations
+                                  to apply to the Service.
+                                type: object
                               type:
                                 description: |-
                                   Type is the ServiceType to use for the Service resource.
@@ -22028,6 +22040,10 @@ spec:
                       - name
                       type: object
                     type: array
+                  image:
+                    description: Image is the image to be used for the Argo CD Image
+                      Updater
+                    type: string
                   resources:
                     description: Resources defines the Compute Resources required
                       by the container for Argo CD Image Updater.

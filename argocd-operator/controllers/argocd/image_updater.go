@@ -714,10 +714,6 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 		},
 	}
 
-	image := os.Getenv(common.ArgoCDImageUpdaterImageEnvName)
-	if image == "" {
-		image = argoutil.CombineImageTag(DefaultImageUpdaterImage, DefaultImageUpdaterTag)
-	}
 	args := []string{"run"}
 	imageUpdaterTLSProfileArguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
 	args = append(args, imageUpdaterTLSProfileArguments...)
@@ -725,7 +721,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	podSpec.Containers = []corev1.Container{{
 		Command:         []string{"/manager"},
 		Args:            args,
-		Image:           image,
+		Image:           selectImageUpdaterImage(cr),
 		ImagePullPolicy: argoutil.GetImagePullPolicy(cr.Spec.ImagePullPolicy),
 		Name:            common.ArgoCDImageUpdaterControllerComponent,
 		Env:             imageUpdaterEnv,
@@ -1123,4 +1119,18 @@ func getImageUpdaterResources(cr *argoproj.ArgoCD) corev1.ResourceRequirements {
 	}
 
 	return resources
+}
+
+// selectImageUpdaterImage selects the image to be used for the ImageUpdater based on the following priority
+// CR's .Spec.ImageUpdater.Image field -> ARGOCD_IMAGE_UPDATER_IMAGE env variable -> Default Image on argoproj-labs quay repository
+func selectImageUpdaterImage(cr *argoproj.ArgoCD) string {
+	if cr.Spec.ImageUpdater.Image != "" {
+		return cr.Spec.ImageUpdater.Image
+	}
+
+	if image := os.Getenv(common.ArgoCDImageUpdaterImageEnvName); image != "" {
+		return image
+	}
+
+	return argoutil.CombineImageTag(DefaultImageUpdaterImage, DefaultImageUpdaterTag)
 }
