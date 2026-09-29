@@ -48,25 +48,47 @@ export class ApplicationsPage {
                               
   }
 
-  async navigate() {
-    await this.page.goto('/applications');
-    
-    //ignore the "failed to load data" banner if it appears
-    const errorBanner = this.page.getByText('try again');
+  //dismiss intermittent load-error banner (wait only for late banners)
+  private async dismissLoadErrorBanner(waitForLateMs = 0) {
+    const errorBanner = this.page.getByText(/try again/i);
+    if (await errorBanner.isVisible()) {
+      await errorBanner.click();
+      return;
+    }
+    if (waitForLateMs <= 0) return;
     try {
-      //wait 3 secs
-      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
-      await errorBanner.click(); 
+      await errorBanner.waitFor({ state: 'visible', timeout: waitForLateMs });
     } catch (error) {
-      //ignore if the banner timed out (wasn't present)
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        //banner didn't appear so just continue
-      } else {
-        throw error;
+      if (error instanceof Error && error.name === 'TimeoutError') return;
+      throw error;
+    }
+    await errorBanner.click();
+  }
+
+  async navigate() {
+    const attempts = 3;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      await this.page.goto('/applications', { waitUntil: 'domcontentloaded' });
+      await this.dismissLoadErrorBanner();
+
+      try {
+        await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.render });
+        return;
+      } catch (error) {
+        lastError = error;
+        //dismiss late load-error banner
+        await this.dismissLoadErrorBanner(TIMEOUTS.modal);
+        if (attempt < attempts) {
+          console.log(
+            `[apps] NEW APP not ready on /applications (attempt ${attempt}/${attempts}); reloading...`
+          );
+        }
       }
     }
-    
-    await expect(this.newAppButton).toBeVisible({ timeout: TIMEOUTS.default });
+
+    throw lastError;
   }
 
   //helper for fields that need to have select a pre existing option
@@ -82,20 +104,7 @@ export class ApplicationsPage {
 
   async createApp(appName: string, repoUrl: string, repoPath: string) {
     await this.newAppButton.click();
-    
-    //handle the "failed to load data" banner if it appears inside the slide-out panel
-    const errorBanner = this.page.getByText('try again');
-    try {
-      await errorBanner.waitFor({ state: 'visible', timeout: TIMEOUTS.short });
-      await errorBanner.click(); 
-    } catch (error) {
-      //ignore if the banner timed out (wasn't present)
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        // banner didn't appear so just continue
-      } else {
-        throw error;
-      }
-    }
+    await this.dismissLoadErrorBanner();
 
     await this.page.getByText('Loading...').first().waitFor({ state: 'hidden', timeout: TIMEOUTS.default });
 
@@ -167,18 +176,15 @@ export class ApplicationsPage {
   }
 
   async openApplication(appName: string) {
-    //re-apply search filter just in case the UI refreshed
     await this.page.getByPlaceholder(/Search applications/i).fill(appName);
-    
-    //find the container, then specifically click the link of the app name
-    const appLink = this.page.locator('.white-box, .argo-table-list__row')
-                         .filter({ has: this.page.getByText(appName, { exact: true }) })
-                         .getByRole('link', { name: appName, exact: true });
-                             
-    await appLink.waitFor({ state: 'visible', timeout: TIMEOUTS.default });
-    await appLink.click();
-    
-    //wait for the URL to change to the details page to ensure the click worked
+
+    const appCard = this.page
+      .locator('.white-box, .argo-table-list__row, .application-tile, [class*="application-tile"], [class*="applications-list__entry"]')
+      .filter({ hasText: appName });
+    const appNameLink = appCard.getByText(appName, { exact: true }).filter({ visible: true }).first();
+
+    await expect(appNameLink).toBeVisible({ timeout: TIMEOUTS.load });
+    await appNameLink.click();
     await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: TIMEOUTS.default });
   }
 }

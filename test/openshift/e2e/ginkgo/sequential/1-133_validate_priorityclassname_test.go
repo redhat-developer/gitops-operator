@@ -1,11 +1,11 @@
 /*
-Copyright 2025 ArgoCD Operator Developers
+Copyright 2025.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/License-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,19 +20,17 @@ import (
 	"context"
 	"sort"
 
+	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -141,21 +139,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			enabled := true
-			argoCD := &argoproj.ArgoCD{
+			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec: argoproj.ArgoCDSpec{
+				Spec: argov1beta1api.ArgoCDSpec{
 					PriorityClassName: testPriorityClassName,
-					ApplicationSet: &argoproj.ArgoCDApplicationSet{
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
 						Enabled: &enabled,
 					},
-					Notifications: argoproj.ArgoCDNotifications{
+					Notifications: argov1beta1api.ArgoCDNotifications{
 						Enabled: true,
 					},
-					SourceHydrator: argoproj.ArgoCDSourceHydratorSpec{
+					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
 						Enabled: &enabled,
 					},
-					Server: argoproj.ArgoCDServerSpec{
-						Route: argoproj.ArgoCDRouteSpec{
+					Server: argov1beta1api.ArgoCDServerSpec{
+						Route: argov1beta1api.ArgoCDRouteSpec{
 							Enabled: true,
 						},
 					},
@@ -171,7 +169,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(allStatefulSetPriorityClasses, "2m", "5s").Should(Equal([]string{testPriorityClassName}))
 
 			By("updating priorityClassName to a new value")
-			argocdFixture.Update(argoCD, func(ac *argoproj.ArgoCD) {
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.PriorityClassName = testPriorityClassNameUpdated
 			})
 
@@ -180,7 +178,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(allStatefulSetPriorityClasses, "3m", "5s").Should(Equal([]string{testPriorityClassNameUpdated}))
 
 			By("clearing priorityClassName and verifying all workloads no longer have it set")
-			argocdFixture.Update(argoCD, func(ac *argoproj.ArgoCD) {
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.PriorityClassName = ""
 			})
 
@@ -193,16 +191,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			enabled := true
-			argoCD := &argoproj.ArgoCD{
+			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
-				Spec: argoproj.ArgoCDSpec{
-					ApplicationSet: &argoproj.ArgoCDApplicationSet{
+				Spec: argov1beta1api.ArgoCDSpec{
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
 						Enabled: &enabled,
 					},
-					Notifications: argoproj.ArgoCDNotifications{
+					Notifications: argov1beta1api.ArgoCDNotifications{
 						Enabled: true,
 					},
-					SourceHydrator: argoproj.ArgoCDSourceHydratorSpec{
+					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
 						Enabled: &enabled,
 					},
 				},
