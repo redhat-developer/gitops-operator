@@ -32,13 +32,15 @@ func (r *ReconcileArgoCD) reconcileNamespaceManagement(argocd *argoproj.ArgoCD) 
 		return fmt.Errorf("failed to list NamespaceManagement resources: %w", err)
 	}
 
-	// Extract allowed patterns from ArgoCD spec (only those allowed to be managed)
-	var allowedNsPatterns []string
-	if argocd.Spec.NamespaceManagement != nil {
-		for _, nm := range argocd.Spec.NamespaceManagement {
-			if nm.AllowManagedBy {
-				allowedNsPatterns = append(allowedNsPatterns, nm.Name)
-			}
+	// Split the patterns in the ArgoCD spec into those allowed to be managed and those
+	// explicitly denied. The denied ones are not used for matching, only to explain to the
+	// user why a namespace was rejected.
+	var allowedNsPatterns, deniedNsPatterns []string
+	for _, nm := range argocd.Spec.NamespaceManagement {
+		if nm.AllowManagedBy {
+			allowedNsPatterns = append(allowedNsPatterns, nm.Name)
+		} else {
+			deniedNsPatterns = append(deniedNsPatterns, nm.Name)
 		}
 	}
 
@@ -64,7 +66,7 @@ func (r *ReconcileArgoCD) reconcileNamespaceManagement(argocd *argoproj.ArgoCD) 
 				ObjectMeta: metav1.ObjectMeta{Name: namespace},
 			})
 		} else {
-			message = fmt.Sprintf("Namespace %s is not permitted for management by ArgoCD instance %s based on NamespaceManagement rules", namespace, argocd.Namespace)
+			message = namespaceNotPermittedMessage(namespace, argocd, deniedNsPatterns)
 			log.Info(message)
 		}
 
@@ -113,6 +115,26 @@ func (r *ReconcileArgoCD) reconcileNamespaceManagement(argocd *argoproj.ArgoCD) 
 // Helper function to check if a namespace matches ArgoCD namespace management rules
 func matchesNamespaceManagementRules(allowedPatterns []string, namespace string) bool {
 	return glob.MatchStringInList(allowedPatterns, namespace, glob.GLOB)
+}
+
+// namespaceNotPermittedMessage explains why a namespace may not be managed by this Argo CD
+// instance, and what to change to permit it. The two cases need different fixes, so they get
+// different messages: either .spec.namespaceManagement has no entry matching the namespace at
+// all, or it has one that explicitly sets allowManagedBy to false.
+func namespaceNotPermittedMessage(namespace string, argocd *argoproj.ArgoCD, deniedPatterns []string) string {
+	reason := fmt.Sprintf(".spec.namespaceManagement of that ArgoCD resource has no entry matching this namespace. "+
+		"To permit it, add an entry with name %q (glob patterns are supported) and allowManagedBy: true.", namespace)
+
+	for _, pattern := range deniedPatterns {
+		if glob.MatchStringInList([]string{pattern}, namespace, glob.GLOB) {
+			reason = fmt.Sprintf("its matching .spec.namespaceManagement entry %q has allowManagedBy: false. "+
+				"To permit it, set allowManagedBy: true on that entry.", pattern)
+			break
+		}
+	}
+
+	return fmt.Sprintf("Namespace %s is not permitted for management by the Argo CD instance %s in namespace %s: %s",
+		namespace, argocd.Name, argocd.Namespace, reason)
 }
 
 // Check if namespace management is explicitly enabled via Subscription

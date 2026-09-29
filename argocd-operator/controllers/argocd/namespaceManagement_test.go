@@ -122,6 +122,10 @@ func TestReconcileNamespaceManagement_FeatureEnabled(t *testing.T) {
 	assert.Equal(t, metav1.ConditionFalse, reconciledCondition.Status)
 	assert.Equal(t, "ErrorOccurred", reconciledCondition.Reason)
 	assert.Contains(t, reconciledCondition.Message, "Namespace disallowed-ns is not permitted for management")
+	// No entry in .spec.namespaceManagement matches disallowed-ns, so the message must tell the
+	// user to add one rather than to flip an existing entry.
+	assert.Contains(t, reconciledCondition.Message, "has no entry matching this namespace")
+	assert.Contains(t, reconciledCondition.Message, `add an entry with name "disallowed-ns"`)
 }
 
 func TestHandleFeatureDisable_NoNamespaceManagement(t *testing.T) {
@@ -512,6 +516,10 @@ func TestReconcileNamespaceManagement_ExplicitlyDisallowed(t *testing.T) {
 	assert.Equal(t, metav1.ConditionFalse, reconciledCondition.Status)
 	assert.Equal(t, "ErrorOccurred", reconciledCondition.Reason)
 	assert.Contains(t, reconciledCondition.Message, "Namespace deny-ns is not permitted for management")
+	// An entry for deny-ns exists but sets allowManagedBy: false, so the message must point at
+	// that entry instead of asking the user to add a new one.
+	assert.Contains(t, reconciledCondition.Message, `its matching .spec.namespaceManagement entry "deny-ns" has allowManagedBy: false`)
+	assert.Contains(t, reconciledCondition.Message, "set allowManagedBy: true on that entry")
 }
 
 func TestReconcileNamespaceManagement_StatusUpdateFailure(t *testing.T) {
