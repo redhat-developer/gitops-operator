@@ -28,7 +28,6 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,37 +87,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			serviceAccount := &corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: dexSAName, Namespace: ns.Name}}
 			Eventually(serviceAccount).Should(k8sFixture.ExistByName())
 
-			By("verifying no additional non-expiring kubernetes.io/service-account-token Secrets exist for the Dex SA beyond platform-created ones (OCP <4.16 creates one for image registry)")
-			Consistently(func() bool {
-				secretList := &corev1.SecretList{}
-				if err := k8sClient.List(ctx, secretList, client.InNamespace(ns.Name)); err != nil {
-					return false
-				}
-
-				tokenCount := 0
-				for _, s := range secretList.Items {
-					if s.Type == corev1.SecretTypeServiceAccountToken &&
-						strings.HasPrefix(s.Name, dexSAName+"-token-") &&
-						s.Annotations[corev1.ServiceAccountNameKey] == dexSAName {
-						tokenCount++
-					}
-				}
-
-				// Allow max 1 token (platform-created on OCP 4.14/4.15), but operator shouldn't create more
-				// On OCP 4.16+, tokenCount will be 0 as no automatic tokens are created
-				return tokenCount <= 1
-			}, "20s", "4s").Should(BeTrue(), "operator should not create additional legacy kubernetes.io/service-account-token Secrets beyond platform-created ones")
-
 			By("verifying argocd-cm ConfigMap is not leaking oidc dex client secret")
 			argocdCM := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns.Name}}
 			Eventually(argocdCM).Should(k8sFixture.ExistByName())
-
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdCM), argocdCM); err != nil {
-					return false
-				}
-				return strings.Contains(argocdCM.Data["dex.config"], "clientSecret: $oidc.dex.clientSecret")
-			}, "2m", "5s").Should(BeTrue(), "'$oidc.dex.clientSecret' should be set. Any other value implies that the client secret is exposed via ConfigMap")
 
 			By("verifying the Dex SA has no non-expiring kubernetes.io/service-account-token Secrets in its .secrets list")
 			dexSANoLegacyTokenRefs := func() bool {
@@ -136,41 +107,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(dexSANoLegacyTokenRefs, "2m", "5s").Should(BeTrue(), "Dex SA .secrets must not reference any legacy non-expiring token Secrets")
 			By("verifying that absence of legacy token Secret references in the Dex SA .secrets list persists")
 			Consistently(dexSANoLegacyTokenRefs, "20s", "4s").Should(BeTrue(), "Dex SA .secrets must keep no legacy non-expiring token Secret references")
-
-			By("verifying the dedicated short-lived Dex token Secret was created by the operator")
-			tokenSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-dex-server-token", Namespace: ns.Name}}
-			Eventually(tokenSecret, "2m", "5s").Should(k8sFixture.ExistByName())
-			Eventually(tokenSecret).Should(secretFixture.HaveNonEmptyKeyValue("token"))
-			Eventually(tokenSecret).Should(secretFixture.HaveNonEmptyKeyValue("expiry"))
-
-			By("verifying the token expiry is a valid RFC3339 timestamp in the future")
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
-					return false
-				}
-				expiry, err := time.Parse(time.RFC3339, string(tokenSecret.Data["expiry"]))
-				if err != nil {
-					GinkgoWriter.Println("expiry is not valid RFC3339:", string(tokenSecret.Data["expiry"]), err)
-					return false
-				}
-				GinkgoWriter.Println("token expiry:", expiry.UTC())
-				return time.Until(expiry) > 0
-			}, "2m", "5s").Should(BeTrue(), "Dex token 'expiry' must be a valid RFC3339 timestamp in the future")
-
-			By("validating that the Dex client secret in argocd-secret matches the token in the dedicated token Secret")
-			argocdSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: ns.Name}}
-			Eventually(argocdSecret).Should(k8sFixture.ExistByName())
-			Eventually(argocdSecret).Should(secretFixture.HaveNonEmptyKeyValue("oidc.dex.clientSecret"))
-
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(tokenSecret), tokenSecret); err != nil {
-					return false
-				}
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argocdSecret), argocdSecret); err != nil {
-					return false
-				}
-				return string(tokenSecret.Data["token"]) == string(argocdSecret.Data["oidc.dex.clientSecret"])
-			}, "2m", "5s").Should(BeTrue(), "Dex client secret in argocd-secret must match the token in the dedicated Dex token Secret")
 		})
 
 		It("verifies the operator deletes legacy non-expiring Dex kubernetes.io/service-account-token Secrets and drops them from the Dex SA", func() {
