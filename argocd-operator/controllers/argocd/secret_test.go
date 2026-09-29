@@ -134,6 +134,44 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 		assert.True(t, apierrors.IsNotFound(err), "default-named CA secret must not be created when a custom name is set; got err: %v", err)
 	})
 
+	t.Run("deletes redis-initial-password secret and replaces it with argocd-redis", func(t *testing.T) {
+		argocd := &argoproj.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd",
+				Namespace: "argocd-operator",
+			},
+		}
+
+		oldRedisSecret := argoutil.NewSecretWithSuffix(argocd, "redis-initial-password")
+		oldRedisSecret.Data = map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("something")}
+		tlsSecret := argoutil.NewSecretWithSuffix(argocd, "tls")
+
+		resObjs := []client.Object{argocd}
+		subresObjs := []client.Object{argocd}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err := r.Create(context.TODO(), oldRedisSecret)
+		assert.NoError(t, err)
+		err = r.Create(context.TODO(), tlsSecret)
+		assert.NoError(t, err)
+
+		err = r.reconcileRedisInitialPasswordSecret(argocd)
+
+		assert.NoError(t, err)
+
+		oldSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: oldRedisSecret.Name, Namespace: "argocd-operator"}, oldRedisSecret)
+		assert.True(t, apierrors.IsNotFound(oldSecretErr))
+
+		newRedisSecret := argoutil.NewSecretWithName(argocd, "argocd-redis")
+		newRedisSecret.Data = map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("something")}
+
+		newSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: newRedisSecret.Name, Namespace: "argocd-operator"}, newRedisSecret)
+		assert.NoError(t, newSecretErr)
+	})
+
 	t.Run("skips creation when custom-named CA secret already exists", func(t *testing.T) {
 		const customName = "my-custom-ca"
 		a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
