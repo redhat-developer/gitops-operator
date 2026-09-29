@@ -586,16 +586,101 @@ func TestReconcileArgoCD_Cleanup_RBACs_When_NamespaceManagement_Disabled(t *test
 	assert.NoError(t, err)
 
 	// Roles and Rolebinding should be deleted
-	_, err = client.RbacV1().Roles(testNamespace).Get(context.TODO(), "test-role", metav1.GetOptions{})
+	_, err = client.RbacV1().Roles(testNamespace).Get(context.TODO(), role.Name, metav1.GetOptions{})
 	assert.ErrorContains(t, err, "not found")
 
-	_, err = client.RbacV1().RoleBindings(testNamespace).Get(context.TODO(), "test-rolebinding", metav1.GetOptions{})
+	_, err = client.RbacV1().RoleBindings(testNamespace).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
 	assert.ErrorContains(t, err, "not found")
 
 	// Secret should be deleted
 	updatedSecret, err := client.CoreV1().Secrets(argoCD.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "", string(updatedSecret.Data["namespaces"]))
+}
+
+// With NamespaceManagement disabled, the reconciler tears down the RBACs it created for
+// NamespaceManagement CRs. A namespace that is also labelled
+// `argocd.argoproj.io/managed-by: <argocd namespace>` is managed through the label too, so its
+// RBACs and its entry in the cluster secret are still needed and must survive that teardown.
+// Removing them achieves nothing: reconcileResources and reconcileClusterPermissionsSecret
+// restore both later in the same pass, and each write re-enqueues the CR, live-locking the
+// controller in an endless reconcile loop.
+//
+// TestReconcileArgoCD_Cleanup_RBACs_When_NamespaceManagement_Disabled covers the opposite case,
+// where the namespace has no such label and its RBACs are correctly removed.
+func TestReconcileArgoCD_Cleanup_Skipped_When_Namespace_Has_ManagedByLabel(t *testing.T) {
+	argoutil.SetRouteAPIFound(true) // Setup Route API for tests that call full reconciler
+	managedNS := "tenant-ns"
+	argoCD := makeArgoCD()
+	argoCD.Spec.NamespaceManagement = nil
+
+	// Setup a NamespaceManagement CR managed by this ArgoCD, in a label-managed namespace
+	nsMgmt := &argoproj.NamespaceManagement{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-ns-mgmt",
+			Namespace: managedNS,
+		},
+		Spec: argoproj.NamespaceManagementSpec{
+			ManagedBy: argoCD.Namespace,
+		},
+	}
+
+	resObjs := []client.Object{argoCD, nsMgmt}
+	subresObjs := []client.Object{argoCD, nsMgmt}
+	runtimeObjs := []runtime.Object{}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	assert.NoError(t, createNamespace(r, argoCD.Namespace, ""))
+	assert.NoError(t, createNamespace(r, managedNS, argoCD.Namespace))
+
+	// Create Role and RoleBinding in the managed namespace
+	client := r.K8sClient.(*testclient.Clientset)
+	role := newRole("test-role", policyRuleForApplicationController(), argoCD)
+	role.Namespace = managedNS
+	_, err := client.RbacV1().Roles(managedNS).Create(context.TODO(), role, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	roleBinding := newRoleBindingWithname("test-rolebinding", argoCD)
+	roleBinding.Namespace = managedNS
+	_, err = client.RbacV1().RoleBindings(managedNS).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create the cluster secret listing both namespaces
+	namespacesValue := strings.Join([]string{argoCD.Namespace, managedNS}, ",")
+	secret := argoutil.NewSecretWithSuffix(argoCD, "test")
+	secret.Labels = map[string]string{common.ArgoCDSecretTypeLabel: "cluster"}
+	secret.Data = map[string][]byte{
+		"server":     []byte(common.ArgoCDDefaultServer),
+		"namespaces": []byte(namespacesValue),
+	}
+	_, err = client.CoreV1().Secrets(argoCD.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      argoCD.Name,
+			Namespace: argoCD.Namespace,
+		},
+	}
+
+	// Reconcile twice: the second pass must observe exactly the same state as the first,
+	// i.e. the controller has converged.
+	for i := range 2 {
+		_, err = r.Reconcile(context.TODO(), req)
+		assert.NoError(t, err)
+
+		_, err = client.RbacV1().Roles(managedNS).Get(context.TODO(), role.Name, metav1.GetOptions{})
+		assert.NoError(t, err, "Role should be preserved on pass %d", i+1)
+
+		_, err = client.RbacV1().RoleBindings(managedNS).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
+		assert.NoError(t, err, "RoleBinding should be preserved on pass %d", i+1)
+
+		updatedSecret, err := client.CoreV1().Secrets(argoCD.Namespace).Get(context.TODO(), secret.Name, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Equal(t, namespacesValue, string(updatedSecret.Data["namespaces"]), "cluster secret should be unchanged on pass %d", i+1)
+	}
 }
 
 func Test_restoreTrackingLabelsForOrphanedNamespaces(t *testing.T) {
