@@ -4,8 +4,6 @@
 
 The requirements for building the operator are fairly minimal.
 
-* Go 1.16+
-* Operator SDK 1.11.0+
 * Bash or equivalent
 * Docker
 
@@ -50,7 +48,7 @@ make bundle-build bundle-push
 To override the name of the bundle image, specify the `BUNDLE_IMG` tag, for example
 
 ``` bash
-make bundle-build bundle-push BUNDLE_IMG=quay.io/my-org/argocd-operator-bundle:latest
+make bundle-build bundle-push BUNDLE_IMG=quay.io/my-org/gitops-operator-bundle:latest
 ```
 
 ### Development Process
@@ -91,14 +89,14 @@ Build the development container image.
 Override the name of the image to build by specifying the `IMG` variable.
 
 ``` bash
-make docker-build IMG=quay.io/my-org/argocd-operator:latest
+make docker-build IMG=quay.io/my-org/gitops-operator:latest
 ```
 
 Push the development container image.
 Override the name of the image to push by specifying the `IMG` variable.
 
 ``` bash
-make docker-push IMG=quay.io/my-org/argocd-operator:latest
+make docker-push IMG=quay.io/my-org/gitops-operator:latest
 ```
 
 Generate the bundle artifacts.
@@ -106,15 +104,15 @@ Override the name of the development image by specifying the `IMG` variable.
 
 ``` bash
 rm -fr bundle/
-make bundle IMG=quay.io/my-org/argocd-operator:latest
+make bundle IMG=quay.io/my-org/gitops-operator:latest
 ```
 
 Build and push the development bundle image.
 Override the name of the bundle image by specifying the `BUNDLE_IMG` variable.
 
 ``` bash
-make bundle-build BUNDLE_IMG=quay.io/my-org/argocd-operator-bundle:latest
-make bundle-push BUNDLE_IMG=quay.io/my-org/argocd-operator-bundle:latest
+make bundle-build BUNDLE_IMG=quay.io/my-org/gitops-operator-bundle:latest
+make bundle-push BUNDLE_IMG=quay.io/my-org/gitops-operator-bundle:latest
 ```
 
 Build and push the development catalog image.
@@ -122,11 +120,11 @@ Override the name of the catalog image by specifying the `CATALOG_IMG` variable.
 Specify the bundle image to include using the `BUNDLE_IMG` variable
 
 ``` bash
-make catalog-build BUNDLE_IMG=quay.io/my-org/argocd-operator-bundle:latest CATALOG_IMG=quay.io/my-org/argocd-operator-index:latest
-make catalog-push CATALOG_IMG=quay.io/my-org/argocd-operator-index:latest
+make catalog-build BUNDLE_IMG=quay.io/my-org/gitops-operator-bundle:latest CATALOG_IMG=quay.io/my-org/gitops-operator-index:latest
+make catalog-push CATALOG_IMG=quay.io/my-org/gitops-operator-index:latest
 ```
 
-For more infomation see [build operator images to test on a cluster.](https://argocd-operator.readthedocs.io/en/latest/developer-guide/development/#building-the-operator-images-to-test-on-a-cluster)
+For more infomation see [build operator images to test on a cluster.](https://gitops-operator.readthedocs.io/en/latest/developer-guide/development/#building-the-operator-images-to-test-on-a-cluster)
 
 Once the operator is installed, you would need to configure an ArgoCD instance that the operator would manage. The sample instance configuration is below:
 
@@ -146,7 +144,7 @@ Store your ArgoCD configuration in a yaml file and execute below command to conf
 kubectl apply -f <path_to_yaml_file>
 ```
 
-For configuring specific properties based on the use case, you can look at the entire list of the configurable properties [here.](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/)
+For configuring specific properties based on the use case, you can look at the entire list of the configurable properties [here.](https://gitops-operator.readthedocs.io/en/latest/reference/argocd/)
 
 ### Build and Serve Argo CD Operator Docs
 

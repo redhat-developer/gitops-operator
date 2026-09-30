@@ -5,10 +5,10 @@ version: 2
 formats: all
 mkdocs:
   fail_on_warning: false
-  configuration: mkdocs.yml
+  configuration: argocd-operator/mkdocs.yml
 python:
   install:
-    - requirements: docs/requirements.txt
+    - requirements: argocd-operator/docs/requirements.txt
 build:
   os: "ubuntu-22.04"
   tools:

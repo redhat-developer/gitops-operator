@@ -3,7 +3,7 @@
 The Argo CD Operator offers support for managing OpenShift Routes to access the Argo CD resources.
 
 Once the operator is deployed and running, create a new ArgoCD custom resource.
-The following [example](https://github.com/argoproj-labs/argocd-operator/blob/master/examples/argocd-route.yaml) shows the minimal required to create a new ArgoCD
+The following [example](https://github.com/redhat-developer/gitops-operator/blob/master/examples/argocd-route.yaml) shows the minimal required to create a new ArgoCD
 environment with the default configuration.
 
 ``` bash
