@@ -1145,7 +1145,7 @@ func (r *ReconcileArgoCD) getClusterSecrets(cr *argoproj.ArgoCD) (*corev1.Secret
 func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoCD) error {
 	// Fix for GITOPS-11058:
 	// 1. Create a new secret: argocd-redis to be compatible with argocd cli
-	// 2. Delete an old style secret: [id]-redis-initial-password in case it exists
+	// 2. Delete an old style secret: [instance]-redis-initial-password in case it exists
 
 	// Generate secret in new style: argocd-redis
 	secretName := "argocd-redis"
@@ -1186,13 +1186,18 @@ func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoC
 		return err
 	}
 
-	// Generate secret in old style: [id]-redis-initial-password
+	// Generate secret in old style: [instance]-redis-initial-password
 	oldSecretName := "redis-initial-password"
 	oldSecret := argoutil.NewSecretWithSuffix(cr, oldSecretName)
 
-	// Silent deletion of old secret in case it exited before
+	// Deletion of old secret in case it exited before
 	argoutil.LogResourceDeletion(log, oldSecret)
-	_ = r.Delete(context.TODO(), oldSecret)
+	err = r.Delete(context.TODO(), oldSecret)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
 
 	if existed {
 		argoutil.LogResourceUpdate(log, secret)
