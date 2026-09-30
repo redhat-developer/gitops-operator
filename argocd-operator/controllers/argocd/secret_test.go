@@ -166,10 +166,10 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 		assert.True(t, apierrors.IsNotFound(oldSecretErr))
 
 		newRedisSecret := argoutil.NewSecretWithName(argocd, "argocd-redis")
-		newRedisSecret.Data = map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("something")}
 
 		newSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: newRedisSecret.Name, Namespace: "argocd-operator"}, newRedisSecret)
 		assert.NoError(t, newSecretErr)
+		assert.Equal(t, newRedisSecret.Data[common.ArgoCDKeyAdminPassword], newRedisSecret.Data[common.ArgoCDKeyAdminPassword], "argocd-redis should contain admin redis password")
 	})
 
 	t.Run("skips creation when custom-named CA secret already exists", func(t *testing.T) {
