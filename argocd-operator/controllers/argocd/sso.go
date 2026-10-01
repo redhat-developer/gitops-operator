@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 const (

@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

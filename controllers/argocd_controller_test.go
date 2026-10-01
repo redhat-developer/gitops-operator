@@ -21,11 +21,11 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
