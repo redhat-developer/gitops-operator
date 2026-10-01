@@ -49,8 +49,6 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
-all: build
-
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -120,12 +118,6 @@ install-prometheus-crds: ## Install Prometheus Operator CRDs if not already inst
 		kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$(PROMETHEUS_OPERATOR_VERSION)/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml; \
 		echo "Prometheus Operator CRDs installed successfully"; \
 	fi
-
-##@ E2E
-
-
-start-e2e: install-prometheus-crds ## Start operator for E2E tests (installs required CRDs if needed)
-	ARGOCD_CLUSTER_CONFIG_NAMESPACES="argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, gitops-promoter-1-134" make run
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
