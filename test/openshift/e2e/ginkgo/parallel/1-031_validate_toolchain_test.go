@@ -85,9 +85,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that toolchain versions have the expected values", Label("openshift"), func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
+			// RC4 (Final Build) component versions
 			expected_kustomizeVersion := "v5.8.1"
-			expected_helmVersion := "v4.2.4"
-			expected_argocdVersion := "v3.5.2"
+			//only checking major.minor, patch version can shift independently of the argocd bump
+			expected_helmVersion := "v4.2"
+			expected_argocdVersion := "v3.5.3"
 
 			var expected_dexVersion string
 			var expected_redisVersion string
@@ -100,7 +102,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			} else {
 				// when running against RC/ released version of gitops
 				expected_dexVersion = "v2.45.1"
-				expected_redisVersion = "7.2.14"
+				expected_redisVersion = "7.2.16"
 			}
 
 			By("locating pods containing toolchain in openshift-gitops")
@@ -175,7 +177,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("verifying containers have expected toolchain versions")
 
 			Expect(kustomizeVersion).To(Equal(expected_kustomizeVersion))
-			Expect(helmVersion).To(Equal(expected_helmVersion))
+			Expect(helmVersion).To(HavePrefix(expected_helmVersion))
 			Expect(dexVersion).To(Equal(expected_dexVersion))
 
 			// We are as argocdVersion contains v2.7.6+00c914a suffix addition to the version no.
