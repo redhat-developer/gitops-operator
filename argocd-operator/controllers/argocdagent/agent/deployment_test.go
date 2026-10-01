@@ -566,6 +566,304 @@ func TestBuildAgentImage(t *testing.T) {
 	}
 }
 
+// withAgentSPIFFE configures SPIFFE on the Agent spec
+func withAgentSPIFFE(authMethod, csiDriverName string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Agent == nil {
+			a.Spec.ArgoCDAgent.Agent = &argoproj.AgentSpec{}
+		}
+		a.Spec.ArgoCDAgent.Agent.SPIFFE = &argoproj.SPIFFESpec{
+			Enabled:       true,
+			AuthMethod:    authMethod,
+			CSIDriverName: csiDriverName,
+		}
+	}
+}
+
+// withAgentTLS configures legacy TLS on the Agent spec
+func withAgentTLS(secretName, rootCASecretName string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Agent == nil {
+			a.Spec.ArgoCDAgent.Agent = &argoproj.AgentSpec{}
+		}
+		a.Spec.ArgoCDAgent.Agent.TLS = &argoproj.AgentTLSSpec{
+			SecretName:       secretName,
+			RootCASecretName: rootCASecretName,
+		}
+	}
+}
+
+func TestHasAgentSPIFFE(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected bool
+	}{
+		{
+			name:     "agent not configured",
+			cr:       makeTestArgoCD(),
+			expected: false,
+		},
+		{
+			name:     "agent enabled without SPIFFE",
+			cr:       makeTestArgoCD(withAgentEnabled(true)),
+			expected: false,
+		},
+		{
+			name: "SPIFFE block present but enabled=false",
+			cr: makeTestArgoCD(withAgentEnabled(true), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Agent.SPIFFE = &argoproj.SPIFFESpec{Enabled: false}
+			}),
+			expected: false,
+		},
+		{
+			name:     "SPIFFE configured with enabled=true",
+			cr:       makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE("", "")),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, hasAgentSPIFFE(tt.cr))
+		})
+	}
+}
+
+func TestGetAgentSpireAuthMethod(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to jwt",
+			cr:       makeTestArgoCD(withAgentEnabled(true)),
+			expected: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:     "SPIFFE configured without authMethod defaults to jwt",
+			cr:       makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE("", "")),
+			expected: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:     "SPIFFE configured with mtls authMethod",
+			cr:       makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expected: common.SpiffeAuthMethodMTLS,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getAgentSpireAuthMethod(tt.cr))
+		})
+	}
+}
+
+func TestGetAgentSpiffeCSIDriver(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withAgentEnabled(true)),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured without csiDriverName defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured with custom csiDriverName",
+			cr:       makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodJWT, "custom.csi.driver.io")),
+			expected: "custom.csi.driver.io",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getAgentSpiffeCSIDriver(tt.cr))
+		})
+	}
+}
+
+func TestBuildSpiffeVolumeMount_Agent(t *testing.T) {
+	mount := buildSpiffeVolumeMount()
+	assert.Equal(t, "spiffe-workload-api", mount.Name)
+	assert.Equal(t, "/run/spire/sockets", mount.MountPath)
+	assert.True(t, mount.ReadOnly)
+}
+
+func TestBuildSpiffeVolume_Agent(t *testing.T) {
+	volume := buildSpiffeVolume("custom.csi.driver.io")
+	assert.Equal(t, "spiffe-workload-api", volume.Name)
+	assert.NotNil(t, volume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", volume.CSI.Driver)
+	assert.NotNil(t, volume.CSI.ReadOnly)
+	assert.True(t, *volume.CSI.ReadOnly)
+}
+
+func TestBuildAgentContainerEnv_SPIFFE(t *testing.T) {
+	tests := []struct {
+		name               string
+		cr                 *argoproj.ArgoCD
+		expectSocketSet    bool
+		expectedSocket     string
+		expectedAuthMethod string
+	}{
+		{
+			name:            "SPIFFE not configured, env vars absent",
+			cr:              makeTestArgoCD(withAgentEnabled(true)),
+			expectSocketSet: false,
+		},
+		{
+			name:               "SPIFFE configured with jwt auth method",
+			cr:                 makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:               "SPIFFE configured with mtls auth method",
+			cr:                 makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: common.SpiffeAuthMethodMTLS,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			envVars := buildAgentContainerEnv(tt.cr)
+			envMap := make(map[string]string)
+			envNames := make(map[string]bool)
+			for _, e := range envVars {
+				envMap[e.Name] = e.Value
+				envNames[e.Name] = true
+			}
+
+			if !tt.expectSocketSet {
+				assert.False(t, envNames[EnvArgoCDAgentSpireAgentSocket], "ARGOCD_AGENT_SPIRE_AGENT_SOCKET should not be set")
+				assert.False(t, envNames[EnvArgoCDAgentSpireAuthMethod], "ARGOCD_AGENT_SPIRE_AUTH_METHOD should not be set")
+				return
+			}
+
+			assert.Equal(t, tt.expectedSocket, envMap[EnvArgoCDAgentSpireAgentSocket],
+				"ARGOCD_AGENT_SPIRE_AGENT_SOCKET mismatch")
+			assert.Equal(t, tt.expectedAuthMethod, envMap[EnvArgoCDAgentSpireAuthMethod],
+				"ARGOCD_AGENT_SPIRE_AUTH_METHOD mismatch")
+		})
+	}
+}
+
+func TestBuildAgentContainerEnv_SPIFFE_TLSPrecedence(t *testing.T) {
+	// Test case: When both SPIFFE and legacy TLS are configured, SPIFFE env vars
+	// should still be set (SPIFFE takes precedence) and legacy TLS env vars should
+	// retain their configured values (the agent binary ignores them, operator doesn't need to clear them).
+	cr := makeTestArgoCD(
+		withAgentEnabled(true),
+		withAgentSPIFFE(common.SpiffeAuthMethodJWT, ""),
+		withAgentTLS("legacy-tls-secret", "legacy-ca-secret"),
+	)
+
+	envVars := buildAgentContainerEnv(cr)
+	envMap := make(map[string]string)
+	for _, e := range envVars {
+		envMap[e.Name] = e.Value
+	}
+
+	assert.Equal(t, "unix:///run/spire/sockets/spire-agent.sock", envMap[EnvArgoCDAgentSpireAgentSocket])
+	assert.Equal(t, common.SpiffeAuthMethodJWT, envMap[EnvArgoCDAgentSpireAuthMethod])
+	assert.Equal(t, "legacy-tls-secret", envMap[EnvArgoCDAgentTLSSecretName])
+	assert.Equal(t, "legacy-ca-secret", envMap[EnvArgoCDAgentTLSRootCASecretName])
+}
+
+func TestReconcileAgentDeployment_SPIFFE_VolumeMountsAndVolumes(t *testing.T) {
+	// Test case: Verify SPIFFE CSI volume and mount are added when SPIFFE is configured
+	cr := makeTestArgoCD(withAgentEnabled(true), withAgentSPIFFE(common.SpiffeAuthMethodJWT, "custom.csi.driver.io"))
+	saName := generateAgentResourceName(cr.Name, testAgentCompName)
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcileAgentDeployment(cl, testAgentCompName, saName, cr, sch)
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testAgentCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	// userpass-passwd, redis-initial-pass, spiffe-workload-api
+	assert.Len(t, container.VolumeMounts, 3)
+	spiffeMount := container.VolumeMounts[2]
+	assert.Equal(t, "spiffe-workload-api", spiffeMount.Name)
+	assert.Equal(t, "/run/spire/sockets", spiffeMount.MountPath)
+	assert.True(t, spiffeMount.ReadOnly)
+
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3)
+	spiffeVolume := deployment.Spec.Template.Spec.Volumes[2]
+	assert.Equal(t, "spiffe-workload-api", spiffeVolume.Name)
+	assert.NotNil(t, spiffeVolume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", spiffeVolume.CSI.Driver)
+}
+
+func TestReconcileAgentDeployment_SPIFFE_AddedOnUpdate(t *testing.T) {
+	// Test case: SPIFFE is added to an existing CR after the deployment was created without it
+	// Expected behavior: Deployment should be updated to add the SPIFFE volume and mount
+	cr := makeTestArgoCD(withAgentEnabled(true))
+	saName := generateAgentResourceName(cr.Name, testAgentCompName)
+
+	existingDeployment := makeTestDeployment(cr)
+
+	resObjs := []client.Object{cr, existingDeployment}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	// Sanity check: no SPIFFE volume mount before SPIFFE is configured
+	assert.Len(t, existingDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, 2)
+
+	cr.Spec.ArgoCDAgent.Agent.SPIFFE = &argoproj.SPIFFESpec{Enabled: true, AuthMethod: common.SpiffeAuthMethodJWT}
+
+	err := ReconcileAgentDeployment(cl, testAgentCompName, saName, cr, sch)
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testAgentCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	assert.Len(t, container.VolumeMounts, 3)
+	assert.Equal(t, "spiffe-workload-api", container.VolumeMounts[2].Name)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 3)
+	assert.Equal(t, "spiffe-workload-api", deployment.Spec.Template.Spec.Volumes[2].Name)
+
+	// Verify env vars were updated too
+	envNames := make(map[string]bool)
+	for _, e := range container.Env {
+		envNames[e.Name] = true
+	}
+	assert.True(t, envNames[EnvArgoCDAgentSpireAgentSocket], "ARGOCD_AGENT_SPIRE_AGENT_SOCKET should be set")
+	assert.True(t, envNames[EnvArgoCDAgentSpireAuthMethod], "ARGOCD_AGENT_SPIRE_AUTH_METHOD should be set")
+}
+
 // withAgentAllowedNamespaces configures AllowedNamespaces on the Agent spec
 func withAgentAllowedNamespaces(namespaces []string) argoCDOpt {
 	return func(a *argoproj.ArgoCD) {

@@ -832,6 +832,7 @@ func ConvertAlphaToBetaPrincipal(src *PrincipalSpec) *v1beta1.PrincipalSpec {
 			JWT:              ConvertAlphaToBetaPrincipalJWT(src.JWT),
 			Metrics:          ConvertAlphaToBetaMetrics(src.Metrics),
 			SelfRegistration: ConvertAlphaToBetaPrincipalSelfRegistration(src.SelfRegistration),
+			SPIFFE:           ConvertAlphaToBetaSPIFFE(src.SPIFFE),
 		}
 	}
 	return dst
@@ -867,6 +868,7 @@ func ConvertBetaToAlphaPrincipal(src *v1beta1.PrincipalSpec) *PrincipalSpec {
 			JWT:              ConvertBetaToAlphaPrincipalJWT(src.JWT),
 			Metrics:          ConvertBetaToAlphaMetrics(src.Metrics),
 			SelfRegistration: ConvertBetaToAlphaPrincipalSelfRegistration(src.SelfRegistration),
+			SPIFFE:           ConvertBetaToAlphaSPIFFE(src.SPIFFE),
 		}
 	}
 	return dst
@@ -1029,6 +1031,7 @@ func ConvertAlphaToBetaAgent(src *AgentSpec) *v1beta1.AgentSpec {
 			Redis:         ConvertAlphaToBetaAgentRedis(src.Redis),
 			TLS:           ConvertAlphaToBetaAgentTLS(src.TLS),
 			Metrics:       ConvertAlphaToBetaMetrics(src.Metrics),
+			SPIFFE:        ConvertAlphaToBetaSPIFFE(src.SPIFFE),
 		}
 	}
 	return dst
@@ -1049,6 +1052,7 @@ func ConvertBetaToAlphaAgent(src *v1beta1.AgentSpec) *AgentSpec {
 			Redis:         ConvertBetaToAlphaAgentRedis(src.Redis),
 			TLS:           ConvertBetaToAlphaAgentTLS(src.TLS),
 			Metrics:       ConvertBetaToAlphaMetrics(src.Metrics),
+			SPIFFE:        ConvertBetaToAlphaSPIFFE(src.SPIFFE),
 		}
 	}
 	return dst
@@ -1123,6 +1127,30 @@ func ConvertBetaToAlphaAgentTLS(src *v1beta1.AgentTLSSpec) *AgentTLSSpec {
 			SecretName:       src.SecretName,
 			RootCASecretName: src.RootCASecretName,
 			Insecure:         src.Insecure,
+		}
+	}
+	return dst
+}
+
+func ConvertAlphaToBetaSPIFFE(src *SPIFFESpec) *v1beta1.SPIFFESpec {
+	var dst *v1beta1.SPIFFESpec
+	if src != nil {
+		dst = &v1beta1.SPIFFESpec{
+			Enabled:       src.Enabled,
+			AuthMethod:    src.AuthMethod,
+			CSIDriverName: src.CSIDriverName,
+		}
+	}
+	return dst
+}
+
+func ConvertBetaToAlphaSPIFFE(src *v1beta1.SPIFFESpec) *SPIFFESpec {
+	var dst *SPIFFESpec
+	if src != nil {
+		dst = &SPIFFESpec{
+			Enabled:       src.Enabled,
+			AuthMethod:    src.AuthMethod,
+			CSIDriverName: src.CSIDriverName,
 		}
 	}
 	return dst
