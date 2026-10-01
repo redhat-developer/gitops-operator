@@ -84,7 +84,10 @@ This removes the `scm-creds` label requirement and is **not recommended** for pr
 
 Starting with OpenShift GitOps **v1.19**, the default resource tracking method changed from `label` to
 `annotation`. This is the `application.resourceTrackingMethod` key in `argocd-cm`, and it applies
-to every ArgoCD instance whose CR does **not** set `.spec.resourceTrackingMethod`.
+to every ArgoCD instance whose CR sets the value in neither of the two places that can supply it:
+`.spec.resourceTrackingMethod`, or an `application.resourceTrackingMethod` entry under
+`.spec.extraConfig`. `.spec.extraConfig` is merged over the rest of the CR and therefore wins, so
+an entry there pins the value just as effectively as the dedicated field.
 
 The operator reconciles this key declaratively from the ArgoCD CR, as it does every other key in
 `argocd-cm`. It does not preserve whatever value is already there, so on the first reconcile after
@@ -106,16 +109,23 @@ Two consequences follow, and both are expected rather than a malfunction:
 
 ### Detection
 
-**Before upgrading**, check whether any ArgoCD CR leaves the field unset while its `argocd-cm`
-still says `label`:
+**Before upgrading**, start by listing the instances whose `argocd-cm` still says `label`:
 
 ```bash
 kubectl get cm -A -l app.kubernetes.io/part-of=argocd --field-selector metadata.name=argocd-cm \
   -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.data.application\.resourceTrackingMethod}{"\n"}{end}'
 ```
 
-Any namespace reporting `label` whose ArgoCD CR does not set `.spec.resourceTrackingMethod` will
-change on upgrade.
+A namespace reporting `label` is only a candidate, not a confirmation: `argocd-cm` already reflects
+any `.spec.extraConfig` override, so the ConfigMap alone cannot tell you where the value came from.
+For each namespace the command reports, check the CR before concluding it will change:
+
+```bash
+kubectl get argocd -n <argocd-namespace> <name> \
+  -o jsonpath='{.spec.resourceTrackingMethod}{"\t"}{.spec.extraConfig.application\.resourceTrackingMethod}{"\n"}'
+```
+
+The instance changes on upgrade only if both values are empty.
 
 **After upgrading**, the operator logs a warning on the reconcile that performs the change. It is
 logged once per instance, at the moment of the change:
@@ -129,6 +139,8 @@ You are **not** affected if any of the following is true:
 
 - `.spec.resourceTrackingMethod` is set explicitly on the ArgoCD CR — your value is honored, and no
   change occurs
+- `.spec.extraConfig` carries an `application.resourceTrackingMethod` entry — it is merged last and
+  overrides the default, so your value is honored and no change occurs
 - The instance already runs on OpenShift GitOps v1.19 or later — the change happened at that
   upgrade, and `argocd-cm` already reads `annotation`
 - The installation is new on OpenShift GitOps v1.19+ — it starts on `annotation` with nothing to
