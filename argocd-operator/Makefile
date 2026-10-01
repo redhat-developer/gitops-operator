@@ -84,7 +84,7 @@ get-image-updater-crd: ## Download Image Updater CRD.
 UNIT_TEST_PACKAGES := $(shell go list ./... | grep -E -v '/tests/ginkgo')
 
 test: fmt vet envtest ## Run tests.
-	REDIS_CONFIG_PATH="$(shell pwd)/build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
+	REDIS_CONFIG_PATH="$(shell pwd)/../build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
