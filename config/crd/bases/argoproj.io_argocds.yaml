@@ -725,6 +725,30 @@ spec:
                               server to be used by the PrincAgentipal component.
                             type: string
                         type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Agent component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
+                        type: object
                       tls:
                         description: TLS defines the TLS options for the Agent component.
                         properties:
@@ -1074,6 +1098,30 @@ spec:
                             required:
                             - type
                             type: object
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Principal component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Principal
@@ -13848,6 +13896,30 @@ spec:
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
                         type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Agent component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
+                        type: object
                       tls:
                         description: TLS defines the TLS options for the Agent component.
                         properties:
@@ -14261,6 +14333,30 @@ spec:
                             required:
                             - type
                             type: object
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Principal component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Principal
