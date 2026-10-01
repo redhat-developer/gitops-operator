@@ -6,7 +6,7 @@ For understanding the differences between [Argo CD Community Operator](https://g
 
 **Note**: The Argo CD Community Operator source now lives inside this repository, under the `argocd-operator/` directory, and is built as a local Go module. The two operators therefore share a codebase. The Community Operator is still released separately, and the migration steps below are unchanged.
 
-**Note**: Installing GitOps operator on OpenShift will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials. On Non-OpenShift cluster no new argocd instance is created.
+**Note**: Installing GitOps operator on OpenShift will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials. On Non-OpenShift cluster no default argocd instance is created.
 
 The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource.
 
@@ -107,4 +107,4 @@ This is not recommended for the following reasons.
 2. GitOps operator fails to install in a Disconnected or Air-gapped clusters.
 
 **Note:**
-Users running Openshift-Gitops on Non-OpenShift clusters will absence support for GitopsService CRD, Dex openshiftOAuth not working, absence of Default instance and routes.
+On non-OpenShift clusters, OpenShift GitOps does not support the `GitopsService` custom resource, Dex OpenShift OAuth, the default Argo CD instance, or OpenShift Routes.
