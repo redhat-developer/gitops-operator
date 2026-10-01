@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that dex client secret is properly copied from service account token to argocd-secret", func() {
+		It("validates that dex client secret is properly copied from service account token to argocd-secret", Label("openshift"), func() {
 
 			// Create namespace for this test and ensure cleanup
 			namespace, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

@@ -94,7 +94,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: argov1beta1api.SSOProviderTypeDex,
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
+							Config: `|
+        connectors:
+          # GitHub example
+          - type: github
+            id: github
+            name: GitHub`,
 						},
 					},
 				},
