@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"

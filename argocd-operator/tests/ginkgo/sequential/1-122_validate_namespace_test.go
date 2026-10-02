@@ -28,16 +28,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argoutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	namespaceFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/namespace"
-	statefulsetFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/statefulset"
-	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argoutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/namespace"
+	statefulsetFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/statefulset"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {

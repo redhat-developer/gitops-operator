@@ -19,7 +19,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 )
 
 func TestBuildPolicyRulesForControllerClusterRoles_UsesEnvVariable(t *testing.T) {
