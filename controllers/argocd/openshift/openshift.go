@@ -106,7 +106,11 @@ func ReconcilerHook(cr *argoapp.ArgoCD, v any, hint string) error {
 				return err
 			}
 			policyRules := getPolicyRuleForApplicationController()
-			policyRules = append(policyRules, clusterRole.Rules...)
+			namespacedAdminRules := policyRulesForNamespacedRole(clusterRole.Rules)
+			if omitted := len(clusterRole.Rules) - len(namespacedAdminRules); omitted > 0 {
+				logv.Info("omitted nonResourceURLs rules from namespaced Role; they are only valid on ClusterRoles", "omitted", omitted)
+			}
+			policyRules = append(policyRules, namespacedAdminRules...)
 			o.Rules = policyRules
 		}
 	}
@@ -222,6 +226,30 @@ func BuilderHook(_ *argoapp.ArgoCD, v any, _ string) error {
 		})))
 
 	return nil
+}
+
+// policyRulesForNamespacedRole copies ClusterRole rules that are valid on a
+// namespaced Role. nonResourceURLs is only permitted on ClusterRoles;
+// Rules that are empty after stripping are dropped.
+func policyRulesForNamespacedRole(rules []rbacv1.PolicyRule) []rbacv1.PolicyRule {
+	filtered := make([]rbacv1.PolicyRule, 0, len(rules))
+	for _, rule := range rules {
+		if len(rule.NonResourceURLs) > 0 {
+			rule.NonResourceURLs = nil
+		}
+		if isEmptyPolicyRule(rule) {
+			continue
+		}
+		filtered = append(filtered, rule)
+	}
+	return filtered
+}
+
+func isEmptyPolicyRule(rule rbacv1.PolicyRule) bool {
+	return len(rule.APIGroups) == 0 &&
+		len(rule.Resources) == 0 &&
+		len(rule.ResourceNames) == 0 &&
+		len(rule.NonResourceURLs) == 0
 }
 
 func getPolicyRuleForApplicationController() []rbacv1.PolicyRule {
