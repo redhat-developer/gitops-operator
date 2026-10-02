@@ -122,7 +122,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		// openshiftOAuth is not supported in xKS
-		It("ensures Dex/Keycloak SSO can be enabled and disabled on a namespace-scoped Argo CD instance", func() {
+		It("ensures Dex/Keycloak SSO can be enabled and disabled on a namespace-scoped Argo CD instance", Label("openshift"), func() {
 
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
@@ -137,7 +137,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: "dex",
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
+							Config: `|
+        connectors:
+          # GitHub example
+          - type: github
+            id: github
+            name: GitHub`,
 						},
 					},
 				},
