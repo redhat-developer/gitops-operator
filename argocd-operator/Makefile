@@ -20,10 +20,6 @@ ifeq ($(CONTAINER_RUNTIME),)
 $(warning "No container runtime (Docker or Podman) found in PATH. Please install one of them.")
 endif
 
-# Set the Operator SDK version to use.
-# This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.35.0
-
 GOSEC_VERSION ?= v2.22.7
 GOLANGCILINT_VERSION ?= v2.12.2
 
@@ -52,8 +48,6 @@ endif
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
-
-all: build
 
 ##@ General
 
@@ -88,43 +82,12 @@ get-image-updater-crd: ## Download Image Updater CRD.
 UNIT_TEST_PACKAGES := $(shell go list ./... | grep -E -v '/tests/ginkgo')
 
 test: fmt vet envtest ## Run tests.
-	REDIS_CONFIG_PATH="$(shell pwd)/build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
-
-##@ Build
-
-build: fmt vet ## Build manager binary.
-	go build -ldflags=$(LD_FLAGS) -o bin/manager cmd/main.go
-
-run: fmt vet ## Run a controller from your host.
-	REDIS_CONFIG_PATH="build/redis" ARGOCD_OPERATOR_NAMESPACE="argocd" go run -ldflags=$(LD_FLAGS) ./cmd/main.go
-
-docker-build: test ## Build docker image with the manager.
-	$(CONTAINER_RUNTIME) build --build-arg LD_FLAGS=$(LD_FLAGS) -t ${IMG} .
-
-docker-push: ## Push docker image with the manager.
-	$(CONTAINER_RUNTIME) push ${IMG}
-
-##@ Build Dependencies
+	REDIS_CONFIG_PATH="$(shell pwd)/../build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
 
 ## Location to install dependencies to
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
-
-
-.PHONY: operator-sdk
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
-operator-sdk: ## Download operator-sdk locally if necessary.
-ifeq (,$(wildcard $(OPERATOR_SDK)))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPERATOR_SDK)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPERATOR_SDK) https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$${OS}_$${ARCH} ;\
-	chmod +x $(OPERATOR_SDK) ;\
-	}
-endif
-
 
 ##@ Deployment
 
@@ -155,14 +118,6 @@ install-prometheus-crds: ## Install Prometheus Operator CRDs if not already inst
 		kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$(PROMETHEUS_OPERATOR_VERSION)/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml; \
 		echo "Prometheus Operator CRDs installed successfully"; \
 	fi
-
-##@ E2E
-
-
-start-e2e: install-prometheus-crds ## Start operator for E2E tests (installs required CRDs if needed)
-	ARGOCD_CLUSTER_CONFIG_NAMESPACES="argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, appset-argocd, appset-old-ns, appset-new-ns, appset-argocd-clusterrole, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, gitops-promoter-1-134" make run
-
-all: test install run ## UnitTest, Run the operator locally
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
