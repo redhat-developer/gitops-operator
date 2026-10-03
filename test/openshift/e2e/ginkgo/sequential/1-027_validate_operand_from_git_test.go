@@ -82,9 +82,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: openshiftgitopsArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
-						Path: "./operator-acceptance/1-027_operand-from-git",
-						// TODO: Move this repository to a better location
-						RepoURL:        "https://github.com/jannfis/operator-e2e-git",
+						Path:           "./test/examples/1-027_operand-from-git",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
