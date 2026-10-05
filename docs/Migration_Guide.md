@@ -4,8 +4,6 @@ This document provides the required guidance and steps to follow to migrate from
 
 For understanding the differences between [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator, kindly refer to the [README](https://github.com/redhat-developer/gitops-operator/blob/master/README.md#gitops-operator-vs-argo-cd-community-operator) file of the repository.
 
-**Note**: The Argo CD Community Operator source now lives inside this repository, under the `argocd-operator/` directory, and is built as a local Go module. The two operators therefore share a codebase. The Community Operator is still released separately, and the migration steps below are unchanged.
-
 **Note**: Installing GitOps operator on OpenShift will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials. On Non-OpenShift cluster no default argocd instance is created.
 
 The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource.
@@ -96,15 +94,17 @@ created by the Argo CD Operator. You can login into the GitOPs operator with the
 Operator.
 
 **Note:**
-GitOps operator is a Red Hat provider operator. Post installation, it updates the workloads(controller, repo-server, server e.t.c.,.) to Red Hat container images - `registry.redhat.io/openshift-gitops-1/argocd-rhel9`.
+GitOps operator is a Red Hat provider operator. Post installation, it updates the workloads (controller, repo-server, server, etc.) to Red Hat UBI-based container images from `registry.redhat.io`.
 
-But if you have configured the Argo CD custom resource with `.spec.image` and `.spec.version` fields to use images
-from `quay.io` or other registries, Post installation, GitOps operator does not update the workloads to `registry.redhat.io/openshift-gitops-1/argocd-rhel9` images.
+**Important**: The community operator images are Ubuntu-based, while GitOps operator uses UBI (Universal Base Image) based images. These images are **incompatible**. If you have configured the Argo CD custom resource with `.spec.image` and `.spec.version` fields to pin custom images, you should either:
 
-This is not recommended for the following reasons.
+1. Remove those fields to use the default UBI-based images provided by the GitOps operator, or
+2. Build your own custom images based on UBI.
+
+Continuing to use Ubuntu-based images with the GitOps operator is not recommended for the following reasons:
 
 1. They are not supported by Red Hat.
-2. GitOps operator fails to install in a Disconnected or Air-gapped clusters.
+2. GitOps operator fails to install in Disconnected or Air-gapped clusters.
 
 **Note:**
 On non-OpenShift clusters, OpenShift GitOps does not support the `GitopsService` custom resource, Dex OpenShift OAuth, the default Argo CD instance, or OpenShift Routes.
