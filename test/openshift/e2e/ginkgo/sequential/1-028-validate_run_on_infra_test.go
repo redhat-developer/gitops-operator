@@ -25,8 +25,6 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-028-validate_run_on_infra_test", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
-
 		var (
 			ctx       context.Context
 			k8sClient client.Client
