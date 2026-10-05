@@ -51,6 +51,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		principalMetricsServiceFmt    = "%s-agent-principal-metrics"
 		principalRedisProxyServiceFmt = "%s-agent-principal-redisproxy"
 		principalHealthzServiceFmt    = "%s-agent-principal-healthz"
+
+		// Secret names
+		agentJWTSecretName              = "argocd-agent-jwt"
+		agentPrincipalTLSSecretName     = "argocd-agent-principal-tls"
+		agentRootCASecretName           = "argocd-agent-ca"
+		agentResourceProxyTLSSecretName = "argocd-agent-resource-proxy-tls"
 	)
 
 	Context("1-051_validate_argocd_agent_principal", func() {
