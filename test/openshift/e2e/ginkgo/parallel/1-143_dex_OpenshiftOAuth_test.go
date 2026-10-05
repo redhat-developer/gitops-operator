@@ -44,10 +44,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("should fail reconciliation when OpenShiftOAuth is enabled on a non-OpenShift cluster", func() {
-			if fixture.RunningOnOpenShift() {
-				Skip("This test validates behavior on non-OpenShift clusters only")
-			}
+		It("should fail reconciliation when OpenShiftOAuth is enabled on a non-OpenShift cluster", Label("xks"), func() {
 
 			By("creating namespace for test")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
