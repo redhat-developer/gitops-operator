@@ -1,0 +1,20 @@
+version: 2
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.20"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.21"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.22"
+    schedule:
+      interval: "weekly"
