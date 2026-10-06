@@ -47,6 +47,12 @@ spec:
                     description: Backend defines the resource requests and limits
                       for the backend service
                     properties:
+                      replicas:
+                        description: Replicas defines the number of replicas for the
+                          backend deployment
+                        format: int32
+                        minimum: 0
+                        type: integer
                       resources:
                         description: Resources defines the resource requests and limits
                           for the backend service
@@ -112,6 +118,12 @@ spec:
                     description: GitopsPlugin defines the resource requests and limits
                       for the gitops plugin service
                     properties:
+                      replicas:
+                        description: Replicas defines the number of replicas for the
+                          gitops plugin deployment
+                        format: int32
+                        minimum: 0
+                        type: integer
                       resources:
                         description: Resources defines the resource requests and limits
                           for the gitops plugin service
