@@ -56,7 +56,7 @@ func (r *ReconcileArgoCD) reconcileSSO(cr *argoproj.ArgoCD, argocdStatus *argopr
 			errMsg = "must supply valid dex configuration when requested SSO provider is dex"
 			isError = true
 		} else if cr.Spec.SSO.Dex != nil && cr.Spec.SSO.Dex.OpenShiftOAuth && !IsOpenShiftCluster() {
-			errMsg = "openShiftOAuth is only supported on OpenShift clusters. Please set the openShiftOAuth configuration."
+			errMsg = "openShiftOAuth is only supported on OpenShift clusters. Please disable the openShiftOAuth configuration."
 			isError = true
 		} else if cr.Spec.SSO.Keycloak != nil {
 			errMsg = "keycloak configuration is specified even though Dex is enabled. Keycloak support has been deprecated and is no longer available."
