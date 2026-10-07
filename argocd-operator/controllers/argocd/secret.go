@@ -1143,7 +1143,13 @@ func (r *ReconcileArgoCD) getClusterSecrets(cr *argoproj.ArgoCD) (*corev1.Secret
 
 // reconcileRedisInitialPasswordSecret will ensure that the redis Secret is present for the cluster.
 func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoCD) error {
-	secret := argoutil.NewSecretWithSuffix(cr, "redis-initial-password")
+	// Fix for GITOPS-11058:
+	// 1. Create a new secret: argocd-redis to be compatible with argocd cli
+	// 2. Delete an old style secret: [instance]-redis-initial-password in case it exists
+
+	// Generate secret in new style: argocd-redis
+	secretName := "argocd-redis"
+	secret := argoutil.NewSecretWithName(cr, secretName)
 
 	existed := true
 	// Recreate if the secret or some of its keys are missing
@@ -1166,7 +1172,7 @@ func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoC
 
 	if existed {
 		// Drop unsettable fields created by FetchObject
-		secret = argoutil.NewSecretWithSuffix(cr, "redis-initial-password")
+		secret = argoutil.NewSecretWithName(cr, secretName)
 	}
 
 	redisInitialPassword, err := generateRedisAdminPassword()
@@ -1178,6 +1184,19 @@ func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoC
 
 	if err := controllerutil.SetControllerReference(cr, secret, r.Scheme); err != nil {
 		return err
+	}
+
+	// Generate secret in old style: [instance]-redis-initial-password
+	oldSecretName := "redis-initial-password"
+	oldSecret := argoutil.NewSecretWithSuffix(cr, oldSecretName)
+
+	// Deletion of old secret in case it exited before
+	argoutil.LogResourceDeletion(log, oldSecret)
+	err = r.Delete(context.TODO(), oldSecret)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	if existed {

@@ -160,7 +160,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				PrincipalTLSSecretName:         agentPrincipalTLSSecretName,
 				RootCASecretName:               agentRootCASecretName,
 				ResourceProxyTLSSecretName:     agentResourceProxyTLSSecretName,
-				RedisInitialPasswordSecretName: "example-redis-initial-password",
+				RedisInitialPasswordSecretName: "argocd-redis",
 			}
 
 			resourceProxyServiceName = fmt.Sprintf("%s-agent-principal-resource-proxy", argoCDName)
