@@ -94,7 +94,7 @@ jobs:
       - name: Run E2E tests (${{ inputs.test-type }}) on xKS
         run: |
           set -o pipefail
-          NON_OLM=true make e2e-xks-tests-${{ inputs.test-type }}-ginkgo 2>&1 | tee "${{ env.LOG_DIR }}/e2e-${{ inputs.test-type }}.log"
+          NON_OLM=true make "e2e-xks-tests-${{ inputs.test-type }}-ginkgo" 2>&1 | tee "${{ env.LOG_DIR }}/e2e-${{ inputs.test-type }}.log"
 
       - name: Upload CI artifacts
         if: always()
