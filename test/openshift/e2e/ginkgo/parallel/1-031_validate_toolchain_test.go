@@ -89,18 +89,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			expected_kustomizeVersion := "v5.8.1"
 			//only checking major.minor, patch version can shift independently of the argocd bump
 			expected_helmVersion := "v4.2"
-			expected_argocdVersion := "v3.5.2"
 
+			var expected_argocdVersion string
 			var expected_dexVersion string
 			var expected_redisVersion string
 
 			if os.Getenv("CI") == "prow" {
 				// when running against openshift-ci
+				expected_argocdVersion = "v3.5.2"
 				expected_dexVersion = "v2.45.1"
 				expected_redisVersion = "7.2.14"
 
 			} else {
 				// when running against RC/ released version of gitops
+				expected_argocdVersion = "v3.5.4"
 				expected_dexVersion = "v2.45.1"
 				expected_redisVersion = "7.2.16"
 			}
