@@ -18,6 +18,7 @@ package sequential
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -26,12 +27,12 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	routev1 "github.com/openshift/api/route/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
 	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -114,21 +115,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			cliConfigFile.Close()
 			defer os.Remove(cliConfigFile.Name())
 
-			By("waiting for the ArgoCD server Route to be admitted and assigned a host")
-			argoCDRoute := &routev1.Route{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server", Namespace: argoCDNS.Name}}
-			Eventually(argoCDRoute).Should(k8sFixture.ExistByName())
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDRoute), argoCDRoute); err != nil {
-					return false
-				}
-				return argoCDRoute.Spec.Host != "" ||
-					(len(argoCDRoute.Status.Ingress) > 0 && argoCDRoute.Status.Ingress[0].Host != "")
-			}, "2m", "5s").Should(BeTrue())
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDRoute), argoCDRoute)).To(Succeed())
-			routeHost := argoCDRoute.Spec.Host
-			if routeHost == "" {
-				routeHost = argoCDRoute.Status.Ingress[0].Host
-			}
+			By("port-forwarding to the ArgoCD server Service")
+			localPort := portforwardFixture.ReserveLocalPort()
+			stopPortForward := portforwardFixture.StartPortForward(argoCDNS.Name, "svc/argocd-server", fmt.Sprintf("%d:https", localPort))
+			defer stopPortForward()
+			server := fmt.Sprintf("localhost:%d", localPort)
 
 			By("reading the admin password from the ArgoCD cluster secret")
 			adminSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cluster", Namespace: argoCDNS.Name}}
@@ -139,7 +130,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("logging in to the namespace-scoped ArgoCD instance via CLI with a per-test config file")
 			Eventually(func() bool {
 				output, loginErr := argocdFixture.RunArgoCDCLI(
-					"login", routeHost,
+					"login", server,
 					"--config", cliConfigFile.Name(),
 					"--username", "admin",
 					"--password", adminPassword,
@@ -147,16 +138,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					"--skip-test-tls",
 				)
 				if loginErr != nil {
-					// In the failing case, output the error, and also the current contents of the Route
 					GinkgoWriter.Println("CLI login error:", loginErr, "output:", output)
-
-					err := k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCDRoute), argoCDRoute)
-					if err != nil {
-						GinkgoWriter.Println("Unable to retrieve Route", err)
-						return false
-					}
-					GinkgoWriter.Println("Route contents:", argoCDRoute.Spec.Host, "|", argoCDRoute.Status.Ingress)
-
 					return false
 				}
 				return strings.Contains(output, "logged in successfully")
