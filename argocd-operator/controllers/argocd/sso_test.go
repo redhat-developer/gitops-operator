@@ -110,7 +110,7 @@ func TestReconcile_illegalSSOConfiguration(t *testing.T) {
 				}
 			}),
 			wantErr:                  true,
-			Err:                      errors.New("illegal SSO configuration: openShiftOAuth is only supported on OpenShift clusters. Please set the openShiftOAuth configuration."),
+			Err:                      errors.New("illegal SSO configuration: openShiftOAuth is only supported on OpenShift clusters. Please disable the openShiftOAuth configuration."),
 			wantSSOConfigLegalStatus: "Failed",
 		},
 		{

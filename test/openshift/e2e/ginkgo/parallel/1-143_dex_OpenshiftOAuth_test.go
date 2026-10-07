@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				))
 
 			Eventually(argoCD, "2m", "5s").Should(argocdFixture.HaveCondition(metav1.Condition{
-				Message: "illegal SSO configuration: openShiftOAuth is only supported on OpenShift clusters. Please set the openShiftOAuth configuration.",
+				Message: "illegal SSO configuration: openShiftOAuth is only supported on OpenShift clusters. Please disable the openShiftOAuth configuration.",
 				Reason:  "ErrorOccurred",
 				Status:  "False",
 				Type:    "Reconciled",
