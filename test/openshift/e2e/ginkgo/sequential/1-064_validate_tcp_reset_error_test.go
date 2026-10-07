@@ -101,13 +101,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
-			By("verifying test-1-27-custom NS is created and is managed by openshift-gitops, and Application deploys successfully")
+			By("verifying test-1-27-custom NS is created and is managed by argocd-027, and Application deploys successfully")
 			test_1_27_customNS = &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-27-custom"},
 			}
 
 			Eventually(test_1_27_customNS, "5m", "5s").Should(k8sFixture.ExistByName())
-			Eventually(test_1_27_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "openshift-gitops"))
+			Eventually(test_1_27_customNS).Should(namespaceFixture.HaveLabel("argocd.argoproj.io/managed-by", "argocd-027"))
 
 			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
