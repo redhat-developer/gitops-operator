@@ -38,10 +38,17 @@ export CLUSTER_USER="kubeadmin"
 export CLUSTER_PASSWORD="<your_cluster_password>"
 export OC_API_URL="<your_cluster_server_url>"
 export IDP="kube:admin" # (Optional) Defaults to kube:admin
+
+# Optional — private-repo.spec.ts (credentials in Bitwarden)
+export PRIVATE_REPO_URL="<private_git_https_url>"
+export PRIVATE_REPO_USERNAME="<username>"
+export PRIVATE_REPO_TOKEN="<token_or_password>"
 EOF
 ```
 
 > **Security Warning:** The `.env` file is explicitly ignored by Git. Please don't commit credentials to the repository.
+
+The private repository test is **skipped** unless `PRIVATE_REPO_URL` and `PRIVATE_REPO_TOKEN` (or `PRIVATE_REPO_PASSWORD`) are set. Shared values are available from **Bitwarden**.
 
 ---
 
@@ -91,11 +98,15 @@ npx playwright show-trace test-results/create-application-chromium/trace.zip
 │   └── setup.ts          # Orchestrates global OCP authentication & saves storageState.json
 ├── src/
 │   └── pages/            # Page Object Models (POM) isolating UI selectors from spec logic
-│       └── ApplicationsPage.ts
+│       ├── ApplicationsPage.ts
+│       ├── ApplicationDetailsPage.ts
+│       └── SettingsRepositoriesPage.ts
 ├── tests/                # Test specs organized by feature epic
 │   ├── admin-login.spec.ts
 │   ├── create-application.spec.ts
-│   └── resource-tree.spec.ts
+│   ├── resource-tree.spec.ts
+│   ├── auto-sync-self-heal.spec.ts
+│   └── private-repo.spec.ts
 ├── .env                  # Local runtime environment overrides (Git ignored)
 └── run-ui-tests.sh       # Context-aware orchestrator & URL discovery engine
 ```

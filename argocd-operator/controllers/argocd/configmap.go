@@ -76,6 +76,14 @@ func getCAConfigMapName(cr *argoproj.ArgoCD) string {
 	return nameWithSuffix(common.ArgoCDCASuffix, cr)
 }
 
+// getCASecretName will return the CA Secret name for the given ArgoCD.
+func getCASecretName(cr *argoproj.ArgoCD) string {
+	if len(cr.Spec.TLS.CA.SecretName) > 0 {
+		return cr.Spec.TLS.CA.SecretName
+	}
+	return nameWithSuffix(common.ArgoCDCASuffix, cr)
+}
+
 // getSCMRootCAConfigMapName will return the SCMRootCA ConfigMap name for the given ArgoCD ApplicationSet Controller.
 func getSCMRootCAConfigMapName(cr *argoproj.ArgoCD) string {
 	if cr.Spec.ApplicationSet.SCMRootCAConfigMap != "" && len(cr.Spec.ApplicationSet.SCMRootCAConfigMap) > 0 {
@@ -348,7 +356,7 @@ func (r *ReconcileArgoCD) reconcileConfigMaps(cr *argoproj.ArgoCD, useTLSForRedi
 func (r *ReconcileArgoCD) reconcileCAConfigMap(cr *argoproj.ArgoCD) error {
 	cm := newConfigMapWithName(getCAConfigMapName(cr), cr)
 
-	caSecret := argoutil.NewSecretWithSuffix(cr, common.ArgoCDCASuffix)
+	caSecret := argoutil.NewSecretWithName(cr, getCASecretName(cr))
 	caSecretExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, caSecret.Name, caSecret)
 	if err != nil {
 		return err
@@ -378,15 +386,21 @@ func (r *ReconcileArgoCD) reconcileCAConfigMap(cr *argoproj.ArgoCD) error {
 		return r.Create(context.TODO(), cm)
 	}
 
-	// ConfigMap exists — only update if ca.crt key is missing (backfill for pre-fix ConfigMaps)
-	if _, hasCACert := existingCM.Data[common.ArgoCDKeyTLSCACert]; !hasCACert {
-		if existingCM.Data == nil {
-			existingCM.Data = make(map[string]string)
+	// ConfigMap exists — sync only the operator-managed keys (tls.crt, ca.crt).
+	// This handles both the initial backfill (missing keys) and cert rotation
+	// when spec.tls.ca.secretName is changed to a different secret.
+	// Unrelated keys added by the user are preserved.
+	needsUpdate := false
+	if existingCM.Data == nil {
+		existingCM.Data = make(map[string]string)
+	}
+	for key, desiredVal := range desiredData {
+		if existingCM.Data[key] != desiredVal {
+			existingCM.Data[key] = desiredVal
+			needsUpdate = true
 		}
-		if _, hasTLSCert := existingCM.Data[common.ArgoCDKeyTLSCert]; !hasTLSCert {
-			existingCM.Data[common.ArgoCDKeyTLSCert] = desiredData[common.ArgoCDKeyTLSCert]
-		}
-		existingCM.Data[common.ArgoCDKeyTLSCACert] = desiredData[common.ArgoCDKeyTLSCACert]
+	}
+	if needsUpdate {
 		argoutil.LogResourceUpdate(log, existingCM)
 		return r.Update(context.TODO(), existingCM)
 	}
@@ -570,6 +584,29 @@ func (r *ReconcileArgoCD) reconcileArgoConfigMap(cr *argoproj.ArgoCD) error {
 		} else if cr.Spec.SSO != nil && cr.Spec.SSO.Provider.ToLower() == argoproj.SSOProviderTypeKeycloak {
 			log.Info("Keycloak SSO provider is no longer supported. Existing configuration will be ignored and not reconciled.")
 			// Keycloak functionality has been removed, skipping reconciliation
+		}
+
+		// Warn when the resource tracking method is about to change without the user having
+		// asked for it. This happens when .spec.resourceTrackingMethod is unset and the
+		// operator default differs from the value already in argocd-cm — most commonly on an
+		// upgrade from an operator that defaulted to 'label'. The value is still reconciled
+		// from the CR as usual; this only makes an otherwise silent migration greppable,
+		// because it makes managed resources go OutOfSync and a subsequent sync can remove
+		// controller-managed labels from Secrets. An explicit value in .spec or in
+		// .spec.extraConfig is a deliberate choice and is not warned about. Since the new
+		// value is written on this same reconcile, this logs once per actual change.
+		if cr.Spec.ResourceTrackingMethod == "" {
+			if _, overridden := cr.Spec.ExtraConfig[common.ArgoCDKeyResourceTrackingMethod]; !overridden {
+				existing := existingCM.Data[common.ArgoCDKeyResourceTrackingMethod]
+				computed := cm.Data[common.ArgoCDKeyResourceTrackingMethod]
+				if existing != "" && existing != computed &&
+					argoproj.ParseResourceTrackingMethod(existing) != argoproj.ResourceTrackingMethodInvalid {
+					log.Info(fmt.Sprintf("WARNING: resource tracking method in %s is changing from '%s' to the default '%s' because .spec.resourceTrackingMethod is not set. "+
+						"Managed resources will re-sync to apply the new tracking method and may report OutOfSync; a sync can remove controller-managed labels from Secrets. "+
+						"Set .spec.resourceTrackingMethod to '%s' to keep the current behaviour.",
+						common.ArgoCDConfigMapName, existing, computed, existing))
+				}
+			}
 		}
 
 		changed := false

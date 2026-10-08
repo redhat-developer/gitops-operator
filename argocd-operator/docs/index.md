@@ -1,10 +1,10 @@
-# Argo CD Operator
+# GitOps Operator
 
-A Kubernetes operator for managing Argo CD clusters.
+An operator for managing Argo CD clusters, for OpenShift and Kubernetes
 
 ## Overview
 
-The Argo CD Operator manages the full lifecycle for [Argo CD](https://argoproj.github.io/argo-cd/) and its
+The GitOps Operator manages the full lifecycle for [Argo CD](https://argoproj.github.io/argo-cd/) and its
 components. The operator's goal is to automate the tasks required when operating an Argo CD cluster.
 
 Beyond installation, the operator helps to automate the process of upgrading, backing up and restoring as needed and
@@ -12,10 +12,16 @@ remove the human as much as possible. In addition, the operator aims to provide 
 environment by configuring Prometheus to aggregate, visualize and expose the metrics already exported by
 Argo CD.
 
-The operator aims to provide the following, and is a work in progress.
+## Features
 
-* Easy configuration and installation of the Argo CD components with sane defaults to get up and running quickly.
-* Provide seamless upgrades to the Argo CD components.
-* Ability to back up and restore an Argo CD cluster from a point in time or on a recurring schedule.
+The operator aims to provide the following:
+
+* Easy configuration and installation of the Git Ops components with sane defaults to get up and running quickly.
+    * The Argo CD itself
+    * [Argo CD Image Updater](https://argocd-image-updater.readthedocs.io/en/stable/)
+    * [Argo Rollouts](https://argoproj.github.io/rollouts/)
+    * [GitOps Promoter](https://gitops-promoter.readthedocs.io/en/latest/)
+* Provide seamless upgrades to the operated components.
 * Aggregate and expose the metrics for Argo CD and the operator itself using Prometheus.
 * Autoscale the Argo CD components as necessary to handle variability in demand.
+

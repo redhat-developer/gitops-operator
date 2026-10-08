@@ -33,6 +33,7 @@ Name | Default | Description
 [**KustomizeBuildOptions**](#kustomize-build-options) | [Empty] | The build options/parameters to use with `kustomize build`.
 [**OIDCConfig**](#oidc-config) | [Empty] | The OIDC configuration as an alternative to Dex.
 [**NodePlacement**](#nodeplacement-option) | [Empty] | The NodePlacement configuration can be used to add nodeSelector and tolerations.
+[**PriorityClassName**](#priorityclassname-option) | [Empty] | The name of the PriorityClass to assign to all Argo CD component pods.
 [**Prometheus**](#prometheus-options) | [Object] | Prometheus configuration options.
 [**RBAC**](#rbac-options) | [Object] | RBAC configuration options.
 [**Redis**](#redis-options) | [Object] | Redis configuration options.
@@ -542,11 +543,12 @@ spec:
 
 The following properties are available for configuring the Image Updater controller component.
 
-Name | Default | Description
---- | --- | ---
-Enabled | `false` | The toggle that determines whether image updater controller should be started or not.
-Env | [Empty] | Environment to set for the image updater workloads.
-Resources | [Empty] | The container compute resources.
+| Name      | Default | Description                                                                                                                                                                                                                          |
+|-----------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Enabled   | `false` | The toggle that determines whether image updater controller should be started or not.                                                                                                                                                |
+| Image     | [Empty] | The container image for Image Updater. Takes precedence over the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable; when both are unset, defaults to the stable Image Updater image at quay.io for this version of OpenShift GitOps. |
+| Env       | [Empty] | Environment to set for the image updater workloads.                                                                                                                                                                                  |
+| Resources | [Empty] | The container compute resources.                                                                                                                                                                                                     |
 
 ### Image Updater Controller Example
 
@@ -822,6 +824,21 @@ spec:
       operator: Equal
       value: value1
       effect: NoExecute
+```
+
+## PriorityClassName Option
+
+`PriorityClassName` is the name of an existing Kubernetes [PriorityClass](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/). The operator assigns that class to all Argo CD component pods for the instance. If omitted, pods use the cluster default priority. The PriorityClass must already exist; it is cluster-scoped and is not created by the operator.
+
+### PriorityClassName Example
+
+``` yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+spec:
+  priorityClassName: gitops-high-priority
 ```
 
 ## Prometheus Options
@@ -1483,9 +1500,16 @@ Valid values are:
 * `annotation` - Track resources using an annotation
 * `annotation+label` - Track resources using both, an annotation and a label
 
-The default is to use `annotation` as tracking method.
+The default is to use `annotation` as tracking method. This changed in OpenShift GitOps v1.19,
+which previously defaulted to `label`; instances that set the value neither through this field nor
+through an `application.resourceTrackingMethod` entry under `.spec.extraConfig` adopt the new
+default when the operator is upgraded. See
+[Upgrading](../upgrading.md#upgrading-from-openshift-gitops-v118-to-openshift-gitops-v119)
+for what to expect and how to pin the previous behaviour.
 
-When this value is changed, existing managed resources will re-sync to apply the new tracking method.
+When this value is changed, existing managed resources will re-sync to apply the new tracking
+method. Review the diff before syncing: for Secrets in particular, a sync can remove labels added
+by other controllers, and `ignoreDifferences` hides the diff without preventing the removal.
 
 ### Resource Tracking Method
 

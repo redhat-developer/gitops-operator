@@ -1,7 +1,7 @@
 # GitOps Promoter
 
 The [GitOps Promoter](https://gitops-promoter.readthedocs.io/) can be deployed as an optional workload through cluster-scoped instances reconciled by the Argo CD operator.
-This allows for environment promotion for GitOps via the rendered manifests pattern. This pattern can be accomplished by using Argo CD's [Source Hydrator](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#source-hydrator-options).
+This allows for environment promotion for GitOps via the rendered manifests pattern. This pattern can be accomplished by using Argo CD's [Source Hydrator](https://gitops-operator.readthedocs.io/en/latest/reference/argocd/#source-hydrator-options).
 
 ## Installation
 

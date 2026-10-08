@@ -8,8 +8,6 @@ Argo CD exports many metrics that can be used to monitor and provide insights in
 
 ## Cluster
 
-This section builds on the example minishift cluster from the [OLM Install Guide][olm_guide].
-
 ## Prometheus
 
 The Prometheus Operator is available through [operatorhub.io](https://operatorhub.io/operator/prometheus) and is also present in the embedded OpenShift Operator Hub.
@@ -33,8 +31,6 @@ Verify that an OperatorGroup is present in the namespace before creating the Sub
 ``` bash
 kubectl get operatorgroups -n argocd
 ```
-
-The OperatorGroup created as part of the [OLM Istall Guide][olm_guide] will work.
 
 ``` bash
 NAME              AGE
@@ -150,5 +146,4 @@ oc -n argocd extract secret/example-argocd-cluster --to=-
 
 Refer to the [Ingress Guide][ingress_guide] for further steps on accessing these resources.
 
-[olm_guide]:../install/olm.md
 [ingress_guide]:./ingress.md#access

@@ -33,15 +33,15 @@ export IMAGE_PULL_POLICY=IfNotPresent
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: argocd-operator
+  name: gitops-operator
 spec:
   config:
    env: 
     - name: IMAGE_PULL_POLICY
       value: "IfNotPresent"
   channel: alpha
-  name: argocd-operator
-  source: argocd-catalog
+  name: gitops-operator
+  source: gitops-catalog
   sourceNamespace: olm
 ```
 
@@ -51,8 +51,8 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: argocd-operator-controller-manager
-  namespace: argocd-operator-system
+  name: gitops-operator-controller-manager
+  namespace: openshift-gitops-operator
 spec:
   template:
     spec:

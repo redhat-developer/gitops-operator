@@ -4,8 +4,6 @@ The Argo CD Operator offers support for managing Ingress resources to access the
 
 ## Cluster
 
-This guide builds on the [OLM Install Guide][install_olm] and assumes a Kubernetes cluster based on [minikube](https://minikube.sigs.k8s.io/).
-
 ### Ingress Controller
 
 Ensure that the `ingress` addon is enabled for the minikube cluster.
@@ -191,7 +189,6 @@ kubectl get secret example-argocd-cluster -n argocd -ojsonpath='{.data.admin\.pa
 kubectl delete -n argocd -f examples/argocd-ingress.yaml
 ```
 
-[install_olm]:../install/olm.md
 [docs_argo]:https://argoproj.github.io/argo-cd/getting_started/#creating-apps-via-cli
 
 ### Host for Ingress in Argo CD Status

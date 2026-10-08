@@ -1,7 +1,8 @@
 # Upgrading
 
 This page contains upgrade instructions and migration guides for the Argo CD Operator.
-## Upgrading from Operator ≤0.18 to Operator 0.19+
+
+## Upgrading from OpenShift GitOps ≤v1.20 to OpenShift GitOps v1.21+
 
 ### ApplicationSet tokenRef strict mode
 If you're upgrading to an operator version that defaults ApplicationSet tokenRef strict mode when ApplicationSets in any namespace are configured, note the following changes:
@@ -77,7 +78,104 @@ spec:
 
 This removes the `scm-creds` label requirement and is **not recommended** for production. Prefer labeling Secrets and keeping strict mode enabled. See [ApplicationSets in Any Namespace](./usage/appsets-in-any-namespace.md#tokenref-strict-mode) for details.
 
-## Upgrading from Operator ≤0.14 (Argo CD ≤2.14) to Operator 0.15+ (Argo CD 3.0+)
+## Upgrading from OpenShift GitOps ≤v1.18 to OpenShift GitOps v1.19+
+
+### Resource tracking method default changed from `label` to `annotation`
+
+Starting with OpenShift GitOps **v1.19**, the default resource tracking method changed from `label` to
+`annotation`. This is the `application.resourceTrackingMethod` key in `argocd-cm`, and it applies
+to every ArgoCD instance whose CR sets the value in neither of the two places that can supply it:
+`.spec.resourceTrackingMethod`, or an `application.resourceTrackingMethod` entry under
+`.spec.extraConfig`. `.spec.extraConfig` is merged over the rest of the CR and therefore wins, so
+an entry there pins the value just as effectively as the dedicated field.
+
+The operator reconciles this key declaratively from the ArgoCD CR, as it does every other key in
+`argocd-cm`. It does not preserve whatever value is already there, so on the first reconcile after
+the upgrade the value changes from `label` to `annotation` and Argo CD begins migrating its
+tracking data on managed resources.
+
+Two consequences follow, and both are expected rather than a malfunction:
+
+1. **Applications report `OutOfSync`.** Argo CD wants to remove the `app.kubernetes.io/instance`
+   label and add the `argocd.argoproj.io/tracking-id` annotation on every managed resource. This
+   affects resources of any kind — Namespaces, Subscriptions, Secrets, MachineConfigPools and so on.
+2. **A sync can remove labels that other controllers added to Secrets.** Argo CD applies Secrets
+   without the `kubectl.kubernetes.io/last-applied-configuration` annotation, so the three-way
+   merge that normally protects fields absent from Git does not fully apply to them. Labels written
+   by OLM, the cluster monitoring operator and similar controllers — for example on the
+   `alertmanager-main` Secret — can be deleted by the sync and then re-added by their owning
+   controller. Note that `ignoreDifferences` suppresses the reported diff but does **not** prevent
+   the removal, so it is not a sufficient safeguard on its own.
+
+### Detection
+
+**Before upgrading**, start by listing the instances whose `argocd-cm` still says `label`:
+
+```bash
+kubectl get cm -A -l app.kubernetes.io/part-of=argocd --field-selector metadata.name=argocd-cm \
+  -o jsonpath='{range .items[*]}{.metadata.namespace}{"\t"}{.data.application\.resourceTrackingMethod}{"\n"}{end}'
+```
+
+A namespace reporting `label` is only a candidate, not a confirmation: `argocd-cm` already reflects
+any `.spec.extraConfig` override, so the ConfigMap alone cannot tell you where the value came from.
+For each namespace the command reports, check the CR before concluding it will change:
+
+```bash
+kubectl get argocd -n <argocd-namespace> <name> \
+  -o jsonpath='{.spec.resourceTrackingMethod}{"\t"}{.spec.extraConfig.application\.resourceTrackingMethod}{"\n"}'
+```
+
+The instance changes on upgrade only if both values are empty.
+
+**After upgrading**, the operator logs a warning on the reconcile that performs the change. It is
+logged once per instance, at the moment of the change:
+
+```
+WARNING: resource tracking method in argocd-cm is changing from 'label' to the default
+'annotation' because .spec.resourceTrackingMethod is not set. ...
+```
+
+You are **not** affected if any of the following is true:
+
+- `.spec.resourceTrackingMethod` is set explicitly on the ArgoCD CR — your value is honored, and no
+  change occurs
+- `.spec.extraConfig` carries an `application.resourceTrackingMethod` entry — it is merged last and
+  overrides the default, so your value is honored and no change occurs
+- The instance already runs on OpenShift GitOps v1.19 or later — the change happened at that
+  upgrade, and `argocd-cm` already reads `annotation`
+- The installation is new on OpenShift GitOps v1.19+ — it starts on `annotation` with nothing to
+  migrate
+
+### Remediation Steps
+
+1. **To keep label-based tracking, set it explicitly — ideally before upgrading:**
+
+   ```yaml
+   apiVersion: argoproj.io/v1beta1
+   kind: ArgoCD
+   metadata:
+     name: example-argocd
+   spec:
+     resourceTrackingMethod: label
+   ```
+
+   Pinning the value also insulates the instance from any future change of the default. This is the
+   recommended action if you have already upgraded and want to return to the previous behaviour:
+   applying it restores `label` and the `OutOfSync` reports clear.
+
+2. **To adopt annotation-based tracking deliberately**, set `.spec.resourceTrackingMethod: annotation`
+   and **review the diff of each affected Application before syncing**. Do not bulk-sync to clear
+   the drift. For Secrets managed by other controllers, either bring the controller-managed labels
+   into Git or confirm that the owning controller will re-add them, and be aware that
+   `ignoreDifferences` alone does not stop a sync from removing them.
+
+3. **Verify the effective value at any time:**
+
+   ```bash
+   kubectl get cm -n <argocd-namespace> argocd-cm -o jsonpath='{.data.application\.resourceTrackingMethod}'
+   ```
+
+## Upgrading from OpenShift GitOps ≤v1.16 (Argo CD ≤2.14) to OpenShift GitOps v1.17+ (Argo CD 3.0+)
 
 ### Logs RBAC Enforcement
 
@@ -194,4 +292,4 @@ references declared on **`spec.webhookSecrets`** in the **ArgoCD** CR (`v1beta1`
 - **If you do not set** `spec.webhookSecrets`, the operator continues to omit declarative webhook management; **`webhook.*` keys already present in `argocd-secret` are left as-is**, including values you patched in manually before this feature existed.
 - **If you set** `spec.webhookSecrets`, the operator syncs the providers you declare into `argocd-secret`. Providers not listed while management is enabled can have their **`webhook.*` keys cleared** on reconcile—see [Configuring webhook secrets](./usage/webhook-secrets.md) for exact semantics.
 
-For migration from manual edits, verification, integrations (External Secrets, Sealed Secrets), and troubleshooting, use the **[Configuring webhook secrets](./usage/webhook-secrets.md)** guide. A runnable example can be found at <https://github.com/argoproj-labs/argocd-operator/blob/master/examples/argocd-webhook-secrets.yaml>.
+For migration from manual edits, verification, integrations (External Secrets, Sealed Secrets), and troubleshooting, use the **[Configuring webhook secrets](./usage/webhook-secrets.md)** guide. A runnable example can be found at <https://github.com/redhat-developer/gitops-operator/blob/master/examples/argocd-webhook-secrets.yaml>.

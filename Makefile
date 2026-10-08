@@ -68,6 +68,9 @@ OPERATOR_SDK_VERSION ?= v1.35.0
 # Set the path to Operator SDK - OPERATOR_SDK_VERSION will be ignored.
 OPERATOR_SDK ?= bin/operator-sdk
 
+# K8s version to use for reference documentation.
+KUBERNETES_API_VERSION ?= 1.35
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -171,7 +174,7 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 260m -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
@@ -381,3 +384,22 @@ GOFLAGS="" GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
+
+.PHONY: apidocs-gen
+apidocs-gen: ## Generate API documentation.
+	$(call crd-ref-docs,./api/v1alpha1/,./docs/reference/api-v1alpha1.md)
+	$(call crd-ref-docs,./api/v1beta1/,./docs/reference/api-v1beta1.md)
+
+define crd-ref-docs
+# The config have the k8s version injected so it does not have to be updated there
+cd argocd-operator && go run github.com/elastic/crd-ref-docs@v0.3.0 \
+	--config=<(sed 's/__KUBERNETES_API_VERSION__/$(KUBERNETES_API_VERSION)/' ./docs/crd-ref-docs.config.yaml) \
+	--source-path=$(1) \
+	--log-level=info \
+	--renderer=markdown \
+	--output-path=$(2)
+endef
+
+.PHONY: serve-docs
+serve-docs: apidocs-gen ## Serve documentation locally using mkdocs in a container
+	$(CONTAINER_RUNTIME) run --rm -it -p 8000:8000 -v $(PWD)/argocd-operator:/argocd-operator:Z -w /argocd-operator --name argocd-operator-mkdocs registry.access.redhat.com/ubi9/python-311:latest /bin/bash -c "pip install -r docs/requirements.txt && mkdocs serve -a 0.0.0.0:8000"
