@@ -19,6 +19,7 @@ package util
 import (
 	"testing"
 
+	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,7 +61,7 @@ func TestInspectCluster_RouteDetectedWithoutConfigAPI(t *testing.T) {
 		configAPIFound = origConfig
 		olmAPIFound = origOLM
 		monitoringAPIFound = origMonitoring
-		SetVerifyAPI(nil) // restore default
+		verifyAPI = argoutil.VerifyAPI // restore default
 	})
 
 	// Reset all flags before the test.
@@ -70,7 +71,7 @@ func TestInspectCluster_RouteDetectedWithoutConfigAPI(t *testing.T) {
 	monitoringAPIFound = false
 
 	// Mock API verification: route.openshift.io is present, config.openshift.io is not.
-	SetVerifyAPI(func(group, version string) (bool, error) {
+	verifyAPI = func(group, version string) (bool, error) {
 		if group == routev1.GroupName {
 			return true, nil
 		}
@@ -79,7 +80,7 @@ func TestInspectCluster_RouteDetectedWithoutConfigAPI(t *testing.T) {
 		}
 		// All other API groups are absent.
 		return false, nil
-	})
+	}
 
 	err := InspectCluster()
 	assertNoError(t, err)
