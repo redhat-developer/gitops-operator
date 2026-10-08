@@ -67,7 +67,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that argocd cli app manifests command will successfully retrieve app manifests, and tcp reset error will not occur", func() {
+		It("verifies that argocd cli app manifests command will successfully retrieve app manifests, and tcp reset error will not occur", Label("openshift"), func() {
 
 			// This test is VERY similar to 1-027.
 
