@@ -1,4 +1,4 @@
-module github.com/argoproj-labs/gitops-operator/argocd-operator
+module github.com/redhat-developer/gitops-operator/argocd-operator
 
 go 1.26.5
 
