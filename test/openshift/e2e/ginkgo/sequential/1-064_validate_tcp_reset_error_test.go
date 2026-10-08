@@ -67,19 +67,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that argocd cli app manifests command will successfully retrieve app manifests, and tcp reset error will not occur", Label("openshift"), func() {
+		It("verifies that argocd cli app manifests command will successfully retrieve app manifests, and tcp reset error will not occur", func() {
 
 			// This test is VERY similar to 1-027.
 
-			openshiftgitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
-			Expect(err).ToNot(HaveOccurred())
+			By("getting creating Argo CD instance in new namespace")
+			_, cleanup := fixture.CreateNamespaceWithCleanupFunc("argocd-027")
+			defer cleanup()
+			ArgoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: "argocd-027"},
+			}
+			Expect(k8sClient.Create(ctx, ArgoCD)).To(Succeed())
 
-			By("verifying openshift-gitops Argo CD instance is available")
-			Eventually(openshiftgitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "argocd-027")
+
+			By("verifying argocd-027 Argo CD instance is available")
+			Eventually(ArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("creating Argo CD Application in openshift-gitops namespace")
 			app = &argocdv1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: openshiftgitopsArgoCD.Namespace},
+				ObjectMeta: metav1.ObjectMeta{Name: "1-27-argocd", Namespace: ArgoCD.Namespace},
 				Spec: argocdv1alpha1.ApplicationSpec{
 					Source: &argocdv1alpha1.ApplicationSource{
 						Path:           "./test/examples/1-027_operand-from-git",
@@ -87,7 +94,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						TargetRevision: "HEAD",
 					},
 					Destination: argocdv1alpha1.ApplicationDestination{
-						Namespace: openshiftgitopsArgoCD.Namespace,
+						Namespace: ArgoCD.Namespace,
 						Server:    "https://kubernetes.default.svc",
 					},
 					Project: "default",
