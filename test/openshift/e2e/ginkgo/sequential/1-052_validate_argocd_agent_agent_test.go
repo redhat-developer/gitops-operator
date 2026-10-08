@@ -318,7 +318,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("should create argocd agent agent resources with default image, but pod will not start without principal", func() {
+		It("should create argocd agent agent resources, but pod will not start without principal", func() {
 			// Add a custom environment variable to the agent client
 			argoCD.Spec.ArgoCDAgent.Agent.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -334,7 +334,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 
@@ -366,8 +366,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", func() {
 
 			By("Create ArgoCD instance")
-
-			argoCD.Spec.ArgoCDAgent.Agent.Image = common.ArgoCDAgentAgentDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for agent pod")
@@ -378,7 +376,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 

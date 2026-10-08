@@ -20,7 +20,6 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-100_validate_rollouts_resources_creation", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -34,38 +33,41 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", Label("openshift"), func() {
+		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", func() {
 
-			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
+			namespace, cleanupNamespace := fixture.CreateNamespaceWithCleanupFunc("xks")
+			defer cleanupNamespace()
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
+			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in xks namespace")
 
 			rm := &rolloutmanagerv1alpha1.RolloutManager{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "example-rollout-manager",
-					Namespace: "openshift-gitops",
+					Namespace: namespace.Name,
 				},
 			}
 			Expect(k8sClient.Create(ctx, rm)).To(Succeed())
 
 			By("verifying all the expected K8s resources exist")
-			Eventually(&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "openshift-gitops"}}, "120s", "1s").Should(k8sFixture.ExistByName())
+			Eventually(&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "xks"}}, "120s", "1s").Should(k8sFixture.ExistByName())
 
-			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-admin", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-admin", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-edit", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-edit", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-view", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-aggregate-to-view", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			Eventually(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-notification-secret", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts", Namespace: "xks"}}
 			Eventually(depl).Should(k8sFixture.ExistByName())
 			Eventually(depl, "4m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
-			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-metrics", Namespace: "openshift-gitops"}}).Should(k8sFixture.ExistByName())
+			Eventually(&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "argo-rollouts-metrics", Namespace: "xks"}}).Should(k8sFixture.ExistByName())
 		})
 
 	})
