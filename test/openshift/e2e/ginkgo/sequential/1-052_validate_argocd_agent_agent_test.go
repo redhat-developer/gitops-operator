@@ -334,7 +334,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+
+			if fixture.EnvCI() || fixture.EnvLocalRun() || fixture.EnvNonOLM() {
+				Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			} else {
+				Expect(container.Image).To(HavePrefix("registry.redhat.io/openshift-gitops-1/argocd-agent-rhel9"))
+			}
 
 			By("Verify environment variables are set correctly")
 
@@ -394,7 +399,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 				ac.Spec.ArgoCDAgent.Agent.LogFormat = "json"
-				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.10.0"
 
 				ac.Spec.ArgoCDAgent.Agent.Client.KeepAliveInterval = "60s"
 				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = new(true)
@@ -423,7 +428,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.10.0"
 				}, "120s", "5s").Should(BeTrue(), "Agent deployment should have the updated image")
 
 			By("Verify environment variables are updated correctly")
