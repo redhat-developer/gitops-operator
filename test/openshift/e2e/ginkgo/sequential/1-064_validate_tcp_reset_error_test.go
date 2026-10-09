@@ -71,8 +71,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("getting creating Argo CD instance in new namespace")
 			_, cleanup := fixture.CreateNamespaceWithCleanupFunc("argocd-027")
 			defer cleanup()
+
 			ArgoCD := &v1beta1.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-027", Namespace: "argocd-027"},
+				Spec: v1beta1.ArgoCDSpec{
+					Server: v1beta1.ArgoCDServerSpec{
+						Route: v1beta1.ArgoCDRouteSpec{
+							Enabled: true,
+						},
+					},
+				},
 			}
 			Expect(k8sClient.Create(ctx, ArgoCD)).To(Succeed())
 
@@ -153,7 +161,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(guestbookApp, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("verifying we can log in to Argo CD via CLI, via the Route (this test specifically validates behavior of Argo CD CLI when going through the OpenShift Router)")
-			Expect(argocdFixture.LogInToDefaultArgoCDInstanceViaRoute()).To(Succeed())
+			Expect(argocdFixture.LogInToArgoCDInstanceViaRoute(ArgoCD)).To(Succeed())
 
 			By("retrieving the Argo CD app manifests via CLI, and verifying the command succeeds and that there is no 'TCP reset error' error")
 
