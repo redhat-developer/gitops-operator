@@ -51,7 +51,6 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -372,6 +371,11 @@ func main() {
 
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
+	curvePreferences := make([]string, len(profile.Groups))
+	for i, group := range profile.Groups {
+		curvePreferences[i] = string(group)
+	}
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:            client,
 		Scheme:            mgr.GetScheme(),
@@ -383,9 +387,7 @@ func main() {
 			DisableClusterTLSProfile: disableClusterTLSProfile,
 			MinVersion:               profile.MinTLSVersion,
 			Ciphers:                  profile.Ciphers,
-			CurvePreferences: lo.Map(profile.Groups, func(group configv1.TLSGroup, _ int) string {
-				return string(group)
-			}),
+			CurvePreferences:         curvePreferences,
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
