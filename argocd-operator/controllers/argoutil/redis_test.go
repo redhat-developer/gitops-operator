@@ -18,8 +18,8 @@ import (
 	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
-// TestGetRedisHAProxyConfigRenderedTLSValues verifies that TLS minVersion and ciphers
-// are correctly rendered in the final HAProxy configuration template output.
+// TestGetRedisHAProxyConfigRenderedTLSValues verifies that TLS minVersion, ciphers,
+// and curve preferences are correctly rendered in the final HAProxy configuration.
 func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
@@ -49,6 +49,10 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				"ssl-default-server-ciphers ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 				"ssl-default-bind-ciphersuites ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 				"ssl-default-server-ciphersuites ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
+			},
+			notExpectedInOutput: []string{
+				"ssl-default-bind-curves",
+				"ssl-default-server-curves",
 			},
 			validatePattern: regexp.MustCompile(`ssl-min-ver\s+TLSv1\.2`),
 		},
@@ -90,6 +94,62 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				"ssl-default-server-ciphers ",
 				"ssl-default-bind-ciphersuites",
 				"ssl-default-server-ciphersuites",
+				"ssl-default-bind-curves",
+				"ssl-default-server-curves",
+			},
+		},
+		{
+			name:   "TLS with curve preferences maps OpenShift groups to HAProxy names",
+			useTLS: true,
+			centralTLSConfigProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []string{
+					"X25519MLKEM768",
+					"X25519",
+					"secp256r1",
+					"secp384r1",
+				},
+			},
+			expectedInOutput: []string{
+				"ssl-default-bind-options ssl-min-ver TLSv1.2",
+				"ssl-default-server-options ssl-min-ver TLSv1.2",
+				"ssl-default-bind-curves X25519MLKEM768:X25519:P-256:P-384",
+				"ssl-default-server-curves X25519MLKEM768:X25519:P-256:P-384",
+			},
+			notExpectedInOutput: []string{
+				"ssl-default-bind-ciphers ",
+				"ssl-default-server-ciphers ",
+				"ssl-default-bind-ciphersuites",
+				"ssl-default-server-ciphersuites",
+				"secp256r1",
+				"secp384r1",
+			},
+		},
+		{
+			name:   "TLS 1.3 with ciphers and curve preferences",
+			useTLS: true,
+			centralTLSConfigProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS13,
+				Ciphers: []string{
+					"TLS_AES_128_GCM_SHA256",
+					"TLS_AES_256_GCM_SHA384",
+				},
+				CurvePreferences: []string{
+					"X25519",
+					"secp256r1",
+				},
+			},
+			expectedInOutput: []string{
+				"ssl-default-bind-options ssl-min-ver TLSv1.3",
+				"ssl-default-server-options ssl-min-ver TLSv1.3",
+				"ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384",
+				"ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384",
+				"ssl-default-bind-curves X25519:P-256",
+				"ssl-default-server-curves X25519:P-256",
+			},
+			notExpectedInOutput: []string{
+				"ssl-default-bind-ciphers ",
+				"ssl-default-server-ciphers ",
 			},
 		},
 		{
@@ -104,6 +164,8 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				"ssl-default-server-ciphers",
 				"ssl-default-bind-ciphersuites",
 				"ssl-default-server-ciphersuites",
+				"ssl-default-bind-curves",
+				"ssl-default-server-curves",
 			},
 		},
 	}
@@ -151,7 +213,48 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				} else {
 					assert.Empty(t, capturedVars["TLSCiphers"])
 				}
+				expectedCurves := MapCurvePreferencesToHAProxyCurves(tt.centralTLSConfigProfile.CurvePreferences)
+				if expectedCurves != "" {
+					assert.Equal(t, expectedCurves, capturedVars["TLSCurves"])
+				} else {
+					assert.Empty(t, capturedVars["TLSCurves"])
+				}
 			}
+		})
+	}
+}
+
+func TestMapCurvePreferencesToHAProxyCurves(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []string
+		expected string
+	}{
+		{
+			name:     "empty",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name:     "classical OpenShift groups",
+			input:    []string{"X25519", "secp256r1", "secp384r1", "secp521r1"},
+			expected: "X25519:P-256:P-384:P-521",
+		},
+		{
+			name:     "maps OpenShift groups including PQC",
+			input:    []string{"X25519MLKEM768", "X25519", "SecP256r1MLKEM768", "secp256r1"},
+			expected: "X25519MLKEM768:X25519:SecP256r1MLKEM768:P-256",
+		},
+		{
+			name:     "skips unknown groups",
+			input:    []string{"UnknownGroup", "X25519"},
+			expected: "X25519",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, MapCurvePreferencesToHAProxyCurves(tt.input))
 		})
 	}
 }

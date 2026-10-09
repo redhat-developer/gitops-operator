@@ -197,10 +197,11 @@ const (
 	ArgoCDDefaultRedisHAReplicas = int32(3)
 
 	// ArgoCDDefaultRedisHAProxyImage is the default Redis HAProxy image to use when not specified.
-	ArgoCDDefaultRedisHAProxyImage = "public.ecr.aws/docker/library/haproxy"
+	// haproxytech builds use AWS-LC, which supports post-quantum TLS groups (e.g. X25519MLKEM768).
+	ArgoCDDefaultRedisHAProxyImage = "docker.io/haproxytech/haproxy-alpine"
 
 	// ArgoCDDefaultRedisHAProxyVersion is the default Redis HAProxy image tag to use when not specified.
-	ArgoCDDefaultRedisHAProxyVersion = "sha256:e11f034e651603f10a365e5ad5a0321825e18eded9620e40c4f4d6ae58419bfe" // 3.0.8-alpine
+	ArgoCDDefaultRedisHAProxyVersion = "sha256:4b2da4adb652487a1aa1bb7fdacf5df1088d2c7d21302fcce738812d0d2fc453" // 3.3.6
 
 	// ArgoCDDefaultRedisImage is the Redis container image to use when not specified.
 	ArgoCDDefaultRedisImage = "public.ecr.aws/docker/library/redis"
