@@ -59,9 +59,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			fixture.OutputDebugOnFail("openshift-gitops", "test-1-27-custom")
 
-			if app != nil {
-				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
-			}
 			if test_1_27_customNS != nil {
 				Expect(k8sClient.Delete(ctx, test_1_27_customNS)).To(Succeed())
 			}
