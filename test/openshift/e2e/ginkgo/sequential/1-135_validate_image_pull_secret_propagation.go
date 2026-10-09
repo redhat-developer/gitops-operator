@@ -39,7 +39,7 @@ import (
 // The in-namespace path is what is exercised here: a Secret labeled
 // propagate-image-pull-secret=true in the instance namespace is resolved by
 // getImagePullSecretRefs and set as imagePullSecrets on the component ServiceAccounts.
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-135_validate_image_pull_secret_propagation", Label("xks"), func() {
 
