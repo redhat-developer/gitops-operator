@@ -2172,8 +2172,10 @@ func (r *ReconcileArgoCD) reconcileDeploymentHelper(cr *argoproj.ArgoCD, desired
 func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 	log.Info("reconciling GitOps Promoter resources")
 
+	// Diagnostic only, not a guard: reconciliation proceeds regardless, since each
+	// cluster-scoped Promoter resource re-checks IsNamespaceClusterConfigNamespace itself.
 	if cr.Spec.Promoter.IsEnabled() && !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
-		log.Info("Warning: will not reconcile GitOps Promoter because namespace is not allowed to deploy cluster scoped ArgoCDs")
+		log.Info("namespace is not allowed to host cluster-scoped Argo CD resources; GitOps Promoter's cluster-scoped resources will not be created (existing ones owned by this instance will be removed)")
 	}
 
 	controllerCompName := string(argoproj.PromoterComponentTypeControllerManager)
