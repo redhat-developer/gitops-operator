@@ -28,6 +28,10 @@ kuttl-test.json
 *.swo
 *~
 
+# Generated file-based catalog artifacts
+catalog/
+catalog.Dockerfile
+
 # ignore vendor
 vendor/
 .vscode/
