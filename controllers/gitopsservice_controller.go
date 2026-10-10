@@ -696,7 +696,11 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
+		replicas := int32(1)
+		if instance.Spec.ConsolePlugin != nil && instance.Spec.ConsolePlugin.Backend != nil && instance.Spec.ConsolePlugin.Backend.Replicas != nil {
+			replicas = *instance.Spec.ConsolePlugin.Backend.Replicas
+		}
+		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile, replicas)
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -772,6 +776,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 				found.Spec.Template.Spec.SecurityContext = deploymentObj.Spec.Template.Spec.SecurityContext
 				changed = true
 			}
+			if !reflect.DeepEqual(found.Spec.Replicas, deploymentObj.Spec.Replicas) {
+				found.Spec.Replicas = deploymentObj.Spec.Replicas
+				changed = true
+			}
 
 			if changed {
 				reqLogger.Info("Reconciling existing backend Deployment", "Namespace", deploymentObj.Namespace, "Name", deploymentObj.Name)
@@ -834,7 +842,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec, replicas int32) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -917,7 +925,6 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 		Spec: podSpec,
 	}
 
-	var replicas int32 = 1
 	deploymentSpec := appsv1.DeploymentSpec{
 		Replicas: &replicas,
 		Selector: &metav1.LabelSelector{

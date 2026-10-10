@@ -62,7 +62,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{}, 1)
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -70,7 +70,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{}, 1)
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -79,7 +79,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13}, 1)
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -93,7 +93,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12}, 1)
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -107,7 +107,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}}, 1)
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
@@ -127,7 +127,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}}, 1)
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
@@ -507,6 +507,107 @@ func TestReconcile_BackendResourceLimits(t *testing.T) {
 	assert.Equal(t, resources.Requests[corev1.ResourceMemory], resourcev1.MustParse("128Mi"))
 	assert.Equal(t, resources.Limits[corev1.ResourceCPU], resourcev1.MustParse("500m"))
 	assert.Equal(t, resources.Limits[corev1.ResourceMemory], resourcev1.MustParse("256Mi"))
+}
+
+func TestReconcile_BackendReplicas(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	tests := []struct {
+		name     string
+		replicas int32
+		want     int32
+	}{
+		{
+			name:     "default replicas",
+			replicas: 1,
+			want:     1,
+		},
+		{
+			name:     "replicas set to 2",
+			replicas: 2,
+			want:     2,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			replicas := int32(test.replicas)
+			gitopsService := &pipelinesv1alpha1.GitopsService{
+				ObjectMeta: v1.ObjectMeta{
+					Name: serviceName,
+				},
+				Spec: pipelinesv1alpha1.GitopsServiceSpec{
+					ConsolePlugin: &pipelinesv1alpha1.ConsolePluginStruct{
+						Backend: &pipelinesv1alpha1.BackendStruct{
+							Replicas: &replicas,
+						},
+					},
+				},
+			}
+
+			fakeClient := fake.NewClientBuilder().WithScheme(s).WithObjects(util.NewClusterVersion("4.7.1"), gitopsService).Build()
+			reconciler := newReconcileGitOpsService(fakeClient, s)
+
+			_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+			assertNoError(t, err)
+
+			deployment := appsv1.Deployment{}
+			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, &deployment)
+			assertNoError(t, err)
+			assert.Equal(t, *deployment.Spec.Replicas, test.want)
+		})
+	}
+}
+
+func TestReconcile_BackendReplicas_update(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+	instance := &pipelinesv1alpha1.GitopsService{
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{},
+	}
+
+	var initialReplicas int32 = 1
+	var updatedReplicas int32 = 3
+
+	instance.Spec.ConsolePlugin = &pipelinesv1alpha1.ConsolePluginStruct{
+		Backend: &pipelinesv1alpha1.BackendStruct{
+			Replicas: &initialReplicas,
+		},
+	}
+
+	gitopsserviceNamespacedName := types.NamespacedName{
+		Name:      serviceName,
+		Namespace: serviceNamespace,
+	}
+	reqLogger := logs.WithValues("Request.Namespace", "test", "Request.Name", "test")
+
+	// First reconcile with initial replicas
+	_, err := reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	assertNoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, initialReplicas, *deployment.Spec.Replicas)
+
+	// Update replicas on the instance
+	updatedReplicasVal := int32(updatedReplicas)
+	instance.Spec.ConsolePlugin.Backend.Replicas = &updatedReplicasVal
+
+	// Reconcile again with updated replicas
+	_, err = reconciler.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger)
+	assertNoError(t, err)
+
+	// Verify deployment replicas were updated
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deployment)
+	assertNoError(t, err)
+	assert.Equal(t, updatedReplicas, *deployment.Spec.Replicas)
 }
 
 func TestReconcile_BackendSecurityContext(t *testing.T) {
