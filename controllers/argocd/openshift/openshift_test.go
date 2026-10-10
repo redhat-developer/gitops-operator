@@ -94,6 +94,54 @@ func TestReconcileArgoCD_notInClusterConfigNamespaces(t *testing.T) {
 	assert.Equal(t, want, testClusterRole.Rules)
 }
 
+// Test that nonResourceURLs are stripped from rules in namespaced roles
+func TestPolicyRulesForNamespacedRole(t *testing.T) {
+	resourceRule := rbacv1.PolicyRule{
+		APIGroups: []string{"apps"},
+		Resources: []string{"deployments"},
+		Verbs:     []string{"get", "list"},
+	}
+	nonResourceRule := rbacv1.PolicyRule{
+		NonResourceURLs: []string{"*"},
+		Verbs:           []string{"get"},
+	}
+	metricsNonResourceRule := rbacv1.PolicyRule{
+		NonResourceURLs: []string{"/metrics"},
+		Verbs:           []string{"get"},
+	}
+	mixedRule := rbacv1.PolicyRule{
+		APIGroups:       []string{"test.com"},
+		Resources:       []string{"tests"},
+		NonResourceURLs: []string{"/healthz"},
+		Verbs:           []string{"get"},
+	}
+
+	t.Run("drops rules that only grant nonResourceURLs", func(t *testing.T) {
+		got := policyRulesForNamespacedRole([]rbacv1.PolicyRule{resourceRule, nonResourceRule, metricsNonResourceRule})
+		assert.Equal(t, []rbacv1.PolicyRule{resourceRule}, got)
+	})
+
+	t.Run("strips nonResourceURLs from mixed rules and keeps resource fields", func(t *testing.T) {
+		got := policyRulesForNamespacedRole([]rbacv1.PolicyRule{mixedRule})
+		assert.Equal(t, []rbacv1.PolicyRule{{
+			APIGroups: []string{"test.com"},
+			Resources: []string{"tests"},
+			Verbs:     []string{"get"},
+		}}, got)
+	})
+
+	t.Run("returns empty slice when every rule is nonResourceURLs only", func(t *testing.T) {
+		got := policyRulesForNamespacedRole([]rbacv1.PolicyRule{nonResourceRule})
+		assert.Empty(t, got)
+		assert.NotNil(t, got)
+	})
+
+	t.Run("keeps resource rules unchanged", func(t *testing.T) {
+		got := policyRulesForNamespacedRole([]rbacv1.PolicyRule{resourceRule})
+		assert.Equal(t, []rbacv1.PolicyRule{resourceRule}, got)
+	})
+}
+
 func TestAllowedNamespaces(t *testing.T) {
 
 	argocdNamespace := testNamespace
