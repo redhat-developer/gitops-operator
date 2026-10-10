@@ -371,6 +371,11 @@ func main() {
 
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
+	curvePreferences := make([]string, len(profile.Groups))
+	for i, group := range profile.Groups {
+		curvePreferences[i] = string(group)
+	}
+
 	if err = (&argocdprovisioner.ReconcileArgoCD{
 		Client:            client,
 		Scheme:            mgr.GetScheme(),
@@ -382,6 +387,7 @@ func main() {
 			DisableClusterTLSProfile: disableClusterTLSProfile,
 			MinVersion:               profile.MinTLSVersion,
 			Ciphers:                  profile.Ciphers,
+			CurvePreferences:         curvePreferences,
 		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")

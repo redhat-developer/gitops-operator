@@ -1869,8 +1869,10 @@ func TestBuildHttpdConfig(t *testing.T) {
 		CentralTLSProfile configv1.TLSProfileSpec
 		wantProtocol      bool
 		wantCipherSuite   bool
+		wantGroups        bool
 		protocol          string
 		cipherSuite       string
+		groups            string
 	}{
 		{
 			name: "no TLS version no ciphers",
@@ -1880,6 +1882,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			},
 			wantProtocol:    false,
 			wantCipherSuite: false,
+			wantGroups:      false,
 		},
 		{
 			name: "TLS 1.2 with cipher suites",
@@ -1889,6 +1892,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			},
 			wantProtocol:    true,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 		},
@@ -1900,6 +1904,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.3",
 		},
 		{
@@ -1910,6 +1915,7 @@ func TestBuildHttpdConfig(t *testing.T) {
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 		{
@@ -1920,7 +1926,69 @@ func TestBuildHttpdConfig(t *testing.T) {
 			},
 			wantProtocol:    false,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384",
+		},
+		{
+			name: "TLS groups configure SSLOpenSSLConfCmd Groups",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS12",
+				Groups: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519MLKEM768:X25519:secp256r1:secp384r1",
+		},
+		{
+			name: "TLS 1.3 with groups",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS13",
+				Groups: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.3",
+			groups:          "X25519:secp256r1",
+		},
+		{
+			name: "unknown groups are filtered out",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS12",
+				Groups: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroup("UnknownGroup"),
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519:secp384r1",
+		},
+		{
+			name: "only unknown groups omits SSLOpenSSLConfCmd",
+			CentralTLSProfile: configv1.TLSProfileSpec{
+				MinTLSVersion: "VersionTLS12",
+				Groups: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      false,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 	}
 
@@ -1952,6 +2020,13 @@ func TestBuildHttpdConfig(t *testing.T) {
 				assert.Assert(t, cmp.Contains(cfg, "SSLCipherSuite "+tt.cipherSuite))
 			} else {
 				assert.Assert(t, !strings.Contains(cfg, "SSLCipherSuite"))
+			}
+
+			// SSLOpenSSLConfCmd Groups
+			if tt.wantGroups {
+				assert.Assert(t, cmp.Contains(cfg, "SSLOpenSSLConfCmd Groups "+tt.groups))
+			} else {
+				assert.Assert(t, !strings.Contains(cfg, "SSLOpenSSLConfCmd Groups"))
 			}
 		})
 	}
