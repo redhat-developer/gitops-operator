@@ -39,16 +39,19 @@ export CLUSTER_PASSWORD="<your_cluster_password>"
 export OC_API_URL="<your_cluster_server_url>"
 export IDP="kube:admin" # (Optional) Defaults to kube:admin
 
-# Optional — private-repo.spec.ts (credentials in Bitwarden)
+# Optional — private-repo.spec.ts (credentials in Bitwarden or cluster secret)
 export PRIVATE_REPO_URL="<private_git_https_url>"
-export PRIVATE_REPO_USERNAME="<username>"
-export PRIVATE_REPO_TOKEN="<token_or_password>"
+export PRIVATE_REPO_TOKEN="<access_token_or_pat>"
 EOF
 ```
 
 > **Security Warning:** The `.env` file is explicitly ignored by Git. Please don't commit credentials to the repository.
 
-The private repository test is **skipped** unless `PRIVATE_REPO_URL` and `PRIVATE_REPO_TOKEN` (or `PRIVATE_REPO_PASSWORD`) are set. Shared values are available from **Bitwarden**.
+**Private Repository Test:** The test is **skipped** unless both `PRIVATE_REPO_URL` and `PRIVATE_REPO_TOKEN` are set. Credentials are stored in:
+- **Bitwarden** (for local testing)
+- **Cluster Secret** `ui-e2e-private-repo` (for CI/pipeline execution)
+
+The username defaults to `x-access-token` for token-based authentication and does not need to be configured.
 
 ---
 

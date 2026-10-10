@@ -4,11 +4,11 @@ import { clusterCanResolveHostname, hostnameFromRepoUrl } from '../src/utils/clu
 
 test.describe('Private Git Repository Connection', () => {
   const repoUrl = process.env.PRIVATE_REPO_URL || '';
-  const username = process.env.PRIVATE_REPO_USERNAME || 'x-access-token';
-  const password = process.env.PRIVATE_REPO_PASSWORD || process.env.PRIVATE_REPO_TOKEN || '';
+  const username = 'x-access-token';
+  const token = process.env.PRIVATE_REPO_TOKEN || '';
 
   test.beforeEach(() => {
-    test.skip(!repoUrl || !password, 'requires PRIVATE_REPO_URL and PRIVATE_REPO_PASSWORD (or PRIVATE_REPO_TOKEN)');
+    test.skip(!repoUrl || !token, 'requires PRIVATE_REPO_URL and PRIVATE_REPO_TOKEN');
 
     const host = hostnameFromRepoUrl(repoUrl);
     if (!clusterCanResolveHostname(host)) {
@@ -21,7 +21,7 @@ test.describe('Private Git Repository Connection', () => {
   });
 
   test.afterEach(async ({ page }, testInfo) => {
-    if (!repoUrl || !password || testInfo.status === 'skipped') return;
+    if (!repoUrl || !token || testInfo.status === 'skipped') return;
     console.log('[teardown] removing configured private repository');
     const reposPage = new SettingsRepositoriesPage(page);
     await reposPage.ensureRepoRemoved(repoUrl);
@@ -32,7 +32,7 @@ test.describe('Private Git Repository Connection', () => {
 
     const reposPage = new SettingsRepositoriesPage(page);
     await reposPage.navigate();
-    await reposPage.connectHttpsRepo(repoUrl, username, password);
+    await reposPage.connectHttpsRepo(repoUrl, username, token);
     await reposPage.assertConnectionSuccessful(repoUrl);
   });
 });
