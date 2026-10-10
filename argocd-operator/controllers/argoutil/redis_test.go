@@ -2,8 +2,6 @@ package argoutil
 
 import (
 	"maps"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -12,7 +10,6 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
@@ -21,9 +18,6 @@ import (
 // TestGetRedisHAProxyConfigRenderedTLSValues verifies that TLS minVersion and ciphers
 // are correctly rendered in the final HAProxy configuration template output.
 func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-	t.Setenv("REDIS_CONFIG_PATH", filepath.Join(wd, "../../build", "redis"))
 	tests := []struct {
 		name                    string
 		useTLS                  bool
