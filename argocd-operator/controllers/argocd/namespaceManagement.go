@@ -32,13 +32,15 @@ func (r *ReconcileArgoCD) reconcileNamespaceManagement(argocd *argoproj.ArgoCD) 
 		return fmt.Errorf("failed to list NamespaceManagement resources: %w", err)
 	}
 
-	// Extract allowed patterns from ArgoCD spec (only those allowed to be managed)
-	var allowedNsPatterns []string
-	if argocd.Spec.NamespaceManagement != nil {
-		for _, nm := range argocd.Spec.NamespaceManagement {
-			if nm.AllowManagedBy {
-				allowedNsPatterns = append(allowedNsPatterns, nm.Name)
-			}
+	// Split the patterns in the ArgoCD spec into those allowed to be managed and those
+	// explicitly denied. The denied ones are not used for matching, only to explain to the
+	// user why a namespace was rejected.
+	var allowedNsPatterns, deniedNsPatterns []string
+	for _, nm := range argocd.Spec.NamespaceManagement {
+		if nm.AllowManagedBy {
+			allowedNsPatterns = append(allowedNsPatterns, nm.Name)
+		} else {
+			deniedNsPatterns = append(deniedNsPatterns, nm.Name)
 		}
 	}
 
@@ -64,7 +66,7 @@ func (r *ReconcileArgoCD) reconcileNamespaceManagement(argocd *argoproj.ArgoCD) 
 				ObjectMeta: metav1.ObjectMeta{Name: namespace},
 			})
 		} else {
-			message = fmt.Sprintf("Namespace %s is not permitted for management by ArgoCD instance %s based on NamespaceManagement rules", namespace, argocd.Namespace)
+			message = namespaceNotPermittedMessage(namespace, argocd, deniedNsPatterns)
 			log.Info(message)
 		}
 
@@ -115,9 +117,52 @@ func matchesNamespaceManagementRules(allowedPatterns []string, namespace string)
 	return glob.MatchStringInList(allowedPatterns, namespace, glob.GLOB)
 }
 
+// namespaceNotPermittedMessage explains why a namespace may not be managed by this Argo CD
+// instance, and what to change to permit it. The two cases need different fixes, so they get
+// different messages: either .spec.namespaceManagement has no entry matching the namespace at
+// all, or it has one that explicitly sets allowManagedBy to false.
+func namespaceNotPermittedMessage(namespace string, argocd *argoproj.ArgoCD, deniedPatterns []string) string {
+	reason := fmt.Sprintf(".spec.namespaceManagement of that ArgoCD resource has no entry matching this namespace. "+
+		"To permit it, add an entry with name %q (glob patterns are supported) and allowManagedBy: true.", namespace)
+
+	for _, pattern := range deniedPatterns {
+		if glob.MatchStringInList([]string{pattern}, namespace, glob.GLOB) {
+			reason = fmt.Sprintf("its matching .spec.namespaceManagement entry %q has allowManagedBy: false. "+
+				"To permit it, set allowManagedBy: true on that entry.", pattern)
+			break
+		}
+	}
+
+	return fmt.Sprintf("Namespace %s is not permitted for management by the Argo CD instance %s in namespace %s: %s",
+		namespace, argocd.Name, argocd.Namespace, reason)
+}
+
 // Check if namespace management is explicitly enabled via Subscription
 func isNamespaceManagementEnabled() bool {
 	return os.Getenv(common.EnableManagedNamespace) == "true"
+}
+
+// namespaceManagementDisabledMessage is reported on NamespaceManagement CRs when the
+// NamespaceManagement feature is disabled, so that users can tell why their CR has no effect.
+const namespaceManagementDisabledMessage = "NamespaceManagement is disabled; this CR has no effect. Set " +
+	common.EnableManagedNamespace + "=true on the operator Subscription to enable it."
+
+// reportNamespaceManagementDisabled sets a status condition on every NamespaceManagement CR
+// targeting this Argo CD instance, indicating that NamespaceManagement is disabled. The condition
+// is only written when it actually changes, so this is safe to call on every reconciliation.
+//
+// This is purely diagnostic: a failure to record it is logged but never propagated, so it
+// cannot block the cleanup that follows.
+func (r *ReconcileArgoCD) reportNamespaceManagementDisabled(ctx context.Context, argocd *argoproj.ArgoCD, nsMgmtList *argoproj.NamespaceManagementList) {
+	for i := range nsMgmtList.Items {
+		nsMgmt := nsMgmtList.Items[i]
+		if nsMgmt.Spec.ManagedBy != argocd.Namespace {
+			continue
+		}
+		if err := updateStatusConditionOfNamespaceManagement(ctx, createCondition(namespaceManagementDisabledMessage), &nsMgmt, r.Client, log); err != nil {
+			log.Error(err, "Failed to update status of NamespaceManagement CR", "namespace", nsMgmt.Namespace)
+		}
+	}
 }
 
 // If the EnableManagedNamespace feature is disabled, clean up the RBACs associated with the managed namespaces
@@ -130,6 +175,9 @@ func (r *ReconcileArgoCD) disableNamespaceManagement(argocd *argoproj.ArgoCD, k8
 	if err := r.List(ctx, nsMgmtList); err != nil {
 		return err
 	}
+
+	// Surface on each NamespaceManagement CR that NamespaceManagement is disabled
+	r.reportNamespaceManagementDisabled(ctx, argocd, nsMgmtList)
 
 	// Build a list of namespaces managed by this ArgoCD instance
 	var managedNamespaces []string
@@ -165,8 +213,10 @@ func (r *ReconcileArgoCD) disableNamespaceManagement(argocd *argoproj.ArgoCD, k8
 				return err
 			}
 
-			// Skip RBAC deletion if the namespace has the "managed-by" label
-			if namespace.Labels[common.ArgoCDManagedByLabel] == nsName {
+			// Skip RBAC deletion if the namespace is still labelled as managed by this Argo CD
+			// instance. The RBACs are required by the label-based management, so deleting them
+			// here would only have them recreated by reconcileResources on the next pass.
+			if labelVal, labelExists := namespace.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == argocd.Namespace {
 				log.Info(fmt.Sprintf("Skipping RBAC deletion for namespace %s due to managed-by label", nsName))
 				continue
 			}
