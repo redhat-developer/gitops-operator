@@ -8,7 +8,7 @@ require github.com/argoproj-labs/gitops-operator/argocd-operator v0.20.0-rc1
 replace github.com/argoproj-labs/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20260826124203-67002e569d7f
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20261002124007-763d564a130c
 	github.com/argoproj-labs/argocd-image-updater v1.3.0
 	github.com/argoproj-labs/gitops-promoter v0.35.0
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
@@ -32,7 +32,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.36.4
-	k8s.io/apiextensions-apiserver v0.36.2
+	k8s.io/apiextensions-apiserver v0.36.4
 	k8s.io/apimachinery v0.36.4
 	k8s.io/client-go v0.36.4
 	k8s.io/kube-aggregator v0.36.1
