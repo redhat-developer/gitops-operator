@@ -186,6 +186,40 @@ func GetRedisInitScript(cr *argoproj.ArgoCD, useTLSForRedis bool) string {
 	return script
 }
 
+// haproxySupportedCurves maps OpenShift TLS group names to HAProxy/AWS-LC curve names.
+// Classical groups use NIST aliases (secp256r1 -> P-256). Post-quantum hybrid groups
+// are passed through for HAProxy 3.3+ with AWS-LC.
+var haproxySupportedCurves = map[string]string{
+	// Classical curves (OpenShift IANA name -> HAProxy NIST name)
+	"X25519":    "X25519",
+	"secp256r1": "P-256",
+	"secp384r1": "P-384",
+	"secp521r1": "P-521",
+	"P-256":     "P-256",
+	"P-384":     "P-384",
+	"P-521":     "P-521",
+	// Post-quantum hybrid groups (same name in OpenShift and HAProxy/AWS-LC)
+	"X25519MLKEM768":     "X25519MLKEM768",
+	"SecP256r1MLKEM768":  "SecP256r1MLKEM768",
+	"SecP384r1MLKEM1024": "SecP384r1MLKEM1024",
+}
+
+// MapCurvePreferencesToHAProxyCurves converts OpenShift TLS group names to a
+// colon-separated HAProxy curves list. Classical OpenShift names are converted
+// to NIST aliases (e.g. secp256r1 -> P-256). Unknown groups are skipped.
+func MapCurvePreferencesToHAProxyCurves(groups []string) string {
+	if len(groups) == 0 {
+		return ""
+	}
+	curves := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if curve, ok := haproxySupportedCurves[group]; ok {
+			curves = append(curves, curve)
+		}
+	}
+	return strings.Join(curves, ":")
+}
+
 // GetRedisHAProxyConfig will load the Redis HA Proxy configuration from a template on disk for the given ArgoCD.
 // If an error occurs, an empty string value will be returned.
 func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSConfigProfile tlsprofile.TLSConfigProfile) string {
@@ -201,6 +235,10 @@ func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSC
 
 	if len(centralTLSConfigProfile.Ciphers) > 0 {
 		vars["TLSCiphers"] = strings.Join(centralTLSConfigProfile.Ciphers, ":")
+	}
+
+	if curves := MapCurvePreferencesToHAProxyCurves(centralTLSConfigProfile.CurvePreferences); curves != "" {
+		vars["TLSCurves"] = curves
 	}
 
 	script, err := loadTemplateFile(path, vars)
