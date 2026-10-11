@@ -192,7 +192,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("verifying the legacy Secret stays deleted")
 			Consistently(legacySecretGone, "20s", "4s").Should(BeTrue(), "legacy kubernetes.io/service-account-token Secret must not reappear")
 
-
 			By("verifying the Argo CD instance stays healthy after legacy cleanup")
 			Eventually(argoCD, "2m", "5s").Should(argocdFixture.BeAvailable())
 		})

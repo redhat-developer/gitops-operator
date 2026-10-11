@@ -18,6 +18,7 @@ package parallel
 
 import (
 	"context"
+	"runtime"
 	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -83,6 +84,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that Image Updater will update Argo CD Application to the latest image", func() {
+			// TODO: Build multi-arch guestbook_go image. Upstream lacks s390x support.
+			// See fixture/gitserver/gitea.go for multi-arch build pattern from argo-rollouts-manager.
+			if runtime.GOARCH == "s390x" {
+				Skip("guestbook_go image lacks s390x support. See fixture/gitserver/gitea.go TODO for multi-arch build pattern.")
+			}
 
 			By("creating simple namespace-scoped Argo CD instance with image updater enabled")
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -201,7 +207,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, imageUpdater)).To(Succeed())
 
-			By("ensuring that the Application image has `29437546.0` version after update")
+			By("ensuring that the Application image has been updated to latest nginx version")
 			Eventually(func() string {
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)
 
@@ -216,7 +222,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					imageStr := string(app.Spec.Source.Kustomize.Images[0])
 					GinkgoWriter.Printf("Current Application image: %s\n", imageStr)
 					if imageStr == "quay.io/devtools_gitops/guestbook_go:29437546.0" {
-						GinkgoWriter.Printf("SUCCESS: Image updated to 29437546.0\n")
+						GinkgoWriter.Printf("SUCCESS: Image updated to guestbook_go 29437546.0\n")
 					}
 					return imageStr
 				}
