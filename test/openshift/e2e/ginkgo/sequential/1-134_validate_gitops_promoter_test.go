@@ -422,11 +422,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			initContainer := deploymentFixture.GetTemplateSpecInitContainerByName("promoter-extension", *argoCDServer)
 			Expect(initContainer).ToNot(BeNil())
 
-			Expect(initContainer.Image).To(Equal(common.ArgoCDExtensionInstallerImage))
+			// On OCP CI the operator subscription may override PROMOTER_EXTENSION_IMAGE with a registry.redhat.io image.
+			// When the image is overridden the operator does not set EXTENSION_URL, so we must handle both cases.
+			expectedImage := common.ArgoCDExtensionInstallerImage
+			if imageFromEnv, err := fixture.GetEnvInOperatorSubscriptionOrDeployment(common.ArgoCDPromoterExtensionImageEnvName); err == nil && imageFromEnv != nil {
+				expectedImage = *imageFromEnv
+			}
+			Expect(initContainer.Image).To(Equal(expectedImage))
 
-			Expect(initContainer.Env).To(Equal([]corev1.EnvVar{
-				{Name: "EXTENSION_URL", Value: common.GitopsPromoterExtensionURL},
-			}))
+			if expectedImage == common.ArgoCDExtensionInstallerImage {
+				Expect(initContainer.Env).To(Equal([]corev1.EnvVar{
+					{Name: "EXTENSION_URL", Value: common.GitopsPromoterExtensionURL},
+				}))
+			}
 
 			By("verify that argocd-server gets the extension volume")
 			container := deploymentFixture.GetTemplateSpecContainerByName("argocd-server", *argoCDServer)
