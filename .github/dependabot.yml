@@ -14,13 +14,17 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/argocd-operator"
     target-branch: "v1.22"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/argocd-operator"
     target-branch: "master"
     schedule:
       interval: "weekly"
