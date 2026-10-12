@@ -235,6 +235,8 @@ export class ApplicationsPage {
       await dryRun.click();
     }
 
+    //ignore a succeeded dry-run left on the app from an earlier attempt
+    const clickedAt = Date.now() - 1000;
     await panel.getByRole('button', { name: /^synchronize$/i }).first().click();
 
     await expect
@@ -246,7 +248,8 @@ export class ApplicationsPage {
           if (!res.ok()) return '';
           const app = await res.json();
           const op = app?.status?.operationState;
-          const dry = op?.operation?.sync?.dryRun === true;
+          const started = op?.startedAt ? Date.parse(op.startedAt) : 0;
+          const dry = op?.operation?.sync?.dryRun === true && started >= clickedAt;
           return dry ? String(op?.phase || '') : '';
         },
         { timeout: TIMEOUTS.sync, message: 'waiting for dry-run operation to succeed' }
