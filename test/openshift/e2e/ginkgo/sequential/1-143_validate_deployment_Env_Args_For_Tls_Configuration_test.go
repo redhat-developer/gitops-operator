@@ -135,6 +135,10 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 				Spec: argov1beta1api.ArgoCDSpec{},
 			}
 			argo.Spec.ImageUpdater.Enabled = true
+			argo.Spec.ImageUpdater.Env = append(argo.Spec.ImageUpdater.Env, corev1.EnvVar{
+				Name:  "ENABLE_WEBHOOK",
+				Value: "true",
+			})
 			Expect(c.Create(ctx, argo)).To(Succeed())
 			By("waiting for ArgoCD to be available")
 			Eventually(func() error {

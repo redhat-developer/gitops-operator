@@ -54,6 +54,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
+			// - Was previously in parallel, moved to sequential due to it requiring a large resource (memory/cpu) commitment for pods
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()

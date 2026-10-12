@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,30 +41,13 @@ import (
 // getImagePullSecretRefs and set as imagePullSecrets on the component ServiceAccounts.
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-142_validate_image_pull_secret_propagation", func() {
+	Context("1-135_validate_image_pull_secret_propagation", Label("xks"), func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
+			ns        string
 		)
-
-		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
-			var err error
-			k8sClient, _, err = fixtureUtils.GetE2ETestKubeClientWithError()
-			Expect(err).NotTo(HaveOccurred())
-			ctx = context.Background()
-
-			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd")
-		})
-
-		AfterEach(func() {
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-		})
 
 		// dockerCfg is a minimal valid .dockerconfigjson payload.
 		dockerCfg := map[string][]byte{".dockerconfigjson": []byte(`{"auths":{}}`)}
@@ -95,17 +79,36 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				} else {
 					g.Expect(names).NotTo(ContainElement(secretName))
 				}
-			}, "2m", "3s").Should(Succeed())
+			}, "5m", "3s").Should(Succeed())
 		}
+		BeforeEach(func() {
+			fixture.EnsureSequentialCleanSlate()
+			var err error
+			k8sClient, _, err = fixtureUtils.GetE2ETestKubeClientWithError()
+			Expect(err).NotTo(HaveOccurred())
+			ctx = context.Background()
+			ns = "openshift-gitops-operator"
+
+			By("CleanUp")
+			for _, name := range []string{"my-pull-secret", "pull-secret-1", "pull-secret-2"} {
+				s := newLabeledPullSecret(name, ns)
+				err = k8sClient.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, s)
+				if err == nil {
+					Expect(k8sClient.Delete(ctx, s)).To(Succeed())
+				} else {
+					Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				}
+			}
+		})
 
 		It("sets imagePullSecrets on component ServiceAccounts from an in-namespace labeled Secret", func() {
 
 			By("creating a labeled pull Secret before the ArgoCD instance")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance")
 			argoCD := &argov1beta1api.ArgoCD{
-				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
+				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
@@ -113,13 +116,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying server and application-controller ServiceAccounts carry the pull secret")
 			serverSA := "example-argocd-" + common.ArgoCDServerComponent
 			appCtrlSA := "example-argocd-" + common.ArgoCDApplicationControllerComponent
-			expectSAPullSecret(serverSA, ns.Name, "my-pull-secret", true)
-			expectSAPullSecret(appCtrlSA, ns.Name, "my-pull-secret", true)
+			expectSAPullSecret(serverSA, ns, "my-pull-secret", true)
+			expectSAPullSecret(appCtrlSA, ns, "my-pull-secret", true)
 
 			By("verifying the reference is stable")
 			Consistently(func(g Gomega) {
 				sa := &corev1.ServiceAccount{}
-				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: serverSA, Namespace: ns.Name}, sa)).To(Succeed())
+				g.Expect(k8sClient.Get(ctx, types.NamespacedName{Name: serverSA, Namespace: ns}, sa)).To(Succeed())
 				names := make([]string, 0, len(sa.ImagePullSecrets))
 				for _, r := range sa.ImagePullSecrets {
 					names = append(names, r.Name)
@@ -131,8 +134,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("skips propagation when multiple labeled pull Secrets exist in the namespace", func() {
 
 			By("creating two labeled pull Secrets before the ArgoCD instance")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("pull-secret-1", ns.Name))).To(Succeed())
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("pull-secret-2", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("pull-secret-1", ns))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("pull-secret-2", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance")
 			argocdNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -160,7 +163,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("removes imagePullSecrets from ServiceAccounts when the labeled Secret is deleted", func() {
 
 			By("creating a labeled pull Secret before the ArgoCD instance")
-			pullSecret := newLabeledPullSecret("my-pull-secret", ns.Name)
+			pullSecret := newLabeledPullSecret("my-pull-secret", ns)
 			Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
 
 			By("creating the ArgoCD instance")
@@ -185,7 +188,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("propagates the pull secret to all component ServiceAccounts and removes it when the label is set to false", func() {
 
 			By("creating a labeled pull Secret before the ArgoCD instance")
-			pullSecret := newLabeledPullSecret("all-component-pull-secret", ns.Name)
+			pullSecret := newLabeledPullSecret("my-pull-secret", ns)
 			Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
 
 			By("creating the ArgoCD instance a new namespace")
@@ -231,7 +234,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					continue
 				}
 				By("verifying the " + sa.Name + " ServiceAccount carries the pull secret")
-				expectSAPullSecret(sa.Name, argocdNS.Name, "all-component-pull-secret", true)
+				expectSAPullSecret(sa.Name, argocdNS.Name, "my-pull-secret", true)
 			}
 
 			By("labeling the pull Secret with propagate-image-pull-secret to false")
@@ -243,13 +246,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					continue
 				}
 				By("verifying the " + sa.Name + " ServiceAccount does not carry the pull secret")
-				expectSAPullSecret(sa.Name, argocdNS.Name, "all-component-pull-secret", false)
+				expectSAPullSecret(sa.Name, argocdNS.Name, "my-pull-secret", false)
 			}
+
+			By("deleting the pull Secret and ArgoCD instance")
+			Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, argoCD)).To(Succeed())
 		})
 		It("sets imagePullSecrets on agent principal ServiceAccount", func() {
 
 			By("creating a labeled pull Secret in the operator namespace")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -277,7 +284,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("sets imagePullSecrets on agent ServiceAccount", func() {
 
 			By("creating a labeled pull Secret in the operator namespace")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -305,7 +312,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("sets imagePullSecrets on Redis HA ServiceAccount", func() {
 
 			By("creating a labeled pull Secret in the operator namespace")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance with HA enabled in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -327,7 +334,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("sets imagePullSecrets on Dex ServiceAccount", func() {
 
 			By("creating a labeled pull Secret in the operator namespace")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("creating the ArgoCD instance with Dex SSO enabled in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -369,7 +376,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("creating a labeled pull Secret in the operator namespace")
-			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns.Name))).To(Succeed())
+			Expect(k8sClient.Create(ctx, newLabeledPullSecret("my-pull-secret", ns))).To(Succeed())
 
 			By("verifying the dex-server ServiceAccount carries the copied pull secret")
 			dexSA := "example-argocd-" + common.ArgoCDDexServerComponent

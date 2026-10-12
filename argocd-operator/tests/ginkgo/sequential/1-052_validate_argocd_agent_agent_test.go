@@ -43,6 +43,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	const (
 		argoCDName           = "example"
 		argoCDAgentAgentName = "example-agent-agent" // argoCDName + "-agent-agent"
+
+		// Secret names
+		agentRootCASecretName    = "argocd-agent-ca"
+		agentClientTLSSecretName = "argocd-agent-client-tls"
 	)
 
 	Context("1-052_validate_argocd_agent_agent", func() {
