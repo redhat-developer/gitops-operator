@@ -7,7 +7,7 @@ require (
 	github.com/argoproj-labs/argocd-image-updater v1.1.3
 	github.com/argoproj-labs/argocd-operator v0.18.1-0.20260722081502-6aada215f18b
 	github.com/argoproj/argo-cd/v3 v3.3.12
-	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
+	github.com/argoproj/gitops-engine v0.7.3
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
@@ -67,6 +67,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
