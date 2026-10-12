@@ -235,25 +235,33 @@ export class ApplicationsPage {
       await dryRun.click();
     }
 
-    //ignore a succeeded dry-run left on the app from an earlier attempt
-    const clickedAt = Date.now() - 1000;
+    //need a new op, not the last dry-run still on the app
+    const previousOp = await this.applicationOperation(appName);
+    const previousId = operationId(previousOp);
     await panel.getByRole('button', { name: /^synchronize$/i }).first().click();
 
     await expect
       .poll(
         async () => {
-          const res = await this.page.request.get(
-            `/api/v1/applications/${encodeURIComponent(appName)}`
-          );
-          if (!res.ok()) return '';
-          const app = await res.json();
-          const op = app?.status?.operationState;
-          const started = op?.startedAt ? Date.parse(op.startedAt) : 0;
-          const dry = op?.operation?.sync?.dryRun === true && started >= clickedAt;
+          const op = await this.applicationOperation(appName);
+          const dry = op?.operation?.sync?.dryRun === true && operationId(op) !== previousId;
           return dry ? String(op?.phase || '') : '';
         },
         { timeout: TIMEOUTS.sync, message: 'waiting for dry-run operation to succeed' }
       )
       .toMatch(/Succeeded/i);
   }
+
+  private async applicationOperation(appName: string) {
+    const res = await this.page.request.get(
+      `/api/v1/applications/${encodeURIComponent(appName)}`
+    );
+    if (!res.ok()) return undefined;
+    const app = await res.json();
+    return app?.status?.operationState;
+  }
+}
+
+function operationId(op: { startedAt?: string; finishedAt?: string } | undefined) {
+  return `${op?.startedAt ?? ''}|${op?.finishedAt ?? ''}`;
 }
