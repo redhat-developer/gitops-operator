@@ -39,8 +39,8 @@ github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuW
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/antlr4-go/antlr/v4 v4.13.1 h1:SqQKkuVZ+zWkMMNkjy5FZe5mr5WURWnlpmOuzYWrPrQ=
 github.com/antlr4-go/antlr/v4 v4.13.1/go.mod h1:GKmUxMtwp6ZgGwZSva4eWPC5mS6vUAmOABFgjdkM7Nw=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.9-0.20260505092152-3e07addcb2cb h1:twEKryeq6kBw7nobBiqfh2Dq+ywDyUJRNt6XBHyLYps=
-github.com/argoproj-labs/argo-rollouts-manager v0.0.9-0.20260505092152-3e07addcb2cb/go.mod h1:Ouqjtkj48SPJhW6r00CYqJ4uM7QDy3D4tinKIK9Y69Q=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.9 h1:pGlp3GzIxJVhzqfCraH2eVoMb6KUAbe6t8QwSHKDtTE=
+github.com/argoproj-labs/argo-rollouts-manager v0.0.9/go.mod h1:Ouqjtkj48SPJhW6r00CYqJ4uM7QDy3D4tinKIK9Y69Q=
 github.com/argoproj-labs/argocd-image-updater v1.2.2 h1:5g7OJclZG03gQrbF5rbKlKdK0sL9CzS9tv4e8ljO7cs=
 github.com/argoproj-labs/argocd-image-updater v1.2.2/go.mod h1:QZni7rexzlsmYa5hGu2+iWV42igUpJ0hfLP3+36ulVY=
 github.com/argoproj-labs/argocd-operator v0.19.0-rc2.0.20260928130249-ebbd281a5634 h1:glXzT7SIxBv+SguzXEePxi9/D23amcVDyh9RiBE1eoA=
