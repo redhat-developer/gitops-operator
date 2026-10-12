@@ -19,7 +19,7 @@ package util
 import (
 	"testing"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	"k8s.io/apimachinery/pkg/runtime"
