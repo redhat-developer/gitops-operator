@@ -1,5 +1,6 @@
 version: 2
-
+# keep this file updated with in-support release versions when a new y-release is out
+# argocd-operator is now integrated into gitops-operator, so v1.23+ releases should change update entry from directory to directories, similar to master target-branch
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
@@ -14,9 +15,7 @@ updates:
       interval: "weekly"
 
   - package-ecosystem: "gomod"
-    directories:
-      - "/"
-      - "/argocd-operator"
+    directory: "/"
     target-branch: "v1.22"
     schedule:
       interval: "weekly"
