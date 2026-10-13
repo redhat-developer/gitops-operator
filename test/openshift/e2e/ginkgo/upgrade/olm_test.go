@@ -18,6 +18,7 @@ package upgrade
 
 import (
 	"os"
+	"slices"
 
 	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
@@ -190,6 +191,11 @@ func approveInstallPlansUntilInstalled(target string) {
 
 	sub := operatorSubscription()
 
+	// Once the plan that installs the target is approved, approve nothing more. OLM
+	// offers the next version as soon as one exists, often before the target has
+	// finished installing, and approving that would carry a pinned version past its pin.
+	targetApproved := false
+
 	Eventually(func() bool {
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(sub), sub); err != nil {
 			GinkgoWriter.Println(err)
@@ -212,7 +218,7 @@ func approveInstallPlansUntilInstalled(target string) {
 		}
 
 		// Not yet: approve the InstallPlan the Subscription points at, if it needs it.
-		if sub.Status.InstallPlanRef != nil {
+		if sub.Status.InstallPlanRef != nil && !targetApproved {
 			plan := &olmv1alpha1.InstallPlan{}
 			planKey := client.ObjectKey{Namespace: operatorNamespace, Name: sub.Status.InstallPlanRef.Name}
 			if err := k8sClient.Get(ctx, planKey, plan); err == nil && !plan.Spec.Approved {
@@ -220,6 +226,8 @@ func approveInstallPlansUntilInstalled(target string) {
 				plan.Spec.Approved = true
 				if err := k8sClient.Update(ctx, plan); err != nil {
 					GinkgoWriter.Println(err)
+				} else if slices.Contains(plan.Spec.ClusterServiceVersionNames, target) {
+					targetApproved = true
 				}
 			}
 		}
