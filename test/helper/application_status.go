@@ -195,7 +195,7 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 					return err
 				}
 				item.Finalizers = []string{}
-				return k8sClient.Update(ctx, &item)
+				return errors.Wrap(client.IgnoreNotFound(k8sClient.Update(ctx, &item)), "unable to update")
 			})
 			if err != nil {
 				GinkgoT().Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
