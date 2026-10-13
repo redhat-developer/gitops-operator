@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	// Update in Makefile and run `make update-dependencies`
-	github.com/argoproj/argo-cd/v3 v3.5.2
+	github.com/argoproj/argo-cd/v3 v3.5.4
 	github.com/cert-manager/cert-manager v1.20.3
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -85,7 +85,7 @@ require (
 )
 
 require (
-	github.com/argoproj-labs/argocd-image-updater v1.3.0
+	github.com/argoproj-labs/argocd-image-updater v1.3.1
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
