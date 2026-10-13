@@ -5,10 +5,18 @@ on:
     branches:
       - "master"
       - "v*"
+    paths-ignore:
+      - "**/*.md"
+      - "**/OWNERS"
+      - "openshift-ci/**"
   push:
     branches:
       - "master"
       - "v*"
+    paths-ignore:
+      - "**/*.md"
+      - "**/OWNERS"
+      - "openshift-ci/**"
 
 permissions:
   contents: read
