@@ -17,7 +17,11 @@ limitations under the License.
 package common
 
 import (
+	"fmt"
+	"maps"
 	"os"
+	"slices"
+	"strings"
 )
 
 const (
@@ -48,10 +52,6 @@ const (
 	InfraNodeSelectorAnnotation = "openshift.io/node-selector"
 	// InfraNodeSelectorAnnotationValue is the value for the infra node selector annotation
 	InfraNodeSelectorAnnotationValue = "node-role.kubernetes.io/infra="
-	// NodePlacementManagedByGitopsServiceAnnotation marks NodePlacement on the default ArgoCD CR
-	// that was applied by the GitopsService controller. Used to distinguish GitopsService-managed
-	// placement from admin edits on the ArgoCD CR directly.
-	NodePlacementManagedByGitopsServiceAnnotation = "gitops.openshift.io/node-placement-managed-by-gitopsservice"
 )
 
 // InfraNodeSelector returns openshift label for infrastructure nodes
@@ -59,6 +59,31 @@ func InfraNodeSelector() map[string]string {
 	return map[string]string{
 		"node-role.kubernetes.io/infra": "",
 	}
+}
+
+// NamespaceNodeSelectorAnnotation builds the openshift.io/node-selector value for the
+// default GitOps namespace. runOnInfra uses the infra role; GitopsService nodeSelector
+// entries are merged. An empty result means the annotation should be removed.
+func NamespaceNodeSelectorAnnotation(runOnInfra bool, nodeSelector map[string]string) string {
+	if !runOnInfra && len(nodeSelector) == 0 {
+		return ""
+	}
+	if runOnInfra && len(nodeSelector) == 0 {
+		return InfraNodeSelectorAnnotationValue
+	}
+	sel := maps.Clone(nodeSelector)
+	if sel == nil {
+		sel = map[string]string{}
+	}
+	if runOnInfra {
+		sel[InfraNodeLabelSelector] = ""
+	}
+	keys := slices.Sorted(maps.Keys(sel))
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, sel[k]))
+	}
+	return strings.Join(parts, ",")
 }
 
 func StringFromEnv(env string, defaultValue string) string {
