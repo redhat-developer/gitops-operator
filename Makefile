@@ -181,6 +181,11 @@ e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
 	$(GINKGO_CLI) -p -vv -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 60m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/parallel
 
+.PHONY: e2e-tests-upgrade-ginkgo
+e2e-tests-upgrade-ginkgo: ginkgo ## Runs the Ginkgo upgrade test. Needs PREVIOUS_CHANNEL and NEW_CHANNEL, and a cluster without the operator: see test/openshift/e2e/ginkgo/upgrade/README.md
+	@echo "Running GitOps Operator upgrade Ginkgo E2E test..."
+	$(GINKGO_CLI) -vv --trace --no-color --timeout 90m ./test/openshift/e2e/ginkgo/upgrade
+
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
 	CI=prow make e2e-tests-sequential-ginkgo ## Runs Ginkgo e2e sequential tests
