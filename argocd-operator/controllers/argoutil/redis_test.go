@@ -93,7 +93,7 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 			},
 		},
 		{
-			name:   "TLS with curve preferences maps OpenShift groups to HAProxy names",
+			name:   "TLS with curve preferences including PQC OpenSSL groups",
 			useTLS: true,
 			centralTLSConfigProfile: tlsprofile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
@@ -107,16 +107,14 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 			expectedInOutput: []string{
 				"ssl-default-bind-options ssl-min-ver TLSv1.2",
 				"ssl-default-server-options ssl-min-ver TLSv1.2",
-				"ssl-default-bind-curves X25519MLKEM768:X25519:P-256:P-384",
-				"ssl-default-server-curves X25519MLKEM768:X25519:P-256:P-384",
+				"ssl-default-bind-curves X25519MLKEM768:X25519:secp256r1:secp384r1",
+				"ssl-default-server-curves X25519MLKEM768:X25519:secp256r1:secp384r1",
 			},
 			notExpectedInOutput: []string{
 				"ssl-default-bind-ciphers ",
 				"ssl-default-server-ciphers ",
 				"ssl-default-bind-ciphersuites",
 				"ssl-default-server-ciphersuites",
-				"secp256r1",
-				"secp384r1",
 			},
 		},
 		{
@@ -138,8 +136,8 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				"ssl-default-server-options ssl-min-ver TLSv1.3",
 				"ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384",
 				"ssl-default-server-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384",
-				"ssl-default-bind-curves X25519:P-256",
-				"ssl-default-server-curves X25519:P-256",
+				"ssl-default-bind-curves X25519:secp256r1",
+				"ssl-default-server-curves X25519:secp256r1",
 			},
 			notExpectedInOutput: []string{
 				"ssl-default-bind-ciphers ",
@@ -232,12 +230,12 @@ func TestMapCurvePreferencesToHAProxyCurves(t *testing.T) {
 		{
 			name:     "classical OpenShift groups",
 			input:    []string{"X25519", "secp256r1", "secp384r1", "secp521r1"},
-			expected: "X25519:P-256:P-384:P-521",
+			expected: "X25519:secp256r1:secp384r1:secp521r1",
 		},
 		{
-			name:     "maps OpenShift groups including PQC",
+			name:     "OpenShift groups including PQC",
 			input:    []string{"X25519MLKEM768", "X25519", "SecP256r1MLKEM768", "secp256r1"},
-			expected: "X25519MLKEM768:X25519:SecP256r1MLKEM768:P-256",
+			expected: "X25519MLKEM768:X25519:SecP256r1MLKEM768:secp256r1",
 		},
 		{
 			name:     "skips unknown groups",
