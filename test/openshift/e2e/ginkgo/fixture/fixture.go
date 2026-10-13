@@ -417,10 +417,15 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 		return nil, nil
 	}
 
-	if EnvNonOLM() {
+	//subscription .spec.config.env only covers user-configured overrides so fall back to checking the live deployment
+	getFromOperatorDeployment := func() (*string, error) {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
-
 		return deploymentFixture.GetEnv(depl, "manager", key)
+	}
+
+	if EnvNonOLM() {
+
+		return getFromOperatorDeployment()
 
 	} else if EnvCI() {
 
@@ -428,13 +433,15 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 		if err != nil {
 			return nil, err
 		}
-		if sub == nil {
-			return nil, nil
+		if sub != nil {
+			if envVal, err := subscriptionFixture.GetEnv(sub, key); err != nil {
+				return nil, err
+			} else if envVal != nil {
+				return envVal, nil
+			}
 		}
 
-		envVal, err := subscriptionFixture.GetEnv(sub, key)
-
-		return envVal, err
+		return getFromOperatorDeployment()
 
 	} else {
 
@@ -443,7 +450,13 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 			return nil, err
 		}
 
-		return subscriptionFixture.GetEnv(sub, key)
+		if envVal, err := subscriptionFixture.GetEnv(sub, key); err != nil {
+			return nil, err
+		} else if envVal != nil {
+			return envVal, nil
+		}
+
+		return getFromOperatorDeployment()
 
 	}
 

@@ -86,7 +86,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			// These variables need to be maintained according to the component matrix: https://spaces.redhat.com/display/GITOPS/GitOps+Component+Matrix
 			// RC4 (Final Build) component versions
-			expected_kustomizeVersion := "v5.8.1"
+			expected_kustomizeVersion := "v5.8.2"
 			//only checking major.minor, patch version can shift independently of the argocd bump
 			expected_helmVersion := "v4.2"
 
@@ -102,7 +102,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			} else {
 				// when running against RC/ released version of gitops
-				expected_argocdVersion = "v3.5.4"
+				expected_argocdVersion = "v3.5.5"
 				expected_dexVersion = "v2.45.1"
 				expected_redisVersion = "7.2.16"
 			}
