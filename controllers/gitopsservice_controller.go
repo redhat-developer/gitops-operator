@@ -276,7 +276,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		if err != nil {
 			if errors.IsNotFound(err) {
 				reqLogger.Info("Creating a new Namespace", "Name", namespace)
-				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
 				err = r.Client.Create(ctx, namespaceRef)
 				if err != nil {
 					return reconcile.Result{}, err
@@ -285,7 +285,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 				return reconcile.Result{}, err
 			}
 		} else {
-			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
+			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector) {
 				err = r.Client.Update(context.TODO(), namespaceRef)
 				if err != nil {
 					return reconcile.Result{}, err
@@ -492,7 +492,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
-			ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra)
+			ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
 			err = r.Client.Create(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -522,7 +522,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		if ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra) {
+		if ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector) {
 			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -536,15 +536,9 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		return reconcile.Result{}, err
 	}
 
-	if len(instance.Spec.NodeSelector) > 0 {
-		if defaultArgoCDInstance.Spec.NodePlacement == nil {
-			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-				NodeSelector: instance.Spec.NodeSelector,
-			}
-		} else {
-			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
-		}
-	}
+	// Node selectors for the default instance are applied on the openshift-gitops
+	// namespace (openshift.io/node-selector), not on ArgoCD spec.nodePlacement.
+	// GitopsService still owns NodePlacement.Tolerations for taints.
 	if len(instance.Spec.Tolerations) > 0 {
 		if defaultArgoCDInstance.Spec.NodePlacement == nil {
 			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
@@ -553,14 +547,6 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		} else {
 			defaultArgoCDInstance.Spec.NodePlacement.Tolerations = instance.Spec.Tolerations
 		}
-	}
-
-	gitopsServiceConfiguresNodePlacement := len(instance.Spec.NodeSelector) > 0 || len(instance.Spec.Tolerations) > 0
-	if gitopsServiceConfiguresNodePlacement {
-		if defaultArgoCDInstance.Annotations == nil {
-			defaultArgoCDInstance.Annotations = map[string]string{}
-		}
-		defaultArgoCDInstance.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] = "true"
 	}
 
 	// Get or create ArgoCD instance in default namespace
@@ -628,32 +614,15 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		// Sync NodePlacement when GitopsService configures placement fields. Do not wipe NodePlacement
-		// that admins set directly on the ArgoCD CR when GitopsService placement fields are empty.
-		if gitopsServiceConfiguresNodePlacement {
-			if defaultArgoCDInstance.Spec.NodePlacement != nil {
-				if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
-					existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
-					changed = true
-				}
-			} else if existingArgoCD.Spec.NodePlacement != nil {
+		// GitopsService owns the default ArgoCD instance. Sync NodePlacement from
+		// GitopsService (tolerations only; node selectors use the namespace annotation).
+		if defaultArgoCDInstance.Spec.NodePlacement != nil {
+			if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
 				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 				changed = true
 			}
-			if existingArgoCD.Annotations == nil {
-				existingArgoCD.Annotations = map[string]string{}
-			}
-			if existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] != "true" {
-				existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] = "true"
-				changed = true
-			}
-		} else if existingArgoCD.Annotations != nil &&
-			existingArgoCD.Annotations[common.NodePlacementManagedByGitopsServiceAnnotation] == "true" {
-			if existingArgoCD.Spec.NodePlacement != nil {
-				existingArgoCD.Spec.NodePlacement = nil
-				changed = true
-			}
-			delete(existingArgoCD.Annotations, common.NodePlacementManagedByGitopsServiceAnnotation)
+		} else if existingArgoCD.Spec.NodePlacement != nil {
+			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 			changed = true
 		}
 
@@ -1158,11 +1127,11 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 	}
 }
 
-func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool) bool {
+func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) bool {
 	changed := false
 	labelUpdate, _ := ensurePodSecurityLabels(namespace)
 	changed = changed || labelUpdate
-	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra)
+	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra, nodeSelector)
 	changed = changed || annotationUpdate
 	return changed
 }
@@ -1178,20 +1147,22 @@ func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespa
 	return false, namespace
 }
 
-func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra bool) (bool, *corev1.Namespace) {
+func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) (bool, *corev1.Namespace) {
 	if namespace.Annotations == nil {
 		namespace.Annotations = make(map[string]string)
 	}
-	if runOnInfra {
-		if namespace.Annotations[common.InfraNodeSelectorAnnotation] != common.InfraNodeSelectorAnnotationValue {
-			namespace.Annotations[common.InfraNodeSelectorAnnotation] = common.InfraNodeSelectorAnnotationValue
-			return true, namespace
+	want := common.NamespaceNodeSelectorAnnotation(runOnInfra, nodeSelector)
+	got := namespace.Annotations[common.InfraNodeSelectorAnnotation]
+	if want == "" {
+		if got == "" {
+			return false, namespace
 		}
-	} else {
-		if namespace.Annotations[common.InfraNodeSelectorAnnotation] == common.InfraNodeSelectorAnnotationValue {
-			delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
-			return true, namespace
-		}
+		delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
+		return true, namespace
 	}
-	return false, namespace
+	if got == want {
+		return false, namespace
+	}
+	namespace.Annotations[common.InfraNodeSelectorAnnotation] = want
+	return true, namespace
 }
