@@ -145,7 +145,7 @@ func getPluginPodSpec(crImagePullPolicy corev1.PullPolicy, isPF5 bool) corev1.Po
 	return podSpec
 }
 
-func pluginDeployment(namespace string, crImagePullPolicy corev1.PullPolicy, isPF5 bool) *appsv1.Deployment {
+func pluginDeployment(namespace string, crImagePullPolicy corev1.PullPolicy, isPF5 bool, replicas int32) *appsv1.Deployment {
 	podSpec := getPluginPodSpec(crImagePullPolicy, isPF5)
 	template := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +155,6 @@ func pluginDeployment(namespace string, crImagePullPolicy corev1.PullPolicy, isP
 		},
 		Spec: podSpec,
 	}
-	var replicas int32 = 1
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      gitopsPluginName,
@@ -371,7 +370,11 @@ func sortTolerations(tolerations []corev1.Toleration) []corev1.Toleration {
 
 func (r *ReconcileGitopsService) reconcileDeployment(cr *pipelinesv1alpha1.GitopsService, request reconcile.Request, newPluginConfigMap *corev1.ConfigMap, isPF5 bool) (reconcile.Result, error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	newPluginDeployment := pluginDeployment(r.PluginNamespace, cr.Spec.ImagePullPolicy, isPF5)
+	replicas := int32(1)
+	if cr.Spec.ConsolePlugin != nil && cr.Spec.ConsolePlugin.GitopsPlugin != nil && cr.Spec.ConsolePlugin.GitopsPlugin.Replicas != nil {
+		replicas = *cr.Spec.ConsolePlugin.GitopsPlugin.Replicas
+	}
+	newPluginDeployment := pluginDeployment(r.PluginNamespace, cr.Spec.ImagePullPolicy, isPF5, replicas)
 
 	if err := controllerutil.SetControllerReference(cr, newPluginDeployment, r.Scheme); err != nil {
 		return reconcile.Result{}, err
