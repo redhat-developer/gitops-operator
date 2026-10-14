@@ -287,7 +287,7 @@ func tlsGroupsForHttpd(groups []configv1.TLSGroup) string {
 
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
-	minVersionTLS := string(r.CentralTLSProfile.MinTLSVersion)
+	minVersionTLS := string(r.CentralTLSProfile.MinVersion)
 	httpdConfigBase := fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
@@ -310,7 +310,7 @@ ServerRoot "/etc/httpd"
 	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
 	}
-	if groups := tlsGroupsForHttpd(r.CentralTLSProfile.Groups); groups != "" {
+	if groups := tlsGroupsForHttpd(r.CentralTLSProfile.CurvePreferences); groups != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLOpenSSLConfCmd Groups %s", groups)
 	}
 	// Close VirtualHost
