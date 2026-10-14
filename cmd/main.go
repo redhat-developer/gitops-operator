@@ -317,18 +317,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	centralTLSConfigProfile := tlsprofile.TLSConfigProfile{
+		DisableClusterTLSProfile: disableClusterTLSProfile,
+		MinVersion:               profile.MinTLSVersion,
+		Ciphers:                  profile.Ciphers,
+		CurvePreferences:         profile.Groups,
+	}
+
 	if util.IsOpenShiftCluster() {
 		if err = (&controllers.ReconcileGitopsService{
 			Client:                client,
 			Scheme:                mgr.GetScheme(),
 			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
-			CentralTLSProfile: tlsprofile.TLSConfigProfile{
-				DisableClusterTLSProfile: disableClusterTLSProfile,
-				MinVersion:               profile.MinTLSVersion,
-				Ciphers:                  profile.Ciphers,
-				CurvePreferences:         profile.Groups,
-			},
-			PluginNamespace: pluginNamespace,
+			CentralTLSProfile:     centralTLSConfigProfile,
+			PluginNamespace:       pluginNamespace,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
 			os.Exit(1)
@@ -377,18 +379,13 @@ func main() {
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:            client,
-		Scheme:            mgr.GetScheme(),
-		LabelSelector:     labelSelectorFlag,
-		K8sClient:         k8sClient,
-		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
-		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
-		CentralTLSConfigProfile: tlsprofile.TLSConfigProfile{
-			DisableClusterTLSProfile: disableClusterTLSProfile,
-			MinVersion:               profile.MinTLSVersion,
-			Ciphers:                  profile.Ciphers,
-			CurvePreferences:         profile.Groups,
-		},
+		Client:                  client,
+		Scheme:                  mgr.GetScheme(),
+		LabelSelector:           labelSelectorFlag,
+		K8sClient:               k8sClient,
+		LocalUsers:              argocdprovisioner.NewLocalUsersInfo(),
+		FipsConfigChecker:       argoutil.NewLinuxFipsConfigChecker(),
+		CentralTLSConfigProfile: centralTLSConfigProfile,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)
