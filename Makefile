@@ -139,29 +139,6 @@ vet: ## Run go vet against code.
 test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
 
-.PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run e2e tests.
-	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
-
-.PHONY: test-metrics
-test-metrics:
-	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
-
-.PHONY: test-route
-test-route:
-	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
-
-
-.PHONY: test-gitopsservice
-test-gitopsservice:
-	go test -p 1 -timeout 1h ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
-
-
-.PHONY: test-gitopsservice-nondefault
-test-gitopsservice-nondefault:
-	go test -p 1 -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
-
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
 	cd argocd-operator && make test

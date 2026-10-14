@@ -20,9 +20,12 @@ import (
 	"context"
 
 	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
@@ -139,6 +142,46 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			appsetControllerCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-applicationset-controller"}}
 			Eventually(appsetControllerCRB).Should(k8sFixture.ExistByName())
+
+		})
+
+		It("verifies that the default openshift-gitops Argo CD instance can manage resources in arbitrary namespaces, without requiring the managed-by label or ARGOCD_CLUSTER_CONFIG_NAMESPACES", func() {
+
+			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying the default AppProject exists in openshift-gitops")
+			Eventually(&argocdv1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: openshiftGitopsArgoCD.Namespace}}).Should(k8sFixture.ExistByName())
+
+			By("creating an Argo CD Application in openshift-gitops that targets the openshift-config namespace")
+			app := &argocdv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: openshiftGitopsArgoCD.Namespace},
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: &argocdv1alpha1.ApplicationSource{
+						Path:           "test/examples/scheduler",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						TargetRevision: "HEAD",
+					},
+					Destination: argocdv1alpha1.ApplicationDestination{
+						Namespace: "openshift-config",
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+					SyncPolicy: &argocdv1alpha1.SyncPolicy{
+						Automated: &argocdv1alpha1.SyncPolicyAutomated{},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			By("verifying the Application becomes healthy and synced")
+			Eventually(app, "5m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "5m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+
+			By("verifying the ConfigMap was created in the openshift-config namespace")
+			Eventually(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: "openshift-config"}}).Should(k8sFixture.ExistByName())
 
 		})
 

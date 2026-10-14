@@ -24,6 +24,7 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -162,6 +163,37 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying the Application has deployed successfully")
 			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+
+			By("creating an Argo CD Application that manages the cluster-scoped Image resource")
+			imageApp := &argocdv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "image", Namespace: ns.Name},
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: &argocdv1alpha1.ApplicationSource{
+						Path:           "test/examples/image",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						TargetRevision: "HEAD",
+					},
+					Destination: argocdv1alpha1.ApplicationDestination{
+						Namespace: ns.Name,
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+					SyncPolicy: &argocdv1alpha1.SyncPolicy{
+						Automated: &argocdv1alpha1.SyncPolicyAutomated{},
+						Retry: &argocdv1alpha1.RetryStrategy{
+							Limit: int64(5),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, imageApp)).To(Succeed())
+
+			By("verifying the Image Application has deployed successfully")
+			Eventually(imageApp, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(imageApp, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+
+			By("verifying the cluster-scoped Image resource exists")
+			Eventually(&configv1.Image{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}).Should(k8sFixture.ExistByName())
 
 			By("updating repo server replicas back to 1")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
