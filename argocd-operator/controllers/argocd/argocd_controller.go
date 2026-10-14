@@ -334,8 +334,10 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 			return reconcile.Result{}, argocd, argoCDStatus, err
 		}
 
-		// Surface on each NamespaceManagement CR that NamespaceManagement is disabled
-		r.reportNamespaceManagementDisabled(ctx, argocd, nsMgmtList)
+		// Surface on each NamespaceManagement CR that NamespaceManagement is disabled. As in
+		// disableNamespaceManagement, a failure to write the report is returned to the caller
+		// only once the cleanup below has had its chance to run.
+		statusErr := r.reportNamespaceManagementDisabled(ctx, argocd, nsMgmtList)
 
 		k8sClient := r.K8sClient
 		for _, nsMgmt := range nsMgmtList.Items {
@@ -352,9 +354,8 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 			}
 
 			// Skip RBAC deletion if the namespace is still labelled as managed by this Argo CD
-			// instance. The RBACs are required by the label-based management, so deleting them
-			// here would only have them recreated by reconcileResources on the next pass.
-			if labelVal, labelExists := namespace.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == argocd.Namespace {
+			// instance.
+			if isNamespaceLabelledManagedBy(namespace, argocd.Namespace) {
 				log.Info(fmt.Sprintf("Skipping RBAC deletion for namespace %s due to managed-by label", nsMgmt.Namespace))
 				continue
 			}
@@ -371,6 +372,11 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 				return reconcile.Result{}, argocd, argoCDStatus, err
 			}
 
+		}
+
+		if statusErr != nil {
+			log.Error(statusErr, "Failed to report that NamespaceManagement is disabled")
+			return reconcile.Result{}, argocd, argoCDStatus, statusErr
 		}
 	}
 

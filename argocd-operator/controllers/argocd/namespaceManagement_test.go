@@ -159,7 +159,7 @@ func TestHandleFeatureDisable_NamespaceCRsExistButNoMatch(t *testing.T) {
 
 	resObjs := []client.Object{a, nm}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
@@ -196,7 +196,7 @@ func TestHandleFeatureDisable_NamespaceMatchesPattern_RBACDeleted(t *testing.T) 
 
 	resObjs := []client.Object{a, nm, ns}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
@@ -238,7 +238,7 @@ func TestHandleFeatureDisable_SkipManagedByLabel(t *testing.T) {
 
 	resObjs := []client.Object{a, nm, ns}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
 
 	k8sClient := r.K8sClient.(*testclient.Clientset)
@@ -287,7 +287,7 @@ func TestHandleFeatureDisable_ManagedByLabelOfOtherInstance_RBACDeleted(t *testi
 
 	resObjs := []client.Object{a, nm, ns}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
 
 	k8sClient := r.K8sClient.(*testclient.Clientset)
@@ -299,6 +299,55 @@ func TestHandleFeatureDisable_ManagedByLabelOfOtherInstance_RBACDeleted(t *testi
 	err = r.disableNamespaceManagement(a, r.K8sClient)
 	assert.NoError(t, err)
 
+	_, err = k8sClient.RbacV1().Roles(ns.Name).Get(context.TODO(), role.Name, metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+}
+
+// The "NamespaceManagement is disabled" condition is how a user learns their CR has no effect,
+// so a failure to record it must reach the caller instead of only being logged. The cleanup is
+// still performed first: the condition is diagnostic, and skipping cleanup would leave RBACs
+// behind.
+func TestHandleFeatureDisable_StatusUpdateFailureIsReturned(t *testing.T) {
+	a := makeTestArgoCD()
+	a.Spec.NamespaceManagement = []argoproj.ManagedNamespaces{
+		{
+			Name:           "ns-*",
+			AllowManagedBy: true,
+		},
+	}
+
+	nm := &argoproj.NamespaceManagement{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nm1",
+			Namespace: "ns-1",
+		},
+		Spec: argoproj.NamespaceManagementSpec{
+			ManagedBy: a.Namespace,
+		},
+	}
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ns-1",
+		},
+	}
+
+	resObjs := []client.Object{a, nm, ns}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	baseClient := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
+	r := makeTestReconciler(&statusUpdateFailClient{Client: baseClient}, sch, testclient.NewSimpleClientset(ns))
+
+	k8sClient := r.K8sClient.(*testclient.Clientset)
+	role := newRole("test-role", policyRuleForApplicationController(), a)
+	role.Namespace = ns.Name
+	_, err := k8sClient.RbacV1().Roles(ns.Name).Create(context.TODO(), role, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	err = r.disableNamespaceManagement(a, r.K8sClient)
+	assert.ErrorContains(t, err, "simulated status update failure")
+	assert.ErrorContains(t, err, "ns-1")
+
+	// The RBACs are still cleaned up, despite the failed status update.
 	_, err = k8sClient.RbacV1().Roles(ns.Name).Get(context.TODO(), role.Name, metav1.GetOptions{})
 	assert.ErrorContains(t, err, "not found")
 }
@@ -324,11 +373,68 @@ func TestHandleFeatureDisable_NoPatternMatch(t *testing.T) {
 
 	resObjs := []client.Object{a, nm}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
 	assert.NoError(t, err)
+}
+
+func TestIsNamespaceLabelledManagedBy(t *testing.T) {
+	tests := []struct {
+		name            string
+		labels          map[string]string
+		argocdNamespace string
+		expected        bool
+	}{
+		{
+			name:            "labelled as managed by this instance",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: "argocd"},
+			argocdNamespace: "argocd",
+			expected:        true,
+		},
+		{
+			name:            "labelled as managed by another instance",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: "other-argocd"},
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			name:            "no managed-by label",
+			labels:          map[string]string{"some": "label"},
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			name:            "no labels at all",
+			labels:          nil,
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			// An unset .spec.managedBy must not match a namespace that carries no label,
+			// which is what a bare `labelVal == argocdNamespace` comparison would do.
+			name:            "missing label does not match an empty argocd namespace",
+			labels:          nil,
+			argocdNamespace: "",
+			expected:        false,
+		},
+		{
+			name:            "empty label value matches an empty argocd namespace",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: ""},
+			argocdNamespace: "",
+			expected:        true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ns := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-ns", Labels: test.labels},
+			}
+			assert.Equal(t, test.expected, isNamespaceLabelledManagedBy(ns, test.argocdNamespace))
+		})
+	}
 }
 
 func TestMatchesNamespaceManagementRules(t *testing.T) {

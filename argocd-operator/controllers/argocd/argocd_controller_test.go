@@ -545,7 +545,7 @@ func TestReconcileArgoCD_Cleanup_RBACs_When_NamespaceManagement_Disabled(t *test
 	}
 
 	resObjs := []client.Object{argoCD, nsMgmt}
-	subresObjs := []client.Object{argoCD}
+	subresObjs := []client.Object{argoCD, nsMgmt}
 	runtimeObjs := []runtime.Object{}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
