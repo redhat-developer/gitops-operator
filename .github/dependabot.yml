@@ -7,18 +7,21 @@ updates:
     target-branch: "v1.20"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
 
   - package-ecosystem: "gomod"
     directory: "/"
     target-branch: "v1.21"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
 
   - package-ecosystem: "gomod"
     directory: "/"
     target-branch: "v1.22"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
 
   - package-ecosystem: "gomod"
     directories:
@@ -27,3 +30,12 @@ updates:
     target-branch: "master"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # root go.mod has a local "replace" pointing at ./argocd-operator, so the
+      # two go.mod files share one build graph. Bumping a shared dependency in
+      # only one of them leaves the other's go.sum stale and fails `go mod tidy`
+      # in CI. Grouping by dependency name forces matching bumps in both
+      # directories into a single PR.
+      gomod-combined:
+        group-by: dependency-name
