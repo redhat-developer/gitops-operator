@@ -169,7 +169,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Namespace: ns.Name,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
-					Namespace: &namespace,
+					Namespace: &namespace, //nolint:staticcheck // SA1019: We must set deprecated fields.
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
 						{
 							NamePattern: "app*",
