@@ -162,12 +162,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating ImageUpdater CR")
 			updateStrategy := "semver"
+			namespace := ns.Name
 			imageUpdater = &imageUpdaterApi.ImageUpdater{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "image-updater",
 					Namespace: ns.Name,
 				},
 				Spec: imageUpdaterApi.ImageUpdaterSpec{
+					Namespace: &namespace, //nolint:staticcheck // SA1019: We must set deprecated fields.
 					ApplicationRefs: []imageUpdaterApi.ApplicationRef{
 						{
 							NamePattern: "app*",

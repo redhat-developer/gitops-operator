@@ -246,7 +246,7 @@ func NewCR(name, ns string, client client.Client) (*argoapp.ArgoCD, error) {
 			ApplicationSet:     getArgoApplicationSetSpec(),
 			Controller:         getArgoControllerSpec(),
 			SSO:                getArgoSSOSpec(client),
-			Grafana:            getArgoGrafanaSpec(), //nolint:staticcheck // SA1019: We must set the deprecated field for backward compatibility.
+			Grafana:            getArgoGrafanaSpec(), //nolint:staticcheck // SA1019: We must set deprecated fields.
 			HA:                 getArgoHASpec(),
 			Redis:              getArgoRedisSpec(),
 			Repo:               getArgoRepoServerSpec(),
