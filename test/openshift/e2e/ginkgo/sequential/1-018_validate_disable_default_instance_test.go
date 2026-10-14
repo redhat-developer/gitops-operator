@@ -148,7 +148,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(gitopsServerDepl).Should(k8sFixture.NotExistByName())
 
-			By("verifying the backend resources created by the operator no longer exist")
+			By("verifying the backend 'cluster' Deployment still exists, since it is independent of the default Argo CD instance")
 			backendDepl := &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "cluster",
@@ -189,7 +189,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name: "openshift-gitops",
 				},
 			}
-			Consistently(openshiftGitopsNS, "30s", "5s").Should(k8sFixture.ExistByName())
+			Consistently(openshiftGitopsNS, "15s", "5s").Should(k8sFixture.ExistByName())
 
 			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
 			fixture.RestoreSubcriptionToDefault()

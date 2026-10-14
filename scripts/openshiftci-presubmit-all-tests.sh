@@ -27,5 +27,5 @@ go mod vendor
 cd ../..
 
 # Run e2e test
-make test-e2e
+make e2e-tests-ginkgo
 
