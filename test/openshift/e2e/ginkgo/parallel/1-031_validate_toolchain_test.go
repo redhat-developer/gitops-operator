@@ -96,7 +96,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			if os.Getenv("CI") == "prow" {
 				// when running against openshift-ci
-				expected_argocdVersion = "v3.5.2"
+				expected_argocdVersion = "v3.5.4"
 				expected_dexVersion = "v2.45.1"
 				expected_redisVersion = "8.2.3"
 				expected_kustomizeVersion = "v5.8.1"
