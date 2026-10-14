@@ -54,11 +54,25 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		}
 
 		verifiedDeployments := func() []string {
-			deployments := []string{"argocd-applicationset-controller", "argocd-notifications-controller", "argocd-redis", "argocd-repo-server", "argocd-server"}
+			deployments := []string{
+				"argocd-applicationset-controller", "argocd-notifications-controller", "argocd-redis", "argocd-repo-server", "argocd-server",
+				"argocd-commit-server", "argocd-argocd-image-updater-controller",
+			}
 			if fixture.RunningOnOpenShift() {
 				deployments = append(deployments, "argocd-dex-server")
 			}
 			return deployments
+		}
+
+		initialResources := &corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceMemory: resource.MustParse("512Mi"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("250m"),
+				corev1.ResourceMemory: resource.MustParse("256Mi"),
+			},
 		}
 
 		BeforeEach(func() {
@@ -78,19 +92,38 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
-						Resources: &corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("2"),
-								corev1.ResourceMemory: resource.MustParse("1Gi"),
-							},
-							Requests: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("250m"),
-								corev1.ResourceMemory: resource.MustParse("512Mi"),
-							},
-						},
+						Resources: initialResources,
 					},
 					Notifications: argov1beta1api.ArgoCDNotifications{
+						Enabled:   true,
+						Resources: initialResources,
+					},
+					Redis: argov1beta1api.ArgoCDRedisSpec{
+						Resources: initialResources,
+					},
+					Repo: argov1beta1api.ArgoCDRepoSpec{
+						Resources: initialResources,
+						// Creates new init container
+						SystemCATrust: &argov1beta1api.ArgoCDSystemCATrustSpec{
+							DropImageCertificates: true,
+						},
+						// TODO: override the Ubuntu specified image with a RHEL one. Drop once all images are on UBI
+						Image:   "quay.io/redhat-user-workloads/rh-openshift-gitops-tenant/argocd-rhel9",
+						Version: "main",
+					},
+					Server: argov1beta1api.ArgoCDServerSpec{
+						Resources: initialResources,
+					},
+					CommitServer: argov1beta1api.ArgoCDCommitServerSpec{
+						Resources: initialResources,
+					},
+					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
+						// Needed for commit server
+						Enabled: new(true),
+					},
+					ImageUpdater: argov1beta1api.ArgoCDImageUpdaterSpec{
 						Enabled: true,
+						Resources: initialResources,
 					},
 				},
 			}
@@ -100,16 +133,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Provider: argov1beta1api.SSOProviderTypeDex,
 					Dex: &argov1beta1api.ArgoCDDexSpec{
 						OpenShiftOAuth: true,
-						Resources: &corev1.ResourceRequirements{
-							Limits: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("500m"),
-								corev1.ResourceMemory: resource.MustParse("256Mi"),
-							},
-							Requests: corev1.ResourceList{
-								corev1.ResourceCPU:    resource.MustParse("250m"),
-								corev1.ResourceMemory: resource.MustParse("128Mi"),
-							},
-						},
+						Resources:      initialResources,
 					},
 				}
 			}
@@ -135,12 +159,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					secContext := container.SecurityContext
 					Expect(secContext).ToNot(BeNil(), "container %s has no security context", container.Name)
 					Expect(*secContext).To(Equal(expectedSecurityContext), "container %s has unexpected security context", container.Name)
+
+					Expect(container.Resources.Limits).To(Not(BeNil()), "container %s has no limits", container.Name)
+					Expect(container.Resources.Requests).To(Not(BeNil()), "container %s has no requests", container.Name)
 				}
 				initContainers := depl.Spec.Template.Spec.InitContainers
 				for _, container := range initContainers {
 					secContext := container.SecurityContext
 					Expect(secContext).ToNot(BeNil(), "init container %s has no security context", container.Name)
 					Expect(*secContext).To(Equal(expectedSecurityContext), "init container %s has unexpected security context", container.Name)
+
+					Expect(container.Resources.Limits).To(Not(BeNil()), "init container %s has no limits", container.Name)
+					Expect(container.Resources.Requests).To(Not(BeNil()), "init container %s has no requests", container.Name)
 				}
 			}
 		})

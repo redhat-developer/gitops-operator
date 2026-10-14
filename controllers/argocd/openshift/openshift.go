@@ -128,6 +128,11 @@ func updateSystemCATrustBuilding(cr *argoapp.ArgoCD, o *appsv1.Deployment, prodI
 		},
 	)
 
+	// Allow override of resource requirements from CR
+	resources := corev1.ResourceRequirements{}
+	if cr.Spec.Repo.Resources != nil {
+		resources = *cr.Spec.Repo.Resources
+	}
 	initContainer := corev1.Container{
 		Name:            "update-ca-certificates",
 		Image:           prodImage,
@@ -136,7 +141,8 @@ func updateSystemCATrustBuilding(cr *argoapp.ArgoCD, o *appsv1.Deployment, prodI
 			{Name: volumeSource, MountPath: "/var/run/secrets/ca-trust-source", ReadOnly: true},
 			{Name: volumeTarget, MountPath: "/etc/pki/ca-trust"},
 		},
-		Command: []string{"/bin/bash", "-c"},
+		Resources: resources,
+		Command:   []string{"/bin/bash", "-c"},
 		Args: []string{`
 set -eEuo pipefail
 trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
