@@ -9,5 +9,5 @@ type TLSConfigProfile struct {
 	// Ciphers specifies the list of supported TLS cipher suites in cluster.
 	Ciphers []string
 	// CurvePreferences specifies the list of supported TLS curve preferences in cluster.
-	CurvePreferences []string
+	CurvePreferences []configv1.TLSGroup
 }

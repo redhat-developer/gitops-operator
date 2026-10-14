@@ -271,10 +271,16 @@ func tlsGroupsForHttpd(groups []configv1.TLSGroup) string {
 		return ""
 	}
 	names := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
 	for _, g := range groups {
 		if _, ok := allowedHttpdGroups[g]; ok {
 			names = append(names, string(g))
+			continue
 		}
+		skipped = append(skipped, g)
+	}
+	if len(skipped) > 0 {
+		logs.Info("skipping unsupported TLS curve preference groups for gitops-plugin httpd", "groups", skipped)
 	}
 	return strings.Join(names, ":")
 }
