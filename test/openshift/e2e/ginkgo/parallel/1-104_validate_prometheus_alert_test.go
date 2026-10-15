@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -57,7 +58,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								Key: "service-ca.crt",
 							},
 						},
-						ServerName: "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc",
+						ServerName: ptr.To("openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc"),
 					},
 				},
 			}}))

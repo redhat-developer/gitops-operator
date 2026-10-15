@@ -27,6 +27,7 @@ import (
 
 	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -195,7 +196,7 @@ func DeleteNamespace(k8sClient client.Client, nsToDelete string) error {
 					return err
 				}
 				item.Finalizers = []string{}
-				return k8sClient.Update(ctx, &item)
+				return errors.Wrap(client.IgnoreNotFound(k8sClient.Update(ctx, &item)), "unable to update")
 			})
 			if err != nil {
 				GinkgoT().Errorf("Unable to update ArgoCD application finalizer on '%s': %v", item.Name, err)
