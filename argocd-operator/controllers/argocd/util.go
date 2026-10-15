@@ -1915,7 +1915,7 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 				}
 
 				// Skip cleanup if managed-by label exists
-				if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == valOld.Namespace {
+				if isNamespaceLabelledManagedBy(ns, valOld.Namespace) {
 					log.Info(fmt.Sprintf("Skipping cleanup for namespace %s because it's still labeled as managed by this ArgoCD instance", nsEntry))
 					continue
 				}
@@ -1937,7 +1937,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *
 	}
 
 	// Skip Update if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == oldNSMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, oldNSMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping update cleanup", oldNSMgmt.Namespace))
 		return false
 	}
@@ -1959,7 +1959,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.Names
 	}
 
 	// Skip cleanup if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == nsMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
 		return false
 	}
