@@ -102,13 +102,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(path.Join(csr, "config.openshift.io/clusterversions/version.yaml")).To(BeValidResourceFile())
 
 			n := path.Join(resources, "namespaces")
-			Expect(n).To(BeADirectory())
-			Expect(path.Join(n, "openshift-gitops/openshift-gitops.yaml")).To(BeValidResourceFile())
-			Expect(path.Join(n, "openshift-gitops/route.openshift.io/routes.yaml")).To(BeValidResourceFile())
-			Expect(path.Join(n, "openshift-gitops/argoproj.io/appprojects.yaml")).To(BeValidResourceFile())
-			logs := path.Join(n, "openshift-gitops/pods/openshift-gitops-application-controller-0/argocd-application-controller/argocd-application-controller/logs/")
-			Expect(path.Join(logs, "current.log")).To(BeARegularFile())
-			Expect(path.Join(logs, "previous.log")).To(BeARegularFile())
+			assertNamespaceLogs(n, "openshift-gitops", "openshift-gitops")
+			assertNamespaceLogs(n, ns.Name, "left-argocd")
 
 			Expect(path.Join(n, nsf.Name, "core/pods.yaml")).To(BeValidResourceFile())
 		})
@@ -155,6 +150,29 @@ func resourcesDir(destDir string) string {
 
 	Expect(subdirs).To(HaveLen(1), "Expected exactly one subdirectory, found: %v", subdirs)
 	return path.Join(destDir, subdirs[0])
+}
+
+// assertNamespaceLogs checks must-gather output for an Argo CD instance named the same as namespace.
+// On failure, the message lists every file under namespacesDir.
+func assertNamespaceLogs(namespacesDir, namespace string, instanceName string) {
+	Expect(namespacesDir).To(BeADirectory())
+
+	base := path.Join(namespacesDir, namespace)
+	Expect(path.Join(base, namespace+".yaml")).To(BeValidResourceFile())
+	Expect(path.Join(base, "route.openshift.io/routes.yaml")).To(BeValidResourceFile())
+	Expect(path.Join(base, "argoproj.io/appprojects.yaml")).To(BeValidResourceFile())
+	Expect(path.Join(base, "core/pods.yaml")).To(BeValidResourceFile())
+	// Test roles and rolebindings as they are collected separately
+	Expect(path.Join(base, "rbac.authorization.k8s.io/roles/"+instanceName+"-argocd-server.yaml")).To(BeValidResourceFile())
+	Expect(path.Join(base, "rbac.authorization.k8s.io/rolebindings/"+instanceName+"-argocd-server.yaml")).To(BeValidResourceFile())
+
+	podLogs := path.Join(
+		base, "pods", instanceName+"-application-controller-0",
+		"argocd-application-controller", "argocd-application-controller", "logs",
+	)
+	Expect(path.Join(podLogs, "current.log")).To(BeARegularFile())
+	Expect(path.Join(podLogs, "previous.log")).To(BeARegularFile())
+
 }
 
 func mustGatherImage() string {

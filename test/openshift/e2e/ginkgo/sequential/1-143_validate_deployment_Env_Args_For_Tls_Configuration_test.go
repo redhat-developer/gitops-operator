@@ -264,10 +264,11 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 				}))
 				Expect(env).To(ContainElement(corev1.EnvVar{
 					Name: "TLS_CIPHER_SUITES",
-					Value: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:" +
-						"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:" +
-						"ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:" +
-						"ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+					// OpenSSL names from the cluster TLS profile are mapped to IANA/Go
+					// names; TLS 1.3 suites are omitted when min version is 1.2.
+					Value: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:" +
+						"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:" +
+						"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
 				}))
 
 				return nil
