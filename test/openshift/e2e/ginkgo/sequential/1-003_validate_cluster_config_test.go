@@ -33,6 +33,7 @@ import (
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -154,6 +155,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying the default AppProject exists in openshift-gitops")
 			Eventually(&argocdv1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: openshiftGitopsArgoCD.Namespace}}).Should(k8sFixture.ExistByName())
 
+			By("preserving any pre-existing policy-configmap ConfigMap in the openshift-config namespace")
+			preExistingConfigMap := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: "policy-configmap", Namespace: "openshift-config"}, preExistingConfigMap)
+			configMapPreExisted := err == nil
+			if !configMapPreExisted {
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}
+
 			By("creating an Argo CD Application in openshift-gitops that targets the openshift-config namespace")
 			app := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: openshiftGitopsArgoCD.Namespace},
@@ -174,7 +183,24 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			defer func() { _ = k8sClient.Delete(ctx, app) }()
+			defer func() {
+				// Deleting the Application does not cascade to the ConfigMap it deployed into
+				// openshift-config (no cascade-delete finalizer is set on the Application), so the
+				// ConfigMap must be cleaned up separately. openshift-config is a shared OpenShift
+				// system namespace that is not deleted at the end of the test, so restore any
+				// ConfigMap that pre-existed, rather than leaving it deleted or overwritten.
+				_ = k8sClient.Delete(ctx, app)
+
+				testManagedConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: "openshift-config"}}
+				_ = k8sClient.Delete(ctx, testManagedConfigMap)
+
+				if configMapPreExisted {
+					restoredConfigMap := preExistingConfigMap.DeepCopy()
+					restoredConfigMap.ResourceVersion = ""
+					restoredConfigMap.UID = ""
+					_ = k8sClient.Create(ctx, restoredConfigMap)
+				}
+			}()
 
 			By("verifying the Application becomes healthy and synced")
 			Eventually(app, "5m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))

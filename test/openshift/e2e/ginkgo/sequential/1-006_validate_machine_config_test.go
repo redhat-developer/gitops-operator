@@ -186,7 +186,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 				},
 			}
+
+			By("capturing the current cluster-scoped Image configuration, to restore it after the test")
+			originalImage := &configv1.Image{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "cluster"}, originalImage)).To(Succeed())
+			originalImageSpec := originalImage.Spec.DeepCopy()
+
 			Expect(k8sClient.Create(ctx, imageApp)).To(Succeed())
+			defer func() {
+				// Image/cluster is a real cluster-wide singleton resource, not scoped to the test
+				// namespace, so deleting the Application/namespace does not revert the
+				// allowedRegistriesForImport policy it applied. Delete the Application first, so
+				// it stops managing/resyncing the Image resource, then restore its original spec.
+				_ = k8sClient.Delete(ctx, imageApp)
+				Eventually(imageApp).Should(k8sFixture.NotExistByName())
+
+				k8sFixture.Update(&configv1.Image{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}, func(obj client.Object) {
+					image := obj.(*configv1.Image)
+					image.Spec = *originalImageSpec
+				})
+			}()
 
 			By("verifying the Image Application has deployed successfully")
 			Eventually(imageApp, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
