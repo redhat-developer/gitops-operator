@@ -21,9 +21,10 @@ package parallel
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"time"
 
 	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -34,54 +35,65 @@ import (
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const argoCDCoreModeCLITimeout = 2 * time.Minute
+
 // runArgoCDCoreMode runs an argocd CLI command with --core using a dedicated kubeconfig
-// whose current context namespace is set to argoCDNamespace. This keeps parallel tests from
+// whose current context namespace is set to the Argo CD namespace. This keeps parallel tests from
 // mutating the shared kubeconfig, and avoids requiring an Argo CD API login.
+// Each invocation is bounded by argoCDCoreModeCLITimeout so a hung CLI cannot block the suite.
 func runArgoCDCoreMode(kubeconfigPath, repoServerName string, args ...string) (string, error) {
 	cmdArgs := append([]string{"argocd"}, args...)
 	cmdArgs = append(cmdArgs, "--core", "--repo-server-name", repoServerName)
 
 	GinkgoWriter.Println("executing command:", cmdArgs, "KUBECONFIG="+kubeconfigPath)
 
+	ctx, cancel := context.WithTimeout(context.Background(), argoCDCoreModeCLITimeout)
+	defer cancel()
+
 	// #nosec G204
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Env = append(os.Environ(), "KUBECONFIG="+kubeconfigPath)
 
 	outputBytes, err := cmd.CombinedOutput()
 	output := string(outputBytes)
 	GinkgoWriter.Println(output)
+	if ctx.Err() == context.DeadlineExceeded {
+		return output, fmt.Errorf("argocd command timed out after %s: %w\noutput: %s", argoCDCoreModeCLITimeout, ctx.Err(), output)
+	}
 	return output, err
 }
 
-// createCoreModeKubeconfig copies the current kubeconfig into a temp file and sets the
+// createCoreModeKubeconfig loads and flattens the active kubeconfig (including multi-path
+// KUBECONFIG values and relative cert/key paths), writes it to a temp file, and sets the
 // current context namespace to argoCDNamespace so core-mode CLI calls target that instance.
 func createCoreModeKubeconfig(argoCDNamespace string) (string, func()) {
-	srcKubeconfig := os.Getenv("KUBECONFIG")
-	if srcKubeconfig == "" {
-		home, err := os.UserHomeDir()
-		Expect(err).ToNot(HaveOccurred())
-		srcKubeconfig = filepath.Join(home, ".kube", "config")
-	}
-
-	srcBytes, err := os.ReadFile(srcKubeconfig)
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	cfg, err := loadingRules.Load()
 	Expect(err).ToNot(HaveOccurred())
+
+	Expect(clientcmdapi.FlattenConfig(cfg)).To(Succeed())
+
+	currentContext := cfg.CurrentContext
+	Expect(currentContext).ToNot(BeEmpty(), "kubeconfig has no current context")
+	contextCfg, ok := cfg.Contexts[currentContext]
+	Expect(ok).To(BeTrue(), "current context %q not found in kubeconfig", currentContext)
+	Expect(contextCfg).ToNot(BeNil())
+	contextCfg.Namespace = argoCDNamespace
 
 	tmpFile, err := os.CreateTemp("", "argocd-core-mode-kubeconfig-*")
 	Expect(err).ToNot(HaveOccurred())
 	tmpPath := tmpFile.Name()
 	Expect(tmpFile.Close()).To(Succeed())
 
-	Expect(os.WriteFile(tmpPath, srcBytes, 0o600)).To(Succeed())
-
-	_, err = osFixture.ExecCommand("kubectl", "--kubeconfig", tmpPath, "config", "set-context", "--current", "--namespace", argoCDNamespace)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(clientcmd.WriteToFile(*cfg, tmpPath)).To(Succeed())
 
 	cleanup := func() {
 		_ = os.Remove(tmpPath)
@@ -162,10 +174,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("verifying argocd app list --core shows the application")
-			Eventually(func() string {
-				out, listErr := runArgoCDCoreMode(kubeconfigPath, repoServerName, "app", "list")
-				Expect(listErr).ToNot(HaveOccurred())
-				return out
+			Eventually(func() (string, error) {
+				return runArgoCDCoreMode(kubeconfigPath, repoServerName, "app", "list")
 			}, "2m", "5s").Should(And(
 				ContainSubstring(appName),
 				ContainSubstring("Healthy"),
