@@ -146,7 +146,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("verifies that the default openshift-gitops Argo CD instance can manage resources in arbitrary namespaces, without requiring the managed-by label or ARGOCD_CLUSTER_CONFIG_NAMESPACES", func() {
+		It("verifies that the default openshift-gitops Argo CD instance can manage resources in arbitrary namespaces, without requiring the managed-by label or ARGOCD_CLUSTER_CONFIG_NAMESPACES", Label("openshift"), func() {
 
 			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())

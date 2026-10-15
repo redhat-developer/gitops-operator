@@ -164,6 +164,45 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(app, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
 			Eventually(app, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
+			By("updating repo server replicas back to 1")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				replicas := int32(1)
+				ac.Spec.Repo.Replicas = &replicas
+			})
+
+			By("waiting for Argo CD to become available after the repo server change we made")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying repo server Deployment moves back to a single replica")
+			repoServerDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name},
+			}
+			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
+			Eventually(repoServerDepl).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(repoServerDepl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+
+		})
+
+		It("verifies that an Argo CD Application can manage a cluster-scoped resource", Label("openshift"), func() {
+
+			// The Application in this test deploys a cluster-scoped resource (config.openshift.io/v1 Image),
+			// so the Argo CD instance must be cluster-scoped. That requires setting an env var on the operator,
+			// which is not possible when the operator runs locally.
+			if fixture.EnvLocalRun() {
+				Skip("Skipping test as LOCAL_RUN env var is set. In this case, it is not possible to set env var on gitops operator controller process.")
+				return
+			}
+
+			By("creating a new namespace for the Argo CD instance")
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+
+			By("adding the new namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES so the instance is cluster-scoped")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, "+ns.Name)
+
+			By("creating a new Argo CD instance within the namespace")
+			argoCD = argocdFixture.CreateNewArgoCDInstance("argocd", ns.Name)
+			Eventually(argoCD, "8m", "5s").Should(argocdFixture.BeAvailable())
+
 			By("creating an Argo CD Application that manages the cluster-scoped Image resource")
 			imageApp := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "image", Namespace: ns.Name},
@@ -213,23 +252,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying the cluster-scoped Image resource exists")
 			Eventually(&configv1.Image{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}).Should(k8sFixture.ExistByName())
-
-			By("updating repo server replicas back to 1")
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				replicas := int32(1)
-				ac.Spec.Repo.Replicas = &replicas
-			})
-
-			By("waiting for Argo CD to become available after the repo server change we made")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-
-			By("verifying repo server Deployment moves back to a single replica")
-			repoServerDepl := &appsv1.Deployment{
-				ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name},
-			}
-			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
-			Eventually(repoServerDepl).Should(deploymentFixture.HaveReplicas(1))
-			Eventually(repoServerDepl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
 		})
 
