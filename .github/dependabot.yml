@@ -7,18 +7,30 @@ updates:
     target-branch: "v1.20"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
 
   - package-ecosystem: "gomod"
     directory: "/"
     target-branch: "v1.21"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
 
   - package-ecosystem: "gomod"
     directory: "/"
     target-branch: "v1.22"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
 
   - package-ecosystem: "gomod"
     directories:
@@ -27,3 +39,7 @@ updates:
     target-branch: "master"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
