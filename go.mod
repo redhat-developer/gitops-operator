@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator
 go 1.26.2
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.9
+	github.com/argoproj-labs/argo-rollouts-manager v0.10.0
 	github.com/argoproj-labs/argocd-image-updater v1.2.2
 	github.com/argoproj-labs/argocd-operator v0.19.0-rc2.0.20260928130249-ebbd281a5634
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
@@ -96,7 +96,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/cel-go v0.27.0 // indirect
+	github.com/google/cel-go v0.29.0 // indirect
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-github/v69 v69.2.0 // indirect
 	github.com/google/go-github/v84 v84.0.0 // indirect
