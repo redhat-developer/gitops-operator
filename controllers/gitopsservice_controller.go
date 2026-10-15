@@ -67,7 +67,7 @@ var (
 	backendImageEnvName                    = "BACKEND_IMAGE"
 	serviceName                            = "cluster"
 	insecureEnvVar                         = "INSECURE"
-	insecureEnvVarValue                    = "false"
+	insecureEnvVarValue                    = "true"
 	serviceNamespace                       = "openshift-gitops"
 	deprecatedServiceNamespace             = "openshift-pipelines-app-delivery"
 	dynamicPluginStartOCPVersionEnv        = "DYNAMIC_PLUGIN_START_OCP_VERSION"
