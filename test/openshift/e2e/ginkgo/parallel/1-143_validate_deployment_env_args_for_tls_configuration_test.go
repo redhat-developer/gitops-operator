@@ -92,16 +92,28 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				},
 			}
 			Expect(c.Create(ctx, ns)).To(Succeed())
+			DeferCleanup(func() {
+				_ = c.Delete(ctx, ns)
+			})
 
 			By("generating a test certificate to use with redis, using openssl")
 			redis_crt_File, err := os.CreateTemp("", "redis.crt")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(redis_crt_File.Name())
+			})
 			Expect(redis_crt_File.Close()).To(Succeed())
 			redis_key_File, err := os.CreateTemp("", "redis.key")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(redis_key_File.Name())
+			})
 			Expect(redis_key_File.Close()).To(Succeed())
 			openssl_test_File, err := os.CreateTemp("", "openssl_test.cnf")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(openssl_test_File.Name())
+			})
 			Expect(openssl_test_File.Close()).To(Succeed())
 			opensslTestCNFContents := "\n[SAN]\nsubjectAltName=DNS:argocd-redis." + argocdNamespace + ".svc.cluster.local\n[req]\ndistinguished_name=req"
 			err = os.WriteFile(openssl_test_File.Name(), ([]byte)(opensslTestCNFContents), 0600)
@@ -142,18 +154,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Value: "true",
 			})
 			Expect(c.Create(ctx, argo)).To(Succeed())
+			DeferCleanup(func() {
+				_ = c.Delete(ctx, argo)
+			})
 			By("waiting for ArgoCD to be available")
 			Eventually(func() error {
 				return c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: argocdNamespace}, &argov1beta1api.ArgoCD{})
 			}, 2*time.Minute, 5*time.Second).Should(Succeed())
-			defer func() {
-				By("cleaning up resources")
-				_ = c.Delete(ctx, argo)
-				_ = c.Delete(ctx, ns)
-				os.Remove(redis_crt_File.Name())
-				os.Remove(redis_key_File.Name())
-				os.Remove(openssl_test_File.Name())
-			}()
 			coreDeployments := []string{
 				"example-argocd-server",
 				"example-argocd-repo-server",
