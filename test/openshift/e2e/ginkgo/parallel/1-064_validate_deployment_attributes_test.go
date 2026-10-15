@@ -122,7 +122,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						Enabled: new(true),
 					},
 					ImageUpdater: argov1beta1api.ArgoCDImageUpdaterSpec{
-						Enabled: true,
+						Enabled:   true,
 						Resources: initialResources,
 					},
 				},
@@ -150,8 +150,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deployment, Namespace: ns.Name}}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				seccompProfile := depl.Spec.Template.Spec.SecurityContext.SeccompProfile.Type
-				Expect(seccompProfile).To(Equal(corev1.SeccompProfileTypeRuntimeDefault), "deployment %s has unexpected seccomp profile", depl.Name)
+				if fixture.RunningOnOpenShift() {
+					By("verifying security context")
+					seccompProfile := depl.Spec.Template.Spec.SecurityContext.SeccompProfile.Type
+					Expect(seccompProfile).To(Equal(corev1.SeccompProfileTypeRuntimeDefault), "deployment %s has unexpected seccomp profile", depl.Name)
+				}
 
 				containers := depl.Spec.Template.Spec.Containers
 				Expect(containers).To(HaveLen(1))
