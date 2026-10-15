@@ -7,10 +7,10 @@ import (
 	"slices"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"golang.org/x/mod/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
