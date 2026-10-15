@@ -158,6 +158,28 @@ func TestImageFromEnvVariable(t *testing.T) {
 			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
+
+	t.Run("maps OpenShift curve preferences to Go curve names", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS12,
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupX25519MLKEM768,
+				configv1.TLSGroupX25519,
+				configv1.TLSGroupSecP256r1,
+				configv1.TLSGroupSecP384r1,
+			},
+		})
+		var gotCurves string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_CURVE_PREFERENCES" {
+				gotCurves = env.Value
+			}
+		}
+		want := "X25519MLKEM768:X25519:CurveP256:CurveP384"
+		if gotCurves != want {
+			t.Errorf("TLS curve preferences mismatch: got %s, want %s", gotCurves, want)
+		}
+	})
 }
 
 func TestReconcileDefaultForArgoCDNodeplacement(t *testing.T) {
