@@ -4,7 +4,7 @@ Copyright 2025.
 Licensed under the Apache License, Version 2.0 (the "License");
 */
 
-package sequential
+package parallel
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
@@ -28,9 +29,8 @@ import (
 	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 )
 
-var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("openshift"), func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	const (
-		argocdNamespace    = "test-tls-argocd"
 		argocdInstanceName = "example-argocd"
 	)
 	var (
@@ -44,7 +44,7 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 		}
 	})
 	BeforeEach(func() {
-		fixture.EnsureSequentialCleanSlate()
+		fixture.EnsureParallelCleanSlate()
 		c, _ = utils.GetE2ETestKubeClient()
 		ctx = context.Background()
 		ocVersion = getOCPVersion()
@@ -82,7 +82,9 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 	}
 
 	Context("When the ArgoCD instance is created with default TLS settings", func() {
-		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", func() {
+		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", Label("openshift"), func() {
+			argocdNamespace := "test-tls-argocd-" + string(uuid.NewUUID())[0:8]
+
 			By("creating namespace")
 			ns := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
