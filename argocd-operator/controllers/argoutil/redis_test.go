@@ -205,7 +205,7 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				} else {
 					assert.Empty(t, capturedVars["TLSCiphers"])
 				}
-				expectedCurves := MapTLSGroups(tt.centralTLSConfigProfile.CurvePreferences, "Redis HAProxy")
+				expectedCurves := MapOpenShiftTLSGroupsToOpenSSL(tt.centralTLSConfigProfile.CurvePreferences, "Redis HAProxy")
 				if expectedCurves != "" {
 					assert.Equal(t, expectedCurves, capturedVars["TLSCurves"])
 				} else {

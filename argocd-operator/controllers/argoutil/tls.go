@@ -209,10 +209,11 @@ var supportedOpenSSLTLSGroups = map[configv1.TLSGroup]struct{}{
 	configv1.TLSGroupSecP384r1MLKEM1024: {},
 }
 
-// MapTLSGroups converts OpenShift TLS groups to a colon-separated OpenSSL Groups
-// string. Unknown groups are skipped and logged. component is included in the
-// log message to identify the caller (e.g. "Redis HAProxy", "gitops-plugin httpd").
-func MapTLSGroups(groups []configv1.TLSGroup, component string) string {
+// MapOpenShiftTLSGroupsToOpenSSL converts OpenShift TLS groups to a
+// colon-separated OpenSSL Groups string. Unknown groups are skipped and logged.
+// component is included in the log message to identify the caller
+// (e.g. "Redis HAProxy", "gitops-plugin httpd").
+func MapOpenShiftTLSGroupsToOpenSSL(groups []configv1.TLSGroup, component string) string {
 	if len(groups) == 0 {
 		return ""
 	}
