@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -194,6 +195,40 @@ func MapCipherSuites(names []string) []string {
 		out = append(out, iana)
 	}
 	return out
+}
+
+// supportedOpenSSLTLSGroups lists OpenShift TLS groups whose IANA names are
+// accepted by OpenSSL 3.5+ (HAProxy alpine, httpd SSLOpenSSLConfCmd Groups, etc.).
+var supportedOpenSSLTLSGroups = map[configv1.TLSGroup]struct{}{
+	configv1.TLSGroupX25519:             {},
+	configv1.TLSGroupSecP256r1:          {},
+	configv1.TLSGroupSecP384r1:          {},
+	configv1.TLSGroupSecP521r1:          {},
+	configv1.TLSGroupX25519MLKEM768:     {},
+	configv1.TLSGroupSecP256r1MLKEM768:  {},
+	configv1.TLSGroupSecP384r1MLKEM1024: {},
+}
+
+// MapTLSGroups converts OpenShift TLS groups to a colon-separated OpenSSL Groups
+// string. Unknown groups are skipped and logged. component is included in the
+// log message to identify the caller (e.g. "Redis HAProxy", "gitops-plugin httpd").
+func MapTLSGroups(groups []configv1.TLSGroup, component string) string {
+	if len(groups) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
+	for _, group := range groups {
+		if _, ok := supportedOpenSSLTLSGroups[group]; ok {
+			names = append(names, string(group))
+			continue
+		}
+		skipped = append(skipped, group)
+	}
+	if len(skipped) > 0 {
+		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
+	}
+	return strings.Join(names, ":")
 }
 
 func AgentTLSProtocolVersionString(v configv1.TLSProtocolVersion) string {

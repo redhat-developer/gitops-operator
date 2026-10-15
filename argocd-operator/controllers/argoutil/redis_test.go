@@ -205,7 +205,7 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 				} else {
 					assert.Empty(t, capturedVars["TLSCiphers"])
 				}
-				expectedCurves := MapCurvePreferencesToHAProxyCurves(tt.centralTLSConfigProfile.CurvePreferences)
+				expectedCurves := MapTLSGroups(tt.centralTLSConfigProfile.CurvePreferences, "Redis HAProxy")
 				if expectedCurves != "" {
 					assert.Equal(t, expectedCurves, capturedVars["TLSCurves"])
 				} else {
@@ -216,50 +216,3 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 	}
 }
 
-func TestMapCurvePreferencesToHAProxyCurves(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []configv1.TLSGroup
-		expected string
-	}{
-		{
-			name:     "empty",
-			input:    nil,
-			expected: "",
-		},
-		{
-			name: "classical OpenShift groups",
-			input: []configv1.TLSGroup{
-				configv1.TLSGroupX25519,
-				configv1.TLSGroupSecP256r1,
-				configv1.TLSGroupSecP384r1,
-				configv1.TLSGroupSecP521r1,
-			},
-			expected: "X25519:secp256r1:secp384r1:secp521r1",
-		},
-		{
-			name: "OpenShift groups including PQC",
-			input: []configv1.TLSGroup{
-				configv1.TLSGroupX25519MLKEM768,
-				configv1.TLSGroupX25519,
-				configv1.TLSGroupSecP256r1MLKEM768,
-				configv1.TLSGroupSecP256r1,
-			},
-			expected: "X25519MLKEM768:X25519:SecP256r1MLKEM768:secp256r1",
-		},
-		{
-			name: "skips unknown groups",
-			input: []configv1.TLSGroup{
-				configv1.TLSGroup("UnknownGroup"),
-				configv1.TLSGroupX25519,
-			},
-			expected: "X25519",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, MapCurvePreferencesToHAProxyCurves(tt.input))
-		})
-	}
-}

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"text/template"
 
-	configv1 "github.com/openshift/api/config/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
@@ -187,40 +186,6 @@ func GetRedisInitScript(cr *argoproj.ArgoCD, useTLSForRedis bool) string {
 	return script
 }
 
-// haproxySupportedCurves lists OpenShift TLS groups accepted by HAProxy when
-// linked against OpenSSL 3.5+ (public.ecr.aws/docker/library/haproxy alpine).
-// OpenShift IANA names match OpenSSL group names, including post-quantum hybrids.
-var haproxySupportedCurves = map[configv1.TLSGroup]struct{}{
-	configv1.TLSGroupX25519:             {},
-	configv1.TLSGroupSecP256r1:          {},
-	configv1.TLSGroupSecP384r1:          {},
-	configv1.TLSGroupSecP521r1:          {},
-	configv1.TLSGroupX25519MLKEM768:     {},
-	configv1.TLSGroupSecP256r1MLKEM768:  {},
-	configv1.TLSGroupSecP384r1MLKEM1024: {},
-}
-
-// MapCurvePreferencesToHAProxyCurves converts OpenShift TLS groups to a
-// colon-separated HAProxy curves list for OpenSSL 3.5+. Unknown groups are skipped.
-func MapCurvePreferencesToHAProxyCurves(groups []configv1.TLSGroup) string {
-	if len(groups) == 0 {
-		return ""
-	}
-	curves := make([]string, 0, len(groups))
-	skipped := make([]configv1.TLSGroup, 0)
-	for _, group := range groups {
-		if _, ok := haproxySupportedCurves[group]; ok {
-			curves = append(curves, string(group))
-			continue
-		}
-		skipped = append(skipped, group)
-	}
-	if len(skipped) > 0 {
-		log.Info("skipping unsupported TLS curve preference groups for Redis HAProxy", "groups", skipped)
-	}
-	return strings.Join(curves, ":")
-}
-
 // GetRedisHAProxyConfig will load the Redis HA Proxy configuration from a template on disk for the given ArgoCD.
 // If an error occurs, an empty string value will be returned.
 func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSConfigProfile tlsprofile.TLSConfigProfile) string {
@@ -238,7 +203,7 @@ func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSC
 		vars["TLSCiphers"] = strings.Join(centralTLSConfigProfile.Ciphers, ":")
 	}
 
-	if curves := MapCurvePreferencesToHAProxyCurves(centralTLSConfigProfile.CurvePreferences); curves != "" {
+	if curves := MapTLSGroups(centralTLSConfigProfile.CurvePreferences, "Redis HAProxy"); curves != "" {
 		vars["TLSCurves"] = curves
 	}
 
