@@ -175,7 +175,7 @@ func TestAgentTLSProtocolVersionString(t *testing.T) {
 	}
 }
 
-func TestMapTLSGroups(t *testing.T) {
+func TestMapOpenShiftTLSGroupsToOpenSSL(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    []configv1.TLSGroup
@@ -218,7 +218,7 @@ func TestMapTLSGroups(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := MapTLSGroups(tt.input, "test")
+			got := MapOpenShiftTLSGroupsToOpenSSL(tt.input, "test")
 			if got != tt.expected {
 				t.Fatalf("expected %s got %s", tt.expected, got)
 			}

@@ -275,7 +275,7 @@ ServerRoot "/etc/httpd"
 	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
 	}
-	if groups := argocdutil.MapTLSGroups(r.CentralTLSProfile.CurvePreferences, "gitops-plugin httpd"); groups != "" {
+	if groups := argocdutil.MapOpenShiftTLSGroupsToOpenSSL(r.CentralTLSProfile.CurvePreferences, "gitops-plugin httpd"); groups != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLOpenSSLConfCmd Groups %s", groups)
 	}
 	// Close VirtualHost

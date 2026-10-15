@@ -203,7 +203,7 @@ func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSC
 		vars["TLSCiphers"] = strings.Join(centralTLSConfigProfile.Ciphers, ":")
 	}
 
-	if curves := MapTLSGroups(centralTLSConfigProfile.CurvePreferences, "Redis HAProxy"); curves != "" {
+	if curves := MapOpenShiftTLSGroupsToOpenSSL(centralTLSConfigProfile.CurvePreferences, "Redis HAProxy"); curves != "" {
 		vars["TLSCurves"] = curves
 	}
 
