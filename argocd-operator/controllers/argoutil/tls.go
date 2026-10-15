@@ -210,10 +210,12 @@ var openShiftTLSGroupToGoCurve = map[configv1.TLSGroup]string{
 
 // MapOpenShiftTLSGroupsToGoCurves converts OpenShift TLS groups to a
 // colon-separated list of Go crypto/tls curve names (e.g. CurveP256, X25519).
-// Unknown or unsupported groups are skipped and logged.
-func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component string) string {
+// Unsupported groups are skipped and logged. If groups is non-empty but none
+// are supported by Go, an error is returned so callers do not treat an
+// incompatible profile as an absent preference.
+func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component string) (string, error) {
 	if len(groups) == 0 {
-		return ""
+		return "", nil
 	}
 	names := make([]string, 0, len(groups))
 	skipped := make([]configv1.TLSGroup, 0)
@@ -224,10 +226,13 @@ func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component strin
 		}
 		skipped = append(skipped, group)
 	}
+	if len(names) == 0 {
+		return "", fmt.Errorf("TLS curve preference profile is incompatible with %s: none of the configured groups are supported by Go crypto/tls: %v", component, groups)
+	}
 	if len(skipped) > 0 {
 		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
 	}
-	return strings.Join(names, ":")
+	return strings.Join(names, ":"), nil
 }
 
 func AgentTLSProtocolVersionString(v configv1.TLSProtocolVersion) string {

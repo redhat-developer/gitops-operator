@@ -63,7 +63,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -71,7 +74,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -80,7 +86,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS13})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS13})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -94,7 +103,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS12})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS12})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -108,10 +120,13 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 maps OpenSSL ciphers to IANA names", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
 			MinVersion: configv1.VersionTLS13,
 			Ciphers:    []string{"ECDHE-ECDSA-AES128-GCM-SHA256"},
 		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
@@ -132,7 +147,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.2 maps and filters TLS 1.3 cipher suites", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
 			MinVersion: configv1.VersionTLS12,
 			Ciphers: []string{
 				"TLS_AES_128_GCM_SHA256",
@@ -140,6 +155,9 @@ func TestImageFromEnvVariable(t *testing.T) {
 				"ECDHE-RSA-AES128-GCM-SHA256",
 			},
 		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
@@ -160,7 +178,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("maps OpenShift curve preferences to Go curve names", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
 			MinVersion: configv1.VersionTLS12,
 			CurvePreferences: []configv1.TLSGroup{
 				configv1.TLSGroupX25519MLKEM768,
@@ -169,6 +187,9 @@ func TestImageFromEnvVariable(t *testing.T) {
 				configv1.TLSGroupSecP384r1,
 			},
 		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotCurves string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_CURVE_PREFERENCES" {
@@ -178,6 +199,17 @@ func TestImageFromEnvVariable(t *testing.T) {
 		want := "X25519MLKEM768:X25519:CurveP256:CurveP384"
 		if gotCurves != want {
 			t.Errorf("TLS curve preferences mismatch: got %s, want %s", gotCurves, want)
+		}
+	})
+
+	t.Run("errors when curve preferences contain only unsupported groups", func(t *testing.T) {
+		_, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+		})
+		if err == nil {
+			t.Fatal("expected error for incompatible TLS curve preference profile, got nil")
 		}
 	})
 }
