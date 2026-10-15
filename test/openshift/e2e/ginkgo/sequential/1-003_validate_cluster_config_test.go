@@ -135,6 +135,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				return
 			}
 
+			// Make sure the namespace is not in ARGOCD_CLUSTER_CONFIG_NAMESPACES initially
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops")
+
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
 
 			By("creating simple namespace-scoped ArgoCD instance .spec.initialSSHKnownHosts set")
