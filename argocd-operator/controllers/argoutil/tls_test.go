@@ -2,6 +2,7 @@ package argoutil
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -91,6 +92,70 @@ func TestMapCipherSuites(t *testing.T) {
 
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %+v got %+v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestMapOpenShiftTLSGroupsToGoCurves(t *testing.T) {
+	tests := []struct {
+		name      string
+		groups    []configv1.TLSGroup
+		expected  string
+		wantErr   bool
+		errSubstr string
+	}{
+		{
+			name:     "empty groups",
+			groups:   nil,
+			expected: "",
+		},
+		{
+			name: "supported groups joined with colon",
+			groups: []configv1.TLSGroup{
+				configv1.TLSGroupX25519,
+				configv1.TLSGroupSecP256r1,
+				configv1.TLSGroupSecP384r1,
+				configv1.TLSGroupSecP521r1,
+				configv1.TLSGroupX25519MLKEM768,
+			},
+			expected: "X25519:CurveP256:CurveP384:CurveP521:X25519MLKEM768",
+		},
+		{
+			name: "unsupported groups skipped when others remain",
+			groups: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroupX25519,
+			},
+			expected: "X25519",
+		},
+		{
+			name: "all unsupported groups returns error",
+			groups: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+			wantErr:   true,
+			errSubstr: "none of the configured groups are supported",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MapOpenShiftTLSGroupsToGoCurves(tt.groups, "test-component")
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				if tt.errSubstr != "" && !strings.Contains(err.Error(), tt.errSubstr) {
+					t.Fatalf("expected error containing %q, got %v", tt.errSubstr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("expected %q got %q", tt.expected, got)
 			}
 		})
 	}
