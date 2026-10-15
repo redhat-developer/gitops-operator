@@ -26,6 +26,6 @@ cd hack/upgrade-rollouts-manager
 go mod vendor
 cd ../..
 
-# Run e2e test
-make e2e-tests-ginkgo
+
+# TODO: this file appears to no longer be needed.
 
