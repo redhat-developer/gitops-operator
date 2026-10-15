@@ -43,8 +43,16 @@ func makeTestDeployment(cr *argoproj.ArgoCD) *appsv1.Deployment {
 			Namespace: cr.Namespace,
 			Labels:    buildLabelsForAgentPrincipal(cr.Name, testCompName),
 		},
-		Spec: buildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
+		Spec: mustBuildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
 	}
+}
+
+func mustBuildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, profile tlsprofile.TLSConfigProfile) appsv1.DeploymentSpec {
+	spec, err := buildPrincipalSpec(compName, saName, cr, profile)
+	if err != nil {
+		panic(err)
+	}
+	return spec
 }
 
 // Helper function to create a test deployment with custom image
@@ -132,7 +140,7 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, buildLabelsForAgentPrincipal(cr.Name, testCompName), deployment.Labels)
 
 	// Verify Deployment has expected spec
-	expectedSpec := buildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
+	expectedSpec := mustBuildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
 	assert.Equal(t, expectedSpec.Selector, deployment.Spec.Selector)
 	assert.Equal(t, expectedSpec.Template.Labels, deployment.Spec.Template.Labels)
 	assert.Equal(t, expectedSpec.Template.Spec.ServiceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
@@ -143,7 +151,9 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, generateAgentResourceName(cr.Name, testCompName), container.Name)
 	assert.Equal(t, buildPrincipalImage(cr), container.Image)
 	assert.Equal(t, buildArgs(testCompName), container.Args)
-	assert.Equal(t, buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{}), container.Env)
+	env, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+	assert.Equal(t, env, container.Env)
 	assert.Equal(t, buildSecurityContext(), container.SecurityContext)
 	assert.Equal(t, buildPorts(testCompName), container.Ports)
 
@@ -771,18 +781,95 @@ func TestGetPrincipalTlsConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "curve preferences mapped to comma-separated Go curve names",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			expected: map[string]string{
+				"--tlsminversion":       "tls1.2",
+				"--tlsCurvePreferences": "X25519,CurveP256,CurveP384",
+			},
+			wantErr: false,
+		},
+		{
+			name: "unsupported curve groups skipped when others remain",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: map[string]string{
+				"--tlsCurvePreferences": "X25519",
+			},
+			wantErr: false,
+		},
+		{
+			name: "all unsupported curve groups returns error",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name: "empty curve preferences omit env value",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion:       configv1.VersionTLS12,
+				CurvePreferences: nil,
+			},
+			expected: map[string]string{
+				"--tlsminversion": "tls1.2",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getPrincipalTlsConfig(
-				tt.tlsProfile,
-			)
+			got, err := getPrincipalTlsConfig(tt.tlsProfile)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %#v got %#v", tt.expected, got)
 			}
 		})
 	}
+}
+
+func TestBuildPrincipalContainerEnv_TLSCurvePreferences(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+	envVars, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
+	})
+	assert.NoError(t, err)
+
+	envMap := make(map[string]string)
+	for _, e := range envVars {
+		envMap[e.Name] = e.Value
+	}
+	assert.Equal(t, "X25519,CurveP256", envMap[EnvArgoCDPrincipalTLSCurvePreferences])
+
+	_, err = buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupSecP256r1MLKEM768,
+		},
+	})
+	assert.Error(t, err)
 }
 
 func withPrincipalLabelSelector(selector string) argoCDOpt {
@@ -852,7 +939,8 @@ func TestBuildPrincipalContainerEnv_LabelSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			for _, e := range envVars {
 				envMap[e.Name] = e.Value
@@ -974,7 +1062,8 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			for _, e := range envVars {
 				envMap[e.Name] = e.Value
