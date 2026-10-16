@@ -61,7 +61,10 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 			return nil
 		}
 
-		deployment, changed := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		deployment, changed, err := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		if err != nil {
+			return err
+		}
 		if changed {
 			argoutil.LogResourceUpdate(log, deployment, "principal deployment is being updated")
 			if err := client.Update(context.TODO(), deployment); err != nil {
@@ -81,7 +84,11 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 	}
 
 	argoutil.LogResourceCreation(log, deployment)
-	deployment.Spec = buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	spec, err := buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	if err != nil {
+		return err
+	}
+	deployment.Spec = spec
 	if err := client.Create(context.TODO(), deployment); err != nil {
 		return fmt.Errorf("failed to create principal deployment %s in namespace %s: %v", deployment.Name, cr.Namespace, err)
 	}
@@ -98,9 +105,12 @@ func buildDeployment(compName string, cr *argoproj.ArgoCD) *appsv1.Deployment {
 	}
 }
 
-func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) appsv1.DeploymentSpec {
+func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) (appsv1.DeploymentSpec, error) {
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return appsv1.DeploymentSpec{}, err
+	}
 	return appsv1.DeploymentSpec{
 		Selector: buildSelector(compName, cr),
 		Template: corev1.PodTemplateSpec{
@@ -126,7 +136,7 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 				PriorityClassName:  cr.Spec.PriorityClassName,
 			},
 		},
-	}
+	}, nil
 }
 
 func buildSelector(compName string, cr *argoproj.ArgoCD) *metav1.LabelSelector {
@@ -251,9 +261,9 @@ func buildVolumes() []corev1.Volume {
 }
 
 // updateDeploymentIfChanged compares the current deployment with the desired state
-// and updates it if any changes are detected. Returns the updated deployment and a boolean
-// indicating whether any changes were made.
-func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool) {
+// and updates it if any changes are detected. Returns the updated deployment, a boolean
+// indicating whether any changes were made, and an error if desired state cannot be built.
+func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool, error) {
 	changed := false
 
 	if !reflect.DeepEqual(deployment.Spec.Selector, buildSelector(compName, cr)) {
@@ -279,7 +289,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		changed = true
 		deployment.Spec.Template.Spec.Containers[0].Name = generateAgentResourceName(cr.Name, compName)
 	}
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return nil, false, err
+	}
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, envParams) {
 		log.Info("deployment container env is being updated")
 		changed = true
@@ -338,11 +351,14 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.PriorityClassName = cr.Spec.PriorityClassName
 	}
 
-	return deployment, changed
+	return deployment, changed, nil
 }
 
-func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) []corev1.EnvVar {
-	arguments := getPrincipalTlsConfig(centralTLSProfile)
+func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) ([]corev1.EnvVar, error) {
+	arguments, err := getPrincipalTlsConfig(centralTLSProfile)
+	if err != nil {
+		return nil, err
+	}
 	env := []corev1.EnvVar{
 		{
 			Name:  EnvArgoCDPrincipalLogLevel,
@@ -408,6 +424,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalCipherSuites,
 			Value: arguments["--tlsciphers"],
 		}, {
+			Name:  EnvArgoCDPrincipalTLSCurvePreferences,
+			Value: arguments["--tlsCurvePreferences"],
+		}, {
 			Name:  EnvArgoCDPrincipalJwtSecretName,
 			Value: getPrincipalJWTSecretName(cr),
 		}, {
@@ -435,7 +454,7 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		env = append(env, cr.Spec.ArgoCDAgent.Principal.Env...)
 	}
 
-	return env
+	return env, nil
 }
 
 // These constants are environment variables that correspond to the environment variables
@@ -469,11 +488,18 @@ const (
 	EnvArgoCDPrincipalEnableSelfClusterRegistration    = "ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION"
 	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
 	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
+	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
 )
 
-func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[string]string {
+// getPrincipalTlsConfig maps the cluster TLS security profile into env values for the
+// argocd-agent principal process (ARGOCD_PRINCIPAL_TLS_*). Curve preferences are converted
+// from OpenShift TLSGroup names to Go crypto/tls CurveID names and joined with commas, as
+// expected by ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES. Empty curve preferences mean the
+// principal keeps its default behavior; a non-empty profile with no Go-supported groups
+// is an error so an incompatible profile is not silently ignored.
+func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) (map[string]string, error) {
 	if centralTLSProfile.DisableClusterTLSProfile {
-		return nil
+		return nil, nil
 	}
 	arguments := make(map[string]string)
 	if v := argoutil.AgentTLSProtocolVersionString(centralTLSProfile.MinVersion); v != "" {
@@ -500,7 +526,17 @@ func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[st
 			arguments["--tlsciphers"] = strings.Join(ciphers, ",")
 		}
 	}
-	return arguments
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSProfile.CurvePreferences, "argocd-agent principal")
+	if err != nil {
+		return nil, err
+	}
+	if curves != "" {
+		// MapOpenShiftTLSGroupsToGoCurves joins with ":" for components that expect that
+		// separator; the agent principal expects a comma-separated list.
+		arguments["--tlsCurvePreferences"] = strings.ReplaceAll(curves, ":", ",")
+	}
+
+	return arguments, nil
 }
 
 // Logging Configuration
