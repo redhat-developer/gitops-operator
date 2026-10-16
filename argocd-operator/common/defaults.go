@@ -197,10 +197,11 @@ const (
 	ArgoCDDefaultRedisHAReplicas = int32(3)
 
 	// ArgoCDDefaultRedisHAProxyImage is the default Redis HAProxy image to use when not specified.
+	// Alpine 3.22+ ships OpenSSL 3.5+, which supports post-quantum TLS groups (e.g. X25519MLKEM768).
 	ArgoCDDefaultRedisHAProxyImage = "public.ecr.aws/docker/library/haproxy"
 
 	// ArgoCDDefaultRedisHAProxyVersion is the default Redis HAProxy image tag to use when not specified.
-	ArgoCDDefaultRedisHAProxyVersion = "sha256:e11f034e651603f10a365e5ad5a0321825e18eded9620e40c4f4d6ae58419bfe" // 3.0.8-alpine
+	ArgoCDDefaultRedisHAProxyVersion = "sha256:96088e311f0f8c13d0fa197255d47fedb4c35090049319187b0038b848d86f82" // 3.3-alpine (3.3.16, OpenSSL 3.5)
 
 	// ArgoCDDefaultRedisImage is the Redis container image to use when not specified.
 	ArgoCDDefaultRedisImage = "public.ecr.aws/docker/library/redis"
