@@ -209,6 +209,12 @@ type ArgoCDCommitServerSpec struct {
 
 	// Custom labels to pods deployed by the operator
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Volumes adds volumes to the commit server deployment. A volume with the same
+	// name as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // ArgoCDDexSpec defines the desired state for the Dex server component.
@@ -536,7 +542,10 @@ type ArgoCDRepoSpec struct {
 	// Env lets you specify environment for repo server pods
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Volumes adds volumes to the repo server deployment
+	// Volumes adds volumes to the repo server deployment. A volume with the same name
+	// as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the repo server container

@@ -250,9 +250,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 			},
 		},
 	}
-	if cr.Spec.ApplicationSet.Volumes != nil {
-		serverVolumes = append(serverVolumes, cr.Spec.ApplicationSet.Volumes...)
-	}
+	serverVolumes = mergeOperatorVolumes(serverVolumes, cr.Spec.ApplicationSet.Volumes)
 	podSpec.Volumes = serverVolumes
 	addSCMGitlabVolumeMount := false
 	if scmRootCAConfigMapName := getSCMRootCAConfigMapName(cr); scmRootCAConfigMapName != "" {
