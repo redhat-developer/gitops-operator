@@ -482,10 +482,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify ClusterRole and ClusterRoleBinding are not created")
 
-			Consistently(clusterRole, "30s", "1s").Should(k8sFixture.NotExistByName(),
+			Consistently(clusterRole, "15s", "1s").Should(k8sFixture.NotExistByName(),
 				"ClusterRole '%s' should not exist for namespace-scoped ArgoCD instance", clusterRole.Name)
 
-			Consistently(clusterRoleBinding, "30s", "1s").Should(k8sFixture.NotExistByName(),
+			Consistently(clusterRoleBinding, "15s", "1s").Should(k8sFixture.NotExistByName(),
 				"ClusterRoleBinding '%s' should not exist for namespace-scoped ArgoCD instance", clusterRoleBinding.Name)
 
 			By("Delete ArgoCD instance")

@@ -114,7 +114,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name:      fmt.Sprintf("%s_%s", "argocd", sourceNamespace.Name),
 					Namespace: sourceNamespace.Name,
 				},
-			}, "30s", "5s").Should(k8sFixture.NotExistByName())
+			}, "15s", "5s").Should(k8sFixture.NotExistByName())
 
 			By("verifying RoleBinding is not created")
 			Consistently(&rbacv1.RoleBinding{
@@ -122,7 +122,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name:      argoutil.TruncateWithHash(fmt.Sprintf("%s_%s", "argocd", sourceNamespace.Name), argoutil.GetMaxLabelLength()),
 					Namespace: sourceNamespace.Name,
 				},
-			}, "30s", "5s").Should(k8sFixture.NotExistByName())
+			}, "15s", "5s").Should(k8sFixture.NotExistByName())
 
 			By("verifying there exist no rolebindings in source namespace that point to argocd namespace")
 			var roleBindingList rbacv1.RoleBindingList
@@ -140,7 +140,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: sourceNamespace.Name,
 				},
-			}, "30s", "3s").Should(k8sFixture.NotHaveLabelWithValue(common.ArgoCDManagedByClusterArgoCDLabel, argoNamespace.Name))
+			}, "15s", "3s").Should(k8sFixture.NotHaveLabelWithValue(common.ArgoCDManagedByClusterArgoCDLabel, argoNamespace.Name))
 
 			By("verifying application namespaces is not set on server")
 			serverDeployment := &appsv1.Deployment{
@@ -150,7 +150,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(serverDeployment, "30s", "3s").Should(k8sFixture.ExistByName())
-			Consistently(serverDeployment, "30s", "3s").ShouldNot(deploymentFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
+			Consistently(serverDeployment, "15s", "3s").ShouldNot(deploymentFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
 
 			appControllerStatefulSet := &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -159,7 +159,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(appControllerStatefulSet).Should(k8sFixture.ExistByName())
-			Consistently(appControllerStatefulSet, "30s", "3s").ShouldNot(statefulsetFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
+			Consistently(appControllerStatefulSet, "15s", "3s").ShouldNot(statefulsetFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
 
 		})
 
@@ -253,7 +253,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(serverDeployment, "30s", "3s").Should(k8sFixture.ExistByName())
-			Consistently(serverDeployment, "30s", "3s").ShouldNot(deploymentFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
+			Consistently(serverDeployment, "15s", "3s").ShouldNot(deploymentFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
 
 			appControllerStatefulSet := &appsv1.StatefulSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -262,7 +262,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(appControllerStatefulSet).Should(k8sFixture.ExistByName())
-			Consistently(appControllerStatefulSet, "30s", "3s").ShouldNot(statefulsetFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
+			Consistently(appControllerStatefulSet, "15s", "3s").ShouldNot(statefulsetFixture.HaveContainerCommandSubstring("--application-namespaces", 0))
 
 		})
 	})
