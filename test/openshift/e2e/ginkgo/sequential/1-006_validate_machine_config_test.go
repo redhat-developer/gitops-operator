@@ -24,6 +24,7 @@ import (
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -179,6 +180,78 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(repoServerDepl).Should(k8sFixture.ExistByName())
 			Eventually(repoServerDepl).Should(deploymentFixture.HaveReplicas(1))
 			Eventually(repoServerDepl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+
+		})
+
+		It("verifies that an Argo CD Application can manage a cluster-scoped resource", Label("openshift"), func() {
+
+			// The Application in this test deploys a cluster-scoped resource (config.openshift.io/v1 Image),
+			// so the Argo CD instance must be cluster-scoped. That requires setting an env var on the operator,
+			// which is not possible when the operator runs locally.
+			if fixture.EnvLocalRun() {
+				Skip("Skipping test as LOCAL_RUN env var is set. In this case, it is not possible to set env var on gitops operator controller process.")
+				return
+			}
+
+			By("creating a new namespace for the Argo CD instance")
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+
+			By("adding the new namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES so the instance is cluster-scoped")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, "+ns.Name)
+
+			By("creating a new Argo CD instance within the namespace")
+			argoCD = argocdFixture.CreateNewArgoCDInstance("argocd", ns.Name)
+			Eventually(argoCD, "8m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("creating an Argo CD Application that manages the cluster-scoped Image resource")
+			imageApp := &argocdv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "image", Namespace: ns.Name},
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: &argocdv1alpha1.ApplicationSource{
+						Path:           "test/examples/image",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						TargetRevision: "HEAD",
+					},
+					Destination: argocdv1alpha1.ApplicationDestination{
+						Namespace: ns.Name,
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+					SyncPolicy: &argocdv1alpha1.SyncPolicy{
+						Automated: &argocdv1alpha1.SyncPolicyAutomated{},
+						Retry: &argocdv1alpha1.RetryStrategy{
+							Limit: int64(5),
+						},
+					},
+				},
+			}
+
+			By("capturing the current cluster-scoped Image configuration, to restore it after the test")
+			originalImage := &configv1.Image{}
+			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "cluster"}, originalImage)).To(Succeed())
+			originalImageSpec := originalImage.Spec.DeepCopy()
+
+			Expect(k8sClient.Create(ctx, imageApp)).To(Succeed())
+			defer func() {
+				// Image/cluster is a real cluster-wide singleton resource, not scoped to the test
+				// namespace, so deleting the Application/namespace does not revert the
+				// allowedRegistriesForImport policy it applied. Delete the Application first, so
+				// it stops managing/resyncing the Image resource, then restore its original spec.
+				_ = k8sClient.Delete(ctx, imageApp)
+				Eventually(imageApp).Should(k8sFixture.NotExistByName())
+
+				k8sFixture.Update(&configv1.Image{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}, func(obj client.Object) {
+					image := obj.(*configv1.Image)
+					image.Spec = *originalImageSpec
+				})
+			}()
+
+			By("verifying the Image Application has deployed successfully")
+			Eventually(imageApp, "4m", "5s").Should(applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(imageApp, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+
+			By("verifying the cluster-scoped Image resource exists")
+			Eventually(&configv1.Image{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}).Should(k8sFixture.ExistByName())
 
 		})
 
