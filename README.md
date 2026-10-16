@@ -69,7 +69,7 @@ When the CI log file is deemed to contain information resembling passphrases or 
 
 > This file contained potentially sensitive information and has been removed
 
-To access the file and identify the offending piece of information, visit https://redhat.tines.com/pages/leaktk-test-platform-results-redaction-self-service and paste there the raw log file URL to see the contents.
+To access the file and identify the offending piece of information, visit https://leaktk-gcs-filter-self-service-1043659492591.us-east1.run.app/self-service and paste there the raw log file URL to see the contents.
 
 Remember to file a PR updating the test that is producing the undesired output identified by Tines, and redact it.
 
