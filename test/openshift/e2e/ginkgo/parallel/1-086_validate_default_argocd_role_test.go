@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"context"
@@ -13,10 +13,11 @@ import (
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-086_validate_default_argocd_role", func() {
 		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
@@ -28,7 +29,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -57,9 +58,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating 3 ArgoCD instances in 3 different namespaces, with different RBAC policies")
 
-			test_1_086_customNS := fixture.CreateNamespace("test-1-086-custom")
-			test_1_086_custom2NS := fixture.CreateNamespace("test-1-086-custom2")
-			test_1_086_custom3NS := fixture.CreateNamespace("test-1-086-custom3")
+			test_1_086_customNS, cleanup1 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom-" + string(uuid.NewUUID())[0:8])
+			defer cleanup1()
+			test_1_086_custom2NS, cleanup2 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom2-" + string(uuid.NewUUID())[0:8])
+			defer cleanup2()
+			test_1_086_custom3NS, cleanup3 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom3-" + string(uuid.NewUUID())[0:8])
+			defer cleanup3()
 
 			argoCD_default_policy := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy", Namespace: test_1_086_customNS.Name},
@@ -111,7 +115,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying argocd-rbac-cm ConfigMap contains the expected values in each namespace")
 
-			configMap_test_1_086_custom := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: "test-1-086-custom"}}
+			configMap_test_1_086_custom := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: test_1_086_customNS.Name}}
 			Eventually(configMap_test_1_086_custom).Should(k8sFixture.ExistByName())
 			Expect(configMap_test_1_086_custom).To(
 				And(
@@ -124,7 +128,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(configMap_test_1_086_custom.Data["policy.default"]).To(Equal("role:readonly"))
 			Expect(configMap_test_1_086_custom.Data["scopes"]).To(Equal("[groups]"))
 
-			configMap_test_1_086_custom2 := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: "test-1-086-custom2"}}
+			configMap_test_1_086_custom2 := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: test_1_086_custom2NS.Name}}
 			Eventually(configMap_test_1_086_custom2).Should(k8sFixture.ExistByName())
 			Expect(configMap_test_1_086_custom2).To(
 				And(
@@ -137,7 +141,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(configMap_test_1_086_custom2.Data["policy.default"]).To(Equal(""))
 			Expect(configMap_test_1_086_custom2.Data["scopes"]).To(Equal("[groups]"))
 
-			configMap_test_1_086_custom3 := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: "test-1-086-custom3"}}
+			configMap_test_1_086_custom3 := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: test_1_086_custom3NS.Name}}
 			Eventually(configMap_test_1_086_custom3).Should(k8sFixture.ExistByName())
 			Expect(configMap_test_1_086_custom3).To(
 				And(
