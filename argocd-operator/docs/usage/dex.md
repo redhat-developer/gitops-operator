@@ -11,7 +11,7 @@ Dex can be used to delegate authentication to external identity providers like G
 
 ## Installing & Configuring Dex
 
-Dex configuration has moved to `.spec.sso` in release v0.4.0. Dex can be enabled by setting `.spec.sso.provider` to `dex` in the Argo CD CR.
+Dex can be enabled by setting `.spec.sso.provider` to `dex` in the `ArgoCD` CR.
 
 !!! note
     It is now mandatory to specify `.spec.sso.dex` either with OpenShift configuration through `openShiftOAuth: true` or valid custom configuration supplied through `.spec.sso.dex.config`. Absence of either will result in an error due to failing health checks on Dex.
@@ -20,7 +20,7 @@ Dex configuration has moved to `.spec.sso` in release v0.4.0. Dex can be enabled
     Specifying `.spec.sso.dex` without setting dex as the provider will result in an error.
 
 !!! note
-    `.spec.dex` is no longer supported in Argo CD operator v0.8.0 onwards, use `.spec.sso.dex` instead.
+    `.spec.dex` is no longer supported since OpenShift GitOps v1.10 onwards, use `.spec.sso.dex` instead.
 
 An example of correctly configured dex would look as follows:
 
@@ -63,9 +63,20 @@ spec:
     scopes: '[groups]'
 ```
 
+### Login with OpenShift
+
+- Go to the `OpenShift Console -> Networking -> Routes`.
+- Select your Argo CD instance namespace under `Project` dropdown.
+- Click on the `<argocd-instance>-server` route url to access the Argo CD UI.
+- You will be redirected to Argo CD Login Page.
+- You can see an option to **LOG IN VIA OPENSHIFT** apart from the usual Argo CD login. Click on the button. (Please clear the site cache or use incognito window if facing issues).
+- You will be redirected to the OpenShift Login Page.
+- Provide the OpenShift login credentials to get redirected to Argo CD. 
+- Upon successful login in Argo CD, you can look at the user details by clicking on the User Info Tab in Argo CD UI.
+
 #### Role Mappings
 
-To have a specific user be properly atrributed with the `role:admin` upon SSO through Openshift, the user needs to be in a **group** with the `cluster-admin` role added. If the user only has a direct `ClusterRoleBinding` to the Openshift role for `cluster-admin`, the Argo CD role will not map.
+To have a specific user be properly attributed with the `role:admin` upon SSO through Openshift, the user needs to be in a **group** with the `cluster-admin` role added. If the user only has a direct `ClusterRoleBinding` to the Openshift role for `cluster-admin`, the Argo CD role will not map.
 
 A quick fix will be to create a group named `cluster-admins` group, add the user to the group and then apply the `cluster-admin` ClusterRole to the group.
 
@@ -74,6 +85,49 @@ oc adm groups new cluster-admins
 oc adm groups add-users cluster-admins USER
 oc adm policy add-cluster-role-to-group cluster-admin cluster-admins
 ```
+
+### Group Level Access
+
+Dex reads the group information of OpenShift users. This allows admin to configure rbac at group level using group name. `.spec.rbac.policy` in ArgoCD CR can be used to add group level rbac policies. 
+
+For example, below will give admin level access to all the users from `foo-admins` OpenShift group.
+
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: <argocd-instance-name>
+spec:
+  rbac:
+    policy.csv: |
+      g, foo-admins, role:admin
+```
+
+More information regarding Argo CD RBAC can be found [here](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/).
+
+### User Level Access
+
+Admin can control access at individual user level by adding rbac configurations under `.spec.rbac.policy` in ArgoCD CR.
+
+> **Important**  
+It is not recommended to use user level RBAC with OpenShift login as it poses security risk. Refer [this](https://github.com/argoproj/argo-cd/discussions/8160#discussioncomment-1975554) discussion for more details. 
+
+For example, below will give admin level access to a user with email `foo@example.com` & user with username `bar`
+
+```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: <argocd-instance-name>
+spec:
+  rbac:
+    policy.csv: |
+      g, foo@example.com, role:admin
+      g, bar, role:admin
+    scopes: '[groups,name,email]'
+```
+
+More information regarding Argo CD RBAC can be found [here](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/).
 
 ## Dex GitHub Connector
 
@@ -175,9 +229,8 @@ spec:
 - `spec.sso.dex.volumeMounts` and `spec.sso.dex.volumes` follow the standard Kubernetes `volumeMounts` and `volumes` schema.
 - Ensure the volume name matches between the `volumes` and `volumeMounts` sections.
 
-## Uninstalling Dex
+Addition configurations such as a different dex image, version, resource limits, etc., can be provided. Refer [dex-options](https://gitops-operator.readthedocs.io/en/latest/reference/argocd/#dex-options) section in argocd-operator documentation for more details.
 
-!!! note
-    `DISABLE_DEX` environment variable is no longer supported in Argo CD operator v0.8.0 onwards.
+## Uninstalling Dex
 
 Dex can be uninstalled either by removing `.spec.sso` from the Argo CD CR, or switching to a different SSO provider.
