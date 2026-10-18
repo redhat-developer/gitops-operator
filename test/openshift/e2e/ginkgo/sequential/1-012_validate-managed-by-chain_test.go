@@ -73,14 +73,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			var cleanupFunc1, cleanupFunc2, cleanupFunc3, cleanupFunc4 func()
 
-			nsTest_1_12_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom")
-			cleanupfuncs = append(cleanupfuncs, cleanupFunc1)
-
-			nsTest_1_12_custom2, cleanupFunc2 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom2")
-			cleanupfuncs = append(cleanupfuncs, cleanupFunc2)
-
 			randomNS, cleanupFunc3 = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			cleanupfuncs = append(cleanupfuncs, cleanupFunc3)
+
+			nsTest_1_12_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom")
+			cleanupfuncs = append(cleanupfuncs, cleanupFunc1)
+
+			nsTest_1_12_custom2, cleanupFunc2 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom2")
+			cleanupfuncs = append(cleanupfuncs, cleanupFunc2)
 
 			argoCDRandomNS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
@@ -224,7 +224,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("recreating Argo CD applications")
 
-			nsTest_1_12_custom, cleanupFunc4 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom")
+			nsTest_1_12_custom, cleanupFunc4 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom")
 			cleanupfuncs = append(cleanupfuncs, cleanupFunc4)
 
 			app = &argocdv1alpha1.Application{
