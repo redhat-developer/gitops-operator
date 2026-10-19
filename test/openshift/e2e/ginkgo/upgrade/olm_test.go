@@ -52,9 +52,20 @@ func catalogSource() string {
 	return "redhat-operators"
 }
 
+// The name of the Subscription the suite creates. The package name by default, which is what
+// installing from the console gives. SUBSCRIPTION_NAME overrides it for a harness whose other
+// suites find the Subscription by its own naming: in CI mode the e2e fixture looks for a
+// name starting with "gitops-operator-", and finds nothing under the default.
+func subscriptionName() string {
+	if v := os.Getenv("SUBSCRIPTION_NAME"); v != "" {
+		return v
+	}
+	return operatorPackage
+}
+
 func operatorSubscription() *olmv1alpha1.Subscription {
 	return &olmv1alpha1.Subscription{
-		ObjectMeta: metav1.ObjectMeta{Name: operatorPackage, Namespace: operatorNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: subscriptionName(), Namespace: operatorNamespace},
 	}
 }
 

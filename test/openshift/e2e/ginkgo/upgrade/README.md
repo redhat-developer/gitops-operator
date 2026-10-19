@@ -29,6 +29,8 @@ PREVIOUS_CHANNEL=gitops-1.21 NEW_CHANNEL=gitops-1.22 make e2e-tests-upgrade-gink
 | `NEW_VERSION` | optional | stop the upgrade at exactly this version instead of the head of the channel |
 | `CATALOG_SOURCE` | optional | CatalogSource in `openshift-marketplace` to install from; default `redhat-operators` |
 
+The Subscription is named after the package, `openshift-gitops-operator`, unless `SUBSCRIPTION_NAME` is set. Set it when other suites run on the cluster afterwards: in CI mode (`CI` set) the e2e fixture finds the Subscription by the prefix `gitops-operator-`.
+
 The Subscription uses manual approval and the test approves each InstallPlan itself. That is
 what makes the two `*_VERSION` variables work.
 
