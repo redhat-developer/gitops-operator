@@ -11,10 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -250,9 +251,43 @@ func securityContextForPlugin() *corev1.SecurityContext {
 	}
 }
 
+// allowedHttpdGroups lists TLS groups supported by OpenSSL via SSLOpenSSLConfCmd Groups.
+// OpenShift TLSGroup string values are directly usable as OpenSSL group names (OpenSSL >= 3.5).
+var allowedHttpdGroups = map[configv1.TLSGroup]struct{}{
+	configv1.TLSGroupX25519:             {},
+	configv1.TLSGroupSecP256r1:          {},
+	configv1.TLSGroupSecP384r1:          {},
+	configv1.TLSGroupSecP521r1:          {},
+	configv1.TLSGroupX25519MLKEM768:     {},
+	configv1.TLSGroupSecP256r1MLKEM768:  {},
+	configv1.TLSGroupSecP384r1MLKEM1024: {},
+}
+
+// tlsGroupsForHttpd converts OpenShift TLS groups to a colon-separated OpenSSL
+// Groups string for Apache's SSLOpenSSLConfCmd directive. Unknown groups are
+// filtered out so forward-compatible profile values do not break httpd.
+func tlsGroupsForHttpd(groups []configv1.TLSGroup) string {
+	if len(groups) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
+	for _, g := range groups {
+		if _, ok := allowedHttpdGroups[g]; ok {
+			names = append(names, string(g))
+			continue
+		}
+		skipped = append(skipped, g)
+	}
+	if len(skipped) > 0 {
+		logs.Info("skipping unsupported TLS curve preference groups for gitops-plugin httpd", "groups", skipped)
+	}
+	return strings.Join(names, ":")
+}
+
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
-	minVersionTLS := string(r.CentralTLSProfile.MinTLSVersion)
+	minVersionTLS := string(r.CentralTLSProfile.MinVersion)
 	httpdConfigBase := fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
@@ -274,6 +309,9 @@ ServerRoot "/etc/httpd"
 	}
 	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
+	}
+	if groups := tlsGroupsForHttpd(r.CentralTLSProfile.CurvePreferences); groups != "" {
+		httpdConfigBase += fmt.Sprintf("\n\tSSLOpenSSLConfCmd Groups %s", groups)
 	}
 	// Close VirtualHost
 	httpdConfigBase += "\n</VirtualHost>"

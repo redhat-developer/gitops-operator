@@ -18,8 +18,8 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 )
 
 func TestReconcileNamespaceManagement_FeatureEnabled(t *testing.T) {
@@ -122,6 +122,10 @@ func TestReconcileNamespaceManagement_FeatureEnabled(t *testing.T) {
 	assert.Equal(t, metav1.ConditionFalse, reconciledCondition.Status)
 	assert.Equal(t, "ErrorOccurred", reconciledCondition.Reason)
 	assert.Contains(t, reconciledCondition.Message, "Namespace disallowed-ns is not permitted for management")
+	// No entry in .spec.namespaceManagement matches disallowed-ns, so the message must tell the
+	// user to add one rather than to flip an existing entry.
+	assert.Contains(t, reconciledCondition.Message, "has no entry matching this namespace")
+	assert.Contains(t, reconciledCondition.Message, `add an entry with name "disallowed-ns"`)
 }
 
 func TestHandleFeatureDisable_NoNamespaceManagement(t *testing.T) {
@@ -155,7 +159,7 @@ func TestHandleFeatureDisable_NamespaceCRsExistButNoMatch(t *testing.T) {
 
 	resObjs := []client.Object{a, nm}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
@@ -192,13 +196,18 @@ func TestHandleFeatureDisable_NamespaceMatchesPattern_RBACDeleted(t *testing.T) 
 
 	resObjs := []client.Object{a, nm, ns}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
 	assert.NoError(t, err)
 }
 
+// A namespace that is still labelled `argocd.argoproj.io/managed-by: <argocd namespace>` is
+// managed through the label, independently of the NamespaceManagement CR. Its RBACs must
+// survive the cleanup that runs when NamespaceManagement is disabled, otherwise that cleanup
+// and reconcileResources fight over them on every reconciliation and the controller never
+// converges.
 func TestHandleFeatureDisable_SkipManagedByLabel(t *testing.T) {
 	a := makeTestArgoCD()
 	a.Spec.NamespaceManagement = []argoproj.ManagedNamespaces{
@@ -214,7 +223,7 @@ func TestHandleFeatureDisable_SkipManagedByLabel(t *testing.T) {
 			Namespace: "ns-managed",
 		},
 		Spec: argoproj.NamespaceManagementSpec{
-			ManagedBy: "argocd",
+			ManagedBy: a.Namespace,
 		},
 	}
 
@@ -222,18 +231,125 @@ func TestHandleFeatureDisable_SkipManagedByLabel(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "ns-managed",
 			Labels: map[string]string{
-				common.ArgoCDManagedByLabel: "ns-managed",
+				common.ArgoCDManagedByLabel: a.Namespace,
 			},
 		},
 	}
 
 	resObjs := []client.Object{a, nm, ns}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
 
-	err := r.disableNamespaceManagement(a, r.K8sClient)
+	k8sClient := r.K8sClient.(*testclient.Clientset)
+	role := newRole("test-role", policyRuleForApplicationController(), a)
+	role.Namespace = ns.Name
+	_, err := k8sClient.RbacV1().Roles(ns.Name).Create(context.TODO(), role, metav1.CreateOptions{})
 	assert.NoError(t, err)
+
+	err = r.disableNamespaceManagement(a, r.K8sClient)
+	assert.NoError(t, err)
+
+	// The Role must still be present: the namespace is managed via the managed-by label.
+	_, err = k8sClient.RbacV1().Roles(ns.Name).Get(context.TODO(), role.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+}
+
+// The managed-by label of a different ArgoCD instance must not shield the namespace from
+// cleanup by this instance.
+func TestHandleFeatureDisable_ManagedByLabelOfOtherInstance_RBACDeleted(t *testing.T) {
+	a := makeTestArgoCD()
+	a.Spec.NamespaceManagement = []argoproj.ManagedNamespaces{
+		{
+			Name:           "ns-*",
+			AllowManagedBy: true,
+		},
+	}
+
+	nm := &argoproj.NamespaceManagement{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nm1",
+			Namespace: "ns-managed",
+		},
+		Spec: argoproj.NamespaceManagementSpec{
+			ManagedBy: a.Namespace,
+		},
+	}
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ns-managed",
+			Labels: map[string]string{
+				common.ArgoCDManagedByLabel: "other-argocd",
+			},
+		},
+	}
+
+	resObjs := []client.Object{a, nm, ns}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset(ns))
+
+	k8sClient := r.K8sClient.(*testclient.Clientset)
+	role := newRole("test-role", policyRuleForApplicationController(), a)
+	role.Namespace = ns.Name
+	_, err := k8sClient.RbacV1().Roles(ns.Name).Create(context.TODO(), role, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	err = r.disableNamespaceManagement(a, r.K8sClient)
+	assert.NoError(t, err)
+
+	_, err = k8sClient.RbacV1().Roles(ns.Name).Get(context.TODO(), role.Name, metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+}
+
+// The "NamespaceManagement is disabled" condition is how a user learns their CR has no effect,
+// so a failure to record it must reach the caller instead of only being logged. The cleanup is
+// still performed first: the condition is diagnostic, and skipping cleanup would leave RBACs
+// behind.
+func TestHandleFeatureDisable_StatusUpdateFailureIsReturned(t *testing.T) {
+	a := makeTestArgoCD()
+	a.Spec.NamespaceManagement = []argoproj.ManagedNamespaces{
+		{
+			Name:           "ns-*",
+			AllowManagedBy: true,
+		},
+	}
+
+	nm := &argoproj.NamespaceManagement{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "nm1",
+			Namespace: "ns-1",
+		},
+		Spec: argoproj.NamespaceManagementSpec{
+			ManagedBy: a.Namespace,
+		},
+	}
+
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ns-1",
+		},
+	}
+
+	resObjs := []client.Object{a, nm, ns}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	baseClient := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
+	r := makeTestReconciler(&statusUpdateFailClient{Client: baseClient}, sch, testclient.NewSimpleClientset(ns))
+
+	k8sClient := r.K8sClient.(*testclient.Clientset)
+	role := newRole("test-role", policyRuleForApplicationController(), a)
+	role.Namespace = ns.Name
+	_, err := k8sClient.RbacV1().Roles(ns.Name).Create(context.TODO(), role, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	err = r.disableNamespaceManagement(a, r.K8sClient)
+	assert.ErrorContains(t, err, "simulated status update failure")
+	assert.ErrorContains(t, err, "ns-1")
+
+	// The RBACs are still cleaned up, despite the failed status update.
+	_, err = k8sClient.RbacV1().Roles(ns.Name).Get(context.TODO(), role.Name, metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
 }
 
 func TestHandleFeatureDisable_NoPatternMatch(t *testing.T) {
@@ -257,11 +373,68 @@ func TestHandleFeatureDisable_NoPatternMatch(t *testing.T) {
 
 	resObjs := []client.Object{a, nm}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, nil, nil)
+	cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a, nm}, nil)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
 	err := r.disableNamespaceManagement(a, r.K8sClient)
 	assert.NoError(t, err)
+}
+
+func TestIsNamespaceLabelledManagedBy(t *testing.T) {
+	tests := []struct {
+		name            string
+		labels          map[string]string
+		argocdNamespace string
+		expected        bool
+	}{
+		{
+			name:            "labelled as managed by this instance",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: "argocd"},
+			argocdNamespace: "argocd",
+			expected:        true,
+		},
+		{
+			name:            "labelled as managed by another instance",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: "other-argocd"},
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			name:            "no managed-by label",
+			labels:          map[string]string{"some": "label"},
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			name:            "no labels at all",
+			labels:          nil,
+			argocdNamespace: "argocd",
+			expected:        false,
+		},
+		{
+			// An unset .spec.managedBy must not match a namespace that carries no label,
+			// which is what a bare `labelVal == argocdNamespace` comparison would do.
+			name:            "missing label does not match an empty argocd namespace",
+			labels:          nil,
+			argocdNamespace: "",
+			expected:        false,
+		},
+		{
+			name:            "empty label value matches an empty argocd namespace",
+			labels:          map[string]string{common.ArgoCDManagedByLabel: ""},
+			argocdNamespace: "",
+			expected:        true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ns := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-ns", Labels: test.labels},
+			}
+			assert.Equal(t, test.expected, isNamespaceLabelledManagedBy(ns, test.argocdNamespace))
+		})
+	}
 }
 
 func TestMatchesNamespaceManagementRules(t *testing.T) {
@@ -449,6 +622,10 @@ func TestReconcileNamespaceManagement_ExplicitlyDisallowed(t *testing.T) {
 	assert.Equal(t, metav1.ConditionFalse, reconciledCondition.Status)
 	assert.Equal(t, "ErrorOccurred", reconciledCondition.Reason)
 	assert.Contains(t, reconciledCondition.Message, "Namespace deny-ns is not permitted for management")
+	// An entry for deny-ns exists but sets allowManagedBy: false, so the message must point at
+	// that entry instead of asking the user to add a new one.
+	assert.Contains(t, reconciledCondition.Message, `its matching .spec.namespaceManagement entry "deny-ns" has allowManagedBy: false`)
+	assert.Contains(t, reconciledCondition.Message, "set allowManagedBy: true on that entry")
 }
 
 func TestReconcileNamespaceManagement_StatusUpdateFailure(t *testing.T) {

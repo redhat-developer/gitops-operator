@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 
 	osappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -18,13 +18,13 @@ import (
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	imageUpdater "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
-	argov1alpha1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argov1alpha1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	apps "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"

@@ -24,14 +24,16 @@ import (
 	"reflect"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdcontroller "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
+	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdcontroller "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -54,8 +56,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	configv1 "github.com/openshift/api/config/v1"
 )
 
 var logs = logf.Log.WithName("controller_gitopsservice")
@@ -148,8 +148,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
-	//CentralTLSProfile contains MinVersion and CipherSuites
-	CentralTLSProfile configv1.TLSProfileSpec
+	// CentralTLSProfile contains cluster TLS settings (min version, ciphers, curve preferences).
+	CentralTLSProfile tlsprofile.TLSConfigProfile
 
 	// PluginNamespace is the namespace where console plugin resources (Deployment, Service, ConfigMap) are deployed.
 	// This is typically the operator's own namespace (e.g. "openshift-gitops-operator").
@@ -834,7 +834,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile tlsprofile.TLSConfigProfile) *appsv1.Deployment {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -845,18 +845,39 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 			Value: insecureEnvVarValue,
 		},
 	}
-	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
+	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinVersion) != "" {
 		env = append(env, corev1.EnvVar{
 			Name:  "TLS_MIN_VERSION",
-			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
+			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinVersion),
 		})
 	}
 
-	if len(CentralTLSProfile.Ciphers) > 0 {
-		env = append(env, corev1.EnvVar{
-			Name:  "TLS_CIPHER_SUITES",
-			Value: strings.Join(CentralTLSProfile.Ciphers, ":"),
-		})
+	// gitops-backend is Go-based and accepts IANA cipher names only (e.g.
+	// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), not OpenSSL names from the
+	// OpenShift TLSSecurityProfile (e.g. ECDHE-ECDSA-AES128-GCM-SHA256).
+	if ciphers := argocdutil.MapCipherSuites(CentralTLSProfile.Ciphers); len(ciphers) > 0 {
+		// Go does not allow configuring TLS 1.3 cipher suites; gitops-backend
+		// also rejects TLS 1.3 suites when the configured minimum is below 1.3.
+		if CentralTLSProfile.MinVersion != configv1.VersionTLS13 {
+			tls13Ciphers := map[string]bool{
+				"TLS_AES_128_GCM_SHA256":       true,
+				"TLS_AES_256_GCM_SHA384":       true,
+				"TLS_CHACHA20_POLY1305_SHA256": true,
+			}
+			filtered := make([]string, 0, len(ciphers))
+			for _, cipher := range ciphers {
+				if !tls13Ciphers[cipher] {
+					filtered = append(filtered, cipher)
+				}
+			}
+			ciphers = filtered
+		}
+		if len(ciphers) > 0 {
+			env = append(env, corev1.EnvVar{
+				Name:  "TLS_CIPHER_SUITES",
+				Value: strings.Join(ciphers, ":"),
+			})
+		}
 	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{

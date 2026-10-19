@@ -22,13 +22,14 @@ import (
 	"os"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
@@ -62,7 +63,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -70,7 +71,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -79,7 +80,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS13})
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -93,7 +94,7 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12})
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS12})
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -106,43 +107,55 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+	t.Run("TLS Min Version 1.3 maps OpenSSL ciphers to IANA names", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS13,
+			Ciphers:    []string{"ECDHE-ECDSA-AES128-GCM-SHA256"},
+		})
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
 				gotTLSMinVersion = env.Value
-				break
 			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1" {
+		if gotTLSMinVersion != "1.3" {
 			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1")
+		}
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
+	t.Run("TLS Min Version 1.2 maps and filters TLS 1.3 cipher suites", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS12,
+			Ciphers: []string{
+				"TLS_AES_128_GCM_SHA256",
+				"ECDHE-ECDSA-AES128-GCM-SHA256",
+				"ECDHE-RSA-AES128-GCM-SHA256",
+			},
+		})
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
 				gotTLSMinVersion = env.Value
-				break
 			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1:dummy2" {
-			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1:dummy2")
+		if gotTLSMinVersion != "1.2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.2")
+		}
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
 }

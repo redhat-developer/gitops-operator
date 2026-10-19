@@ -3,17 +3,17 @@ module github.com/redhat-developer/gitops-operator
 go 1.26.5
 
 // Internalized from a separate repo
-require github.com/argoproj-labs/gitops-operator/argocd-operator v0.20.0-rc1
+require github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
 
-replace github.com/argoproj-labs/gitops-operator/argocd-operator => ./argocd-operator
+replace github.com/redhat-developer/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20260826124203-67002e569d7f
+	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20261002124007-763d564a130c
 	github.com/argoproj-labs/argocd-image-updater v1.3.0
-	github.com/argoproj-labs/gitops-promoter v0.35.0
+	github.com/argoproj-labs/gitops-promoter v0.35.1
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/argo-cd/v3 v3.5.2
-	github.com/cert-manager/cert-manager v1.20.3
+	github.com/cert-manager/cert-manager v1.21.2
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
@@ -24,18 +24,19 @@ require (
 	github.com/openshift/api v0.0.0-20260619095050-5346161d1bf2
 	github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e
 	github.com/operator-framework/api v0.17.5
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
-	golang.org/x/crypto v0.56.0
-	golang.org/x/mod v0.40.0
+	golang.org/x/crypto v0.58.0
+	golang.org/x/mod v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.36.4
-	k8s.io/apiextensions-apiserver v0.36.2
+	k8s.io/apiextensions-apiserver v0.36.4
 	k8s.io/apimachinery v0.36.4
 	k8s.io/client-go v0.36.4
-	k8s.io/kube-aggregator v0.36.1
+	k8s.io/kube-aggregator v0.36.2
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
 	sigs.k8s.io/controller-runtime v0.24.1
 	sigs.k8s.io/yaml v1.6.0
@@ -147,7 +148,6 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -184,14 +184,14 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sync v0.24.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
+	golang.org/x/tools v0.51.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
@@ -214,7 +214,7 @@ require (
 	k8s.io/streaming v0.36.4 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.36.0 // indirect
-	sigs.k8s.io/gateway-api v1.5.0 // indirect
+	sigs.k8s.io/gateway-api v1.6.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect

@@ -33,14 +33,6 @@ import (
 
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
-	argov1alpha1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocdcommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdprovisioner "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	notificationsprovisioner "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/notificationsconfiguration"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/cacheutils"
-	cw "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/clientwrapper"
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -51,6 +43,14 @@ import (
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	argov1alpha1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocdcommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdprovisioner "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	notificationsprovisioner "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/notificationsconfiguration"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/cacheutils"
+	cw "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/clientwrapper"
 	corev1 "k8s.io/api/core/v1"
 	crdv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -77,7 +77,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -317,12 +317,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	centralTLSConfigProfile := tlsprofile.TLSConfigProfile{
+		DisableClusterTLSProfile: disableClusterTLSProfile,
+		MinVersion:               profile.MinTLSVersion,
+		Ciphers:                  profile.Ciphers,
+		CurvePreferences:         profile.Groups,
+	}
+
 	if util.IsOpenShiftCluster() {
 		if err = (&controllers.ReconcileGitopsService{
 			Client:                client,
 			Scheme:                mgr.GetScheme(),
 			DisableDefaultInstall: strings.ToLower(os.Getenv(common.DisableDefaultInstallEnvVar)) == "true",
-			CentralTLSProfile:     profile,
+			CentralTLSProfile:     centralTLSConfigProfile,
 			PluginNamespace:       pluginNamespace,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
@@ -372,17 +379,13 @@ func main() {
 	argocdprovisioner.Register(openshift.ReconcilerHook, openshift.BuilderHook)
 
 	if err = (&argocdprovisioner.ReconcileArgoCD{
-		Client:            client,
-		Scheme:            mgr.GetScheme(),
-		LabelSelector:     labelSelectorFlag,
-		K8sClient:         k8sClient,
-		LocalUsers:        argocdprovisioner.NewLocalUsersInfo(),
-		FipsConfigChecker: argoutil.NewLinuxFipsConfigChecker(),
-		CentralTLSConfigProfile: tlsprofile.TLSConfigProfile{
-			DisableClusterTLSProfile: disableClusterTLSProfile,
-			MinVersion:               profile.MinTLSVersion,
-			Ciphers:                  profile.Ciphers,
-		},
+		Client:                  client,
+		Scheme:                  mgr.GetScheme(),
+		LabelSelector:           labelSelectorFlag,
+		K8sClient:               k8sClient,
+		LocalUsers:              argocdprovisioner.NewLocalUsersInfo(),
+		FipsConfigChecker:       argoutil.NewLinuxFipsConfigChecker(),
+		CentralTLSConfigProfile: centralTLSConfigProfile,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Argo CD")
 		os.Exit(1)

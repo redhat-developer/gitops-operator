@@ -24,9 +24,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,7 +44,7 @@ import (
 	logr "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 type tokenRenewalTimer struct {
@@ -334,6 +334,11 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 			return reconcile.Result{}, argocd, argoCDStatus, err
 		}
 
+		// Surface on each NamespaceManagement CR that NamespaceManagement is disabled. As in
+		// disableNamespaceManagement, a failure to write the report is returned to the caller
+		// only once the cleanup below has had its chance to run.
+		statusErr := r.reportNamespaceManagementDisabled(ctx, argocd, nsMgmtList)
+
 		k8sClient := r.K8sClient
 		for _, nsMgmt := range nsMgmtList.Items {
 			// Skip the namespaceManagement CR which is not managed by the current Argo CD instance
@@ -348,8 +353,9 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 				return reconcile.Result{}, argocd, argoCDStatus, err
 			}
 
-			// Skip RBAC deletion if the namespace has the "managed-by" label
-			if namespace.Labels[common.ArgoCDManagedByLabel] == nsMgmt.Namespace {
+			// Skip RBAC deletion if the namespace is still labelled as managed by this Argo CD
+			// instance.
+			if isNamespaceLabelledManagedBy(namespace, argocd.Namespace) {
 				log.Info(fmt.Sprintf("Skipping RBAC deletion for namespace %s due to managed-by label", nsMgmt.Namespace))
 				continue
 			}
@@ -366,6 +372,11 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 				return reconcile.Result{}, argocd, argoCDStatus, err
 			}
 
+		}
+
+		if statusErr != nil {
+			log.Error(statusErr, "Failed to report that NamespaceManagement is disabled")
+			return reconcile.Result{}, argocd, argoCDStatus, statusErr
 		}
 	}
 
