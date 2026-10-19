@@ -696,7 +696,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
+		deploymentObj, err := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -834,7 +837,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile tlsprofile.TLSConfigProfile) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile tlsprofile.TLSConfigProfile) (*appsv1.Deployment, error) {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -878,6 +881,19 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 				Value: strings.Join(ciphers, ":"),
 			})
 		}
+	}
+
+	// gitops-backend expects Go crypto/tls curve names (e.g. CurveP256, X25519),
+	// not OpenShift TLSGroup names (e.g. secp256r1).
+	curves, err := argocdutil.MapOpenShiftTLSGroupsToGoCurves(CentralTLSProfile.CurvePreferences, "gitops-backend")
+	if err != nil {
+		return nil, err
+	}
+	if curves != "" {
+		env = append(env, corev1.EnvVar{
+			Name:  "TLS_CURVE_PREFERENCES",
+			Value: curves,
+		})
 	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
@@ -954,7 +970,7 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 		Spec:       deploymentSpec,
 	}
 
-	return deploymentObj
+	return deploymentObj, nil
 }
 
 func newBackendService(ns types.NamespacedName) *corev1.Service {
