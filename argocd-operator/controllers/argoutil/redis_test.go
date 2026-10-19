@@ -11,8 +11,8 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/stretchr/testify/assert"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 // TestGetRedisHAProxyConfigRenderedTLSValues verifies that TLS minVersion and ciphers

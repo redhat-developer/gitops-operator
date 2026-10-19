@@ -11,11 +11,11 @@ import (
 	"sort"
 	"strings"
 
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 
 	appsv1 "k8s.io/api/apps/v1"
