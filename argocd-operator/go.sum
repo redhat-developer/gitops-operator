@@ -41,8 +41,8 @@ github.com/argoproj-labs/gitops-promoter v0.35.1 h1:00XmvFJ73uZM/M3NWiFd/vWUTwz6
 github.com/argoproj-labs/gitops-promoter v0.35.1/go.mod h1:huDfG3PS96RrsTjXSveCSrIMB8jOcmYgPv8QKcoNcpU=
 github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260827090335-e258ee23c3e5 h1:8vyBhWiaNxZrYw1jN1Qznp6xOWHUTisseNKUPEV+HXM=
 github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260827090335-e258ee23c3e5/go.mod h1:RsOM4gdM/lsvAfIuzAhYrnHDTLA1AGooZRzVyxbVT3A=
-github.com/argoproj/argo-cd/v3 v3.5.2 h1:vYtfW2pEBSL+smt8XdpVZHUg31uERINYH6eXzdiLCY4=
-github.com/argoproj/argo-cd/v3 v3.5.2/go.mod h1:/248vUTcQHNW3fYkaSUc0PkCFA/+mnILl5b6rv+xG6Y=
+github.com/argoproj/argo-cd/v3 v3.5.5 h1:xm61p5jv4Bq36JWHympmszlzrji7mjLmVFttRp695uc=
+github.com/argoproj/argo-cd/v3 v3.5.5/go.mod h1:LJTX+2yLfWvFCK7/wyg+f9KEQ92QBYLtsQiMJ1jEor0=
 github.com/argoproj/pkg/v2 v2.0.1 h1:O/gCETzB/3+/hyFL/7d/VM/6pSOIRWIiBOTb2xqAHvc=
 github.com/argoproj/pkg/v2 v2.0.1/go.mod h1:sdifF6sUTx9ifs38ZaiNMRJuMpSCBB9GulHfbPgQeRE=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
@@ -630,8 +630,8 @@ google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyac
 google.golang.org/grpc v1.25.1/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
 google.golang.org/grpc v1.33.1/go.mod h1:fr5YgcSWrqhRRxogOsw7RzIpsmvOZ6IcH4kBYTpR3n0=
-google.golang.org/grpc v1.83.2 h1:EManeRomTObA0BU7I8vXgg/78uE5MJ9M8B39EX2WscU=
-google.golang.org/grpc v1.83.2/go.mod h1:YPI1hK3kDked6iHvgX3tR0y+nX/qpMFKhPgFsokw1S8=
+google.golang.org/grpc v1.84.0 h1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=
+google.golang.org/grpc v1.84.0/go.mod h1:ljCht0DrxQrXBDRTZp52Qxh3Ffk8CdYm2sj4O2QN2C0=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
 google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.33.0/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
