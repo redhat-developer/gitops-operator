@@ -86,7 +86,7 @@ jobs:
       - name: Configure manager to use Red Hat registry redis image
         run: |
           kubectl set env deployment/openshift-gitops-operator-controller-manager \
-            ARGOCD_REDIS_IMAGE=registry.redhat.io/rhel8/redis-6:1-146 \
+            ARGOCD_REDIS_IMAGE=registry.redhat.io/rhel9/redis-7 \
             -n openshift-gitops-operator
 
       - name: Verify Controller Manager deployment is available
