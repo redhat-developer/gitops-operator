@@ -7,5 +7,14 @@ nodes:
         kind: InitConfiguration
         nodeRegistration:
           taints: []
+    extraMounts:
+      - hostPath: /tmp/docker-config.json
+        containerPath: /var/lib/kubelet/config.json
   - role: worker
+    extraMounts:
+      - hostPath: /tmp/docker-config.json
+        containerPath: /var/lib/kubelet/config.json
   - role: worker
+    extraMounts:
+      - hostPath: /tmp/docker-config.json
+        containerPath: /var/lib/kubelet/config.json

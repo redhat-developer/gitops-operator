@@ -24,10 +24,12 @@ permissions:
 jobs:
   ci-e2e-sequential:
     uses: ./.github/workflows/kind-e2e-job.yaml
+    secrets: inherit
     with:
       test-type: sequential
 
   ci-e2e-parallel:
     uses: ./.github/workflows/kind-e2e-job.yaml
+    secrets: inherit
     with:
       test-type: parallel
