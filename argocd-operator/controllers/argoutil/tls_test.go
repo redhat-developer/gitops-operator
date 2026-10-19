@@ -96,6 +96,65 @@ func TestMapCipherSuites(t *testing.T) {
 	}
 }
 
+func TestMapOpenShiftTLSGroupsToGoCurves(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       []configv1.TLSGroup
+		expected    string
+		expectError bool
+	}{
+		{
+			name:     "empty",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name: "maps OpenShift classical and PQC groups to Go names",
+			input: []configv1.TLSGroup{
+				configv1.TLSGroupX25519MLKEM768,
+				configv1.TLSGroupX25519,
+				configv1.TLSGroupSecP256r1,
+				configv1.TLSGroupSecP384r1,
+			},
+			expected: "X25519MLKEM768:X25519:CurveP256:CurveP384",
+		},
+		{
+			name: "skips unsupported groups when some remain supported",
+			input: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroupX25519,
+				configv1.TLSGroup("UnknownGroup"),
+			},
+			expected: "X25519",
+		},
+		{
+			name: "errors when all configured groups are unsupported",
+			input: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MapOpenShiftTLSGroupsToGoCurves(tt.input, "test")
+			if tt.expectError {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("expected %s got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
 func TestAgentTLSProtocolVersionString(t *testing.T) {
 	tests := []struct {
 		input    configv1.TLSProtocolVersion
