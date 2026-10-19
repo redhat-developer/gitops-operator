@@ -141,7 +141,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "3m", "5s").Should(BeFalse())
 			Consistently(func() bool {
 				return roleContainsPolicyRule(k8sClient, appControllerRole, aggregatedControllerRoleRule)
-			}, "30s", "5s").Should(BeFalse())
+			}, "15s", "5s").Should(BeFalse())
 		})
 	})
 })
