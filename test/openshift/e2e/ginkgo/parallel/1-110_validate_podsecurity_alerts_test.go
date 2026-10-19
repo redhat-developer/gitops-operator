@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"time"
@@ -20,12 +20,12 @@ const (
 	psaWarnVersion    = "pod-security.kubernetes.io/warn-version"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-110_validate_podsecurity_alerts", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("verifies openshift-gitops: operator sets podSecurityLabelSync and OpenShift sets audit to restricted", Label("openshift"), func() {

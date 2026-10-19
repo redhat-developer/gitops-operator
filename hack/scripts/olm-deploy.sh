@@ -114,6 +114,11 @@ function main() {
         exit 1
     fi
 
+    if ! oc whoami --show-console; then
+        echo >&2 "Not logged in to OpenShift. Please run 'oc login' and try again."
+        exit 1
+    fi
+
     echo >&2 "Deploying version $VERSION"
 
     build_bundles

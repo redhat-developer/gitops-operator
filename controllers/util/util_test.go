@@ -19,9 +19,9 @@ package util
 import (
 	"testing"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
