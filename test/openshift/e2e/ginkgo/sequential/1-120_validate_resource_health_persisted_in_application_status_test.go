@@ -14,15 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	argoprojv1a1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	ssFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Test", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	const (
 		argoCDName   = "example-argocd"
 		appName      = "guestbook"
@@ -47,7 +47,7 @@ var _ = Describe("GitOps Operator Parallel E2E Test", func() {
 	)
 
 	BeforeEach(func() {
-		fixture.EnsureParallelCleanSlate()
+		fixture.EnsureSequentialCleanSlate()
 
 		k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 		ctx = context.Background()

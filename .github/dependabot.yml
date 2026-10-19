@@ -9,9 +9,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
       - dependency-name: "github.com/stretchr/testify"
       - dependency-name: "github.com/onsi/gomega"
       - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -20,9 +23,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
       - dependency-name: "github.com/stretchr/testify"
       - dependency-name: "github.com/onsi/gomega"
       - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -31,9 +37,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
       - dependency-name: "github.com/stretchr/testify"
       - dependency-name: "github.com/onsi/gomega"
       - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
 
   - package-ecosystem: "gomod"
     directories:
@@ -52,6 +61,9 @@ updates:
       gomod-combined:
         group-by: dependency-name
     ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
       - dependency-name: "github.com/stretchr/testify"
       - dependency-name: "github.com/onsi/gomega"
       - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
