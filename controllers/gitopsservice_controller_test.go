@@ -985,6 +985,59 @@ func TestReconcile_InfrastructureNode_AnnotationRemoved(t *testing.T) {
 	assert.Assert(t, !hasAnnotation)
 }
 
+func TestReconcile_InfrastructureNode_RestartsExistingWorkloads(t *testing.T) {
+	logf.SetLogger(argocd.ZapLogger(true))
+	s := scheme.Scheme
+	addKnownTypesToScheme(s)
+
+	ns := &corev1.Namespace{ObjectMeta: v1.ObjectMeta{Name: serviceNamespace}}
+	gitopsService := &pipelinesv1alpha1.GitopsService{
+		ObjectMeta: v1.ObjectMeta{Name: serviceName},
+		Spec: pipelinesv1alpha1.GitopsServiceSpec{
+			RunOnInfra: true,
+		},
+	}
+	server := &appsv1.Deployment{
+		ObjectMeta: v1.ObjectMeta{Name: "openshift-gitops-server", Namespace: serviceNamespace},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &v1.LabelSelector{MatchLabels: map[string]string{"app": "server"}},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: v1.ObjectMeta{Labels: map[string]string{"app": "server"}},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "server", Image: "test"}}},
+			},
+		},
+	}
+	controller := &appsv1.StatefulSet{
+		ObjectMeta: v1.ObjectMeta{Name: "openshift-gitops-application-controller", Namespace: serviceNamespace},
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &v1.LabelSelector{MatchLabels: map[string]string{"app": "controller"}},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: v1.ObjectMeta{Labels: map[string]string{"app": "controller"}},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Name: "controller", Image: "test"}}},
+			},
+		},
+	}
+
+	fakeClient := fake.NewFakeClient(gitopsService, ns, server, controller)
+	reconciler := newReconcileGitOpsService(fakeClient, s)
+
+	_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+	assertNoError(t, err)
+
+	updatedNS := &corev1.Namespace{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, updatedNS)
+	assertNoError(t, err)
+	assert.Equal(t, updatedNS.Annotations[common.InfraNodeSelectorAnnotation], common.InfraNodeSelectorAnnotationValue)
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: server.Name, Namespace: serviceNamespace}, server)
+	assertNoError(t, err)
+	assert.Assert(t, server.Spec.Template.Annotations[nodeSelectorRestartedAtAnnotation] != "")
+
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: controller.Name, Namespace: serviceNamespace}, controller)
+	assertNoError(t, err)
+	assert.Assert(t, controller.Spec.Template.Annotations[nodeSelectorRestartedAtAnnotation] != "")
+}
+
 func TestReconcile_PSSLabels(t *testing.T) {
 	logf.SetLogger(argocd.ZapLogger(true))
 	s := scheme.Scheme

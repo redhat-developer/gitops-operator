@@ -23,6 +23,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -79,6 +80,10 @@ const (
 	PodSecurityLabelSyncLabel      = "security.openshift.io/scc.podSecurityLabelSync"
 	PodSecurityLabelSyncLabelValue = "true"
 	kamResourceName                = "kam"
+	// nodeSelectorRestartedAtAnnotation is bumped on default-instance workloads when
+	// openshift.io/node-selector on the namespace changes, so existing pods are replaced
+	// and pick up the new selector at admission.
+	nodeSelectorRestartedAtAnnotation = "gitops.openshift.io/node-selector-restartedAt"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -285,9 +290,15 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 				return reconcile.Result{}, err
 			}
 		} else {
-			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector) {
+			changed, selectorChanged := ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
+			if changed {
 				err = r.Client.Update(context.TODO(), namespaceRef)
 				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+			if selectorChanged {
+				if err := r.restartWorkloadsForNodeSelector(namespaceRef.Name, reqLogger); err != nil {
 					return reconcile.Result{}, err
 				}
 			}
@@ -522,9 +533,15 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		if ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector) {
+		changed, selectorChanged := ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
+		if changed {
 			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		if selectorChanged {
+			if err := r.restartWorkloadsForNodeSelector(argocdNS.Name, reqLogger); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -1127,13 +1144,53 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 	}
 }
 
-func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) bool {
-	changed := false
+func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) (changed bool, nodeSelectorChanged bool) {
 	labelUpdate, _ := ensurePodSecurityLabels(namespace)
-	changed = changed || labelUpdate
 	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra, nodeSelector)
-	changed = changed || annotationUpdate
-	return changed
+	return labelUpdate || annotationUpdate, annotationUpdate
+}
+
+func (r *ReconcileGitopsService) restartWorkloadsForNodeSelector(namespace string, reqLogger logr.Logger) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	reqLogger.Info("Restarting workloads so pods pick up namespace node-selector changes", "Namespace", namespace)
+
+	deploys := &appsv1.DeploymentList{}
+	if err := r.Client.List(context.TODO(), deploys, client.InNamespace(namespace)); err != nil {
+		return err
+	}
+	for i := range deploys.Items {
+		d := &deploys.Items[i]
+		// Backend deployment already rolls via its own pod-template nodeSelector sync.
+		if d.Name == serviceName {
+			continue
+		}
+		if err := r.patchPodTemplateRestartedAt(d, &d.Spec.Template, now); err != nil {
+			return err
+		}
+	}
+
+	statefuls := &appsv1.StatefulSetList{}
+	if err := r.Client.List(context.TODO(), statefuls, client.InNamespace(namespace)); err != nil {
+		return err
+	}
+	for i := range statefuls.Items {
+		ss := &statefuls.Items[i]
+		if err := r.patchPodTemplateRestartedAt(ss, &ss.Spec.Template, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ReconcileGitopsService) patchPodTemplateRestartedAt(obj client.Object, template *corev1.PodTemplateSpec, now string) error {
+	if template.Annotations == nil {
+		template.Annotations = map[string]string{}
+	}
+	if template.Annotations[nodeSelectorRestartedAtAnnotation] == now {
+		return nil
+	}
+	template.Annotations[nodeSelectorRestartedAtAnnotation] = now
+	return r.Client.Update(context.TODO(), obj)
 }
 
 func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
