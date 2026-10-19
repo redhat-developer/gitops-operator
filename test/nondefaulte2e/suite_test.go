@@ -26,9 +26,6 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	argov1alpha1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocdprovisioner "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -41,6 +38,9 @@ import (
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argov1alpha1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocdprovisioner "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
