@@ -1,9 +1,5 @@
 # Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
 
-This document provides the required guidance and steps to follow to migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator.
-
-For understanding the differences between [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator, kindly refer to the [README](https://github.com/redhat-developer/gitops-operator/blob/master/README.md#gitops-operator-vs-argo-cd-community-operator) file of the repository.
-
 **Note**: Installing GitOps operator on OpenShift will create a namespace with the name `openshift-gitops` and an Argo CD instance in the same namespace. This instance can be used for managing your OpenShift cluster configuration. It is enabled with Dex OpenShift connector by default which allows users to log in with their OpenShift credentials. On Non-OpenShift cluster no default argocd instance is created.
 
 The default Argo CD instance in the `openshift-gitops` namespace can be deleted by adding an environmental variable `DISABLE_DEFAULT_ARGOCD_INSTANCE` with the value `true` in the Subscription resource.
@@ -39,9 +35,7 @@ Please refer to the below table to understand the correct version of GitOps oper
 
 Any environment variables added to the subscription resource of Argo CD operator has to be added back to the subscription resource of GitOps Operator post migration.
 
-To get the list of environment variables added to the subscription resource,
-
-In the RedHat OpenShift platform, go to the `Operators` section (located on the left side of the toolbar).
+To get the list of environment variables added to the subscription resource in the RedHat OpenShift platform, go to the `Operators` section (located on the left side of the toolbar).
 
 - Go to the `Installed Operators` section, where one can view all the installed operators for the particular cluster.
 - Select Argo CD, click on the `Subscription` Tab, go to Actions (located on the top right corner), click on `Edit Subscription`.
@@ -69,7 +63,7 @@ Post migration the above environment variables has to be copied to GitOps operat
 **Note**:
 GitOps operator supports additional environment variables beyond those recognized by the Argo CD Community Operator, such as
 `DISABLE_DEFAULT_ARGOCD_INSTANCE` and `ARGOCD_CLUSTER_CONFIG_NAMESPACES`. For the full list with default values and descriptions,
-see [Setting environment variables](./OpenShift%20GitOps%20Usage%20Guide.md#setting-environment-variables) in the OpenShift GitOps
+see [Setting environment variables](./openshift.md#setting-environment-variables) in the OpenShift GitOps
 Usage Guide.
 
 ### Uninstall Argo CD Operator
@@ -79,15 +73,15 @@ In the RedHat OpenShift platform, go to the `Operators` section (located on the 
 - Go to the `Installed Operators` section, where one can view all the installed operators for the particular cluster.
 - Select Argo CD, go to Actions (located on the top right corner), and finally select Uninstall Operator.
 
-![image alt text](assets/Uninstall_Community_operator.png)
+![image alt text](../assets/Uninstall_Community_operator.png)
 
 **Note:** OLM does not delete any Argo CD instances, Applications or workloads created by this operator.
 
 ### Install GitOps Operator
 
--> Go to Operators -> OperatorHub -> Red Hat OpenShift GitOps -> Install
+Go to Operators -> OperatorHub -> Red Hat OpenShift GitOps -> Install
 
-![image alt text](assets/Install_GitOps_Operator.png)
+![image alt text](../assets/Install_GitOps_Operator.png)
 
 All the workloads, applications and resources created by the Argo CD Operator are preserved. OLM does not remove any configuration
 created by the Argo CD Operator. You can login into the GitOPs operator with the same user credentials that were used to log into Argo CD
