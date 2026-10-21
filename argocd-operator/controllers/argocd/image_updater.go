@@ -715,7 +715,14 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	}
 
 	args := []string{"run"}
-	imageUpdaterTLSProfileArguments, _ := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-image-updater")
+	// Image Updater v1.3.0 supports --tlsminversion/--tlsciphers but not --tlscurvepreferences.
+	// Omit curves until a supporting image is the default; keep min version and ciphers.
+	tlsProfileForImageUpdater := r.CentralTLSConfigProfile
+	tlsProfileForImageUpdater.CurvePreferences = nil
+	imageUpdaterTLSProfileArguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForImageUpdater, "argocd-image-updater")
+	if err != nil {
+		return err
+	}
 	args = append(args, imageUpdaterTLSProfileArguments...)
 
 	podSpec.Containers = []corev1.Container{{
