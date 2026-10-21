@@ -63,6 +63,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					ImagePullPolicy: policy,
+					Notifications: argov1beta1api.ArgoCDNotifications{
+						Enabled: true,
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -78,6 +81,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"argocd-server",
 				"argocd-repo-server",
 				"argocd-redis",
+				"argocd-notifications-controller",
 			}
 
 			for _, deplName := range deploymentNames {
