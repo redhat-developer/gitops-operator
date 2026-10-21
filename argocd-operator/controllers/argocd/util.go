@@ -1780,6 +1780,11 @@ func (r *ReconcileArgoCD) reconcileArgoCDAgent(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
+	log.Info("reconciling ArgoCD Agent's Principal params configmap")
+	if err := argocdagent.ReconcilePrincipalParamsConfigMap(r.Client, compName, cr, r.Scheme); err != nil {
+		return err
+	}
+
 	log.Info("reconciling ArgoCD Agent's Principal deployment")
 	if err := argocdagent.ReconcilePrincipalDeployment(r.Client, compName, sa.Name, cr, r.Scheme, r.CentralTLSConfigProfile); err != nil {
 		return err
@@ -1835,6 +1840,11 @@ func (r *ReconcileArgoCD) reconcileArgoCDAgent(cr *argoproj.ArgoCD) error {
 
 	log.Info("reconciling ArgoCD Agent's Agent healthz service")
 	if err := agent.ReconcileAgentHealthzService(r.Client, agentCompName, cr, r.Scheme); err != nil {
+		return err
+	}
+
+	log.Info("reconciling ArgoCD Agent's Agent params configmap")
+	if err := agent.ReconcileAgentParamsConfigMap(r.Client, agentCompName, cr, r.Scheme); err != nil {
 		return err
 	}
 
