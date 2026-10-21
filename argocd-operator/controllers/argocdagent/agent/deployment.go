@@ -331,9 +331,23 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 	}
 
 	env := []corev1.EnvVar{
+		// Runtime-switchable settings that are sourced from the params ConfigMap rather than set to a
+		// literal to avoid having to restart the agent when the values change.
 		{
-			Name:  EnvArgoCDAgentLogLevel,
-			Value: getAgentLogLevel(cr),
+			Name:      EnvArgoCDAgentLogLevel,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentLogLevelKey),
+		},
+		{
+			Name:      EnvArgoCDAgentFullDetail,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentFullDetailKey),
+		},
+		{
+			Name:      EnvArgoCDAgentPProfEnabled,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentPProfEnabledKey),
+		},
+		{
+			Name:  EnvArgoCDAgentParamsConfigMap,
+			Value: common.ArgoCDAgentParamsConfigMapName,
 		},
 		{
 			Name:  EnvArgoCDAgentNamespace,
@@ -437,6 +451,9 @@ const (
 	EnvArgoCDAgentServerAddress       = "ARGOCD_AGENT_REMOTE_SERVER"
 	EnvArgoCDAgentServerPort          = "ARGOCD_AGENT_REMOTE_PORT"
 	EnvArgoCDAgentLogLevel            = "ARGOCD_AGENT_LOG_LEVEL"
+	EnvArgoCDAgentFullDetail          = "ARGOCD_AGENT_FULL_DETAIL"
+	EnvArgoCDAgentPProfEnabled        = "ARGOCD_AGENT_PPROF_ENABLED"
+	EnvArgoCDAgentParamsConfigMap     = "ARGOCD_AGENT_PARAMS_CONFIGMAP"
 	EnvArgoCDAgentLogFormat           = "ARGOCD_AGENT_LOG_FORMAT"
 	EnvArgoCDAgentNamespace           = "ARGOCD_AGENT_NAMESPACE"
 	EnvArgoCDAgentTLSSecretName       = "ARGOCD_AGENT_TLS_SECRET_NAME" // #nosec G101
@@ -472,14 +489,6 @@ const (
 	// agentSpiffeWorkloadAPIVolumeName is the name used for the SPIFFE Workload API CSI volume in agent pods.
 	agentSpiffeWorkloadAPIVolumeName = "spiffe-workload-api"
 )
-
-// Logging Configuration
-func getAgentLogLevel(cr *argoproj.ArgoCD) string {
-	if hasAgent(cr) && cr.Spec.ArgoCDAgent.Agent.LogLevel != "" {
-		return cr.Spec.ArgoCDAgent.Agent.LogLevel
-	}
-	return "info"
-}
 
 func getAgentDestinationBasedMapping(cr *argoproj.ArgoCD) string {
 	if hasAgent(cr) {

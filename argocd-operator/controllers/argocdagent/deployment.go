@@ -372,9 +372,21 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		return nil, err
 	}
 	env := []corev1.EnvVar{
+		// Runtime-switchable settings that are sourced from the params ConfigMap to avoid having
+		// to restart the principal when the values change.
 		{
-			Name:  EnvArgoCDPrincipalLogLevel,
-			Value: getPrincipalLogLevel(cr),
+			Name:      EnvArgoCDPrincipalLogLevel,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalLogLevelKey),
+		}, {
+			Name:      EnvArgoCDPrincipalFullDetail,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalFullDetailKey),
+		}, {
+			Name:      EnvArgoCDPrincipalPProfEnabled,
+			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalPProfEnabledKey),
+		},
+		{
+			Name:  EnvArgoCDPrincipalParamsConfigMap,
+			Value: common.ArgoCDAgentParamsConfigMapName,
 		}, {
 			Name:  EnvArgoCDPrincipalNamespace,
 			Value: cr.Namespace,
@@ -484,6 +496,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 // used to configure Argo CD agent, and should match the names exactly from the agent
 const (
 	EnvArgoCDPrincipalLogLevel                         = "ARGOCD_PRINCIPAL_LOG_LEVEL"
+	EnvArgoCDPrincipalFullDetail                       = "ARGOCD_PRINCIPAL_FULL_DETAIL"
+	EnvArgoCDPrincipalPProfEnabled                     = "ARGOCD_PRINCIPAL_PPROF_ENABLED"
+	EnvArgoCDPrincipalParamsConfigMap                  = "ARGOCD_PRINCIPAL_PARAMS_CONFIGMAP"
 	EnvArgoCDPrincipalLogFormat                        = "ARGOCD_PRINCIPAL_LOG_FORMAT"
 	EnvArgoCDPrincipalNamespace                        = "ARGOCD_PRINCIPAL_NAMESPACE"
 	EnvArgoCDPrincipalAllowedNamespaces                = "ARGOCD_PRINCIPAL_ALLOWED_NAMESPACES"
@@ -585,14 +600,6 @@ func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) (map[s
 	}
 
 	return arguments, nil
-}
-
-// Logging Configuration
-func getPrincipalLogLevel(cr *argoproj.ArgoCD) string {
-	if hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.LogLevel != "" {
-		return cr.Spec.ArgoCDAgent.Principal.LogLevel
-	}
-	return "info"
 }
 
 func getPrincipalLogFormat(cr *argoproj.ArgoCD) string {
