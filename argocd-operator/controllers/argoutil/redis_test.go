@@ -215,4 +215,3 @@ func TestGetRedisHAProxyConfigRenderedTLSValues(t *testing.T) {
 		})
 	}
 }
-
