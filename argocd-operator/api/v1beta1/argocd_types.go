@@ -1451,6 +1451,7 @@ type PrincipalSpec struct {
 	Auth string `json:"auth,omitempty"`
 
 	// LogLevel refers to the log level used by the Principal component.
+	// Applied at runtime: changing this does not restart the Principal.
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Principal component.
@@ -1496,6 +1497,21 @@ type PrincipalSpec struct {
 
 	// SelfRegistration defines the self-registration options for the Principal component.
 	SelfRegistration *PrincipalSelfRegistrationSpec `json:"selfRegistration,omitempty"`
+
+	// LogFullDetail is the list of categories the Principal component logs in full detail.
+	//
+	// Applied at runtime: changing this does not restart the Principal.
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Principal component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
+}
+
+// ArgoCDAgentPProfSpec defines the profiling options of an Argo CD Agent component.
+type ArgoCDAgentPProfSpec struct {
+	// Enabled toggles whether the pprof endpoint answers requests.
+	// Applied at runtime: changing this does not restart the component.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
@@ -1607,6 +1623,7 @@ type AgentSpec struct {
 	Creds string `json:"creds,omitempty"`
 
 	// LogLevel refers to the log level used by the Agent component.
+	// Applied at runtime: changing this does not restart the Agent.
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Agent component.
@@ -1640,6 +1657,14 @@ type AgentSpec struct {
 
 	// Metrics defines the metrics configuration for the Agent ServiceMonitor.
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+
+	// LogFullDetail is the list of categories the Agent component logs in full detail.
+	//
+	// Applied at runtime: changing this does not restart the Agent.
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Agent component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
 }
 
 type DestinationBasedMappingSpec struct {

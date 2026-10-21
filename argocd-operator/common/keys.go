@@ -287,6 +287,24 @@ const (
 	// ArgoCDApplicationSetControllerTokenRefStrictModeEnvName is the env variable to enable tokenRef strict mode in the ApplicationSet controller.
 	ArgoCDApplicationSetControllerTokenRefStrictModeEnvName = "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE" // #nosec G101
 
+	// ArgoCDAgentPrincipalLogLevelKey is the argocd-agent-params ConfigMap key for the principal's log level.
+	ArgoCDAgentPrincipalLogLevelKey = "principal.log.level"
+
+	// ArgoCDAgentPrincipalFullDetailKey is the argocd-agent-params ConfigMap key for the principal's full-detail log category list.
+	ArgoCDAgentPrincipalFullDetailKey = "principal.log.full-detail"
+
+	// ArgoCDAgentPrincipalPProfEnabledKey is the argocd-agent-params ConfigMap key for the principal's pprof endpoint.
+	ArgoCDAgentPrincipalPProfEnabledKey = "principal.pprof.enabled"
+
+	// ArgoCDAgentAgentLogLevelKey is the argocd-agent-params ConfigMap key for the agent's log level.
+	ArgoCDAgentAgentLogLevelKey = "agent.log.level"
+
+	// ArgoCDAgentAgentFullDetailKey is the argocd-agent-params ConfigMap key for the agent's full-detail log category list.
+	ArgoCDAgentAgentFullDetailKey = "agent.log.full-detail"
+
+	// ArgoCDAgentAgentPProfEnabledKey is the argocd-agent-params ConfigMap key for the agent's pprof endpoint.
+	ArgoCDAgentAgentPProfEnabledKey = "agent.pprof.enabled"
+
 	// ArgoCDTrackedByOperatorLabel for resources tracked by the operator
 	ArgoCDTrackedByOperatorLabel = "operator.argoproj.io/tracked-by"
 
