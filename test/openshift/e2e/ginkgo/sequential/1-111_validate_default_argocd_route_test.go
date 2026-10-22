@@ -1,10 +1,10 @@
 package sequential
 
 import (
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"

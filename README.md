@@ -69,7 +69,7 @@ When the CI log file is deemed to contain information resembling passphrases or 
 
 > This file contained potentially sensitive information and has been removed
 
-To access the file and identify the offending piece of information, visit https://redhat.tines.com/pages/leaktk-test-platform-results-redaction-self-service and paste there the raw log file URL to see the contents.
+To access the file and identify the offending piece of information, visit https://leaktk-gcs-filter-self-service-1043659492591.us-east1.run.app/self-service and paste there the raw log file URL to see the contents.
 
 Remember to file a PR updating the test that is producing the undesired output identified by Tines, and redact it.
 
@@ -114,27 +114,9 @@ make catalog-build catalog-push
 
 The Index image powers the listing of the Operator on OperatorHub.
 
-
-## GitOps Operator vs [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator)
-
-| Features | GitOps Operator | Argo CD Community Operator |
-| -------- | -------- | -------- |
-| Default Cluster Argo CD instance | ✅ | ❌ |
-| Cluster  Argo CD instances in namespaces defined by envrionment variable ARGOCD_CLUSTER_CONFIG_NAMESPACES | openshift-gitops| ❌ |
-| Cluster Configuration RBAC/Policy Rules | All APIGroups,Resources,`get`,`list`,`watch` Verbs appended with `admin` ClusterRoles. Additional APIGroups: `operator.openshift.io`,`user.openshift.io`, `config.openshift.io`, `console.openshift.io`, `machine.openshift.io`, `machineconfig.openshift.io`, `compliance.openshift.io`, `rbac.authorization.k8s.io`, `storage.k8s.io`, etc. | All APIGroups,Resources,Verbs
-| Integrated with OpenShift Console Environments page for visualizing GitOps environments and applications | ✅ | ❌ |
-| Air-gapped environments | OCP | ❌ |
-| Installed tools | helm 3, kustomize | helm 2 and 3, kustomize, ksonnet |
-| Single Sign-on | RHSSO, Dex | Keycloak, Dex |
-| Redis Server | Redis 5, Secure connection is not yet supported | Redis 6 |
-| ArgoCDExport | ❌ | ✅ |
-| Installation Modes | All Namepaces | Single, All Namespaces |
-| Support for Kubernetes | ❌ | ✅ |
-| Maintained by | Red Hat | Community  |
-
 ## Migrate from [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to GitOps Operator
 
-Please follow the [migration guide](https://github.com/redhat-developer/gitops-operator/blob/master/docs/Migration_Guide.md) when moving from the [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to the GitOps Operator.
+Please follow the [migration guide](https://gitops-operator.readthedocs.io/en/latest/install/migrate-from-argocd-operator/) when moving from the [Argo CD Community Operator](https://github.com/argoproj-labs/argocd-operator) to the GitOps Operator.
 
 ## Progressive Delivery
 

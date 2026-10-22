@@ -25,12 +25,12 @@ import (
 	"strings"
 	"time"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	gitopscommon "github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/test/helper"

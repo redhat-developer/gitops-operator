@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +34,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/library-go/pkg/crypto"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 )
 
 // NewPrivateKey returns randomly generated RSA private key.
@@ -194,6 +195,79 @@ func MapCipherSuites(names []string) []string {
 		out = append(out, iana)
 	}
 	return out
+}
+
+// openShiftTLSGroupToGoCurve maps OpenShift TLSGroup names to crypto/tls CurveID
+// String() values accepted by Go-based components (e.g. gitops-backend).
+// Groups without a Go CurveID (e.g. SecP256r1MLKEM768) are omitted.
+var openShiftTLSGroupToGoCurve = map[configv1.TLSGroup]string{
+	configv1.TLSGroupX25519:         tls.X25519.String(),
+	configv1.TLSGroupSecP256r1:      tls.CurveP256.String(),
+	configv1.TLSGroupSecP384r1:      tls.CurveP384.String(),
+	configv1.TLSGroupSecP521r1:      tls.CurveP521.String(),
+	configv1.TLSGroupX25519MLKEM768: tls.X25519MLKEM768.String(),
+}
+
+// MapOpenShiftTLSGroupsToGoCurves converts OpenShift TLS groups to a
+// colon-separated list of Go crypto/tls curve names (e.g. CurveP256, X25519).
+// Unsupported groups are skipped and logged. If groups is non-empty but none
+// are supported by Go, an error is returned so callers do not treat an
+// incompatible profile as an absent preference.
+func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component string) (string, error) {
+	if len(groups) == 0 {
+		return "", nil
+	}
+	names := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
+	for _, group := range groups {
+		if name, ok := openShiftTLSGroupToGoCurve[group]; ok {
+			names = append(names, name)
+			continue
+		}
+		skipped = append(skipped, group)
+	}
+	if len(names) == 0 {
+		return "", fmt.Errorf("TLS curve preference profile is incompatible with %s: none of the configured groups are supported by Go crypto/tls: %v", component, groups)
+	}
+	if len(skipped) > 0 {
+		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
+	}
+	return strings.Join(names, ":"), nil
+}
+
+// supportedOpenSSLTLSGroups lists OpenShift TLS groups whose IANA names are
+// accepted by OpenSSL 3.5+ (HAProxy alpine, httpd SSLOpenSSLConfCmd Groups, etc.).
+var supportedOpenSSLTLSGroups = map[configv1.TLSGroup]struct{}{
+	configv1.TLSGroupX25519:             {},
+	configv1.TLSGroupSecP256r1:          {},
+	configv1.TLSGroupSecP384r1:          {},
+	configv1.TLSGroupSecP521r1:          {},
+	configv1.TLSGroupX25519MLKEM768:     {},
+	configv1.TLSGroupSecP256r1MLKEM768:  {},
+	configv1.TLSGroupSecP384r1MLKEM1024: {},
+}
+
+// MapOpenShiftTLSGroupsToOpenSSL converts OpenShift TLS groups to a
+// colon-separated OpenSSL Groups string. Unknown groups are skipped and logged.
+// component is included in the log message to identify the caller
+// (e.g. "Redis HAProxy", "gitops-plugin httpd").
+func MapOpenShiftTLSGroupsToOpenSSL(groups []configv1.TLSGroup, component string) string {
+	if len(groups) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
+	for _, group := range groups {
+		if _, ok := supportedOpenSSLTLSGroups[group]; ok {
+			names = append(names, string(group))
+			continue
+		}
+		skipped = append(skipped, group)
+	}
+	if len(skipped) > 0 {
+		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
+	}
+	return strings.Join(names, ":")
 }
 
 func AgentTLSProtocolVersionString(v configv1.TLSProtocolVersion) string {

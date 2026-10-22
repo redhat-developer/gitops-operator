@@ -27,6 +27,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	gitopsserviceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/gitopsservice"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -155,22 +156,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, oldCM)).To(Succeed())
 
-			By("verifying the old resources were created successfully")
-			Eventually(oldDepl, "30s", "5s").Should(k8sFixture.ExistByName())
-			Eventually(oldSvc, "30s", "5s").Should(k8sFixture.ExistByName())
-			Eventually(oldCM, "30s", "5s").Should(k8sFixture.ExistByName())
-
 			By("triggering reconciliation by updating GitopsService spec")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 			}
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(gitopsService), gitopsService)).To(Succeed())
-			gitopsService.Spec.Tolerations = append(gitopsService.Spec.Tolerations, corev1.Toleration{
-				Key:      "e2e-test-trigger",
-				Operator: corev1.TolerationOpExists,
-				Effect:   corev1.TaintEffectNoSchedule,
+			gitopsserviceFixture.Update(gitopsService, func(gs *gitopsoperatorv1alpha1.GitopsService) {
+				gs.Spec.Tolerations = append(gs.Spec.Tolerations, corev1.Toleration{
+					Key:      "e2e-test-trigger",
+					Operator: corev1.TolerationOpExists,
+					Effect:   corev1.TaintEffectNoSchedule,
+				})
 			})
-			Expect(k8sClient.Update(ctx, gitopsService)).To(Succeed())
 
 			By("verifying old plugin resources are cleaned up from openshift-gitops")
 			Eventually(oldDepl, "5m", "5s").Should(k8sFixture.NotExistByName())

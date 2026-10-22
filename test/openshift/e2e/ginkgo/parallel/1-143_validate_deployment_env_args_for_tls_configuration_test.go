@@ -4,7 +4,7 @@ Copyright 2025.
 Licensed under the Apache License, Version 2.0 (the "License");
 */
 
-package sequential
+package parallel
 
 import (
 	"context"
@@ -15,22 +15,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	osFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	osFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/os"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 	gitopsFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 )
 
-var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("openshift"), func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	const (
-		argocdNamespace    = "test-tls-argocd"
 		argocdInstanceName = "example-argocd"
 	)
 	var (
@@ -44,7 +44,7 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 		}
 	})
 	BeforeEach(func() {
-		fixture.EnsureSequentialCleanSlate()
+		fixture.EnsureParallelCleanSlate()
 		c, _ = utils.GetE2ETestKubeClient()
 		ctx = context.Background()
 		ocVersion = getOCPVersion()
@@ -82,7 +82,9 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 	}
 
 	Context("When the ArgoCD instance is created with default TLS settings", func() {
-		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", func() {
+		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", Label("openshift"), func() {
+			argocdNamespace := "test-tls-argocd-" + string(uuid.NewUUID())[0:8]
+
 			By("creating namespace")
 			ns := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
@@ -90,16 +92,28 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 				},
 			}
 			Expect(c.Create(ctx, ns)).To(Succeed())
+			DeferCleanup(func() {
+				_ = c.Delete(ctx, ns)
+			})
 
 			By("generating a test certificate to use with redis, using openssl")
 			redis_crt_File, err := os.CreateTemp("", "redis.crt")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(redis_crt_File.Name())
+			})
 			Expect(redis_crt_File.Close()).To(Succeed())
 			redis_key_File, err := os.CreateTemp("", "redis.key")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(redis_key_File.Name())
+			})
 			Expect(redis_key_File.Close()).To(Succeed())
 			openssl_test_File, err := os.CreateTemp("", "openssl_test.cnf")
 			Expect(err).ToNot(HaveOccurred())
+			DeferCleanup(func() {
+				os.Remove(openssl_test_File.Name())
+			})
 			Expect(openssl_test_File.Close()).To(Succeed())
 			opensslTestCNFContents := "\n[SAN]\nsubjectAltName=DNS:argocd-redis." + argocdNamespace + ".svc.cluster.local\n[req]\ndistinguished_name=req"
 			err = os.WriteFile(openssl_test_File.Name(), ([]byte)(opensslTestCNFContents), 0600)
@@ -140,18 +154,13 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 				Value: "true",
 			})
 			Expect(c.Create(ctx, argo)).To(Succeed())
+			DeferCleanup(func() {
+				_ = c.Delete(ctx, argo)
+			})
 			By("waiting for ArgoCD to be available")
 			Eventually(func() error {
 				return c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: argocdNamespace}, &argov1beta1api.ArgoCD{})
 			}, 2*time.Minute, 5*time.Second).Should(Succeed())
-			defer func() {
-				By("cleaning up resources")
-				_ = c.Delete(ctx, argo)
-				_ = c.Delete(ctx, ns)
-				os.Remove(redis_crt_File.Name())
-				os.Remove(redis_key_File.Name())
-				os.Remove(openssl_test_File.Name())
-			}()
 			coreDeployments := []string{
 				"example-argocd-server",
 				"example-argocd-repo-server",
@@ -264,10 +273,11 @@ var _ = Describe("Validate Deployment Env Args For TLS Configuration", Label("op
 				}))
 				Expect(env).To(ContainElement(corev1.EnvVar{
 					Name: "TLS_CIPHER_SUITES",
-					Value: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:" +
-						"ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:" +
-						"ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:" +
-						"ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305",
+					// OpenSSL names from the cluster TLS profile are mapped to IANA/Go
+					// names; TLS 1.3 suites are omitted when min version is 1.2.
+					Value: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:" +
+						"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:" +
+						"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
 				}))
 
 				return nil

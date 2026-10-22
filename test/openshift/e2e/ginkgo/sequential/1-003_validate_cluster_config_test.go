@@ -19,11 +19,11 @@ package sequential
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
