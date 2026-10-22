@@ -203,6 +203,10 @@ func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSC
 		vars["TLSCiphers"] = strings.Join(centralTLSConfigProfile.Ciphers, ":")
 	}
 
+	if curves := MapOpenShiftTLSGroupsToOpenSSL(centralTLSConfigProfile.CurvePreferences, "Redis HAProxy"); curves != "" {
+		vars["TLSCurves"] = curves
+	}
+
 	script, err := loadTemplateFile(path, vars)
 	if err != nil {
 		log.Error(err, "unable to load redis haproxy configuration")

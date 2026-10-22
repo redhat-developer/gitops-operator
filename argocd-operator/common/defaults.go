@@ -200,7 +200,7 @@ const (
 	ArgoCDDefaultRedisHAProxyImage = "quay.io/akuity/haproxy"
 
 	// ArgoCDDefaultRedisHAProxyVersion is the default Redis HAProxy image tag to use when not specified.
-	ArgoCDDefaultRedisHAProxyVersion = "sha256:e11f034e651603f10a365e5ad5a0321825e18eded9620e40c4f4d6ae58419bfe" // 3.0.8-alpine
+	ArgoCDDefaultRedisHAProxyVersion = "sha256:09b826a755db651927a63ec73c5d98e9f68883665169d3911053e2146e0584fe" // 3.3.17-alpine (3.3.17, OpenSSL 3.5)
 
 	// ArgoCDDefaultRedisImage is the Redis container image to use when not specified.
 	ArgoCDDefaultRedisImage = "quay.io/akuity/redis"
