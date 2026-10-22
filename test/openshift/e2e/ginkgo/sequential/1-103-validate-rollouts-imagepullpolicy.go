@@ -136,7 +136,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-				fixture.RestoreSubcriptionToDefault()
+				fixture.RestoreSubscriptionToDefault()
 			}()
 
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in openshift-gitops namespace")
