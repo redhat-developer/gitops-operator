@@ -288,22 +288,75 @@ func TestReconcileDisableDefault(t *testing.T) {
 
 	argoCD := &argoapp.ArgoCD{}
 
-	// ArgoCD instance SHOULD NOT created (in openshift-gitops namespace)
+	// ArgoCD instance SHOULD NOT be created (in openshift-gitops namespace)
 	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
 		argoCD); err == nil || !errors.IsNotFound(err) {
 
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD be created
+	// openshift-gitops namespace SHOULD NOT be created when DISABLE_DEFAULT_ARGOCD_INSTANCE is true
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Namespace should not exist when DISABLE_DEFAULT_ARGOCD_INSTANCE is true, error: %v", err)
+	}
 
-	// backend Deployment SHOULD be created
+	// backend Deployment SHOULD NOT be created (no namespace to deploy into)
 	deploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Backend deployment should not exist when namespace doesn't exist, error: %v", err)
+	}
 
+}
+
+// The console plugin is installed regardless of whether the default install is disabled, so the
+// namespace it is deployed into must always exist by the time its resources are created. On a real
+// cluster a missing namespace makes every plugin resource creation fail admission, leaving the
+// controller to error on each reconcile forever. The fake client does not enforce NamespaceLifecycle,
+// so the existence of the namespace and not of the resources within it is what is asserted here.
+func TestReconcile_PluginNamespaceIsCreated(t *testing.T) {
+
+	tests := []struct {
+		name string
+		// pluginNamespace is the namespace the console plugin is deployed into: the operator namespace
+		// in a normal install, but it may be the default Argo CD instance namespace.
+		pluginNamespace       string
+		disableDefaultInstall bool
+	}{
+		{
+			name:            "plugin namespace is the operator namespace",
+			pluginNamespace: "openshift-gitops-operator",
+		},
+		{
+			// The default install, which would otherwise create the namespace, is skipped here.
+			name:                  "plugin namespace is the default Argo CD namespace and the default install is disabled",
+			pluginNamespace:       serviceNamespace,
+			disableDefaultInstall: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+			util.SetConsoleAPIFound(true)
+
+			logf.SetLogger(argocd.ZapLogger(true))
+			s := scheme.Scheme
+			addKnownTypesToScheme(s)
+
+			fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.19.0"), newGitopsService())
+			reconciler := newReconcileGitOpsService(fakeClient, s)
+			reconciler.PluginNamespace = test.pluginNamespace
+			reconciler.DisableDefaultInstall = test.disableDefaultInstall
+
+			_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+			assertNoError(t, err)
+
+			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: test.pluginNamespace}, &corev1.Namespace{})
+			assertNoError(t, err)
+		})
+	}
 }
 
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is deleted if it already exists.
@@ -342,13 +395,36 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD still exist
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
+	// The resources the operator created for the backend SHOULD be deleted. The ClusterRole and
+	// ClusterRoleBinding are owned by the GitopsService CR, but that CR is never deleted while the
+	// operator is installed, so garbage collection will not remove them. A surviving binding would
+	// re-grant cluster-wide access as soon as a ServiceAccount of the same name exists again.
+	backendName := types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}
+	prefixedName := types.NamespacedName{Name: gitopsServicePrefix + serviceName, Namespace: serviceNamespace}
+	clusterRoleName := types.NamespacedName{Name: gitopsServicePrefix + serviceName}
 
-	// backend Deployment SHOULD still exist
-	deploy := &appsv1.Deployment{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
+	backendResources := []struct {
+		kind   string
+		name   types.NamespacedName
+		object client.Object
+	}{
+		{"Deployment", backendName, &appsv1.Deployment{}},
+		{"Service", backendName, &corev1.Service{}},
+		{"ClusterRoleBinding", clusterRoleName, &rbacv1.ClusterRoleBinding{}},
+		{"ClusterRole", clusterRoleName, &rbacv1.ClusterRole{}},
+		{"ServiceAccount", prefixedName, &corev1.ServiceAccount{}},
+	}
+
+	for _, resource := range backendResources {
+		err = fakeClient.Get(context.TODO(), resource.name, resource.object)
+		if err == nil || !errors.IsNotFound(err) {
+			t.Fatalf("backend %s should be deleted when DISABLE_DEFAULT_ARGOCD_INSTANCE is enabled, error: %v", resource.kind, err)
+		}
+	}
+
+	// The openshift-gitops namespace itself SHOULD still exist, because it may contain resources
+	// that were created outside of the operator. Cleaning it up is left to the user.
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 }
