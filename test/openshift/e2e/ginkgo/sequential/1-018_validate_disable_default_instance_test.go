@@ -192,7 +192,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Consistently(openshiftGitopsNS, "30s", "5s").Should(k8sFixture.ExistByName())
 
 			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
-			fixture.RestoreSubcriptionToDefault()
+			fixture.RestoreSubscriptionToDefault()
 
 			By("verifying ArgoCD CR is recreated")
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
