@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			fixture.OutputDebugOnFail("argocd-e2e-cluster-config", "openshift-gitops")
 
-			fixture.RestoreSubcriptionToDefault() // revert Subscription at end of test
+			fixture.RestoreSubscriptionToDefault() // revert Subscription at end of test
 
 			if cleanupFunc != nil {
 				cleanupFunc()

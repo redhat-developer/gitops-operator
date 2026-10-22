@@ -64,7 +64,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			// Restore the operator Subscription/Deployment to remove the cluster-config namespace we added
-			fixture.RestoreSubcriptionToDefault()
+			fixture.RestoreSubscriptionToDefault()
 
 			if cleanupFunc != nil {
 				cleanupFunc()
