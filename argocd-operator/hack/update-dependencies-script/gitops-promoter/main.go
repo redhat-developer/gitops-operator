@@ -39,6 +39,10 @@ func main() {
 		return
 	}
 
+	// argocd-operator is a Go submodule of the gitops-operator repository. The operator
+	// manifests (config/, bundle/) are maintained by the parent module.
+	gitopsOperatorRoot := filepath.Dir(argocdOperatorRoot)
+
 	fmt.Println()
 	fmt.Println("Cloning GitOps Promoter Repo")
 	fmt.Println()
@@ -56,14 +60,20 @@ func main() {
 		return
 	}
 
+	// Sanity test that the parent gitops-operator module (which owns config/ and bundle/) exists
+	if rootGoModExists, err := utils.FileExists(filepath.Join(gitopsOperatorRoot, "go.mod")); err != nil || !rootGoModExists {
+		utils.ExitWithError(fmt.Errorf("gitops-operator go.mod not found in '%s': %v", gitopsOperatorRoot, err))
+		return
+	}
+
 	fmt.Println()
 	fmt.Println("Copying CRDs")
 	fmt.Println()
 
-	updateGitOpsPromoterCRDs(gitOpsPromoterRepoRoot, argocdOperatorRoot)
+	updateGitOpsPromoterCRDs(gitOpsPromoterRepoRoot, gitopsOperatorRoot)
 }
 
-func updateGitOpsPromoterCRDs(promoterRepoRoot, operatorRoot string) {
+func updateGitOpsPromoterCRDs(promoterRepoRoot, gitopsOperatorRoot string) {
 	crdSourcePath := filepath.Join(promoterRepoRoot, "config", "crd", "bases")
 
 	entries, err := os.ReadDir(crdSourcePath)
@@ -78,7 +88,7 @@ func updateGitOpsPromoterCRDs(promoterRepoRoot, operatorRoot string) {
 		}
 
 		srcFile := filepath.Join(crdSourcePath, entry.Name())
-		destFile := filepath.Join(operatorRoot, "config", "crd", "bases", entry.Name())
+		destFile := filepath.Join(gitopsOperatorRoot, "config", "crd", "bases", entry.Name())
 
 		if err := utils.CopyFile(srcFile, destFile); err != nil {
 			utils.ExitWithError(fmt.Errorf("unable to copy %s to %s: %v", srcFile, destFile, err))
