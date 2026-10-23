@@ -25,6 +25,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -47,6 +48,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -126,6 +128,8 @@ var _ = BeforeSuite(func() {
 	Expect(configv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(templatev1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(appsv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(promoter.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(apiregistrationv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
