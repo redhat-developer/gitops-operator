@@ -20,6 +20,10 @@ const (
 	// against the mirror so we never write a public.ecr.aws digest for a quay.io image.
 	// This constant should be consistent with ArgoCDDefaultRedisImage in common/defaults.go.
 	redisMirrorImageURL = "quay.io/akuity/redis"
+
+	// redisMirrorImageEnvVar optionally overrides redisMirrorImageURL, for example when the
+	// default mirror has not picked up an upstream redis release yet.
+	redisMirrorImageEnvVar = "REDIS_MIRROR_IMAGE"
 )
 
 func main() {
@@ -208,9 +212,42 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 	fmt.Println("-", targetDexImage)
 	fmt.Println("-", targetRedisImage)
 
-	dexContainerInfo := retrieveSHA256DigestUsingSkopeo(targetDexImage)
-	redisContainerInfo := retrieveSHA256DigestUsingSkopeo(redisMirrorImageURL + ":" + imageTagFromRef(targetRedisImage))
-	argoCDContainerInfo := retrieveSHA256DigestUsingSkopeo(targetArgoCDImage)
+	dexContainerInfo, err := retrieveSHA256DigestUsingSkopeo(targetDexImage)
+	if err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to resolve dex image digest: %v", err))
+		return nil, nil
+	}
+
+	argoCDContainerInfo, err := retrieveSHA256DigestUsingSkopeo(targetArgoCDImage)
+	if err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to resolve Argo CD image digest: %v", err))
+		return nil, nil
+	}
+
+	// Argo CD's install manifests reference redis on public.ecr.aws, but the operator deploys the
+	// mirrored image from quay.io (see ArgoCDDefaultRedisImage in common/defaults.go), so resolve
+	// the digest against the mirror.
+	redisTag, err := imageTagFromRef(targetRedisImage)
+	if err != nil {
+		utils.ExitWithError(err)
+		return nil, nil
+	}
+
+	redisMirrorImage := redisMirrorImageURL
+	if override := os.Getenv(redisMirrorImageEnvVar); override != "" {
+		redisMirrorImage = override
+	}
+
+	redisContainerInfo, redisErr := retrieveSHA256DigestUsingSkopeo(redisMirrorImage + ":" + redisTag)
+	if redisErr != nil {
+		// The mirror is a project-specific extra, not something Argo CD ships. Do not abort the
+		// whole dependency update when it lags upstream: keep the currently pinned redis digests
+		// (they still point at the previously shipped image) and let everything else update.
+		fmt.Println()
+		fmt.Printf("WARNING: unable to resolve redis digest for %s:%s: %v\n", redisMirrorImage, redisTag, redisErr)
+		fmt.Printf("WARNING: leaving ArgoCDDefaultRedisVersion and ArgoCDDefaultRedisVersionHA unchanged; re-run once the tag is mirrored, or set %s to an alternative mirror\n", redisMirrorImageEnvVar)
+		fmt.Println()
+	}
 
 	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultArgoVersion", *argoCDContainerInfo); err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to replace dex version: %v", err))
@@ -222,14 +259,16 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 		return nil, nil
 	}
 
-	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersionHA", *redisContainerInfo); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to replace redis HA version: %v", err))
-		return nil, nil
-	}
+	if redisContainerInfo != nil {
+		if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersionHA", *redisContainerInfo); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to replace redis HA version: %v", err))
+			return nil, nil
+		}
 
-	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersion", *redisContainerInfo); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to replace redis version: %v", err))
-		return nil, nil
+		if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersion", *redisContainerInfo); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to replace redis version: %v", err))
+			return nil, nil
+		}
 	}
 
 	return argoCDContainerInfo, dexContainerInfo
@@ -554,25 +593,28 @@ func replaceLineInCommonDefaultGo(pathToArgoCDGitRepoRoot string, variableToRepl
 }
 
 // imageTagFromRef returns the tag portion of a container image reference, ignoring any digest.
-func imageTagFromRef(ref string) string {
+// A reference without an explicit tag yields an error rather than an implicit "latest", which
+// would resolve a digest from an unrelated image.
+func imageTagFromRef(ref string) (string, error) {
 	if idx := strings.Index(ref, "@"); idx >= 0 {
 		ref = ref[:idx]
 	}
 
 	// Only treat a ':' after the last '/' as a tag separator, so registry ports are ignored.
 	if idx := strings.LastIndex(ref, ":"); idx > strings.LastIndex(ref, "/") {
-		return ref[idx+1:]
+		if tag := ref[idx+1:]; tag != "" {
+			return tag, nil
+		}
 	}
 
-	return "latest"
+	return "", fmt.Errorf("unable to determine tag from image reference %q: expected an explicit tag", ref)
 }
 
 // retrieveSHA256DigestUsingSkopeo determines the SHA256 digest value for a given container image
-func retrieveSHA256DigestUsingSkopeo(url string) *processedContainerImage {
+func retrieveSHA256DigestUsingSkopeo(url string) (*processedContainerImage, error) {
 	stdout, _, err := utils.RunCommandWithWorkDir("", "skopeo", "inspect", "--no-tags", "--override-os", "linux", "--override-arch", "amd64", "docker://"+url)
 	if err != nil {
-		utils.ExitWithError(fmt.Errorf("unexpected skopeo error: %v", err))
-		return nil
+		return nil, fmt.Errorf("unexpected skopeo error: %w", err)
 	}
 
 	// Skopeo inspect output looks like this:
@@ -589,26 +631,23 @@ func retrieveSHA256DigestUsingSkopeo(url string) *processedContainerImage {
 	// Extract Digest value from JSON
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(stdout), &jsonMap); err != nil {
-		utils.ExitWithError(fmt.Errorf("unexpected unmarshal error: %v", err))
-		return nil
+		return nil, fmt.Errorf("unexpected unmarshal error: %w", err)
 	}
 
 	digestVal, ok := jsonMap["Digest"]
 	if !ok || digestVal == nil {
-		utils.ExitWithError(fmt.Errorf("unable to extract digest val for %s: key missing or nil", url))
-		return nil
+		return nil, fmt.Errorf("unable to extract digest val for %s: key missing or nil", url)
 	}
 
 	sha256Digest, ok := digestVal.(string)
 	if !ok || sha256Digest == "" {
-		utils.ExitWithError(fmt.Errorf("unable to extract digest val for %s: not a valid string", url))
-		return nil
+		return nil, fmt.Errorf("unable to extract digest val for %s: not a valid string", url)
 	}
 
 	return &processedContainerImage{
 		version:      url[strings.Index(url, ":")+1:],
 		sha256Digest: sha256Digest,
-	}
+	}, nil
 }
 
 // processedContainerImage is the return values for processedContainerImage
