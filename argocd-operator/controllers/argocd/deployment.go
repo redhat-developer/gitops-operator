@@ -984,7 +984,14 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 	if cr.Spec.Server.VolumeMounts != nil {
 		serverVolumeMounts = append(serverVolumeMounts, cr.Spec.Server.VolumeMounts...)
 	}
-	arguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
+	// argocd-server does not support --tlscurvepreferences yet; omit curves until a
+	// supporting image is the default. Keep min version and ciphers.
+	tlsProfileForServer := r.CentralTLSConfigProfile
+	tlsProfileForServer.CurvePreferences = nil
+	arguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForServer, "argocd-server")
+	if err != nil {
+		return err
+	}
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{{
 		Args:            arguments,
 		Command:         getArgoServerCommand(cr, useTLSForRedis),
@@ -1329,11 +1336,14 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 	return r.Create(context.TODO(), deploy)
 }
 
-// BuildTLSArgsFromClusterTLSProfile builds the command line arguments for the ArgoCD components based on the cluster's TLS profile configuration.
-func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProfile) []string {
+// BuildTLSArgsFromClusterTLSProfile builds the command line arguments for Argo CD
+// components based on the cluster's TLS profile configuration.
+// component identifies the caller in curve-preference error/log messages
+// (e.g. "argocd-server", "argocd-repo-server", "argocd-image-updater").
+func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProfile, component string) ([]string, error) {
 	var args []string
 	if centralTLSConfig.DisableClusterTLSProfile {
-		return nil
+		return nil, nil
 	}
 	if v := argoutil.TLSProtocolVersionString(centralTLSConfig.MinVersion); v != "" {
 		args = append(args, "--tlsminversion", v)
@@ -1359,7 +1369,14 @@ func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProf
 			args = append(args, "--tlsciphers", strings.Join(ciphers, ":"))
 		}
 	}
-	return args
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSConfig.CurvePreferences, component)
+	if err != nil {
+		return nil, err
+	}
+	if curves != "" {
+		args = append(args, "--tlscurvepreferences", curves)
+	}
+	return args, nil
 }
 
 // triggerDeploymentRollout will update the label with the given key to trigger a new rollout of the Deployment.
