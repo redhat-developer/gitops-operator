@@ -15,6 +15,13 @@ updates:
       - dependency-name: "github.com/onsi/ginkgo/v2"
       # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
       - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+              - "version-update:semver-major"
+              - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -29,6 +36,13 @@ updates:
       - dependency-name: "github.com/onsi/ginkgo/v2"
       # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
       - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
 
   - package-ecosystem: "gomod"
     directory: "/"
@@ -43,6 +57,13 @@ updates:
       - dependency-name: "github.com/onsi/ginkgo/v2"
       # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
       - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
 
   - package-ecosystem: "gomod"
     directories:
@@ -67,3 +88,39 @@ updates:
       - dependency-name: "github.com/onsi/ginkgo/v2"
       # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
       - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "argocd-operator/tests/auxiliary/smtplistener/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "docker.io/library/golang"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "golang"
+
+  - package-ecosystem: "docker"
+    directory: "openshift-ci/build-root/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "quay.io/devtools_gitops/go-toolset"
