@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strings"
 
-	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
@@ -251,40 +250,6 @@ func securityContextForPlugin() *corev1.SecurityContext {
 	}
 }
 
-// allowedHttpdGroups lists TLS groups supported by OpenSSL via SSLOpenSSLConfCmd Groups.
-// OpenShift TLSGroup string values are directly usable as OpenSSL group names (OpenSSL >= 3.5).
-var allowedHttpdGroups = map[configv1.TLSGroup]struct{}{
-	configv1.TLSGroupX25519:             {},
-	configv1.TLSGroupSecP256r1:          {},
-	configv1.TLSGroupSecP384r1:          {},
-	configv1.TLSGroupSecP521r1:          {},
-	configv1.TLSGroupX25519MLKEM768:     {},
-	configv1.TLSGroupSecP256r1MLKEM768:  {},
-	configv1.TLSGroupSecP384r1MLKEM1024: {},
-}
-
-// tlsGroupsForHttpd converts OpenShift TLS groups to a colon-separated OpenSSL
-// Groups string for Apache's SSLOpenSSLConfCmd directive. Unknown groups are
-// filtered out so forward-compatible profile values do not break httpd.
-func tlsGroupsForHttpd(groups []configv1.TLSGroup) string {
-	if len(groups) == 0 {
-		return ""
-	}
-	names := make([]string, 0, len(groups))
-	skipped := make([]configv1.TLSGroup, 0)
-	for _, g := range groups {
-		if _, ok := allowedHttpdGroups[g]; ok {
-			names = append(names, string(g))
-			continue
-		}
-		skipped = append(skipped, g)
-	}
-	if len(skipped) > 0 {
-		logs.Info("skipping unsupported TLS curve preference groups for gitops-plugin httpd", "groups", skipped)
-	}
-	return strings.Join(names, ":")
-}
-
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
 	minVersionTLS := string(r.CentralTLSProfile.MinVersion)
@@ -310,7 +275,7 @@ ServerRoot "/etc/httpd"
 	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
 	}
-	if groups := tlsGroupsForHttpd(r.CentralTLSProfile.CurvePreferences); groups != "" {
+	if groups := argocdutil.MapOpenShiftTLSGroupsToOpenSSL(r.CentralTLSProfile.CurvePreferences, "gitops-plugin httpd"); groups != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLOpenSSLConfCmd Groups %s", groups)
 	}
 	// Close VirtualHost
@@ -656,6 +621,31 @@ func (r *ReconcileGitopsService) cleanupOldPluginResources(ctx context.Context) 
 	return nil
 }
 
+// ensurePluginNamespace creates the namespace the plugin resources are deployed into, if it does not
+// already exist. The plugin namespace may be the same as the default Argo CD instance namespace, which
+// is not created when the default install is disabled, so this cannot rely on any other code path
+// having created it: without the namespace, every plugin resource creation below is rejected and the
+// controller loops on the same error forever.
+func (r *ReconcileGitopsService) ensurePluginNamespace(ctx context.Context) error {
+	err := r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, &corev1.Namespace{})
+	if err == nil {
+		return nil
+	}
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to retrieve plugin namespace %s: %w", r.PluginNamespace, err)
+	}
+
+	logs.WithValues().Info("Creating plugin namespace", "Name", r.PluginNamespace)
+	pluginNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: r.PluginNamespace},
+	}
+	if err := r.Client.Create(ctx, pluginNS); err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create plugin namespace %s: %w", r.PluginNamespace, err)
+	}
+
+	return nil
+}
+
 // reconcilePlugin is the entry point for reconciling all console plugin resources.
 // isPF5 selects the PatternFly 5 image (OCP 4.18.x) vs the PatternFly 6 image (OCP >= 4.19).
 func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, isPF5 bool) (reconcile.Result, error) {
@@ -663,6 +653,10 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 	if !util.IsConsoleAPIFound() {
 		reqLogger.Info("Skip console plugin reconcile: OpenShift Console API not found")
 		return reconcile.Result{}, nil
+	}
+
+	if err := r.ensurePluginNamespace(context.TODO()); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// Generate ConfigMap once
