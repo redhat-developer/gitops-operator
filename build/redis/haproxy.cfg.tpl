@@ -22,6 +22,11 @@ global
     ssl-default-server-ciphersuites {{.TLSCiphers}}
 {{- end}}
 {{- end}}
+
+{{- if .TLSCurves}}
+    ssl-default-bind-curves {{.TLSCurves}}
+    ssl-default-server-curves {{.TLSCurves}}
+{{- end}}
 {{- end}}
 
 defaults REDIS

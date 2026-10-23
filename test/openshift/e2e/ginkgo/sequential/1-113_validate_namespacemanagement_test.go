@@ -56,7 +56,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			defer cleanupFunc2()
 			defer cleanupFunc3()
 
-			defer fixture.RestoreSubcriptionToDefault() // revert Subscription at end of test
+			defer fixture.RestoreSubscriptionToDefault() // revert Subscription at end of test
 			fixture.OutputDebugOnFail(randomNS.Name, nsCustom.Name)
 		})
 

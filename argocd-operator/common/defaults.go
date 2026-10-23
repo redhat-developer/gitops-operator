@@ -82,7 +82,7 @@ const (
 	ArgoCDDefaultArgoImage = "quay.io/argoproj/argocd"
 
 	// ArgoCDDefaultArgoVersion is the Argo CD container image digest to use when version not specified.
-	ArgoCDDefaultArgoVersion = "sha256:e2aadfae709d904e87f46ba4aa49601d827b3022db22cd4d03aae816a2e7097b" // v3.5.2
+	ArgoCDDefaultArgoVersion = "sha256:8e5cc5bb008df8a09dba439462e58c94c55b7735888d3ebde0c25fc05e4e5335" // v3.5.6
 
 	// ArgoCDDefaultBackupKeyLength is the length of the generated default backup key.
 	ArgoCDDefaultBackupKeyLength = 32
@@ -200,7 +200,7 @@ const (
 	ArgoCDDefaultRedisHAProxyImage = "quay.io/akuity/haproxy"
 
 	// ArgoCDDefaultRedisHAProxyVersion is the default Redis HAProxy image tag to use when not specified.
-	ArgoCDDefaultRedisHAProxyVersion = "sha256:e11f034e651603f10a365e5ad5a0321825e18eded9620e40c4f4d6ae58419bfe" // 3.0.8-alpine
+	ArgoCDDefaultRedisHAProxyVersion = "sha256:09b826a755db651927a63ec73c5d98e9f68883665169d3911053e2146e0584fe" // 3.3.17-alpine (3.3.17, OpenSSL 3.5)
 
 	// ArgoCDDefaultRedisImage is the Redis container image to use when not specified.
 	ArgoCDDefaultRedisImage = "quay.io/akuity/redis"

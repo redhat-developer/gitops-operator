@@ -24,12 +24,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	namespaceFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/namespace"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/rolebinding"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/rolebinding"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,6 +52,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("verifies source namespaces feature adds role/rolebindings and label to source namespaces", func() {
+
+			// sourceNamespaces reconciliation is gated on ARGOCD_CLUSTER_CONFIG_NAMESPACES in argocd-operator
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
 
 			By("Creating namespaces")
 

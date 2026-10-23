@@ -102,7 +102,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
-	RestoreSubcriptionToDefault()
+	RestoreSubscriptionToDefault()
 
 	// ensure namespaces created during test are deleted
 	err := ensureTestNamespacesDeleted(ctx, k8sClient)
@@ -586,8 +586,8 @@ func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Su
 
 }
 
-// RestoreSubcriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
-func RestoreSubcriptionToDefault() {
+// RestoreSubscriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
+func RestoreSubscriptionToDefault() {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	Expect(err).ToNot(HaveOccurred())

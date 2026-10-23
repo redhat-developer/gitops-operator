@@ -147,7 +147,7 @@ var _ = Describe("Validate deployment image and version", func() {
 
 			defer func() {
 				cleanupFunc()
-				fixture.RestoreSubcriptionToDefault()
+				fixture.RestoreSubscriptionToDefault()
 			}()
 
 			checkImages := func(expected map[string]string, stsExpected string) {

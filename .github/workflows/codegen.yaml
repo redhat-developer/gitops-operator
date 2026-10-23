@@ -25,6 +25,11 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code -- .
+      - name: Check for tidyness of argocd-operator go.mod and go.sum
+        working-directory: argocd-operator
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
 
   check-sdk-codegen:
     name: "Check for changes from make bundle"

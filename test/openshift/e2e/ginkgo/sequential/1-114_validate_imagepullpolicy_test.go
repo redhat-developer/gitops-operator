@@ -286,7 +286,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-				fixture.RestoreSubcriptionToDefault()
+				fixture.RestoreSubscriptionToDefault()
 			}()
 
 			By("verifying second ArgoCD deployments inherit operator-level imagePullPolicy (Always)")

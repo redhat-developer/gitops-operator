@@ -27,7 +27,7 @@ import (
 
 const (
 	DefaultImageUpdaterImage      = "quay.io/argoprojlabs/argocd-image-updater"
-	DefaultImageUpdaterTag        = "v1.3.0"
+	DefaultImageUpdaterTag        = "v1.4.0"
 	ArgocdImageUpdaterConfigCM    = "argocd-image-updater-config"
 	ArgocdImageUpdaterSSHConfigCM = "argocd-image-updater-ssh-config"
 	ArgocdImageUpdaterSecret      = "argocd-image-updater-secret" // #nosec G101
@@ -718,8 +718,11 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	imageUpdaterTLSProfileArguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
 	args = append(args, imageUpdaterTLSProfileArguments...)
 
+	// Command is intentionally not set so that the image's own ENTRYPOINT applies.
+	// The image updater image runs the manager under tini ("tini -- /manager"), which
+	// reaps the git child processes the manager forks. Overriding Command with "/manager"
+	// would make the manager PID 1 and leak zombie git processes (GITOPS-11648).
 	podSpec.Containers = []corev1.Container{{
-		Command:         []string{"/manager"},
 		Args:            args,
 		Image:           selectImageUpdaterImage(cr),
 		ImagePullPolicy: argoutil.GetImagePullPolicy(cr.Spec.ImagePullPolicy),
