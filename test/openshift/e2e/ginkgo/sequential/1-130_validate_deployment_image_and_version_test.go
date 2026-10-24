@@ -29,18 +29,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 const (
-	controllerManagerName      = "argocd-operator-controller-manager"
-	controllerManagerNamespace = "argocd-operator-system"
+	controllerManagerName      = "openshift-gitops-operator-controller-manager"
+	controllerManagerNamespace = "openshift-gitops-operator"
 	argocdInstanceName         = "argocd"
 	argocdNamespace            = "argocd"
-	defaultImage               = "argoproj/argocd@sha123456"
-	expectedDefaultImage       = "argoproj/argocd:sha123456"
+	defaultImage               = "quay.io/argoproj/argocd:latest"
+	expectedDefaultImage       = "quay.io/argoproj/argocd:latest"
 )
 
 // --- Local Helpers (kept inline for reuse in this test) ---
@@ -121,37 +123,31 @@ var _ = Describe("Validate deployment image and version", func() {
 
 		BeforeEach(func() {
 			if fixture.EnvLocalRun() {
-				Skip("This test is known not to work when running gitops operator locally, in both kuttl and ginkgo forms")
+				Skip("Requires setting operator environment variable")
 			}
 		})
 
 		It("validates image resolution order", func() {
+
+			// The image used must be valid one for things to start, but it must be different from the default so the test is valid
+			Expect(defaultImage).To(Not(Equal(fmt.Sprintf("%s:%s", common.ArgoCDDefaultArgoImage, common.ArgoCDDefaultArgoVersion))))
+
 			By("ensuring operator env variable ARGOCD_IMAGE is set")
-			deploy := &appsv1.Deployment{}
-			Expect(c.Get(ctx, types.NamespacedName{Name: controllerManagerName, Namespace: controllerManagerNamespace}, deploy)).To(Succeed())
-			_, added := ensureEnv(ctx, c, deploy)
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_IMAGE", defaultImage)
 
 			By("creating namespace-scoped ArgoCD without image/version")
-			ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: argocdNamespace}}
-			Expect(c.Create(ctx, ns)).To(Succeed())
-			enabled := true
+			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc(argocdNamespace)
+
 			argo := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: argocdInstanceName, Namespace: argocdNamespace},
-				Spec:       argov1beta1api.ArgoCDSpec{ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{Enabled: &enabled}},
+				Spec:       argov1beta1api.ArgoCDSpec{ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{Enabled: new(true)}},
 			}
 			Expect(c.Create(ctx, argo)).To(Succeed())
-			Eventually(func() error {
-				return c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: ns.Name}, &argov1beta1api.ArgoCD{})
-			}, "2m", "5s").Should(Succeed())
+			Eventually(argo, "2m", "5s").Should(argocdFixture.BeAvailable())
 
 			defer func() {
-				if added {
-					By("removing operator env var ARGOCD_IMAGE")
-					Expect(c.Get(ctx, types.NamespacedName{Name: controllerManagerName, Namespace: controllerManagerNamespace}, deploy)).To(Succeed())
-					removeEnv(ctx, c, deploy)
-				}
-				Expect(c.Delete(ctx, argo)).To(Succeed())
-				Expect(c.Delete(ctx, ns)).To(Succeed())
+				cleanupFunc()
+				fixture.RestoreSubscriptionToDefault()
 			}()
 
 			checkImages := func(expected map[string]string, stsExpected string) {
@@ -168,21 +164,24 @@ var _ = Describe("Validate deployment image and version", func() {
 			}, expectedDefaultImage)
 
 			By("updating spec.version")
-			Expect(c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: ns.Name}, argo)).To(Succeed())
-			argo.Spec.Version = "v0.0.1"
-			Expect(c.Update(ctx, argo)).To(Succeed())
+			argocdFixture.Update(argo, func(argo *argov1beta1api.ArgoCD) {
+				argo.Spec.Version = "v0.0.1"
+			})
 			time.Sleep(30 * time.Second)
+
 			checkImages(map[string]string{
-				"argocd-repo-server":               "argoproj/argocd:v0.0.1",
-				"argocd-server":                    "argoproj/argocd:v0.0.1",
-				"argocd-applicationset-controller": "argoproj/argocd:v0.0.1",
-			}, "argoproj/argocd:v0.0.1")
+				"argocd-repo-server":               "quay.io/argoproj/argocd:v0.0.1",
+				"argocd-server":                    "quay.io/argoproj/argocd:v0.0.1",
+				"argocd-applicationset-controller": "quay.io/argoproj/argocd:v0.0.1",
+			}, "quay.io/argoproj/argocd:v0.0.1")
 
 			By("updating spec.version and spec.image")
-			Expect(c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: ns.Name}, argo)).To(Succeed())
-			argo.Spec.Image, argo.Spec.Version = "argoprpj/sampletestimage", "v0.0.1"
-			Expect(c.Update(ctx, argo)).To(Succeed())
+			argocdFixture.Update(argo, func(argo *argov1beta1api.ArgoCD) {
+				argo.Spec.Image = "argoprpj/sampletestimage"
+				argo.Spec.Version = "v0.0.1"
+			})
 			time.Sleep(30 * time.Second)
+
 			checkImages(map[string]string{
 				"argocd-repo-server":               "argoprpj/sampletestimage:v0.0.1",
 				"argocd-server":                    "argoprpj/sampletestimage:v0.0.1",
