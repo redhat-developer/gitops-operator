@@ -505,7 +505,7 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 	}}
 
 	deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDRedisComponent)
-	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
+	deploy.Spec.Template.Spec.Volumes = mergeOperatorVolumes([]corev1.Volume{
 		{
 			Name: common.ArgoCDRedisServerTLSSecretName,
 			VolumeSource: corev1.VolumeSource{
@@ -516,7 +516,7 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 			},
 		},
 		redisVolume,
-	}
+	}, cr.Spec.Redis.Volumes)
 
 	if cr.Spec.Redis.Annotations != nil {
 		maps.Copy(deploy.Spec.Template.Annotations, cr.Spec.Redis.Annotations)
@@ -772,7 +772,7 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 		},
 	}}
 
-	deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
+	deploy.Spec.Template.Spec.Volumes = mergeOperatorVolumes([]corev1.Volume{
 		{
 			Name: "config-volume",
 			VolumeSource: corev1.VolumeSource{
@@ -805,7 +805,7 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 			},
 		},
 		redisAuthVolume,
-	}
+	}, cr.Spec.Redis.Volumes)
 
 	if IsOpenShiftCluster() {
 		deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
@@ -1096,9 +1096,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 		redisAuthVolume,
 	}
 
-	if cr.Spec.Server.Volumes != nil {
-		serverVolumes = append(serverVolumes, cr.Spec.Server.Volumes...)
-	}
+	serverVolumes = mergeOperatorVolumes(serverVolumes, cr.Spec.Server.Volumes)
 
 	deploy.Spec.Template.Spec.Volumes = serverVolumes
 
