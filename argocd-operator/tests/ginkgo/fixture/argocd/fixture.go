@@ -360,6 +360,7 @@ func StreamFromArgoCDEventSourceURL(ctx context.Context, eventSourceAPIURL strin
 
 			req = req.WithContext(ctx)
 
+			// #nosec G124 -- this is an outbound request cookie (client to server); Secure/HttpOnly/SameSite are response-only attributes and don't apply here
 			cookie := &http.Cookie{
 				Name:  "argocd.token",
 				Value: sessionToken, // session token
