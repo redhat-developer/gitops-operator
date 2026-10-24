@@ -187,4 +187,81 @@ export class ApplicationsPage {
     await appNameLink.click();
     await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: TIMEOUTS.default });
   }
+
+  private appCard(appName: string): Locator {
+    return this.page
+      .locator(
+        '.white-box, .argo-table-list__row, .application-tile, [class*="application-tile"], [class*="applications-list__entry"]'
+      )
+      .filter({ hasText: appName })
+      .first();
+  }
+
+  private syncPanel(): Locator {
+    return this.page.locator('.sliding-panel').filter({ visible: true }).first();
+  }
+
+  //v1.20–v1.22 (or argocd v3.3–v3.5) the heading and card sync control a bit
+  async openSyncPanel(appName: string) {
+    await this.page.getByPlaceholder(/Search applications/i).fill(appName);
+    const card = this.appCard(appName);
+    await card.waitFor({ state: 'visible', timeout: TIMEOUTS.load });
+    await expect(card.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({
+      timeout: TIMEOUTS.sync,
+    });
+
+    const syncBtn = card
+      .getByRole('button', { name: /^sync$/i })
+      .or(card.getByText('Sync', { exact: true }));
+    await syncBtn.first().click();
+
+    const heading = this.page.getByText(/SYNCHRONIZE RESOURCES/i);
+    await expect(this.syncPanel().or(heading).first()).toBeVisible({ timeout: TIMEOUTS.panel });
+  }
+
+  async dryRunSynchronize(appName: string) {
+    await this.openSyncPanel(appName);
+    const panel = this.syncPanel();
+
+    const dryRun = panel
+      .getByRole('checkbox', { name: /dry run/i })
+      .or(panel.getByLabel(/dry run/i))
+      .or(this.page.getByRole('checkbox', { name: /dry run/i }))
+      .or(this.page.locator('#dry-run, #dryRun, [qe-id*="dry-run" i]'))
+      .first();
+    await expect(dryRun).toBeVisible({ timeout: TIMEOUTS.default });
+    const alreadyOn = await dryRun.isChecked().catch(() => false);
+    if (!alreadyOn) {
+      await dryRun.click();
+    }
+
+    //need a new op, not the last dry-run still on the app
+    const previousOp = await this.applicationOperation(appName);
+    const previousId = operationId(previousOp);
+    await panel.getByRole('button', { name: /^synchronize$/i }).first().click();
+
+    await expect
+      .poll(
+        async () => {
+          const op = await this.applicationOperation(appName);
+          const dry = op?.operation?.sync?.dryRun === true && operationId(op) !== previousId;
+          return dry ? String(op?.phase || '') : '';
+        },
+        { timeout: TIMEOUTS.sync, message: 'waiting for dry-run operation to succeed' }
+      )
+      .toMatch(/Succeeded/i);
+  }
+
+  private async applicationOperation(appName: string) {
+    const res = await this.page.request.get(
+      `/api/v1/applications/${encodeURIComponent(appName)}`
+    );
+    if (!res.ok()) return undefined;
+    const app = await res.json();
+    return app?.status?.operationState;
+  }
+}
+
+function operationId(op: { startedAt?: string; finishedAt?: string } | undefined) {
+  return `${op?.startedAt ?? ''}|${op?.finishedAt ?? ''}`;
 }
