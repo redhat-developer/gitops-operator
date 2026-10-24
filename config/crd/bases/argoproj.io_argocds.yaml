@@ -697,9 +697,18 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Agent.
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -715,6 +724,16 @@ spec:
                               ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
@@ -940,9 +959,18 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Principal.
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -984,6 +1012,16 @@ spec:
                             description: NamespaceCreatePattern is a regexp pattern
                               to restrict the names of namespaces to be created.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Principal
@@ -13760,9 +13798,18 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Agent.
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -13778,6 +13825,16 @@ spec:
                               ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
@@ -14067,9 +14124,18 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Principal.
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -14111,6 +14177,16 @@ spec:
                             description: NamespaceCreatePattern is a regexp pattern
                               to restrict the names of namespaces to be created.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Principal

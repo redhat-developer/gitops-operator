@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -198,8 +199,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			// List environment variables with expected values for the principal deployment
+			// NOTE: the runtime-switchable settings (log level, full detail, pprof enabled) are
+			// deliberately absent here: they are sourced from the argocd-agent-params ConfigMap
+			// via a ConfigMapKeyRef rather than set to a literal value, so that changing them
+			// does not restart the principal. They are covered by
+			// 1-060_validate_argocd_agent_debug_settings_test.go.
 			expectedEnvVariables = map[string]string{
-				argocdagent.EnvArgoCDPrincipalLogLevel:                         "info",
 				argocdagent.EnvArgoCDPrincipalNamespace:                        ns.Name,
 				argocdagent.EnvArgoCDPrincipalAllowedNamespaces:                "*",
 				argocdagent.EnvArgoCDPrincipalNamespaceCreateEnable:            "false",
@@ -320,8 +325,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are set correctly")
 
-			// update expected value in default environment variables according to ArgoCD CR in the test
-			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogLevel] = "trace"
+			// The runtime-switchable settings reference argocd-agent-params ConfigMap keys
+			// instead of carrying literal values, so that changing one rewrites the ConfigMap
+			// without rolling the principal.
+			for envName, cmKey := range map[string]string{
+				argocdagent.EnvArgoCDPrincipalLogLevel:     common.ArgoCDAgentPrincipalLogLevelKey,
+				argocdagent.EnvArgoCDPrincipalFullDetail:   common.ArgoCDAgentPrincipalFullDetailKey,
+				argocdagent.EnvArgoCDPrincipalPProfEnabled: common.ArgoCDAgentPrincipalPProfEnabledKey,
+			} {
+				Expect(container.Env).To(ContainElement(corev1.EnvVar{
+					Name:      envName,
+					ValueFrom: argoutil.AgentParamsEnvVarSource(cmKey),
+				}), "%s should be sourced from the params ConfigMap", envName)
+			}
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
@@ -489,7 +505,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are updated correctly")
 
-			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogLevel] = "trace"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogFormat] = "json"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalKeepAliveMinInterval] = "60s"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalEnableWebSocket] = "true"

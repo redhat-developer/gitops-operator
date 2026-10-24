@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -397,14 +398,34 @@ func TestReconcilePrincipalDeployment_VerifyDeploymentSpec(t *testing.T) {
 	// Verify environment variables are set
 	assert.True(t, len(container.Env) > 0)
 	// Verify some expected environment variables are present
+	// The runtime-switchable settings are sourced from the params ConfigMap rather than set to
+	// a literal, so that changing one rewrites the ConfigMap without touching the pod spec.
+	runtimeSwitchable := map[string]string{
+		EnvArgoCDPrincipalLogLevel:     common.ArgoCDAgentPrincipalLogLevelKey,
+		EnvArgoCDPrincipalFullDetail:   common.ArgoCDAgentPrincipalFullDetailKey,
+		EnvArgoCDPrincipalPProfEnabled: common.ArgoCDAgentPrincipalPProfEnabledKey,
+	}
 	envNames := make(map[string]bool)
 	for _, env := range container.Env {
 		envNames[env.Name] = true
-		// All environment variables should have direct values, not references
+		if key, ok := runtimeSwitchable[env.Name]; ok {
+			require.NotNil(t, env.ValueFrom, "%s should be sourced from the params ConfigMap", env.Name)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef, "%s should use a ConfigMapKeyRef", env.Name)
+			assert.Equal(t, common.ArgoCDAgentParamsConfigMapName, env.ValueFrom.ConfigMapKeyRef.Name)
+			assert.Equal(t, key, env.ValueFrom.ConfigMapKeyRef.Key)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef.Optional)
+			assert.True(t, *env.ValueFrom.ConfigMapKeyRef.Optional, "a pod must be able to start before the ConfigMap exists")
+			assert.Empty(t, env.Value, "%s must not carry a literal value as well", env.Name)
+			continue
+		}
+		// Every other environment variable should have a direct value, not a reference
 		assert.Nil(t, env.ValueFrom, "Environment variable %s should have direct value, not reference", env.Name)
 	}
 	// Check for some environment variables
 	assert.True(t, envNames["ARGOCD_PRINCIPAL_NAMESPACE"], "ARGOCD_PRINCIPAL_NAMESPACE should be set")
+	for name := range runtimeSwitchable {
+		assert.True(t, envNames[name], "%s should be set", name)
+	}
 	assert.False(t, envNames["REDIS_PASSWORD"], "REDIS_PASSWORD should not be set")
 
 	// Verify volume mounts
