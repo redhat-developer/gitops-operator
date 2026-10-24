@@ -199,7 +199,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "userpass-passwd",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-agent-userpass",
+					SecretName: "argocd-agent-agent-userpass", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "credentials",
