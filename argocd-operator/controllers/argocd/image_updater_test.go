@@ -1434,6 +1434,26 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			},
 			expectedArgs: []string{},
 		},
+		{
+			name: "omits tlscurvepreferences while preserving min version and ciphers",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: false,
+				MinVersion:               configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			expectedArgs: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlsciphers",
+				"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1460,6 +1480,7 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			for _, expected := range tt.expectedArgs {
 				assert.Contains(t, args, expected)
 			}
+			assert.NotContains(t, args, "--tlscurvepreferences")
 		})
 	}
 }
