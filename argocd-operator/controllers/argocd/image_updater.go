@@ -701,7 +701,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 			Name: "ssh-signing-key",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "ssh-git-creds",
+					SecretName: "ssh-git-creds", // #nosec G101 -- this is a Secret resource name, not a credential
 					Optional:   new(true),
 				},
 			},
