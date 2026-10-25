@@ -23,14 +23,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -46,33 +44,6 @@ const (
 )
 
 // --- Local Helpers (kept inline for reuse in this test) ---
-
-func ensureEnv(ctx context.Context, c client.Client, d *appsv1.Deployment) (string, bool) {
-	if env := argoutil.EnvGet(d.Spec.Template.Spec.Containers[0].Env, "ARGOCD_IMAGE"); env != nil {
-		return env.Value, false
-	}
-	d.Spec.Template.Spec.Containers[0].Env = argoutil.EnvSet(
-		d.Spec.Template.Spec.Containers[0].Env,
-		corev1.EnvVar{Name: "ARGOCD_IMAGE", Value: defaultImage},
-	)
-	Expect(c.Update(ctx, d)).To(Succeed())
-	waitForDeploymentReady(ctx, c, d)
-	return defaultImage, true
-}
-
-func removeEnv(ctx context.Context, c client.Client, d *appsv1.Deployment) {
-	d.Spec.Template.Spec.Containers[0].Env = argoutil.EnvRemove(
-		d.Spec.Template.Spec.Containers[0].Env, "ARGOCD_IMAGE")
-	Expect(c.Update(ctx, d)).To(Succeed())
-	waitForDeploymentReady(ctx, c, d)
-}
-
-func waitForDeploymentReady(ctx context.Context, c client.Client, d *appsv1.Deployment) {
-	Eventually(func() bool {
-		err := c.Get(ctx, types.NamespacedName{Name: d.Name, Namespace: d.Namespace}, d)
-		return err == nil && d.Status.ReadyReplicas == 1
-	}, "2m", "5s").Should(BeTrue())
-}
 
 func waitForDeployments(ctx context.Context, c client.Client, ns string, min int) *appsv1.DeploymentList {
 	deploys := &appsv1.DeploymentList{}
