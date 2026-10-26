@@ -1371,9 +1371,12 @@ func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProf
 	}
 	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSConfig.CurvePreferences, component)
 	if err != nil {
-		return nil, err
-	}
-	if curves != "" {
+		// Do not fail reconciliation for incompatible curve preferences. Keep min
+		// version/ciphers and fall back to the component's default curve selection
+		// so disable/delete paths (and other reconcile work) can still proceed.
+		log.Info("skipping TLS curve preferences; falling back to component defaults",
+			"component", component, "error", err.Error())
+	} else if curves != "" {
 		args = append(args, "--tlscurvepreferences", curves)
 	}
 	return args, nil

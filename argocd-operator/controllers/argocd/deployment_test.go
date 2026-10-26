@@ -3516,15 +3516,18 @@ func TestBuildTLSArgs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "errors when all curve preferences are unsupported",
+			name: "omits curve preferences when all groups are unsupported",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
 				},
 			},
-			expected: nil,
-			wantErr:  true,
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+			},
+			wantErr: false,
 		},
 	}
 

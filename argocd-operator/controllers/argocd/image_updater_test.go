@@ -1461,7 +1461,7 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			unexpectedArgs: []string{"--tlsminversion", "--tlsciphers", "--tlscurvepreferences"},
 		},
 		{
-			name: "errors when all curve preferences are unsupported",
+			name: "omits curve preferences when all groups are unsupported",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				DisableClusterTLSProfile: false,
 				MinVersion:               configv1.VersionTLS12,
@@ -1469,7 +1469,11 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 					configv1.TLSGroupSecP256r1MLKEM768,
 				},
 			},
-			wantErr: true,
+			expectedArgs: []string{
+				"--tlsminversion",
+				"1.2",
+			},
+			unexpectedArgs: []string{"--tlscurvepreferences"},
 		},
 	}
 	for _, tt := range tests {
@@ -1506,6 +1510,36 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReconcileImageUpdaterDeployment_DisabledWithUnsupportedCurves(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = appsv1.AddToScheme(scheme)
+	_ = v1.AddToScheme(scheme)
+	_ = argoproj.AddToScheme(scheme)
+
+	cr := makeTestArgoCD()
+	cr.Spec.ImageUpdater.Enabled = false
+	sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "test-sa", Namespace: cr.Namespace}}
+	existing := newDeploymentWithSuffix(common.ArgoCDImageUpdaterControllerComponent, "controller", cr)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cr, sa, existing).Build()
+	r := &ReconcileArgoCD{
+		Client: client,
+		Scheme: scheme,
+		CentralTLSConfigProfile: tlsProfile.TLSConfigProfile{
+			DisableClusterTLSProfile: false,
+			MinVersion:               configv1.VersionTLS12,
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+		},
+	}
+
+	require.NoError(t, r.reconcileImageUpdaterDeployment(cr, sa, "", nil))
+
+	deployment := &appsv1.Deployment{}
+	err := client.Get(context.TODO(), types.NamespacedName{Name: existing.Name, Namespace: cr.Namespace}, deployment)
+	assert.True(t, errors.IsNotFound(err), "disabled Image Updater deployment should be deleted even when curve preferences are unsupported")
 }
 
 func TestSelectImageUpdaterImage(t *testing.T) {
