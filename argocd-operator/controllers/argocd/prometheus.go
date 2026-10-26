@@ -118,7 +118,7 @@ func getMetricsEndpoint(metrics *argoproj.ArgoCDMetricsSpec) monitoringv1.Endpoi
 func (r *ReconcileArgoCD) updateServiceMonitorEndpointIfNeeded(sm *monitoringv1.ServiceMonitor, desired monitoringv1.Endpoint) error {
 	if len(sm.Spec.Endpoints) == 1 &&
 		sm.Spec.Endpoints[0].Port == desired.Port &&
-		sm.Spec.Endpoints[0].Scheme == desired.Scheme &&
+		ptr.Equal(sm.Spec.Endpoints[0].Scheme, desired.Scheme) &&
 		sm.Spec.Endpoints[0].Interval == desired.Interval &&
 		sm.Spec.Endpoints[0].ScrapeTimeout == desired.ScrapeTimeout {
 		return nil

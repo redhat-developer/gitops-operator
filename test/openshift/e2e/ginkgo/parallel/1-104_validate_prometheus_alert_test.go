@@ -37,28 +37,35 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			Eventually(sm).Should(k8sFixture.ExistByName())
 			serverName := "openshift-gitops-operator-metrics-service.openshift-gitops-operator.svc"
+			scheme := monitoringv1.Scheme("https")
 			Expect(sm.Spec.Endpoints).To(Equal([]monitoringv1.Endpoint{{
-				BearerTokenSecret: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
-					},
-					Key: "token",
-				},
 				Interval: monitoringv1.Duration("30s"),
 				Path:     "/metrics",
 				Port:     "metrics",
-				Scheme:   "https",
-				TLSConfig: &monitoringv1.TLSConfig{
-					SafeTLSConfig: monitoringv1.SafeTLSConfig{
-						CA: monitoringv1.SecretOrConfigMap{
-							ConfigMap: &corev1.ConfigMapKeySelector{
+				Scheme:   &scheme,
+				HTTPConfigWithProxyAndTLSFiles: monitoringv1.HTTPConfigWithProxyAndTLSFiles{
+					HTTPConfigWithTLSFiles: monitoringv1.HTTPConfigWithTLSFiles{
+						HTTPConfigWithoutTLS: monitoringv1.HTTPConfigWithoutTLS{
+							BearerTokenSecret: &corev1.SecretKeySelector{
 								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "openshift-gitops-operator-metrics-monitor-ca-bundle",
+									Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
 								},
-								Key: "service-ca.crt",
+								Key: "token",
 							},
 						},
-						ServerName: &serverName,
+						TLSConfig: &monitoringv1.TLSConfig{
+							SafeTLSConfig: monitoringv1.SafeTLSConfig{
+								CA: monitoringv1.SecretOrConfigMap{
+									ConfigMap: &corev1.ConfigMapKeySelector{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: "openshift-gitops-operator-metrics-monitor-ca-bundle",
+										},
+										Key: "service-ca.crt",
+									},
+								},
+								ServerName: &serverName,
+							},
+						},
 					},
 				},
 			}}))
