@@ -16290,6 +16290,32 @@ spec:
                     items:
                       type: string
                     type: array
+                  goRuntime:
+                    description: GoRuntime configures automatic Go runtime tuning
+                      for the Application Controller.
+                    properties:
+                      cpuLimitPercent:
+                        description: |-
+                          CPULimitPercent is the percentage (1-100) of the CPU limit used for GOMAXPROCS. Defaults to 100.
+                          Reserves CPU headroom for the kernel. Result is floored to nearest core, minimum 1.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                      enabled:
+                        description: |-
+                          Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
+                          Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false).
+                        type: boolean
+                      memoryLimitPercent:
+                        description: |-
+                          MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 90.
+                          Represents headroom reserved for non-heap memory and GC pauses.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                    type: object
                   initContainers:
                     description: InitContainers defines the list of initialization
                       containers for the Application Controller component.
