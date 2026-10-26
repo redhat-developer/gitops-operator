@@ -231,7 +231,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "jwt-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-jwt",
+					SecretName: "argocd-agent-jwt", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "jwt.key",
@@ -246,7 +246,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "userpass-passwd",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-principal-userpass",
+					SecretName: "argocd-agent-principal-userpass", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "passwd",
