@@ -18,7 +18,6 @@ package sequential
 
 import (
 	"context"
-	"os"
 	"strings"
 	"time"
 
@@ -26,18 +25,17 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	secretFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/secret"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
@@ -75,24 +73,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			if cleanupArgoNamespace != nil {
 				cleanupArgoNamespace()
 			}
+
+			fixture.RestoreSubscriptionToDefault()
 		})
 
 		It("keeps ArgoCD Available and renews Dex tokens when a disallowed NamespaceManagement CR exists", func() {
 
 			By("ensuring NamespaceManagement feature is enabled on the operator")
-			if os.Getenv("LOCAL_RUN") == "true" {
+			if fixture.EnvLocalRun() {
 				By("LOCAL_RUN: expecting ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES=true on the local operator process")
 			} else {
+
+				fixture.SetEnvInOperatorSubscriptionOrDeployment(common.EnableManagedNamespace, "true")
+
 				operatorDeployment := &appsv1.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "argocd-operator-controller-manager",
-						Namespace: "argocd-operator-system",
+						Name:      "openshift-gitops-operator-controller-manager",
+						Namespace: "openshift-gitops-operator",
 					},
 				}
 				err := k8sClient.Get(ctx, client.ObjectKeyFromObject(operatorDeployment), operatorDeployment)
-				if apierrors.IsNotFound(err) {
-					Skip("Operator deployment not found - test requires operator running in cluster")
-				}
 				Expect(err).NotTo(HaveOccurred())
 
 				originalEnvValue, _ := deploymentFixture.GetEnv(operatorDeployment, "manager", common.EnableManagedNamespace)
