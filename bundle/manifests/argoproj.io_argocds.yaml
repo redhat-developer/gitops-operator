@@ -16301,6 +16301,55 @@ spec:
                     items:
                       type: string
                     type: array
+                  goRuntime:
+                    description: |-
+                      GoRuntime configures automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS) for the Application
+                      Controller container, derived from its configured Resources.Limits. This is an advanced
+                      per-instance override of the cluster-wide default configured on the operator; see
+                      ArgoCDGoRuntimeSpec for details. (optional)
+                    properties:
+                      cpuLimitPercent:
+                        description: |-
+                          CPULimitPercent is the percentage (1-100) of the Application Controller container's configured
+                          CPU limit (.Spec.Controller.Resources.Limits.cpu) that is used to derive the Go runtime max CPU constraint
+                          (GOMAXPROCS). Defaults to 100 if unset, meaning GOMAXPROCS is set to the full core count of the CPU limit.
+
+                          GOMAXPROCS controls the maximum number of OS threads that can execute Go code concurrently. A lower
+                          percentage can be used to reserve CPU headroom for the kernel and other system processes, though this
+                          may reduce application throughput. The result is truncated (floored) to the nearest whole core: for
+                          example, with a 2000m (2-core) CPU limit and CPULimitPercent=80, GOMAXPROCS is set to 1
+                          (floor(2 * 0.8) = floor(1.6) = 1). It is recommended to keep this at 100 unless you observe excessive
+                          context switching or need explicit CPU headroom management.
+
+                          Note: GOMAXPROCS is always floored at a minimum of 1, never 0, to prevent Go runtime panics - even on
+                          sub-1-core limits (e.g. 250m) where the percentage-of-limit calculation alone would otherwise yield 0.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                      enabled:
+                        description: |-
+                          Enabled toggles automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS) for this ArgoCD instance's Application
+                          Controller container. Defaults to true (enabled) if unset.
+
+                          Note: this field can only narrow the cluster-wide default - if Go runtime tuning has been disabled
+                          for the whole operator (via the ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING environment variable
+                          on the operator), setting Enabled to true here will not override that cluster-wide setting.
+                        type: boolean
+                      memoryLimitPercent:
+                        description: |-
+                          MemoryLimitPercent is the percentage (1-100) of the Application Controller container's configured
+                          memory limit (.Spec.Controller.Resources.Limits.memory) that is used to derive the Go runtime soft
+                          memory limit (GOMEMLIMIT), when Go runtime tuning is enabled. Defaults to 90 if unset.
+
+                          The percentage represents the headroom reserved for non-heap memory and GC pauses. For example, with a
+                          2Gi memory limit and the default 90%, GOMEMLIMIT is set to 1.8Gi, leaving 0.2Gi for kernel buffers,
+                          non-heap allocations, and GC transient spikes.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                    type: object
                   initContainers:
                     description: InitContainers defines the list of initialization
                       containers for the Application Controller component.
