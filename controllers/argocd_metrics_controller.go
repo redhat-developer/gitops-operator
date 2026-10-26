@@ -691,7 +691,7 @@ func newAlertRule(name, severity, duration, expr, summary, description string) m
 			"description": description,
 		},
 		Expr: intstr.FromString(expr),
-		For:  ptr.To(monitoringv1.Duration(duration)),
+		For:  new(monitoringv1.Duration(duration)),
 		Labels: map[string]string{
 			"severity": severity,
 		},
