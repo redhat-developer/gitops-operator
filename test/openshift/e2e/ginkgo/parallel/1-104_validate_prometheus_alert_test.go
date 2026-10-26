@@ -46,7 +46,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				HTTPConfigWithProxyAndTLSFiles: monitoringv1.HTTPConfigWithProxyAndTLSFiles{
 					HTTPConfigWithTLSFiles: monitoringv1.HTTPConfigWithTLSFiles{
 						HTTPConfigWithoutTLS: monitoringv1.HTTPConfigWithoutTLS{
-							BearerTokenSecret: &corev1.SecretKeySelector{
+							BearerTokenSecret: &corev1.SecretKeySelector{ //nolint:staticcheck // actual ServiceMonitor manifest (config/prometheus/monitor.yaml) still uses the deprecated bearerTokenSecret field
 								LocalObjectReference: corev1.LocalObjectReference{
 									Name: "openshift-gitops-operator-metrics-monitor-bearer-token",
 								},
