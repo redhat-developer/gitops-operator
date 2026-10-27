@@ -7,7 +7,7 @@ require (
 	github.com/argoproj-labs/argocd-image-updater v1.1.3
 	github.com/argoproj-labs/argocd-operator v0.18.1-0.20260722081502-6aada215f18b
 	github.com/argoproj/argo-cd/v3 v3.3.18
-	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
+	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
