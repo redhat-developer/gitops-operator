@@ -34,7 +34,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -118,12 +117,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Principal: &argov1beta1api.PrincipalSpec{
-							Enabled:                 ptr.To(true),
-							DestinationBasedMapping: ptr.To(true),
+							Enabled:                 new(true),
+							DestinationBasedMapping: new(true),
 							Auth:                    "mtls:CN=([^,]+)",
 							LogLevel:                "debug",
 							Image:                   destMapAgentImage,
@@ -133,15 +132,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								},
 							},
 							TLS: &argov1beta1api.PrincipalTLSSpec{
-								InsecureGenerate: ptr.To(false),
+								InsecureGenerate: new(false),
 							},
 							JWT: &argov1beta1api.PrincipalJWTSpec{
-								InsecureGenerate: ptr.To(false),
+								InsecureGenerate: new(false),
 							},
 							Server: &argov1beta1api.PrincipalServerSpec{
 								KeepAliveMinInterval: "30s",
 								Route: argov1beta1api.ArgoCDAgentPrincipalRouteSpec{
-									Enabled: ptr.To(false),
+									Enabled: new(false),
 								},
 								Service: argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
 									Type: corev1.ServiceTypeLoadBalancer,
@@ -149,7 +148,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							},
 						},
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled: ptr.To(false),
+							Enabled: new(false),
 						},
 					},
 				},
@@ -166,17 +165,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					SourceNamespaces: []string{
 						destMapNsAgent,
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Principal: &argov1beta1api.PrincipalSpec{
-							Enabled: ptr.To(false),
+							Enabled: new(false),
 						},
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled:  ptr.To(true),
+							Enabled:  new(true),
 							Creds:    "mtls:any",
 							LogLevel: "debug",
 							Image:    destMapAgentImage,
@@ -192,11 +191,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							TLS: &argov1beta1api.AgentTLSSpec{
 								SecretName:       destMapClientTLSSecretName,
 								RootCASecretName: destMapRootCASecretName,
-								Insecure:         ptr.To(false),
+								Insecure:         new(false),
 							},
 							DestinationBasedMapping: &argov1beta1api.DestinationBasedMappingSpec{
-								Enabled:         ptr.To(true),
-								CreateNamespace: ptr.To(true),
+								Enabled:         new(true),
+								CreateNamespace: new(true),
 							},
 							AllowedNamespaces: []string{
 								destMapNsAgent,
@@ -251,8 +250,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    ptr.To(true),
-							SelfHeal: ptr.To(true),
+							Prune:    new(true),
+							SelfHeal: new(true),
 						},
 						ManagedNamespaceMetadata: &argocdv1alpha1.ManagedNamespaceMetadata{
 							Labels: map[string]string{

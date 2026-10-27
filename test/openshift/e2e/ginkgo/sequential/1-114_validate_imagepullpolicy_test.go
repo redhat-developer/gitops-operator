@@ -31,7 +31,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -152,7 +151,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
-					Enabled: ptr.To(bool(true)),
+					Enabled: new(bool(true)),
 				}
 			})
 
@@ -214,7 +213,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
-					Enabled: ptr.To(bool(true)),
+					Enabled: new(bool(true)),
 				}
 			})
 

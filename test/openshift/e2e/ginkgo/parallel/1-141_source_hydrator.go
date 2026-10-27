@@ -11,7 +11,6 @@ import (
 	v1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
@@ -158,13 +157,13 @@ patches:
 
 			By("Running when enabled")
 			argocdFixture.Update(argoCD, func(argoCD *argov1beta1api.ArgoCD) {
-				argoCD.Spec.SourceHydrator.Enabled = ptr.To(true)
+				argoCD.Spec.SourceHydrator.Enabled = new(true)
 			})
 			assertRunning(true)
 
 			By("Not running when disabled")
 			argocdFixture.Update(argoCD, func(argoCD *argov1beta1api.ArgoCD) {
-				argoCD.Spec.SourceHydrator.Enabled = ptr.To(false)
+				argoCD.Spec.SourceHydrator.Enabled = new(false)
 			})
 			assertRunning(false)
 		})
@@ -220,7 +219,7 @@ patches:
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 					},
 					CommitServer: argov1beta1api.ArgoCDCommitServerSpec{
 						LogLevel:       logLevel,
@@ -321,7 +320,7 @@ patches:
 						Keys:                server.SSHKnownHosts(),
 					},
 					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 					},
 					// Expose host for the git push webhook to work.
 					Server: argov1beta1api.ArgoCDServerSpec{
@@ -371,8 +370,8 @@ patches:
 					},
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    ptr.To(true),
-							SelfHeal: ptr.To(true),
+							Prune:    new(true),
+							SelfHeal: new(true),
 						},
 					},
 				},
@@ -428,7 +427,7 @@ patches:
 						},
 					},
 					SourceHydrator: argov1beta1api.ArgoCDSourceHydratorSpec{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 					},
 					// Expose host for the git push webhook to work.
 					Server: argov1beta1api.ArgoCDServerSpec{
