@@ -16291,8 +16291,12 @@ spec:
                       type: string
                     type: array
                   goRuntime:
-                    description: GoRuntime configures automatic Go runtime tuning
-                      for the Application Controller.
+                    description: |-
+                      GoRuntime configures automatic Go runtime tuning for the Application Controller.
+                      Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING
+                      (component-specific, takes precedence) or ENABLE_GO_RUNTIME_TUNING (global fallback) to "false"
+                      on the operator to disable it. When both are set, the component-specific setting wins, so a
+                      global "false" does not disable tuning if the component-specific setting is "true".
                     properties:
                       cpuLimitPercent:
                         description: |-
@@ -16305,7 +16309,8 @@ spec:
                       enabled:
                         description: |-
                           Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
-                          Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false).
+                          Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false,
+                          or ENABLE_GO_RUNTIME_TUNING=false when the component-specific setting is unset).
                         type: boolean
                       memoryLimitPercent:
                         description: |-

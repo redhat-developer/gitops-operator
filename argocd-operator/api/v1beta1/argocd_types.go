@@ -138,6 +138,10 @@ type ArgoCDApplicationControllerSpec struct {
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 
 	// GoRuntime configures automatic Go runtime tuning for the Application Controller.
+	// Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING
+	// (component-specific, takes precedence) or ENABLE_GO_RUNTIME_TUNING (global fallback) to "false"
+	// on the operator to disable it. When both are set, the component-specific setting wins, so a
+	// global "false" does not disable tuning if the component-specific setting is "true".
 	GoRuntime *ArgoCDGoRuntimeSpec `json:"goRuntime,omitempty"`
 }
 
@@ -146,12 +150,14 @@ func (a *ArgoCDApplicationControllerSpec) IsEnabled() bool {
 }
 
 // ArgoCDGoRuntimeSpec defines per-instance options for automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS).
-// Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING or
-// ENABLE_GO_RUNTIME_TUNING to "false" on the operator to disable. This spec allows per-instance opt-out
+// Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING
+// (component-specific, takes precedence) or ENABLE_GO_RUNTIME_TUNING (global fallback) to "false"
+// on the operator to disable. This spec allows per-instance opt-out
 // and customization of memory and CPU percentages. Currently used only in ArgoCDApplicationControllerSpec.
 type ArgoCDGoRuntimeSpec struct {
 	// Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
-	// Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false).
+	// Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false,
+	// or ENABLE_GO_RUNTIME_TUNING=false when the component-specific setting is unset).
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Go Runtime Auto-Tuning",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Controller","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	Enabled *bool `json:"enabled,omitempty"`
 
