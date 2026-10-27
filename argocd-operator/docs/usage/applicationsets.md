@@ -317,7 +317,8 @@ spec:
 Using the `preserveResourcesOnDeletion` policy will prevent the finalizer from being added to Applications, thus stopping their deletion. 
 
 Another way of achieving this behavior would be to delete the ApplicationSet using a non-cascading delete:
-```yaml
+
+```
 kubectl delete ApplicationSet (NAME) --cascade=orphan
 ```
 
