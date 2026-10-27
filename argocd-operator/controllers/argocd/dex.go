@@ -426,8 +426,8 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 	// otherwise it refuses to create the container (CreateContainerConfigError).
 	dexSecCtx := argoutil.DefaultSecurityContext()
 	dexImage := getDexContainerImage(cr)
-	// Skip for OCP - let the cluster make sure it is within the range.
-	if strings.HasPrefix(dexImage, common.ArgoCDDefaultDexImage) && !IsOpenShiftCluster() {
+	// Skip when SCC admission assigns UIDs (OpenShift, MicroShift).
+	if strings.HasPrefix(dexImage, common.ArgoCDDefaultDexImage) && !IsSCCAPIAvailable() {
 		dexUID := common.ArgoCDDefaultDexRunAsUser
 		dexSecCtx.RunAsUser = &dexUID
 	}
