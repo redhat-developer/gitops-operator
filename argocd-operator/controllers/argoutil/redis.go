@@ -10,9 +10,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 const (
@@ -201,6 +201,10 @@ func GetRedisHAProxyConfig(cr *argoproj.ArgoCD, useTLSForRedis bool, centralTLSC
 
 	if len(centralTLSConfigProfile.Ciphers) > 0 {
 		vars["TLSCiphers"] = strings.Join(centralTLSConfigProfile.Ciphers, ":")
+	}
+
+	if curves := MapOpenShiftTLSGroupsToOpenSSL(centralTLSConfigProfile.CurvePreferences, "Redis HAProxy"); curves != "" {
+		vars["TLSCurves"] = curves
 	}
 
 	script, err := loadTemplateFile(path, vars)

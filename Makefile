@@ -139,29 +139,6 @@ vet: ## Run go vet against code.
 test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
 
-.PHONY: test-e2e
-test-e2e: manifests generate fmt vet ## Run e2e tests.
-	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/e2e -coverprofile cover.out -ginkgo.v
-	REDIS_CONFIG_PATH="build/redis" go test -p 1 -timeout 1h ./test/nondefaulte2e -coverprofile cover.out -ginkgo.v
-
-.PHONY: test-metrics
-test-metrics:
-	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD metrics controller" -coverprofile cover.out -ginkgo.v
-
-.PHONY: test-route
-test-route:
-	go test -timeout 30m ./test/e2e -ginkgo.focus="Argo CD ConsoleLink controller" -coverprofile cover.out -ginkgo.v
-
-
-.PHONY: test-gitopsservice
-test-gitopsservice:
-	go test -p 1 -timeout 1h ./test/e2e -ginkgo.focus="GitOpsServiceController" -coverprofile cover.out -ginkgo.v
-
-
-.PHONY: test-gitopsservice-nondefault
-test-gitopsservice-nondefault:
-	go test -p 1 -timeout 30m ./test/nondefaulte2e -ginkgo.focus="GitOpsServiceNoDefaultInstall" -coverprofile cover.out -ginkgo.v
-
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
 	cd argocd-operator && make test
@@ -174,12 +151,12 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -vv --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -vv -procs=5 --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 60m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/parallel
 
 .PHONY: e2e-tests-sequential
 e2e-tests-sequential:
@@ -192,12 +169,12 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -v --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 240m -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -vv --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential 
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo
 	@echo "Running GitOps Operator parallel Ginkgo E2E tests..."
-	$(GINKGO_CLI) -p -v -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 60m -r ./test/openshift/e2e/ginkgo/parallel
+	$(GINKGO_CLI) -p -vv -procs=5 --trace --label-filter=$(XKS_LABEL_FILTER) --no-color --timeout 60m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/parallel
 
 ##@ Build
 

@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 const (
@@ -54,6 +54,9 @@ func (r *ReconcileArgoCD) reconcileSSO(cr *argoproj.ArgoCD, argocdStatus *argopr
 			// sso provider specified as dex but no dexconfig supplied. This will cause health probe to fail as per
 			// https://github.com/argoproj-labs/argocd-operator/pull/615 ==> conflict
 			errMsg = "must supply valid dex configuration when requested SSO provider is dex"
+			isError = true
+		} else if cr.Spec.SSO.Dex != nil && cr.Spec.SSO.Dex.OpenShiftOAuth && !IsOpenShiftCluster() {
+			errMsg = "openShiftOAuth is only supported on OpenShift clusters. Please disable the openShiftOAuth configuration."
 			isError = true
 		} else if cr.Spec.SSO.Keycloak != nil {
 			errMsg = "keycloak configuration is specified even though Dex is enabled. Keycloak support has been deprecated and is no longer available."

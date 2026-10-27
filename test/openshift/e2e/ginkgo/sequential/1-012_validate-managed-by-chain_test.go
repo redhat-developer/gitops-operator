@@ -19,11 +19,11 @@ package sequential
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
@@ -73,14 +73,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			var cleanupFunc1, cleanupFunc2, cleanupFunc3, cleanupFunc4 func()
 
-			nsTest_1_12_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom")
-			cleanupfuncs = append(cleanupfuncs, cleanupFunc1)
-
-			nsTest_1_12_custom2, cleanupFunc2 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom2")
-			cleanupfuncs = append(cleanupfuncs, cleanupFunc2)
-
 			randomNS, cleanupFunc3 = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			cleanupfuncs = append(cleanupfuncs, cleanupFunc3)
+
+			nsTest_1_12_custom, cleanupFunc1 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom")
+			cleanupfuncs = append(cleanupfuncs, cleanupFunc1)
+
+			nsTest_1_12_custom2, cleanupFunc2 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom2")
+			cleanupfuncs = append(cleanupfuncs, cleanupFunc2)
 
 			argoCDRandomNS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
@@ -105,6 +105,18 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Eventually(&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-server", Namespace: managedNS}}).Should(k8sFixture.ExistByName())
 
 				Eventually(&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: managedNS}}).Should(k8sFixture.ExistByName())
+				Eventually(func() bool {
+					controllerRB := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: managedNS}}
+					if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(controllerRB), controllerRB); err != nil {
+						return false
+					}
+					for _, subject := range controllerRB.Subjects {
+						if subject.Kind == "ServiceAccount" && subject.Name == "argocd-argocd-application-controller" && subject.Namespace == argoCDRandomNS.Namespace {
+							return true
+						}
+					}
+					return false
+				}).Should(BeTrue(), "controller rolebinding never pointed at our sa")
 
 				rb := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-server", Namespace: managedNS}}
 				Eventually(rb).Should(k8sFixture.ExistByName())
@@ -164,6 +176,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("validating role/rolebindings are valid for second managed namespace")
 			expectRoleAndRoleBindingAreValidForManagedNamespace(nsTest_1_12_custom2.Name)
 
+			By("wait until the cluster secret lists custom2 before we create the app")
+			Eventually(func() string {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(clusterSecret), clusterSecret); err != nil {
+					return ""
+				}
+				return string(clusterSecret.Data["namespaces"])
+			}).Should(ContainSubstring(nsTest_1_12_custom2.Name))
+
 			By("validating Argo CD is able to deploy to second managed namespace")
 			app2 := &argocdv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-1-12-custom2", Namespace: argoCDRandomNS.Namespace},
@@ -185,8 +205,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Expect(k8sClient.Create(ctx, app2)).To(Succeed())
 
-			Eventually(app2, "4m", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app2, "4m", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app2, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app2, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("deleting all Argo CD applications and first managed namespace")
 
@@ -204,7 +224,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("recreating Argo CD applications")
 
-			nsTest_1_12_custom, cleanupFunc4 = fixture.CreateNamespaceWithCleanupFunc("test-1-12-custom")
+			nsTest_1_12_custom, cleanupFunc4 = fixture.CreateNamespaceWithCleanupFunc(randomNS.Name + "-custom")
 			cleanupfuncs = append(cleanupfuncs, cleanupFunc4)
 
 			app = &argocdv1alpha1.Application{
@@ -257,8 +277,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(app, "1m", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusMissing))
 			Eventually(app, "1m", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeUnknown))
 
-			Eventually(app2, "4m", "1s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
-			Eventually(app2, "4m", "1s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
+			Eventually(app2, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app2, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 		})
 

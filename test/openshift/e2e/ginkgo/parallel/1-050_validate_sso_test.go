@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -126,7 +126,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
-			By("creating a new Argo CD instance with dex and openshift oauth enabled")
+			By("creating a new Argo CD instance with dex")
 
 			newArgoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
@@ -137,7 +137,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: "dex",
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
+							Config: `connectors:
+  - type: github
+    id: github
+    name: github-using-first-class
+    config:
+      clientID: first-class
+      clientSecret: $dex.github.clientSecret
+      orgs:
+        - name: first-class`,
 						},
 					},
 				},

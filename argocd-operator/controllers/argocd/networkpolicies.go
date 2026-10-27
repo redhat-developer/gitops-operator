@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 var (
@@ -54,6 +54,10 @@ func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 		}
 	}
 
+	if !cr.Spec.NetworkPolicy.IsEnabled() {
+		return r.deleteArgoCDNetworkPolicies(cr)
+	}
+
 	// Reconcile Redis network policy
 	if err := r.ReconcileRedisNetworkPolicy(cr); err != nil {
 		return err
@@ -62,10 +66,6 @@ func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 	// Reconcile Redis HA network policy
 	if err := r.ReconcileRedisHANetworkPolicy(cr); err != nil {
 		return err
-	}
-
-	if !cr.Spec.NetworkPolicy.IsEnabled() {
-		return r.deleteArgoCDNetworkPolicies(cr)
 	}
 
 	// Reconcile Notifications Controller network policy
@@ -104,6 +104,8 @@ func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 
 func (r *ReconcileArgoCD) deleteArgoCDNetworkPolicies(cr *argoproj.ArgoCD) error {
 	names := []string{
+		nameWithSuffix(RedisNetworkPolicy, cr),
+		nameWithSuffix(RedisHANetworkPolicy, cr),
 		nameWithSuffix(ArgoCDNotificationsControllerNetworkPolicy, cr),
 		nameWithSuffix(ArgoCDDexServerNetworkPolicy, cr),
 		nameWithSuffix(ArgoCDApplicationSetControllerNetworkPolicy, cr),

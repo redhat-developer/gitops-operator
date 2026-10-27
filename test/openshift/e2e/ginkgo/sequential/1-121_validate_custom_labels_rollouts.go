@@ -53,6 +53,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ns), ns); err != nil {
 					Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 				}
+				fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", rolloutNamespace)
 			}
 		})
 

@@ -36,8 +36,8 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
 
 	routev1 "github.com/openshift/api/route/v1"
 
@@ -213,7 +213,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Create ArgoCD client using the ArgoCD server Route and admin password.
 			// ArgoCD Client is acting as a browser and trying to open a terminal session
-			// to the application in the managed-cluster.
+			// to the application in the managed-cluster. We deliberately go via the Route (rather than a
+			// port-forward) so that this test exercises the same OpenShift Router path a real browser would use.
 			By("Get ArgoCD admin password and login via Route")
 			argoEndpoint := serverRoute.Spec.Host
 			GinkgoWriter.Printf("ArgoCD server Route host: %s\n", argoEndpoint)

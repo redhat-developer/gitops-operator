@@ -20,14 +20,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 const (
 	DefaultImageUpdaterImage      = "quay.io/argoprojlabs/argocd-image-updater"
-	DefaultImageUpdaterTag        = "v1.3.0"
+	DefaultImageUpdaterTag        = "v1.4.0"
 	ArgocdImageUpdaterConfigCM    = "argocd-image-updater-config"
 	ArgocdImageUpdaterSSHConfigCM = "argocd-image-updater-ssh-config"
 	ArgocdImageUpdaterSecret      = "argocd-image-updater-secret" // #nosec G101
@@ -701,7 +701,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 			Name: "ssh-signing-key",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "ssh-git-creds",
+					SecretName: "ssh-git-creds", // #nosec G101 -- this is a Secret resource name, not a credential
 					Optional:   new(true),
 				},
 			},
@@ -718,8 +718,11 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	imageUpdaterTLSProfileArguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
 	args = append(args, imageUpdaterTLSProfileArguments...)
 
+	// Command is intentionally not set so that the image's own ENTRYPOINT applies.
+	// The image updater image runs the manager under tini ("tini -- /manager"), which
+	// reaps the git child processes the manager forks. Overriding Command with "/manager"
+	// would make the manager PID 1 and leak zombie git processes (GITOPS-11648).
 	podSpec.Containers = []corev1.Container{{
-		Command:         []string{"/manager"},
 		Args:            args,
 		Image:           selectImageUpdaterImage(cr),
 		ImagePullPolicy: argoutil.GetImagePullPolicy(cr.Spec.ImagePullPolicy),

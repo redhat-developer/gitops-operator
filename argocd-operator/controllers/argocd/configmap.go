@@ -30,9 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // createRBACConfigMap will create the Argo CD RBAC ConfigMap resource.
@@ -584,6 +584,29 @@ func (r *ReconcileArgoCD) reconcileArgoConfigMap(cr *argoproj.ArgoCD) error {
 		} else if cr.Spec.SSO != nil && cr.Spec.SSO.Provider.ToLower() == argoproj.SSOProviderTypeKeycloak {
 			log.Info("Keycloak SSO provider is no longer supported. Existing configuration will be ignored and not reconciled.")
 			// Keycloak functionality has been removed, skipping reconciliation
+		}
+
+		// Warn when the resource tracking method is about to change without the user having
+		// asked for it. This happens when .spec.resourceTrackingMethod is unset and the
+		// operator default differs from the value already in argocd-cm — most commonly on an
+		// upgrade from an operator that defaulted to 'label'. The value is still reconciled
+		// from the CR as usual; this only makes an otherwise silent migration greppable,
+		// because it makes managed resources go OutOfSync and a subsequent sync can remove
+		// controller-managed labels from Secrets. An explicit value in .spec or in
+		// .spec.extraConfig is a deliberate choice and is not warned about. Since the new
+		// value is written on this same reconcile, this logs once per actual change.
+		if cr.Spec.ResourceTrackingMethod == "" {
+			if _, overridden := cr.Spec.ExtraConfig[common.ArgoCDKeyResourceTrackingMethod]; !overridden {
+				existing := existingCM.Data[common.ArgoCDKeyResourceTrackingMethod]
+				computed := cm.Data[common.ArgoCDKeyResourceTrackingMethod]
+				if existing != "" && existing != computed &&
+					argoproj.ParseResourceTrackingMethod(existing) != argoproj.ResourceTrackingMethodInvalid {
+					log.Info(fmt.Sprintf("WARNING: resource tracking method in %s is changing from '%s' to the default '%s' because .spec.resourceTrackingMethod is not set. "+
+						"Managed resources will re-sync to apply the new tracking method and may report OutOfSync; a sync can remove controller-managed labels from Secrets. "+
+						"Set .spec.resourceTrackingMethod to '%s' to keep the current behaviour.",
+						common.ArgoCDConfigMapName, existing, computed, existing))
+				}
+			}
 		}
 
 		changed := false

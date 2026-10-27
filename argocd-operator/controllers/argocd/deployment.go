@@ -25,11 +25,11 @@ import (
 	"strings"
 	"time"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	argoprojv1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1339,7 +1339,25 @@ func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProf
 		args = append(args, "--tlsminversion", v)
 	}
 	if ciphers := argoutil.MapCipherSuites(centralTLSConfig.Ciphers); len(ciphers) > 0 {
-		args = append(args, "--tlsciphers", strings.Join(ciphers, ":"))
+		// Go does not allow configuring TLS 1.3 cipher suites.
+		// Only filter them when TLS versions below 1.3 are used.
+		if centralTLSConfig.MinVersion != "VersionTLS13" {
+			tls13Ciphers := map[string]bool{
+				"TLS_AES_128_GCM_SHA256":       true,
+				"TLS_AES_256_GCM_SHA384":       true,
+				"TLS_CHACHA20_POLY1305_SHA256": true,
+			}
+			filtered := make([]string, 0, len(ciphers))
+			for _, cipher := range ciphers {
+				if !tls13Ciphers[cipher] {
+					filtered = append(filtered, cipher)
+				}
+			}
+			ciphers = filtered
+		}
+		if len(ciphers) > 0 {
+			args = append(args, "--tlsciphers", strings.Join(ciphers, ":"))
+		}
 	}
 	return args
 }
