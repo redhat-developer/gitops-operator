@@ -199,6 +199,11 @@ require (
 )
 
 replace (
+	// argo-cd v3.3.18 declares gitops-engine at a pseudo-version where go.mod
+	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
+	// Downstream consumers must resolve it themselves; pin to the v3.3.18 commit.
+	github.com/argoproj/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261022134330-d0b5dfda404d
+
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 
