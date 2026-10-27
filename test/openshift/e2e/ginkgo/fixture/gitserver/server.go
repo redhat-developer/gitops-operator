@@ -13,7 +13,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -183,7 +182,7 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 		},
 		Spec: corev1.PodSpec{
 			SecurityContext: &corev1.PodSecurityContext{
-				FSGroup: ptr.To(int64(1000)),
+				FSGroup: new(int64(1000)),
 			},
 			Containers: []corev1.Container{
 				{
@@ -211,12 +210,12 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 						PeriodSeconds:       5,
 					},
 					SecurityContext: &corev1.SecurityContext{
-						RunAsUser:  ptr.To(int64(1000)),
-						RunAsGroup: ptr.To(int64(1000)),
+						RunAsUser:  new(int64(1000)),
+						RunAsGroup: new(int64(1000)),
 						SeccompProfile: &corev1.SeccompProfile{
 							Type: corev1.SeccompProfileTypeRuntimeDefault,
 						},
-						AllowPrivilegeEscalation: ptr.To(false),
+						AllowPrivilegeEscalation: new(false),
 						Capabilities: &corev1.Capabilities{
 							Drop: []corev1.Capability{
 								"ALL",
@@ -297,7 +296,7 @@ func StartServer(ctx context.Context, k8sClient client.Client, ns *corev1.Namesp
 			To: routev1.RouteTargetReference{
 				Kind:   "Service",
 				Name:   service.Name,
-				Weight: ptr.To(int32(100)),
+				Weight: new(int32(100)),
 			},
 			Port: &routev1.RoutePort{
 				TargetPort: intstr.FromString("https"),
