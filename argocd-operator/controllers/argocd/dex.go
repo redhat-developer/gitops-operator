@@ -290,7 +290,7 @@ func (r *ReconcileArgoCD) getOpenShiftDexConfig(cr *argoproj.ArgoCD) (string, er
 		Config: map[string]any{
 			"issuer":       "https://kubernetes.default.svc", // TODO: Should this be hard-coded?
 			"clientID":     getDexOAuthClientID(cr),
-			"clientSecret": "$oidc.dex.clientSecret",
+			"clientSecret": "$oidc.dex.clientSecret", // #nosec G101 -- this is a Dex config reference placeholder resolved at runtime, not a credential
 			"redirectURI":  redirectURI,
 			"insecureCA":   true, // TODO: Configure for openshift CA,
 			"groups":       groups,

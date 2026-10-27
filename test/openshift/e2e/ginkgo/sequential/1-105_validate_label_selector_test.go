@@ -39,7 +39,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			fixture.OutputDebugOnFail(ns)
 
-			fixture.RestoreSubcriptionToDefault()
+			fixture.RestoreSubscriptionToDefault()
 		})
 
 		It("ensures that ARGOCD_LABEL_SELECTOR controls which ArgoCD CRs are reconciled via operator", func() {

@@ -84,7 +84,6 @@ func SetEnv(subscription *olmv1alpha1.Subscription, key string, value string) {
 		}
 
 		s.Spec.Config.Env = newEnvVars
-
 	})
 
 }

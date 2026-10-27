@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	})
 	// --- Helper: Extract TLS values from args ---
 	getTLSValues := func(args []string) (min string, hasMin bool, hasCiphers bool, ciphers string) {
-		for i := 0; i < len(args); i++ {
+		for i := range args {
 			arg := args[i]
 			// handle --tlsminversion <value>
 			if arg == "--tlsminversion" {
@@ -214,7 +214,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				hasProtocols := false
 				hasCiphersTLS12 := false
 				hasCiphersTLS13 := false
-				for i := 0; i < len(args); i++ {
+				for i := range args {
 					arg := args[i]
 					// --- Handle "--tls-protocols <value>"
 					if arg == "--tls-protocols" {

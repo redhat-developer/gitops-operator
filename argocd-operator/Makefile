@@ -10,7 +10,7 @@ VERSION ?= 0.20.0
 # After updating, call 'make update-dependencies'.
 # Notes:
 # - String should NOT begin with 'v' prefix, e.g. 'v3.1.1'
-ARGO_CD_TARGET_VERSION ?= 3.5.2
+ARGO_CD_TARGET_VERSION ?= 3.5.6
 
 # Try to detect Docker or Podman
 CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
@@ -75,7 +75,7 @@ vet: ## Run go vet against code.
 
 get-image-updater-crd: ## Download Image Updater CRD.
 	@echo "downloading image updater crd"
-	@curl -sSLo config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/master/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
+	@curl -sSLo ../config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/master/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
 
 
 # Exclude E2E tests from the list of unit test packages

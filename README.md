@@ -60,7 +60,7 @@ make test
 #### e2e tests
 
 ```
-make test-e2e
+make e2e-tests-ginkgo
 ```
 
 #### Accessing redacted OpenShift CI logs
