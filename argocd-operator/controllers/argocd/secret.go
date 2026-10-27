@@ -35,6 +35,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -331,7 +332,7 @@ func (r *ReconcileArgoCD) reconcileClusterSecrets(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
-	if err := r.reconcileRedisInitialPasswordSecret(cr); err != nil {
+	if err := r.reconcileRedisSecret(cr); err != nil {
 		return err
 	}
 
@@ -1141,68 +1142,205 @@ func (r *ReconcileArgoCD) getClusterSecrets(cr *argoproj.ArgoCD) (*corev1.Secret
 	return clusterSecrets, nil
 }
 
-// reconcileRedisInitialPasswordSecret will ensure that the redis Secret is present for the cluster.
-func (r *ReconcileArgoCD) reconcileRedisInitialPasswordSecret(cr *argoproj.ArgoCD) error {
+// REDIS_INITIAL_PASSWORD is the suffix of the Secret that held the Redis password before
+// GITOPS-11058, i.e. [instance]-redis-initial-password.
+const REDIS_INITIAL_PASSWORD = "redis-initial-password"
+
+// ARGOCD_REDIS is the name of the Secret holding the Redis credentials. It deliberately does not
+// carry the instance name, so that it is compatible with the argocd CLI.
+const ARGOCD_REDIS = common.ArgoCDRedisComponent
+
+func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	// Fix for GITOPS-11058:
-	// 1. Create a new secret: argocd-redis to be compatible with argocd cli
-	// 2. Delete an old style secret: [instance]-redis-initial-password in case it exists
+	// PROVIDE A NEW DESCRIPTION
 
-	// Generate secret in new style: argocd-redis
-	secretName := "argocd-redis"
-	secret := argoutil.NewSecretWithName(cr, secretName)
+	new := argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
+	newExists, err := r.checkSecretExistence(cr, new)
+	if err != nil {
+		return err
+	}
 
+	if newExists && secretIsHealthy(new) {
+		// Healthy - keep it
+		return r.deleteLegacyRedisSecret(cr)
+	} else if newExists && !secretIsHealthy(new) {
+		// secret not healthy, update
+		new = argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
+		err := prepareSecretForUpdateCreate(r, cr, new)
+		if err != nil {
+			return err
+		}
+		if err := r.deleteLegacyRedisSecret(cr); err != nil {
+			return err
+		}
+		argoutil.LogResourceUpdate(log, new)
+		return r.Update(context.TODO(), new)
+	}
+
+	// argocd-redis secret does not exist
+	old := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
+	oldExists, err := r.checkSecretExistence(cr, old)
+	if err != nil {
+		return err
+	}
+	if oldExists && secretIsHealthy(old) {
+		// Carry the password over from the legacy secret
+		new.Data = argoutil.GetRedisSecretData(old.Data[common.ArgoCDKeyAdminPassword])
+
+		if err := controllerutil.SetControllerReference(cr, new, r.Scheme); err != nil {
+			return err
+		}
+	} else {
+		if err := prepareSecretForUpdateCreate(r, cr, new); err != nil {
+			return err
+		}
+	}
+
+	if err := r.deleteLegacyRedisSecret(cr); err != nil {
+		return err
+	}
+	argoutil.LogResourceCreation(log, new)
+	return r.Create(context.TODO(), new)
+}
+
+// checkSecretExistence reports whether the given Secret exists, populating it when it does.
+func (r *ReconcileArgoCD) checkSecretExistence(cr *argoproj.ArgoCD, s *corev1.Secret) (bool, error) {
 	existed := true
-	// Recreate if the secret or some of its keys are missing
-	err := argoutil.FetchObject(r.Client, cr.Namespace, secret.Name, secret)
+	err := argoutil.FetchObject(r.Client, cr.Namespace, s.Name, s)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return false, err
+		}
+		existed = false
+	}
+	return existed, nil
+}
+
+// Check usage of provided secret
+// Checks in: Pod, Deployment or StatefulSet in the namespace
+func (r *ReconcileArgoCD) secretInUse(namespace string, secretName string) (bool, error) {
+	pods := &corev1.PodList{}
+	if err := r.List(context.TODO(), pods, client.InNamespace(namespace)); err != nil {
+		return false, err
+	}
+	for i := range pods.Items {
+		if secretReferencedByPodSpec(&pods.Items[i].Spec, secretName) {
+			return true, nil
+		}
+	}
+
+	deployments := &appsv1.DeploymentList{}
+	if err := r.List(context.TODO(), deployments, client.InNamespace(namespace)); err != nil {
+		return false, err
+	}
+	for i := range deployments.Items {
+		if secretReferencedByPodSpec(&deployments.Items[i].Spec.Template.Spec, secretName) {
+			return true, nil
+		}
+	}
+
+	statefulSets := &appsv1.StatefulSetList{}
+	if err := r.List(context.TODO(), statefulSets, client.InNamespace(namespace)); err != nil {
+		return false, err
+	}
+	for i := range statefulSets.Items {
+		if secretReferencedByPodSpec(&statefulSets.Items[i].Spec.Template.Spec, secretName) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// Check if Spec mounts the named Secret
+func secretReferencedByPodSpec(spec *corev1.PodSpec, secretName string) bool {
+	for _, volume := range spec.Volumes {
+		if volume.Secret != nil && volume.Secret.SecretName == secretName {
+			return true
+		}
+		if volume.Projected == nil {
+			continue
+		}
+		for _, source := range volume.Projected.Sources {
+			if source.Secret != nil && source.Secret.Name == secretName {
+				return true
+			}
+		}
+	}
+
+	containers := append(append([]corev1.Container{}, spec.InitContainers...), spec.Containers...)
+	for _, container := range containers {
+		for _, env := range container.Env {
+			if env.ValueFrom != nil && env.ValueFrom.SecretKeyRef != nil && env.ValueFrom.SecretKeyRef.Name == secretName {
+				return true
+			}
+		}
+		for _, envFrom := range container.EnvFrom {
+			if envFrom.SecretRef != nil && envFrom.SecretRef.Name == secretName {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (r *ReconcileArgoCD) deleteLegacyRedisSecret(cr *argoproj.ArgoCD) error {
+	// Delete [instance]-redis-initial-password
+	legacy := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
+
+	exists, err := r.checkSecretExistence(cr, legacy)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+
+	inUse, err := r.secretInUse(cr.Namespace, legacy.Name)
+	if err != nil {
+		return err
+	}
+	if inUse {
+		return nil
+	}
+
+	argoutil.LogResourceDeletion(log, legacy)
+	err = r.Delete(context.TODO(), legacy)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return err
 		}
-		existed = false
 	}
-	if secret.Data != nil {
-		_, hasPwd := secret.Data[common.ArgoCDKeyAdminPassword]
-		_, hasAuth := secret.Data["auth"]
-		_, hasUsername := secret.Data["auth_username"]
-		_, hasAcl := secret.Data["users.acl"]
+	return nil
+}
+
+func secretIsHealthy(s *corev1.Secret) bool {
+	healthy := false
+	if s.Data != nil {
+		_, hasPwd := s.Data[common.ArgoCDKeyAdminPassword]
+		_, hasAuth := s.Data["auth"]
+		_, hasUsername := s.Data["auth_username"]
+		_, hasAcl := s.Data["users.acl"]
+
 		if hasPwd && hasAuth && hasUsername && hasAcl {
-			return nil // Healthy - keep it
+			healthy = true
 		}
 	}
+	return healthy
+}
 
-	if existed {
-		// Drop unsettable fields created by FetchObject
-		secret = argoutil.NewSecretWithName(cr, secretName)
-	}
-
+func prepareSecretForUpdateCreate(r *ReconcileArgoCD, cr *argoproj.ArgoCD, s *corev1.Secret) error {
 	redisInitialPassword, err := generateRedisAdminPassword()
 	if err != nil {
 		return err
 	}
 
-	secret.Data = argoutil.GetRedisSecretData(redisInitialPassword)
+	s.Data = argoutil.GetRedisSecretData(redisInitialPassword)
 
-	if err := controllerutil.SetControllerReference(cr, secret, r.Scheme); err != nil {
+	if err := controllerutil.SetControllerReference(cr, s, r.Scheme); err != nil {
 		return err
 	}
 
-	// Generate secret in old style: [instance]-redis-initial-password
-	oldSecretName := "redis-initial-password"
-	oldSecret := argoutil.NewSecretWithSuffix(cr, oldSecretName)
-
-	// Deletion of old secret in case it exited before
-	argoutil.LogResourceDeletion(log, oldSecret)
-	err = r.Delete(context.TODO(), oldSecret)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-	}
-
-	if existed {
-		argoutil.LogResourceUpdate(log, secret)
-		return r.Update(context.TODO(), secret)
-	}
-	argoutil.LogResourceCreation(log, secret)
-	return r.Create(context.TODO(), secret)
+	return nil
 }
