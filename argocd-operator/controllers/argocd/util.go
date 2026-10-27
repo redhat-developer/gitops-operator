@@ -47,6 +47,7 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	securityv1 "github.com/openshift/api/security/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/sethvargo/go-password/password"
 	"golang.org/x/mod/semver"
@@ -81,6 +82,7 @@ var (
 	versionAPIFound            = false
 	imageUpdaterAPIFound       = false
 	clusterTrustBundleAPIFound = false
+	sccAPIFound                = false
 )
 
 // IsVersionAPIAvailable returns true if the version api is present
@@ -97,6 +99,13 @@ func IsClusterTrustBundleAPIFound() bool {
 	return clusterTrustBundleAPIFound
 }
 
+// IsSCCAPIAvailable returns true if the SecurityContextConstraints API is present.
+// SCC admission assigns pod UIDs from the namespace range, so fixed UIDs must not be set.
+// This holds on MicroShift too, which lacks the config API used by IsOpenShiftCluster.
+func IsSCCAPIAvailable() bool {
+	return sccAPIFound
+}
+
 // verifyVersionAPI will verify that the template API is present.
 func verifyVersionAPI() error {
 	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
@@ -104,6 +113,16 @@ func verifyVersionAPI() error {
 		return err
 	}
 	versionAPIFound = found
+	return nil
+}
+
+// verifySCCAPI will verify that the SecurityContextConstraints API is present.
+func verifySCCAPI() error {
+	found, err := argoutil.VerifyAPI(securityv1.GroupName, securityv1.GroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	sccAPIFound = found
 	return nil
 }
 
@@ -461,6 +480,9 @@ func InspectCluster() error {
 		return err
 	}
 	if err := verifyClusterTrustBundleAPI(); err != nil {
+		return err
+	}
+	if err := verifySCCAPI(); err != nil {
 		return err
 	}
 	return nil
