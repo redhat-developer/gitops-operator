@@ -24,12 +24,9 @@ import (
 	"slices"
 	"strings"
 
-	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
-	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
@@ -52,9 +49,6 @@ var (
 	routeAPIFound      = false
 	monitoringAPIFound = false
 	configAPIFound     = false
-	templateAPIFound   = false
-	appsAPIFound       = false
-	oauthAPIFound      = false
 	olmAPIFound        = false
 
 	// verifyAPI is the function used to check API group availability.
@@ -93,35 +87,16 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 }
 
 // InspectCluster probes the API server to determine which optional API groups
-// (OLM, Monitoring, Route, Config, Console, Template, Apps, OAuth) are available
-// in the cluster and sets the corresponding package-level flags. On non-OpenShift
-// clusters where config.openshift.io is absent, only OLM, Monitoring, and Route
-// APIs are checked; remaining OpenShift-specific groups are skipped.
+// (OLM, Monitoring, Route, Config, Console) are available in the cluster and
+// sets the corresponding package-level flags. Each group is probed independently.
 func InspectCluster() error {
 	var errs []error
-	if err := verifyOLMAPI(); err != nil {
-		errs = append(errs, err)
-	}
-	if err := verifyMonitoringAPI(); err != nil {
-		errs = append(errs, err)
-	}
-	if err := verifyRouteAPI(); err != nil {
-		errs = append(errs, err)
-	}
-
-	if err := verifyConfigAPI(); err != nil {
-		errs = append(errs, err)
-		return stderrors.Join(errs...)
-	}
-	if !configAPIFound {
-		return stderrors.Join(errs...)
-	}
-
 	for _, check := range []func() error{
+		verifyOLMAPI,
+		verifyMonitoringAPI,
+		verifyRouteAPI,
+		verifyConfigAPI,
 		verifyConsoleAPI,
-		verifyTemplateAPI,
-		verifyAppsAPI,
-		verifyOAuthAPI,
 	} {
 		if err := check(); err != nil {
 			errs = append(errs, err)
@@ -193,48 +168,6 @@ func verifyMonitoringAPI() error {
 // IsMonitoringAPIFound return true if the CRD monitoring.coreos.com is available in the cluster.
 func IsMonitoringAPIFound() bool {
 	return monitoringAPIFound
-}
-
-// IsTemplateAPIFound return true if the CRD template.openshift.io is available in the cluster.
-func IsTemplateAPIFound() bool {
-	return templateAPIFound
-}
-
-func verifyTemplateAPI() error {
-	found, err := verifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
-	if err != nil {
-		return err
-	}
-	templateAPIFound = found
-	return nil
-}
-
-// IsAppsAPIFound return true if the CRD apps.openshift.io is available in the cluster.
-func IsAppsAPIFound() bool {
-	return appsAPIFound
-}
-
-func verifyAppsAPI() error {
-	found, err := verifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
-	if err != nil {
-		return err
-	}
-	appsAPIFound = found
-	return nil
-}
-
-// IsOAuthAPIFound return true if the CRD oauth.openshift.io is available in the cluster.
-func IsOAuthAPIFound() bool {
-	return oauthAPIFound
-}
-
-func verifyOAuthAPI() error {
-	found, err := verifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
-	if err != nil {
-		return err
-	}
-	oauthAPIFound = found
-	return nil
 }
 
 // IsOLMAPIFound return true if the CRD operators.coreos.com is available in the cluster.
