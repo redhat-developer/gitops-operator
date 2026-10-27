@@ -37,7 +37,6 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -163,7 +162,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							// SelfHeal is disabled to make the test deterministic: without it
 							// ArgoCD would still auto-sync (reverting the annotation) on the
 							// next periodic cycle before the Consistently check completes.
-							SelfHeal: ptr.To(false),
+							SelfHeal: new(false),
 						},
 					},
 				},
