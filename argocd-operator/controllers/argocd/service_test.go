@@ -31,8 +31,11 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 	runtimeObjs := []runtime.Object{}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 	fakeClient := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	origSCC, origVersion := sccAPIFound, versionAPIFound
+	t.Cleanup(func() { sccAPIFound, versionAPIFound = origSCC, origVersion })
+	versionAPIFound = false
 	t.Run("Ensure annotation will be set for OpenShift", func(t *testing.T) {
-		argoutil.SetRouteAPIFound(true)
+		sccAPIFound = true
 		svc := newService(a)
 
 		// Annotation is inserted, update is required
@@ -49,7 +52,7 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 		assert.Equal(t, needUpdate, false)
 	})
 	t.Run("Ensure annotation will be unset for OpenShift", func(t *testing.T) {
-		argoutil.SetRouteAPIFound(true)
+		sccAPIFound = true
 		svc := newService(a)
 		svc.Annotations = make(map[string]string)
 		svc.Annotations[common.AnnotationOpenShiftServiceCA] = "some-secret"
@@ -66,8 +69,10 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, needUpdate, false)
 	})
-	t.Run("Ensure annotation will not be set for non-OpenShift", func(t *testing.T) {
-		argoutil.SetRouteAPIFound(false)
+	t.Run("Ensure annotation will not be set for non-OpenShift, even with Route API", func(t *testing.T) {
+		sccAPIFound = false
+		argoutil.SetRouteAPIFound(true)
+		t.Cleanup(func() { argoutil.SetRouteAPIFound(false) })
 		svc := newService(a)
 		needUpdate, err := ensureAutoTLSAnnotation(fakeClient, svc, "some-secret", true)
 		assert.Nil(t, err)
@@ -76,7 +81,7 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 		assert.Equal(t, ok, false)
 	})
 	t.Run("Ensure annotation will not be set if the TLS secret is already present", func(t *testing.T) {
-		argoutil.SetRouteAPIFound(true)
+		sccAPIFound = true
 		svc := newService(a)
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +103,7 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 		assert.Equal(t, needUpdate, false)
 	})
 	t.Run("Restore annotation when TLS secret exists and was created by OpenShift Service CA", func(t *testing.T) {
-		argoutil.SetRouteAPIFound(true)
+		sccAPIFound = true
 		svc := newService(a)
 		svc.Name = "argocd-server"
 		sec := &corev1.Secret{
