@@ -823,21 +823,21 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			name: "sub-core CPU limit: GOMAXPROCS floors at 1, never 0",
 			opts: []argoCDOpt{controllerCPULimit("250m")},
 			want: []corev1.EnvVar{
-				{Name: "GOMAXPROCS", Value: "1"}, // 250m = 0.25 cores, ceil(0.25) = 1
+				{Name: "GOMAXPROCS", Value: "1"}, // 250m = 0.25 cores, floor(0.25) = 0, raised to the minimum of 1
 			},
 		},
 		{
 			name: "fractional CPU limit with default percent: GOMAXPROCS correctly computed",
 			opts: []argoCDOpt{controllerCPULimit("1500m")},
 			want: []corev1.EnvVar{
-				{Name: "GOMAXPROCS", Value: "1"}, // 1500m = 1.5 cores, 100% of 1.5 = 1.5, ceil = 2, but actual calc: 1500 * 100 / 100000 = 1.5, floor at 1 due to rounding
+				{Name: "GOMAXPROCS", Value: "1"}, // 1500m * 100 / 100000 = 1.5, truncated to 1
 			},
 		},
 		{
 			name: "per-instance .spec.controller.goRuntime.cpuLimitPercent reduces GOMAXPROCS headroom",
 			opts: []argoCDOpt{controllerCPULimit("2000m"), controllerGoRuntimeCPULimitPercent(50)},
 			want: []corev1.EnvVar{
-				{Name: "GOMAXPROCS", Value: "1"}, // 2000m * 50 / 100000 = 1.0, ceil = 1
+				{Name: "GOMAXPROCS", Value: "1"}, // 2000m * 50 / 100000 = 1
 			},
 		},
 		{
