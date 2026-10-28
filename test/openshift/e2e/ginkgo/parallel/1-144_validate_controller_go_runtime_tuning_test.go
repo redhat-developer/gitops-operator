@@ -67,7 +67,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							},
 							Limits: corev1.ResourceList{
 								corev1.ResourceCPU: resource.MustParse("1"),
-								// 2000Mi limit -> 90% GOMEMLIMIT default = 1887436800 bytes
+								// 2000Mi limit -> 80% GOMEMLIMIT default = 1677721600 bytes
 								corev1.ResourceMemory: resource.MustParse("2000Mi"),
 							},
 						},
@@ -83,7 +83,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(ss).Should(k8sFixture.ExistByName())
 
 			By("verifying that GOMEMLIMIT was automatically set on the application controller StatefulSet, based on the configured memory limit")
-			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1887436800", 0))
+			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1677721600", 0))
 
 			By("setting a custom GOMEMLIMIT value via .spec.controller.env")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
@@ -110,7 +110,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								corev1.ResourceMemory: resource.MustParse("128Mi"),
 							},
 							Limits: corev1.ResourceList{
-								// 2000Mi limit -> 90% default GOMEMLIMIT = 1887436800 bytes
+								// 2000Mi limit -> 80% default GOMEMLIMIT = 1677721600 bytes
 								corev1.ResourceMemory: resource.MustParse("2000Mi"),
 							},
 						},
@@ -126,7 +126,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(ss).Should(k8sFixture.ExistByName())
 
 			By("verifying that GOMEMLIMIT is set by default, derived from the memory limit")
-			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1887436800", 0))
+			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1677721600", 0))
 
 			By("setting .spec.controller.goRuntime.memoryLimitPercent to a custom value")
 			falseVal := false
@@ -163,7 +163,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}, "60s", "5s").Should(BeTrue())
 		})
 
-		It("verifies that .spec.controller.goRuntime.cpuLimitPercent allows GOMAXPROCS tuning", func() {
+		It("verifies that GOMAXPROCS is automatically derived from the CPU limit alongside GOMEMLIMIT", func() {
 
 			By("creating a namespace-scoped Argo CD instance with CPU and memory limits configured on the controller")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -197,23 +197,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("verifying that GOMAXPROCS is set by default, derived from the CPU limit")
 			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMAXPROCS", "2", 0))
 
-			By("verifying that GOMEMLIMIT is also set (both tuning knobs work together)")
-			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1887436800", 0))
-
-			By("setting .spec.controller.goRuntime.cpuLimitPercent to reduce CPU scheduling headroom")
-			var twentyPercent int32 = 20
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Controller.GoRuntime = &argov1beta1api.ArgoCDGoRuntimeSpec{
-					CPULimitPercent: &twentyPercent,
-				}
-			})
-
-			By("verifying that GOMAXPROCS is recomputed using the custom CPU percentage")
-			// 2000m * 20 / 100000 = 0.4, floor at 1
-			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMAXPROCS", "1", 0))
-
-			By("verifying that GOMEMLIMIT is unaffected by CPULimitPercent changes")
-			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1887436800", 0))
+			By("verifying that GOMEMLIMIT is also set (both derivations work together)")
+			Eventually(ss, "60s", "5s").Should(statefulsetFixture.HaveContainerWithEnvVar("GOMEMLIMIT", "1677721600", 0))
 		})
 
 		It("verifies that GOMAXPROCS is floored at 1 for sub-1-core CPU limits", func() {

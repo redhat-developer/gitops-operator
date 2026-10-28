@@ -709,15 +709,6 @@ func controllerCPULimit(cpuLimit string) argoCDOpt {
 	}
 }
 
-func controllerGoRuntimeCPULimitPercent(percent int32) argoCDOpt {
-	return func(a *argoproj.ArgoCD) {
-		if a.Spec.Controller.GoRuntime == nil {
-			a.Spec.Controller.GoRuntime = &argoproj.ArgoCDGoRuntimeSpec{}
-		}
-		a.Spec.Controller.GoRuntime.CPULimitPercent = &percent
-	}
-}
-
 func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -735,7 +726,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			name: "memory limit configured: GOMEMLIMIT is derived as a percentage of the memory limit",
 			opts: []argoCDOpt{controllerMemLimit()},
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"}, // 2000Mi * 90 / 100, in bytes
+				{Name: "GOMEMLIMIT", Value: "1677721600"}, // 2000Mi * 80 / 100, in bytes
 			},
 		},
 		{
@@ -749,7 +740,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			opts:        []argoCDOpt{controllerMemLimit()},
 			envVarValue: "true",
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"},
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
 		},
 		{
@@ -763,7 +754,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			opts:              []argoCDOpt{controllerMemLimit()},
 			globalEnvVarValue: "true",
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"},
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
 		},
 		{
@@ -772,7 +763,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			envVarValue:       "true",
 			globalEnvVarValue: "false",
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"},
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
 		},
 		{
@@ -791,7 +782,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			name: "per-instance .spec.controller.goRuntime.enabled=true is a no-op when the operator-level default is already on",
 			opts: []argoCDOpt{controllerMemLimit(), controllerGoRuntimeEnabled(true)},
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"},
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
 		},
 		{
@@ -801,7 +792,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			want:        []corev1.EnvVar{},
 		},
 		{
-			name: "per-instance .spec.controller.goRuntime.memoryLimitPercent overrides the default 90% headroom",
+			name: "per-instance .spec.controller.goRuntime.memoryLimitPercent overrides the default 80% headroom",
 			opts: []argoCDOpt{controllerMemLimit(), controllerGoRuntimeMemLimitPercent(50)},
 			want: []corev1.EnvVar{
 				{Name: "GOMEMLIMIT", Value: "1048576000"}, // 2000Mi * 50 / 100, in bytes
@@ -827,25 +818,18 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			},
 		},
 		{
-			name: "fractional CPU limit with default percent: GOMAXPROCS correctly computed",
+			name: "fractional CPU limit: GOMAXPROCS correctly computed",
 			opts: []argoCDOpt{controllerCPULimit("1500m")},
 			want: []corev1.EnvVar{
-				{Name: "GOMAXPROCS", Value: "1"}, // 1500m * 100 / 100000 = 1.5, truncated to 1
-			},
-		},
-		{
-			name: "per-instance .spec.controller.goRuntime.cpuLimitPercent reduces GOMAXPROCS headroom",
-			opts: []argoCDOpt{controllerCPULimit("2000m"), controllerGoRuntimeCPULimitPercent(50)},
-			want: []corev1.EnvVar{
-				{Name: "GOMAXPROCS", Value: "1"}, // 2000m * 50 / 100000 = 1
+				{Name: "GOMAXPROCS", Value: "1"}, // 1500m / 1000 = 1.5, truncated to 1
 			},
 		},
 		{
 			name: "both memory and CPU limits configured: both GOMEMLIMIT and GOMAXPROCS are set",
 			opts: []argoCDOpt{controllerMemLimit(), controllerCPULimit("2000m")},
 			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1887436800"}, // 2000Mi * 90 / 100
-				{Name: "GOMAXPROCS", Value: "2"},          // 2000m * 100 / 100000 = 2.0
+				{Name: "GOMEMLIMIT", Value: "1677721600"}, // 2000Mi * 80 / 100
+				{Name: "GOMAXPROCS", Value: "2"},          // 2000m / 1000 = 2.0
 			},
 		},
 		{

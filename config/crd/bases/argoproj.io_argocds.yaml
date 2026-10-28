@@ -16298,14 +16298,6 @@ spec:
                       on the operator to disable it. When both are set, the component-specific setting wins, so a
                       global "false" does not disable tuning if the component-specific setting is "true".
                     properties:
-                      cpuLimitPercent:
-                        description: |-
-                          CPULimitPercent is the percentage (1-100) of the CPU limit used for GOMAXPROCS. Defaults to 100.
-                          Reserves CPU headroom for the kernel. Result is floored to nearest core, minimum 1.
-                        format: int32
-                        maximum: 100
-                        minimum: 1
-                        type: integer
                       enabled:
                         description: |-
                           Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
@@ -16314,7 +16306,7 @@ spec:
                         type: boolean
                       memoryLimitPercent:
                         description: |-
-                          MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 90.
+                          MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 80.
                           Represents headroom reserved for non-heap memory and GC pauses.
                         format: int32
                         maximum: 100
