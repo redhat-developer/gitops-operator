@@ -39,22 +39,18 @@ import (
 )
 
 const (
-	// SPIFFE-related constants
-	spiffeCSIDriverDefault = "csi.spiffe.io"
-	spiffeCSIDriverCustom  = "custom.csi.spiffe.io"
-	spiffeVolumeName       = "spiffe-workload-api"
-	spiffeSocketMountPath  = "/run/spire/sockets"
-	spiffeSocketURI        = "unix:///run/spire/sockets/spire-agent.sock"
+	argoCDName               = "example"
+	argoCDAgentPrincipalName = "example-agent-principal"
+	argoCDAgentAgentName     = "example-agent-agent"
+	spiffeCSIDriverDefault   = "csi.spiffe.io"
+	spiffeCSIDriverCustom    = "custom.csi.spiffe.io"
+	spiffeVolumeName         = "spiffe-workload-api"
+	spiffeSocketMountPath    = "/run/spire/sockets"
+	spiffeSocketURI          = "unix:///run/spire/sockets/spire-agent.sock"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	const (
-		argoCDName               = "example"
-		argoCDAgentPrincipalName = "example-agent-principal"
-		argoCDAgentAgentName     = "example-agent-agent"
-	)
-
-	Context("1-135_validate_argocd_agent_spiffe", func() {
+	Context("1-136_validate_argocd_agent_spiffe", func() {
 		var (
 			k8sClient           client.Client
 			ctx                 context.Context
@@ -68,10 +64,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-spiffe-1-135")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-spiffe-1-136")
 
 			ctx = context.Background()
-			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-spiffe-1-135")
+			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-spiffe-1-136")
+
+			// Add privileged Pod Security Admission labels required for SPIFFE CSI driver
+			By("Adding privileged pod security labels to namespace for SPIFFE CSI driver")
+			Eventually(func() error {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ns), ns); err != nil {
+					return err
+				}
+				if ns.Labels == nil {
+					ns.Labels = make(map[string]string)
+				}
+				ns.Labels["pod-security.kubernetes.io/enforce"] = "privileged"
+				ns.Labels["pod-security.kubernetes.io/audit"] = "privileged"
+				ns.Labels["pod-security.kubernetes.io/warn"] = "privileged"
+				return k8sClient.Update(ctx, ns)
+			}, "30s", "2s").Should(Succeed())
 
 			principalDeployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -198,7 +209,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifySpiffeVolumeAndMount(principalDeployment, container, spiffeCSIDriverDefault)
 
 			By("Update to use custom CSI driver")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SPIFFE.CSIDriverName = spiffeCSIDriverCustom
 			})
@@ -248,7 +258,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Override with explicit auth pattern")
 			customAuthPattern := "mtls:CN=([^,]+)"
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.Auth = customAuthPattern
 			})
@@ -293,7 +302,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifySpiffeVolumeAbsent(principalDeployment)
 
 			By("Enable SPIFFE with JWT mode")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SPIFFE = &argov1beta1api.SPIFFESpec{
 					Enabled:    true,
@@ -320,7 +328,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "120s", "5s").Should(BeTrue(), "SPIFFE JWT should be enabled")
 
 			By("Update auth method from JWT to mTLS")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod = common.SpiffeAuthMethodMTLS
 			})
@@ -353,7 +360,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}), "Auth pattern should update to mTLS URI")
 
 			By("Disable SPIFFE")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SPIFFE.Enabled = false
 			})
@@ -417,7 +423,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifySpiffeVolumeAndMount(agentDeployment, container, spiffeCSIDriverDefault)
 
 			By("Update to mTLS mode with custom CSI driver")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod = common.SpiffeAuthMethodMTLS
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE.CSIDriverName = spiffeCSIDriverCustom
@@ -468,7 +473,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifySpiffeVolumeAbsent(agentDeployment)
 
 			By("Enable SPIFFE on agent")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE = &argov1beta1api.SPIFFESpec{
 					Enabled:    true,
@@ -500,7 +504,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifySpiffeVolumeAndMount(agentDeployment, container, spiffeCSIDriverDefault)
 
 			By("Disable SPIFFE on agent")
-			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE.Enabled = false
 			})

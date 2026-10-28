@@ -317,7 +317,6 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 	desiredVolumeMounts := append(buildVolumeMounts(), redisAuthMount)
 	desiredVolumes := append(buildVolumes(), redisAuthVolume)
 	if hasPrincipalSPIFFE(cr) {
-
 		desiredVolumeMounts = append(desiredVolumeMounts, buildSpiffeVolumeMount())
 		desiredVolumes = append(desiredVolumes, buildSpiffeVolume(getPrincipalSpiffeCSIDriver(cr)))
 	}
@@ -516,7 +515,7 @@ const (
 	EnvArgoCDPrincipalSpireAgentSocket                 = "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET"
 	EnvArgoCDPrincipalSpireAuthMethod                  = "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD"
 
-	// principalSpireSocketDir is the directory containing the SPIRE Agent socket injected by the csi.spiffe.io CSI driver.
+	// principalSpireSocketDir is the directory containing the SPIRE Agent socket injected by the CSI driver.
 	principalSpireSocketDir = "/run/spire/sockets"
 
 	// principalSpireSocketFile is the SPIRE Agent socket filename.
@@ -691,7 +690,6 @@ func getEffectivePrincipalAuth(cr *argoproj.ArgoCD) string {
 			return defaultPrincipalSPIFFEMTLSAuth
 		}
 	}
-
 	return ""
 }
 
