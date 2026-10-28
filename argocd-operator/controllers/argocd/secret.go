@@ -1142,17 +1142,13 @@ func (r *ReconcileArgoCD) getClusterSecrets(cr *argoproj.ArgoCD) (*corev1.Secret
 	return clusterSecrets, nil
 }
 
-// REDIS_INITIAL_PASSWORD is the suffix of the Secret that held the Redis password before
-// GITOPS-11058, i.e. [instance]-redis-initial-password.
 const REDIS_INITIAL_PASSWORD = "redis-initial-password"
-
-// ARGOCD_REDIS is the name of the Secret holding the Redis credentials. It deliberately does not
-// carry the instance name, so that it is compatible with the argocd CLI.
-const ARGOCD_REDIS = common.ArgoCDRedisComponent
+const ARGOCD_REDIS = "argocd-redis"
 
 func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
-	// Fix for GITOPS-11058:
-	// PROVIDE A NEW DESCRIPTION
+	// Fix for GITOPS-11058 to be compatible with upstream Argo CD naming conventions and Argo CD CLI in core mode.
+	// Old secret name [instance]-redis-initial-password
+	// New secret name argocd-redis - upstream
 
 	new := argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
 	newExists, err := r.checkSecretExistence(cr, new)
@@ -1203,7 +1199,6 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	return r.Create(context.TODO(), new)
 }
 
-// checkSecretExistence reports whether the given Secret exists, populating it when it does.
 func (r *ReconcileArgoCD) checkSecretExistence(cr *argoproj.ArgoCD, s *corev1.Secret) (bool, error) {
 	existed := true
 	err := argoutil.FetchObject(r.Client, cr.Namespace, s.Name, s)
@@ -1216,8 +1211,7 @@ func (r *ReconcileArgoCD) checkSecretExistence(cr *argoproj.ArgoCD, s *corev1.Se
 	return existed, nil
 }
 
-// Check usage of provided secret
-// Checks in: Pod, Deployment or StatefulSet in the namespace
+// Checks secret usage in: Pod, Deployment or StatefulSet in the namespace
 func (r *ReconcileArgoCD) secretInUse(namespace string, secretName string) (bool, error) {
 	pods := &corev1.PodList{}
 	if err := r.List(context.TODO(), pods, client.InNamespace(namespace)); err != nil {
@@ -1252,7 +1246,6 @@ func (r *ReconcileArgoCD) secretInUse(namespace string, secretName string) (bool
 	return false, nil
 }
 
-// Check if Spec mounts the named Secret
 func secretReferencedByPodSpec(spec *corev1.PodSpec, secretName string) bool {
 	for _, volume := range spec.Volumes {
 		if volume.Secret != nil && volume.Secret.SecretName == secretName {
@@ -1338,7 +1331,8 @@ func prepareSecretForUpdateCreate(r *ReconcileArgoCD, cr *argoproj.ArgoCD, s *co
 
 	s.Data = argoutil.GetRedisSecretData(redisInitialPassword)
 
-	if err := controllerutil.SetControllerReference(cr, s, r.Scheme); err != nil {
+	err = controllerutil.SetControllerReference(cr, s, r.Scheme)
+	if err != nil {
 		return err
 	}
 
