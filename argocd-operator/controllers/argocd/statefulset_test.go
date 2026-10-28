@@ -974,8 +974,8 @@ func TestReconcileAppController_GoRuntimeEnv(t *testing.T) {
 	// Go runtime tuning is enabled by default: GOMEMLIMIT and GOMAXPROCS should both be derived from the
 	// configured memory/CPU limits.
 	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1887436800"}) // 2000Mi * 90 / 100, in bytes
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "2"})          // 2000m * 100 / 100000 = 2 cores
+	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1677721600"}) // 2000Mi * 80 / 100, in bytes
+	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "2"})          // 2000m / 1000 = 2 cores
 
 	// A user-specified value in .Spec.Controller.Env should always win over the derived value, for both vars.
 	a.Spec.Controller.Env = []corev1.EnvVar{
@@ -1009,7 +1009,7 @@ func TestReconcileAppController_GoRuntimeEnv(t *testing.T) {
 
 	// With the operator-level kill switch removed again, the per-instance Enabled=true field is a no-op (same as default-on).
 	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1887436800"})
+	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1677721600"})
 	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "2"})
 
 	// A per-instance .Spec.Controller.GoRuntime.Enabled=false opt-out should remove both derived vars.
@@ -1021,21 +1021,13 @@ func TestReconcileAppController_GoRuntimeEnv(t *testing.T) {
 		assert.NotEqual(t, "GOMAXPROCS", e.Name, "GOMAXPROCS should not be set when the per-instance GoRuntime.Enabled field is false")
 	}
 
-	// A per-instance .Spec.Controller.GoRuntime.MemoryLimitPercent should override the default 90% headroom,
+	// A per-instance .Spec.Controller.GoRuntime.MemoryLimitPercent should override the default 80% headroom,
 	// and should not affect GOMAXPROCS (memory and CPU tuning are independent).
 	var fiftyPercent int32 = 50
 	a.Spec.Controller.GoRuntime = &argoproj.ArgoCDGoRuntimeSpec{MemoryLimitPercent: &fiftyPercent}
 	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))
 	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1048576000"}) // 2000Mi * 50 / 100, in bytes
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "2"})          // unaffected, still default 100% of 2000m
-
-	// A per-instance .Spec.Controller.GoRuntime.CPULimitPercent should override the default 100% CPU headroom,
-	// and should not affect GOMEMLIMIT (memory and CPU tuning are independent). 2000m * 20 / 100000 = 0.4, floors to 1.
-	var twentyPercent int32 = 20
-	a.Spec.Controller.GoRuntime = &argoproj.ArgoCDGoRuntimeSpec{CPULimitPercent: &twentyPercent}
-	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "1"})
-	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMEMLIMIT", Value: "1887436800"}) // unaffected, back to default 90% of 2000Mi
+	assert.Contains(t, getControllerEnv(), corev1.EnvVar{Name: "GOMAXPROCS", Value: "2"})          // unaffected, GOMAXPROCS is always 100% of the CPU limit
 
 	a.Spec.Controller.GoRuntime = nil
 }
@@ -1070,7 +1062,7 @@ func TestReconcileAppController_GoRuntimeEnv_GOMAXPROCSFloor(t *testing.T) {
 		},
 		ss))
 
-	// 250m * 100 / 100000 = 0.25, which floors to 1, never 0 (Go runtime panics on GOMAXPROCS=0).
+	// 250m / 1000 = 0.25, which floors to 1, never 0 (Go runtime panics on GOMAXPROCS=0).
 	assert.Contains(t, ss.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{Name: "GOMAXPROCS", Value: "1"})
 }
 
