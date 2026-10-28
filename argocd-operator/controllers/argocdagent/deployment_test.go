@@ -1322,7 +1322,8 @@ func TestBuildPrincipalContainerEnv_SPIFFE(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			envNames := make(map[string]bool)
 			for _, e := range envVars {

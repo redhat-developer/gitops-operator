@@ -317,10 +317,10 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 	// If both SPIFFE and legacy TLS configs are present
 	// SPIFFE takes precedence and legacy TLS configs will be ignored by the agent binary
 	if hasAgentSPIFFE(cr) && hasTLS(cr) {
-		if tlsSecretName != "" {
+		if cr.Spec.ArgoCDAgent.Agent.TLS.SecretName != "" {
 			log.Info("Both SPIFFE and legacy TLS configs are provided. SPIFFE will be used and TLS.SecretName configs will be ignored by the agent.")
 		}
-		if tlsRootCASecretName != "" {
+		if cr.Spec.ArgoCDAgent.Agent.TLS.RootCASecretName != "" {
 			log.Info("Both SPIFFE and legacy TLS.RootCASecretName are configured. SPIFFE will be used and TLS.RootCASecretName configs will be ignored by the agent.")
 		}
 	}
@@ -452,7 +452,7 @@ const (
 	EnvArgoCDAgentSpireAgentSocket    = "ARGOCD_AGENT_SPIRE_AGENT_SOCKET"
 	EnvArgoCDAgentSpireAuthMethod     = "ARGOCD_AGENT_SPIRE_AUTH_METHOD"
 
-	// agentSpireSocketDir is the directory containing the SPIRE Agent socket injected by the csi.spiffe.io CSI driver.
+	// agentSpireSocketDir is the directory containing the SPIRE Agent socket injected by the CSI driver.
 	agentSpireSocketDir = "/run/spire/sockets"
 
 	// agentSpireSocketFile is the SPIRE Agent socket filename.

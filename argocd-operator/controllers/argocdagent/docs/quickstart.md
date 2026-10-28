@@ -151,9 +151,10 @@ level=info msg="An agent connected to the subscription stream" client=agent-mana
 
 As an alternative to the mTLS/JWT setup described above, the principal and agent can authenticate
 using SPIFFE identities issued by a SPIRE deployment, via the [SPIFFE CSI driver](https://github.com/spiffe/spiffe-csi).
-When `spiffe` is configured on a component, it takes precedence over any legacy `tls`/`auth`/`creds`
-configuration on that component, and the operator mounts the SPIRE Agent's Workload API socket
-(`/run/spire/sockets/spire-agent.sock`) into the pod using a CSI volume.
+When `spiffe` is configured, it takes precedence over any legacy `tls` and `creds` configuration.
+However, `principal.auth` is **not** overridden by SPIFFE. A non-empty `principal.auth` always takes
+precedence over the SPIFFE-inferred pattern. Leave it unset to let the controller infer the correct
+pattern automatically, or set it to a value that matches your SPIFFE identity format.
 
 ### Prerequisites
 
@@ -204,6 +205,22 @@ spec:
         enabled: true
 ```
 
+### Verifying SVID Format Compatibility
+
+Before deploying, verify if your SPIFFE ID format will work with the default regex patterns:
+
+```bash
+# Replace with your actual SPIFFE ID
+SPIFFE_ID="spiffe://example.org/ns/agent-managed/argocd/agent/agent-managed"
+
+# Extract agent name using default pattern
+AGENT_NAME=$(echo "$SPIFFE_ID" | sed -E 's|^spiffe://[^/]+/ns/[^/]+/argocd/agent/(.+)$|\1|')
+
+# Verify agent name is extracted successfully
+echo $AGENT_NAME
+
+```
+
 Notes:
 
 - `spiffe.enabled` must be `true` to activate SPIFFE for a component. Omitting the `spiffe` block
@@ -219,8 +236,9 @@ Notes:
     SPIRE-issued SVIDs use).
   
   **Custom SVID Formats**: If your SPIRE setup issues SVIDs in a different format than the defaults
-  above, you must explicitly set `principal.auth` to match your custom SVID pattern. The explicitly
-  set `principal.auth` always takes precedence over the SPIFFE-inferred pattern.
+  above, explicitly set `principal.auth` to a regex that matches your custom SVID format. Because
+  `principal.auth` takes precedence over the SPIFFE-inferred pattern (see the note above), the
+  controller will use your custom value instead of inferring one from `spiffe.authMethod`.
 - **IMPORTANT**: SPIFFE must be enabled on both the principal and agent (`spiffe.enabled: true` on both sides) 
   for the authentication handshake to succeed. Enabling SPIFFE on only one side will break the connection.
 - `authMethod` on the agent and principal should match, since they must negotiate the same SPIFFE
