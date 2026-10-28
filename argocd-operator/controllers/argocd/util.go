@@ -217,14 +217,13 @@ func getArgoApplicationControllerGoRuntimeEnv(cr *argoproj.ArgoCD) []corev1.EnvV
 		}
 	}
 
-	// Compute GOMAXPROCS from CPU limit if configured
+	// Compute GOMAXPROCS from CPU limit if configured. GOMAXPROCS is intentionally not
+	// configurable per-instance; only the GOMEMLIMIT percentage has a knob. GOMAXPROCS is
+	// always 100% of the CPU limit, i.e. floor(millicores / 1000) whole cores,
+	// floored to 1 because GOMAXPROCS=0 is invalid.
 	cpuLimit := resources.Limits.Cpu()
 	if cpuLimit != nil && !cpuLimit.IsZero() {
-		cpuLimitPercent := cr.Spec.Controller.GoRuntime.GetCPULimitPercent(common.ArgoCDDefaultControllerCPULimitPercent)
-		// GOMAXPROCS = floor(millicores * percent / 100000), i.e. a truncated percentage of the
-		// CPU limit in whole cores. Truncation (like GOMEMLIMIT above) never allows more
-		// concurrency than the percentage permits. Floored to 1 because GOMAXPROCS=0 is invalid.
-		gomaxprocsValue := cpuLimit.MilliValue() * int64(cpuLimitPercent) / 100000
+		gomaxprocsValue := cpuLimit.MilliValue() / 1000
 		if gomaxprocsValue < 1 {
 			gomaxprocsValue = 1
 		}
