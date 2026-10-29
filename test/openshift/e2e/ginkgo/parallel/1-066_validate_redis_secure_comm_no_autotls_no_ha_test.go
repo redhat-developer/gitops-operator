@@ -224,7 +224,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("verifying redis password is correct")
 			redisInitialSecret := &corev1.Secret{}
 			redisPwdSecretKey := client.ObjectKey{
-				Name:      argoutil.GetSecretNameWithSuffix(argoCD, "redis-initial-password"),
+				Name:      "argocd-redis",
 				Namespace: ns.Name,
 			}
 			Expect(k8sClient.Get(ctx, redisPwdSecretKey, redisInitialSecret)).Should(Succeed())
