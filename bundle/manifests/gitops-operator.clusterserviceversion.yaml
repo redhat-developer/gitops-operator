@@ -580,19 +580,6 @@ spec:
           - update
           - watch
         - apiGroups:
-          - apps.openshift.io
-          - route.openshift.io
-          resources:
-          - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
           - argocd-image-updater.argoproj.io
           resources:
           - imageupdaters
@@ -885,6 +872,18 @@ spec:
           resources:
           - rolebindings
           - roles
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - route.openshift.io
+          resources:
+          - '*'
           verbs:
           - create
           - delete
