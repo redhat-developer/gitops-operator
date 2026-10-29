@@ -27,6 +27,7 @@ import (
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 func TestReconcileArgoCD_reconcileDexDeployment_with_dex_disabled(t *testing.T) {
@@ -1617,3 +1618,161 @@ func TestReconcileArgoCD_reconcileDexDeployment_customLabelsAndAnnotations(t *te
 	assert.False(t, hasCustomAnnotation)
 	assert.False(t, hasCustomLabel)
 }
+
+func TestGetDexConfig_TLS(t *testing.T) {
+	tests := []struct {
+		name       string
+		cr         *argoproj.ArgoCD
+		centralTLS tlsProfile.TLSConfigProfile
+		want       string
+	}{
+		{
+			name: "empty profile produces empty config",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: false,
+			},
+			want: "",
+		},
+		{
+			name: "disabled cluster tls profile produces empty config",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: true,
+				MinVersion:               configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+				},
+			},
+			want: "",
+		},
+		{
+			name: "min version only",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+			},
+			want: `web:
+  tlsMinVersion: "1.2"`,
+		},
+		{
+			name: "min version, ciphers, and curve preferences",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+					"ECDHE-RSA-AES256-GCM-SHA384",
+				},
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			want: `web:
+  tlsMinVersion: "1.2"
+  tlsCiphers:
+    - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+    - "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  tlsCurvePreferences:
+    - "X25519MLKEM768"
+    - "X25519"
+    - "CurveP256"`,
+		},
+		{
+			name: "filters TLS 1.3 ciphers when min version is below 1.3",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				Ciphers: []string{
+					"TLS_AES_128_GCM_SHA256",
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+			},
+			want: `web:
+  tlsMinVersion: "1.2"
+  tlsCiphers:
+    - "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"`,
+		},
+		{
+			name: "omits ciphers when min version is TLS 1.3",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS13,
+				Ciphers: []string{
+					"TLS_AES_128_GCM_SHA256",
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+			},
+			want: `web:
+  tlsMinVersion: "1.3"`,
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			cr:   makeTestArgoCD(),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			want: `web:
+  tlsMinVersion: "1.2"`,
+		},
+		{
+			name: "CR SSO.Dex.Config overrides TLS-injected config",
+			cr: makeTestArgoCD(func(cr *argoproj.ArgoCD) {
+				cr.Spec.SSO = &argoproj.ArgoCDSSOSpec{
+					Provider: argoproj.SSOProviderTypeDex,
+					Dex: &argoproj.ArgoCDDexSpec{
+						Config: "connectors:\n- type: github\n",
+					},
+				}
+			}),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+			},
+			want: "connectors:\n- type: github\n",
+		},
+		{
+			name: "ExtraConfig dex.config overrides TLS-injected config",
+			cr: makeTestArgoCD(func(cr *argoproj.ArgoCD) {
+				cr.Spec.ExtraConfig = map[string]string{
+					"dex.config": "connectors:\n- type: gitlab\n",
+				}
+			}),
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+			},
+			want: "connectors:\n- type: gitlab\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getDexConfig(tt.cr, tt.centralTLS)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestBuildDexWebTLSConfig(t *testing.T) {
+	got := buildDexWebTLSConfig(tlsProfile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP384r1,
+		},
+	})
+	assert.Equal(t, `web:
+  tlsCurvePreferences:
+    - "X25519"
+    - "CurveP384"`, got)
+}
+
