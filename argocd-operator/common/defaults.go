@@ -333,6 +333,12 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 	// GitopsPromoterExtensionInstallerName is the default url for the GitOps Promoter extension
 	GitopsPromoterExtensionURL = "https://github.com/argoproj-labs/gitops-promoter/releases/download/v0.35.1/gitops-promoter-argocd-extension.tar.gz"
+
+	// SpiffeAuthMethodJWT is the SPIFFE auth method for JWT-SVIDs.
+	SpiffeAuthMethodJWT = "jwt"
+
+	// SpiffeAuthMethodMTLS is the SPIFFE auth method for X.509-SVIDs (mTLS).
+	SpiffeAuthMethodMTLS = "mtls"
 )
 
 // DefaultLabels returns the default set of labels for controllers.

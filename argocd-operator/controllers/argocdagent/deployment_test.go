@@ -1077,3 +1077,347 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 		})
 	}
 }
+
+func withPrincipalSPIFFE(authMethod, csiDriverName string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{
+			Enabled:       true,
+			AuthMethod:    authMethod,
+			CSIDriverName: csiDriverName,
+		}
+	}
+}
+
+func TestHasPrincipalSPIFFE(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected bool
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: false,
+		},
+		{
+			name:     "principal enabled without SPIFFE",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: false,
+		},
+		{
+			name: "SPIFFE block present but enabled=false",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{Enabled: false}
+			}),
+			expected: false,
+		},
+		{
+			name:     "SPIFFE configured with enabled=true",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, hasPrincipalSPIFFE(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSpireAuthMethod(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to jwt",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:     "SPIFFE configured without authMethod defaults to jwt",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:     "SPIFFE configured with mtls authMethod",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expected: common.SpiffeAuthMethodMTLS,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSpireAuthMethod(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSpiffeCSIDriver(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured without csiDriverName defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured with custom csiDriverName",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "custom.csi.driver.io")),
+			expected: "custom.csi.driver.io",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSpiffeCSIDriver(tt.cr))
+		})
+	}
+}
+
+func TestGetEffectivePrincipalAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: "",
+		},
+		{
+			name: "explicit auth takes precedence over SPIFFE",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, ""), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.Auth = "mtls:CN=([^,]+)"
+			}),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name:     "SPIFFE configured without explicit auth infers jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE configured with default (empty) authMethod infers jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE configured with mtls authMethod infers mtls:uri pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expected: defaultPrincipalSPIFFEMTLSAuth,
+		},
+		{
+			name:     "neither auth nor SPIFFE configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getEffectivePrincipalAuth(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured falls back to default mtls pattern",
+			cr:       makeTestArgoCD(),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name: "explicit auth is used as-is",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.Auth = "mtls:CN=([^,]+)"
+			}),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name:     "SPIFFE jwt auth method infers spiffe-jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE mtls auth method infers mtls:uri spiffe pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expected: defaultPrincipalSPIFFEMTLSAuth,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalAuth(tt.cr))
+		})
+	}
+}
+
+func TestBuildSpiffeVolumeMount_Principal(t *testing.T) {
+	mount := buildSpiffeVolumeMount()
+	assert.Equal(t, "spiffe-workload-api", mount.Name)
+	assert.Equal(t, "/run/spire/sockets", mount.MountPath)
+	assert.True(t, mount.ReadOnly)
+}
+
+func TestBuildSpiffeVolume_Principal(t *testing.T) {
+	volume := buildSpiffeVolume("custom.csi.driver.io")
+	assert.Equal(t, "spiffe-workload-api", volume.Name)
+	assert.NotNil(t, volume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", volume.CSI.Driver)
+	assert.NotNil(t, volume.CSI.ReadOnly)
+	assert.True(t, *volume.CSI.ReadOnly)
+}
+
+func TestBuildPrincipalContainerEnv_SPIFFE(t *testing.T) {
+	tests := []struct {
+		name               string
+		cr                 *argoproj.ArgoCD
+		expectSocketSet    bool
+		expectedSocket     string
+		expectedAuthMethod string
+	}{
+		{
+			name:            "SPIFFE not configured, env vars absent",
+			cr:              makeTestArgoCD(withPrincipalEnabled(true)),
+			expectSocketSet: false,
+		},
+		{
+			name:               "SPIFFE configured with jwt auth method",
+			cr:                 makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: common.SpiffeAuthMethodJWT,
+		},
+		{
+			name:               "SPIFFE configured with mtls auth method",
+			cr:                 makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodMTLS, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: common.SpiffeAuthMethodMTLS,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
+			envMap := make(map[string]string)
+			envNames := make(map[string]bool)
+			for _, e := range envVars {
+				envMap[e.Name] = e.Value
+				envNames[e.Name] = true
+			}
+
+			if !tt.expectSocketSet {
+				assert.False(t, envNames[EnvArgoCDPrincipalSpireAgentSocket], "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET should not be set")
+				assert.False(t, envNames[EnvArgoCDPrincipalSpireAuthMethod], "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD should not be set")
+				return
+			}
+
+			assert.Equal(t, tt.expectedSocket, envMap[EnvArgoCDPrincipalSpireAgentSocket],
+				"ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET mismatch")
+			assert.Equal(t, tt.expectedAuthMethod, envMap[EnvArgoCDPrincipalSpireAuthMethod],
+				"ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD mismatch")
+		})
+	}
+}
+
+func TestReconcilePrincipalDeployment_SPIFFE_VolumeMountsAndVolumes(t *testing.T) {
+	// Test case: Verify SPIFFE CSI volume and mount are added when SPIFFE is configured
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(common.SpiffeAuthMethodJWT, "custom.csi.driver.io"))
+	saName := generateAgentResourceName(cr.Name, testCompName)
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, saName, cr, sch, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	// jwt-secret, userpass-passwd, redis-initial-pass, spiffe-workload-api
+	assert.Len(t, container.VolumeMounts, 4)
+	spiffeMount := container.VolumeMounts[3]
+	assert.Equal(t, "spiffe-workload-api", spiffeMount.Name)
+	assert.Equal(t, "/run/spire/sockets", spiffeMount.MountPath)
+	assert.True(t, spiffeMount.ReadOnly)
+
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 4)
+	spiffeVolume := deployment.Spec.Template.Spec.Volumes[3]
+	assert.Equal(t, "spiffe-workload-api", spiffeVolume.Name)
+	assert.NotNil(t, spiffeVolume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", spiffeVolume.CSI.Driver)
+}
+
+func TestReconcilePrincipalDeployment_SPIFFE_AddedOnUpdate(t *testing.T) {
+	// Test case: SPIFFE is added to an existing CR after the deployment was created without it
+	// Expected behavior: Deployment should be updated to add the SPIFFE volume and mount
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+	saName := generateAgentResourceName(cr.Name, testCompName)
+
+	existingDeployment := makeTestDeployment(cr)
+
+	resObjs := []client.Object{cr, existingDeployment}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	// Sanity check: no SPIFFE volume mount before SPIFFE is configured
+	assert.Len(t, existingDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
+
+	cr.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{Enabled: true, AuthMethod: common.SpiffeAuthMethodJWT}
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, saName, cr, sch, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	assert.Len(t, container.VolumeMounts, 4)
+	assert.Equal(t, "spiffe-workload-api", container.VolumeMounts[3].Name)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 4)
+	assert.Equal(t, "spiffe-workload-api", deployment.Spec.Template.Spec.Volumes[3].Name)
+
+	// Verify env vars were updated too
+	envNames := make(map[string]bool)
+	for _, e := range container.Env {
+		envNames[e.Name] = true
+	}
+	assert.True(t, envNames[EnvArgoCDPrincipalSpireAgentSocket], "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET should be set")
+	assert.True(t, envNames[EnvArgoCDPrincipalSpireAuthMethod], "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD should be set")
+}

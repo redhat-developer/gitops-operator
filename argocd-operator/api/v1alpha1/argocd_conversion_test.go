@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	v1beta1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 )
 
 type argoCDAlphaOpt func(*ArgoCD)
@@ -866,6 +867,64 @@ func TestAlphaToBetaConversion(t *testing.T) {
 				}
 			}),
 		},
+		{
+			name: "ArgoCD Example - Agent Principal with SPIFFE",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SPIFFE: &SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    "jwt",
+							CSIDriverName: "csi.spiffe.io",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SPIFFE: &v1beta1.SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    "jwt",
+							CSIDriverName: "csi.spiffe.io",
+						},
+					},
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Agent with SPIFFE",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Agent: &AgentSpec{
+						Enabled: &enabled,
+						SPIFFE: &SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							CSIDriverName: "custom.csi.driver.io",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Agent: &v1beta1.AgentSpec{
+						Enabled: &enabled,
+						SPIFFE: &v1beta1.SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							CSIDriverName: "custom.csi.driver.io",
+						},
+					},
+				}
+			}),
+		},
 	}
 
 	for _, test := range tests {
@@ -1323,6 +1382,64 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Principal with SPIFFE",
+			input: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						SPIFFE: &v1beta1.SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    "jwt",
+							CSIDriverName: "csi.spiffe.io",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						SPIFFE: &SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    "jwt",
+							CSIDriverName: "csi.spiffe.io",
+						},
+					},
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Agent with SPIFFE",
+			input: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Agent: &v1beta1.AgentSpec{
+						Enabled: &enabled,
+						SPIFFE: &v1beta1.SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							CSIDriverName: "custom.csi.driver.io",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Agent: &AgentSpec{
+						Enabled: &enabled,
+						SPIFFE: &SPIFFESpec{
+							Enabled:       true,
+							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							CSIDriverName: "custom.csi.driver.io",
 						},
 					},
 				}
