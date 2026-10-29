@@ -19,10 +19,14 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -31,6 +35,7 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -108,6 +113,54 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-cluster-config", Namespace: ns.Name},
 			}
 			Eventually(clusterSecret).Should(secretFixture.HaveStringDataKeyValue("namespaces", ns.Name))
+
+			By("verifying expected ConfigMaps exist")
+			configMapsShouldExist := []string{"argocd-cm", "argocd-gpg-keys-cm", "argocd-rbac-cm", "argocd-ssh-known-hosts-cm", "argocd-tls-certs-cm"}
+			for _, cmName := range configMapsShouldExist {
+				Eventually(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: cmName, Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+			}
+
+			By("verifying expected ServiceAccounts, Roles, and RoleBindings exist")
+			rbacNamesShouldExist := []string{"argocd-argocd-application-controller", "argocd-argocd-server"}
+			for _, rbacName := range rbacNamesShouldExist {
+				Eventually(&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: rbacName, Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+				Eventually(&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: rbacName, Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+				Eventually(&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: rbacName, Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+			}
+
+			By("verifying expected ServiceMonitors exist")
+			serviceMonitorsShouldExist := []string{"argocd", "argocd-repo-server", "argocd-server"}
+			for _, smName := range serviceMonitorsShouldExist {
+				Eventually(&monitoringv1.ServiceMonitor{ObjectMeta: metav1.ObjectMeta{Name: smName, Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+			}
+
+			By("verifying the default AppProject exists")
+			Eventually(&argocdv1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: ns.Name}}).Should(k8sFixture.ExistByName())
+
+			By("deploying a sample Application into the namespace-scoped Argo CD instance")
+			app := &argocdv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "nginx", Namespace: ns.Name},
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: &argocdv1alpha1.ApplicationSource{
+						Path:           "test/examples/nginx",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						TargetRevision: "HEAD",
+					},
+					Destination: argocdv1alpha1.ApplicationDestination{
+						Namespace: ns.Name,
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+					SyncPolicy: &argocdv1alpha1.SyncPolicy{
+						Automated: &argocdv1alpha1.SyncPolicyAutomated{},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			By("verifying the Application becomes healthy and synced")
+			Eventually(app, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 		})
 

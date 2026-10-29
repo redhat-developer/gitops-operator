@@ -21,14 +21,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 
 	"github.com/onsi/gomega/format"
 	gitopsoperatorv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	subscriptionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/subscription"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -69,7 +69,7 @@ func EnsureParallelCleanSlate() {
 		err := k8sClient.Get(context.Background(), client.ObjectKeyFromObject(defaultOpenShiftGitOpsArgoCD), defaultOpenShiftGitOpsArgoCD)
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailableWithCustomSleepTime(3 * time.Second))
+		Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailableWithCustomSleepTime(3 * time.Second))
 	}
 	// Unlike sequential clean slate, parallel clean slate cannot assume that there are no other tests running. This limits our ability to clean up old test artifacts.
 }
@@ -102,7 +102,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		return err
 	}
 
-	RestoreSubcriptionToDefault()
+	RestoreSubscriptionToDefault()
 
 	// ensure namespaces created during test are deleted
 	err := ensureTestNamespacesDeleted(ctx, k8sClient)
@@ -119,7 +119,7 @@ func EnsureSequentialCleanSlateWithError() error {
 		defaultOpenShiftGitOpsArgoCD := &argov1beta1api.ArgoCD{
 			ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops", Namespace: "openshift-gitops"},
 		}
-		Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8s.ExistByName())
+		Eventually(defaultOpenShiftGitOpsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 
 		// Ensure that default state of ArgoCD CR in openshift-gitops is restored
 		if err := updateWithoutConflict(defaultOpenShiftGitOpsArgoCD, func(obj client.Object) {
@@ -201,7 +201,7 @@ func EnsureSequentialCleanSlateWithError() error {
 
 		// Finally, wait for default openshift-gitops instance to be ready.
 		failure := InterceptGomegaFailure(func() {
-			Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocd.BeAvailable())
+			Eventually(defaultOpenShiftGitOpsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 		})
 		// Output debug information on argo startup failure
 		if failure != nil {
@@ -272,6 +272,16 @@ func CreateRandomE2ETestNamespaceWithCleanupFunc() (*corev1.Namespace, func()) {
 
 	ns := CreateRandomE2ETestNamespace()
 	return ns, nsDeletionFunc(ns)
+}
+
+// CreateNamespaceWithArgoCDInstance creates a random namespace, creates an ArgoCD instance with
+// the given name in it, waits for it to be available, and returns the ArgoCD, namespace, and a
+// cleanup func that deletes the namespace.
+func CreateNamespaceWithArgoCDInstance(instanceName string) (*argov1beta1api.ArgoCD, *corev1.Namespace, func()) {
+	ns, cleanupFunc := CreateRandomE2ETestNamespaceWithCleanupFunc()
+	argoCDInstance := argocdFixture.CreateNewArgoCDInstance(instanceName, ns.Name)
+	Eventually(argoCDInstance, "5m", "5s").Should(argocdFixture.BeAvailable())
+	return argoCDInstance, ns, cleanupFunc
 }
 
 // Create namespace for tests having a specific label for identification
@@ -453,7 +463,6 @@ func GetEnvInOperatorSubscriptionOrDeployment(key string) (*string, error) {
 func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 	k8sClient, _ := utils.GetE2ETestKubeClient()
-
 	if EnvNonOLM() {
 		depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-operator-controller-manager", Namespace: "openshift-gitops-operator"}}
 
@@ -469,6 +478,7 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 		subscriptionFixture.SetEnv(sub, key, value)
 
+		waitForEnvVarToBePresentOnDeployment(sub.Namespace, "openshift-gitops-operator-controller-manager", key, value)
 		WaitForAllDeploymentsInTheNamespaceToBeReady(sub.Namespace, k8sClient)
 
 	} else {
@@ -478,9 +488,38 @@ func SetEnvInOperatorSubscriptionOrDeployment(key string, value string) {
 
 		subscriptionFixture.SetEnv(sub, key, value)
 
+		waitForEnvVarToBePresentOnDeployment(sub.Namespace, "openshift-gitops-operator-controller-manager", key, value)
 		WaitForAllDeploymentsInTheNamespaceToBeReady(sub.Namespace, k8sClient)
 
 	}
+}
+
+// waitForEnvVarToBePresentOnDeployment waits until the named Deployment's pod template contains an environment variable with the given key/value, on any container.
+// This is used after updating an operator Subscription (or Deployment) with a new environment variable, to ensure the change has actually propagated to the Deployment spec before proceeding:
+// OLM applies Subscription config changes asynchronously (Subscription -> CSV -> Deployment), so a naive "wait for Deployment to be ready" check can race ahead and
+// succeed immediately against the Deployment's prior (already-ready) state, before the new env var has even been added to the spec.
+func waitForEnvVarToBePresentOnDeployment(ns string, deploymentName string, key string, value string) {
+	k8sClient, _ := utils.GetE2ETestKubeClient()
+
+	Eventually(func() bool {
+		depl := &appsv1.Deployment{}
+		if err := k8sClient.Get(context.Background(), client.ObjectKey{Namespace: ns, Name: deploymentName}, depl); err != nil {
+			GinkgoWriter.Println(err)
+			return false
+		}
+
+		for _, container := range depl.Spec.Template.Spec.Containers {
+			for _, env := range container.Env {
+				if env.Name == key && env.Value == value {
+					return true
+				}
+			}
+		}
+
+		GinkgoWriter.Println("Waiting: env var", key, "=", value, "not yet present in Deployment", depl.Name)
+		return false
+
+	}, "30s", "5s").Should(BeTrue())
 }
 
 // RemoveEnvFromOperatorSubscriptionOrDeployment will delete an environment variable from either operator Subscription or operator Deployment, depending on which mode the test is running in.
@@ -547,14 +586,14 @@ func GetSubscriptionInEnvCIEnvironment(k8sClient client.Client) (*olmv1alpha1.Su
 
 }
 
-// RestoreSubcriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
-func RestoreSubcriptionToDefault() {
+// RestoreSubscriptionToDefault ensures that the Subscription (or Deployment env vars) are restored to a default state before each test.
+func RestoreSubscriptionToDefault() {
 
 	k8sClient, _, err := utils.GetE2ETestKubeClientWithError()
 	Expect(err).ToNot(HaveOccurred())
 
 	// optionalEnvVarsToRemove is a non-exhaustive list of environment variables that are known to be added to Subscription or operator Deployment by tests
-	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "IMAGE_PULL_POLICY"}
+	optionalEnvVarsToRemove := []string{"DISABLE_DEFAULT_ARGOCD_CONSOLELINK", "CONTROLLER_CLUSTER_ROLE", "SERVER_CLUSTER_ROLE", "ARGOCD_LABEL_SELECTOR", "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "IMAGE_PULL_POLICY", "ARGOCD_IMAGE"}
 
 	if EnvNonOLM() {
 
@@ -671,7 +710,7 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 		// All Deployments in NS are reconciled and ready
 		return true
 
-	}, "3m", "1s").Should(BeTrue())
+	}, "5m", "1s").Should(BeTrue())
 
 	// The above logic will successfully wait for Deployments to be ready. However, this does not mean that the operator's controller logic has completed it's initial cluster reconciliation logic (starting a watch then reconciling existing resources)
 	// - I'm not aware of a way to detect when this has completed, so instead I am inserting a 15 second pause.
@@ -869,6 +908,12 @@ func OutputDebug(namespaceParams ...any) {
 			namespaces = append(namespaces, str)
 
 		} else if nsPtr, isNsPtr := (param).(*corev1.Namespace); isNsPtr {
+			// A typed nil (*corev1.Namespace)(nil) is not caught by the 'param == nil'
+			// check above, since an interface holding a typed nil is itself non-nil.
+			// Skip it here to avoid dereferencing a nil pointer.
+			if nsPtr == nil {
+				continue
+			}
 			namespaces = append(namespaces, nsPtr.Name)
 
 		} else if ns, isNs := (param).(corev1.Namespace); isNs {
@@ -924,6 +969,17 @@ func OutputDebug(namespaceParams ...any) {
 		GinkgoWriter.Println("'kubectl get deployments -n " + namespace + " -o yaml")
 		GinkgoWriter.Println(kubectlOutput)
 		GinkgoWriter.Println("----------------------------------------------------------------")
+
+		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "statefulsets", "-n", namespace)
+		if err != nil {
+			GinkgoWriter.Println("unable to get statefulsets for namespace", err, kubectlOutput)
+		} else {
+			GinkgoWriter.Println("")
+			GinkgoWriter.Println("----------------------------------------------------------------")
+			GinkgoWriter.Println("'kubectl get statefulsets -n " + namespace + ":")
+			GinkgoWriter.Println(kubectlOutput)
+			GinkgoWriter.Println("----------------------------------------------------------------")
+		}
 
 		kubectlOutput, err = osFixture.ExecCommandWithOutputParam(false, true, "kubectl", "get", "events", "-n", namespace)
 		if err != nil {

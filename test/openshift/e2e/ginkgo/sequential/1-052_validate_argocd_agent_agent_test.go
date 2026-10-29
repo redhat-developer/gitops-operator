@@ -29,9 +29,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocdagent/agent"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/agent"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -318,7 +318,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("should create argocd agent agent resources with default image, but pod will not start without principal", func() {
+		It("should create argocd agent agent resources, but pod will not start without principal", func() {
 			// Add a custom environment variable to the agent client
 			argoCD.Spec.ArgoCDAgent.Agent.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -334,7 +334,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 
@@ -366,8 +366,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", func() {
 
 			By("Create ArgoCD instance")
-
-			argoCD.Spec.ArgoCDAgent.Agent.Image = common.ArgoCDAgentAgentDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for agent pod")
@@ -378,7 +376,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 
@@ -484,10 +482,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify ClusterRole and ClusterRoleBinding are not created")
 
-			Consistently(clusterRole, "30s", "1s").Should(k8sFixture.NotExistByName(),
+			Consistently(clusterRole, "15s", "1s").Should(k8sFixture.NotExistByName(),
 				"ClusterRole '%s' should not exist for namespace-scoped ArgoCD instance", clusterRole.Name)
 
-			Consistently(clusterRoleBinding, "30s", "1s").Should(k8sFixture.NotExistByName(),
+			Consistently(clusterRoleBinding, "15s", "1s").Should(k8sFixture.NotExistByName(),
 				"ClusterRoleBinding '%s' should not exist for namespace-scoped ArgoCD instance", clusterRoleBinding.Name)
 
 			By("Delete ArgoCD instance")

@@ -19,10 +19,10 @@ package parallel
 import (
 	"context"
 
-	argov1alpha1api "github.com/argoproj-labs/argocd-operator/api/v1alpha1"
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1alpha1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -48,11 +48,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("verifies expected behaviour of ArgoCD CR when dex and keycloak are both specified in v1alpha1 API", Label("openshift"), func() {
-
-			if fixture.EnvLocalRun() {
-				Skip("Conversion via webhook requires the operator to be running on the openshift cluster, which is not the case for a local or on xKS cluster")
-				return
-			}
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()

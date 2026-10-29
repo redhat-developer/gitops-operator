@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	clusterserviceversionFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
@@ -86,7 +86,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("adding DYNAMIC_PLUGIN_START_OCP_VERSION to CSV operator Deployment env var list")
 
-			clusterserviceversion.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
+			clusterserviceversionFixture.Update(csv, func(csv *olmv1alpha1.ClusterServiceVersion) {
 
 				envList := csv.Spec.InstallStrategy.StrategySpec.DeploymentSpecs[0].Spec.Template.Spec.Containers[0].Env
 				envList = append(envList, corev1.EnvVar{Name: "DYNAMIC_PLUGIN_START_OCP_VERSION", Value: ocVersion})
@@ -97,21 +97,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verifying the plugin's Deployment, ConfigMap, Secret, Service, and other resources have expected values")
 
-			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(depl, "60s", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 
-			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops"}}
+			configMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "httpd-cfg", Namespace: "openshift-gitops-operator"}}
 			Eventually(configMap).Should(k8sFixture.ExistByName())
 
 			Expect(configMap).To(
 				And(k8sFixture.HaveLabelWithValue("app", "gitops-plugin"),
 					k8sFixture.HaveLabelWithValue("app.kubernetes.io/part-of", "gitops-plugin")))
 
-			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "console-serving-cert", Namespace: "openshift-gitops"}}
+			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "console-serving-cert", Namespace: "openshift-gitops-operator"}}
 			Eventually(secret).Should(k8sFixture.ExistByName())
 
-			service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops"}}
+			service := &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "gitops-plugin", Namespace: "openshift-gitops-operator"}}
 			Eventually(service).Should(k8sFixture.ExistByName())
 
 			match := false

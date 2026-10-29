@@ -19,16 +19,18 @@ package sequential
 import (
 	"context"
 
-	"github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -94,7 +96,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					ObjectMeta: metav1.ObjectMeta{Name: deplName, Namespace: "openshift-gitops"},
 				}
 				Eventually(depl, "3m", "5s").Should(k8sFixture.ExistByName())
-				Eventually(depl, "5m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl, "5m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			Eventually(ss, "3m", "5s").Should(k8sFixture.ExistByName())
@@ -123,10 +125,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(operatorControllerDepl).Should(k8sFixture.ExistByName())
-			Eventually(operatorControllerDepl).Should(deployment.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveAvailableReplicas(1))
-			Eventually(operatorControllerDepl).Should(deployment.HaveReadyReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveContainerWithEnvVar("DISABLE_DEFAULT_ARGOCD_INSTANCE", "true", 0))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveAvailableReplicas(1))
+			Eventually(operatorControllerDepl).Should(deploymentFixture.HaveReadyReplicas(1))
 
 			By("verifying ArgoCD CR no longer exists")
 			openshiftGitopsArgoCD = &v1beta1.ArgoCD{
@@ -146,11 +148,62 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 			Eventually(gitopsServerDepl).Should(k8sFixture.NotExistByName())
 
-			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
-			fixture.RestoreSubcriptionToDefault()
+			By("verifying the backend 'cluster' Deployment still exists, since it is independent of the default Argo CD instance")
+			backendDepl := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendDepl).Should(k8sFixture.NotExistByName())
 
+			backendSvc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendSvc).Should(k8sFixture.NotExistByName())
+
+			backendSA := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "gitops-service-cluster",
+					Namespace: "openshift-gitops",
+				},
+			}
+			Eventually(backendSA).Should(k8sFixture.NotExistByName())
+
+			backendCR := &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{Name: "gitops-service-cluster"},
+			}
+			Eventually(backendCR).Should(k8sFixture.NotExistByName())
+
+			backendCRB := &rbacv1.ClusterRoleBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "gitops-service-cluster"},
+			}
+			Eventually(backendCRB).Should(k8sFixture.NotExistByName())
+
+			By("verifying openshift-gitops namespace still exists, as the operator must not delete a namespace that may contain resources it did not create")
+			openshiftGitopsNS := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "openshift-gitops",
+				},
+			}
+			Consistently(openshiftGitopsNS, "15s", "5s").Should(k8sFixture.ExistByName())
+
+			By("remove the DISABLE_DEFAULT_ARGOCD_INSTANCE env var we set above")
+			fixture.RestoreSubscriptionToDefault()
+
+			By("verifying ArgoCD CR is recreated")
 			Eventually(openshiftGitopsArgoCD, "3m", "5s").Should(k8sFixture.ExistByName())
 			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("verifying the backend resources are recreated")
+			Eventually(backendDepl, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendSvc, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendSA, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendCR, "3m", "5s").Should(k8sFixture.ExistByName())
+			Eventually(backendCRB, "3m", "5s").Should(k8sFixture.ExistByName())
 
 			By("verifying deployment and statefulset have expected number of replicas, including the repo server which should have 2")
 			deploymentsToVerify := []string{
@@ -167,8 +220,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				Eventually(depl).Should(k8sFixture.ExistByName())
 
-				Eventually(depl).Should(deployment.HaveReplicas(1))
-				Eventually(depl, "2m", "5s").Should(deployment.HaveReadyReplicas(1))
+				Eventually(depl).Should(deploymentFixture.HaveReplicas(1))
+				Eventually(depl, "2m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
 			}
 
 			ss := &appsv1.StatefulSet{

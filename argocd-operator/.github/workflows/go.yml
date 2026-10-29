@@ -1,0 +1,42 @@
+name: Go
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+      - 'rhos-*'
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+    branches:
+      - 'master'
+      - 'release-*'
+      - 'rhos-*'
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version-file: 'go.mod'
+
+    - name: Build
+      run: make build
+
+    - name: Test
+      run: make test
+
+    - name: Upload code coverage to codecov.io
+      uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+      with:
+        files: cover.out
+        flags: unit-tests
+        fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
