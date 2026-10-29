@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package argoutil
+package util
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,7 @@ func TestReconcileAgentParamsConfigMap_RejectsOptionsMissingTheComponentLabel(t 
 
 	cr := &argoproj.ArgoCD{ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: "argocd"}}
 	cl := fake.NewClientBuilder().WithScheme(sch).WithObjects(cr).Build()
+	log := logr.Discard()
 
 	errMsg := fmt.Sprintf("cannot reconcile %s configmap for component %q: missing label %s=%s",
 		common.ArgoCDAgentParamsConfigMapName, "principal", common.ArgoCDKeyComponent, "principal",

@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -335,7 +335,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			} {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{
 					Name:      envName,
-					ValueFrom: argoutil.AgentParamsEnvVarSource(cmKey),
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
 				}), "%s should be sourced from the params ConfigMap", envName)
 			}
 

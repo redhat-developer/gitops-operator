@@ -32,6 +32,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
@@ -304,15 +305,15 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 		// literal to avoid having to restart the agent when the values change.
 		{
 			Name:      EnvArgoCDAgentLogLevel,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentLogLevelKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentLogLevelKey),
 		},
 		{
 			Name:      EnvArgoCDAgentFullDetail,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentFullDetailKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentFullDetailKey),
 		},
 		{
 			Name:      EnvArgoCDAgentPProfEnabled,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentPProfEnabledKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentPProfEnabledKey),
 		},
 		{
 			Name:  EnvArgoCDAgentParamsConfigMap,

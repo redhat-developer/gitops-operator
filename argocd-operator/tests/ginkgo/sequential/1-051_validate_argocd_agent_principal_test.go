@@ -35,6 +35,7 @@ import (
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
 	agentFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/agent"
@@ -341,7 +342,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			} {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{
 					Name:      envName,
-					ValueFrom: argoutil.AgentParamsEnvVarSource(cmKey),
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
 				}), "%s should be sourced from the params ConfigMap", envName)
 			}
 

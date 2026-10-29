@@ -32,6 +32,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
@@ -348,13 +349,13 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		// to restart the principal when the values change.
 		{
 			Name:      EnvArgoCDPrincipalLogLevel,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalLogLevelKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalLogLevelKey),
 		}, {
 			Name:      EnvArgoCDPrincipalFullDetail,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalFullDetailKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalFullDetailKey),
 		}, {
 			Name:      EnvArgoCDPrincipalPProfEnabled,
-			ValueFrom: argoutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalPProfEnabledKey),
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalPProfEnabledKey),
 		},
 		{
 			Name:  EnvArgoCDPrincipalParamsConfigMap,

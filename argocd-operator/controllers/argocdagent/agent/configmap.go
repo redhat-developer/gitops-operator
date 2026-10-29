@@ -20,7 +20,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 )
 
 // agentParamsKeys are the argocd-agent-params keys derived from the Agent section of the ArgoCD
@@ -40,7 +40,7 @@ var agentParamsKeys = []string{
 // by the app.kubernetes.io/component label so that whichever of the two is disabled cannot
 // delete the other's ConfigMap.
 func ReconcileAgentParamsConfigMap(c client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme) error {
-	return argoutil.ReconcileAgentParamsConfigMap(c, log, cr, scheme, argoutil.AgentParamsConfigMapOptions{
+	return agentutil.ReconcileAgentParamsConfigMap(c, log, cr, scheme, agentutil.AgentParamsConfigMapOptions{
 		Component:   compName,
 		Labels:      buildLabelsForAgent(cr.Name, compName),
 		ManagedKeys: agentParamsKeys,
@@ -67,9 +67,9 @@ func buildAgentParams(cr *argoproj.ArgoCD) map[string]string {
 	}
 
 	return map[string]string{
-		common.ArgoCDAgentAgentLogLevelKey:     agent.LogLevel,
-		common.ArgoCDAgentAgentFullDetailKey:   argoutil.AgentFullDetailParam(agent.LogFullDetail),
-		common.ArgoCDAgentAgentPProfEnabledKey: argoutil.AgentPProfEnabledParam(pprofEnabled),
+		common.ArgoCDAgentAgentLogLevelKey:     agentutil.AgentLogLevelParam(agent.LogLevel),
+		common.ArgoCDAgentAgentFullDetailKey:   agentutil.AgentFullDetailParam(agent.LogFullDetail),
+		common.ArgoCDAgentAgentPProfEnabledKey: agentutil.AgentPProfEnabledParam(pprofEnabled),
 	}
 }
 
