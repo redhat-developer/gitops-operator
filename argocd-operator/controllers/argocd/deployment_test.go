@@ -3497,11 +3497,49 @@ func TestBuildTLSArgs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "central TLS config with curve preferences",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlscurvepreferences",
+				"X25519MLKEM768:X25519:CurveP256",
+			},
+			wantErr: false,
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildTLSArgsFromClusterTLSProfile(tt.centralTLS)
+			got, err := BuildTLSArgsFromClusterTLSProfile(tt.centralTLS, "test")
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %#v got %#v", tt.expected, got)
 			}
@@ -3525,15 +3563,26 @@ func TestArgoCDServerAndRepoServerDeploymentArgs(t *testing.T) {
 			"ECDHE-RSA-AES128-GCM-SHA256",
 			"ECDHE-RSA-AES256-GCM-SHA384",
 		},
+		// Curve preferences are set on the central profile but omitted for
+		// server/repo-server until those components support --tlscurvepreferences.
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
 	}
 	deployment := &appsv1.Deployment{}
 	assert.NoError(t, r.reconcileServerDeployment(a, false))
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: "argocd-server", Namespace: a.Namespace}, deployment))
-	args := []string{"--tlsminversion", "1.2", "--tlsciphers", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"}
+	args := []string{
+		"--tlsminversion", "1.2",
+		"--tlsciphers", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+	}
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
+	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 	assert.NoError(t, r.reconcileRepoDeployment(a, false))
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: "argocd-repo-server", Namespace: a.Namespace}, deployment))
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
+	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 }
 
 func TestReconcileServer_PromoterUIExtension(t *testing.T) {
