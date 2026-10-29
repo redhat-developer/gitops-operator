@@ -8,7 +8,7 @@ require github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
 replace github.com/redhat-developer/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.0.10-0.20261002124007-763d564a130c
+	github.com/argoproj-labs/argo-rollouts-manager v0.10.0
 	github.com/argoproj-labs/argocd-image-updater v1.4.0
 	github.com/argoproj-labs/gitops-promoter v0.35.1
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
