@@ -20,7 +20,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 )
 
 // principalParamsKeys are the argocd-agent-params keys derived from the Principal section of the
@@ -34,7 +34,7 @@ var principalParamsKeys = []string{
 // ReconcilePrincipalParamsConfigMap manages the principal's keys in the argocd-agent-params
 // ConfigMap, which the principal watches for settings it applies without restarting.
 func ReconcilePrincipalParamsConfigMap(c client.Client, compName string, cr *argoproj.ArgoCD, scheme *runtime.Scheme) error {
-	return argoutil.ReconcileAgentParamsConfigMap(c, log, cr, scheme, argoutil.AgentParamsConfigMapOptions{
+	return agentutil.ReconcileAgentParamsConfigMap(c, log, cr, scheme, agentutil.AgentParamsConfigMapOptions{
 		Component:   compName,
 		Labels:      buildLabelsForAgentPrincipal(cr.Name, compName),
 		ManagedKeys: principalParamsKeys,
@@ -61,9 +61,9 @@ func buildPrincipalParams(cr *argoproj.ArgoCD) map[string]string {
 	}
 
 	return map[string]string{
-		common.ArgoCDAgentPrincipalLogLevelKey:     principal.LogLevel,
-		common.ArgoCDAgentPrincipalFullDetailKey:   argoutil.AgentFullDetailParam(principal.LogFullDetail),
-		common.ArgoCDAgentPrincipalPProfEnabledKey: argoutil.AgentPProfEnabledParam(pprofEnabled),
+		common.ArgoCDAgentPrincipalLogLevelKey:     agentutil.AgentLogLevelParam(principal.LogLevel),
+		common.ArgoCDAgentPrincipalFullDetailKey:   agentutil.AgentFullDetailParam(principal.LogFullDetail),
+		common.ArgoCDAgentPrincipalPProfEnabledKey: agentutil.AgentPProfEnabledParam(pprofEnabled),
 	}
 }
 

@@ -91,7 +91,7 @@ func TestReconcileAgentParamsConfigMap_AgentEnabled_NoFieldsSet(t *testing.T) {
 	// Every managed key carries the agent's own default rather than being left out, so the
 	// deployment can safely source them with a ConfigMapKeyRef.
 	assert.Equal(t, map[string]string{
-		common.ArgoCDAgentAgentLogLevelKey:     "",
+		common.ArgoCDAgentAgentLogLevelKey:     common.ArgoCDAgentDefaultLogLevel,
 		common.ArgoCDAgentAgentFullDetailKey:   "",
 		common.ArgoCDAgentAgentPProfEnabledKey: "false",
 	}, cm.Data)
@@ -332,4 +332,71 @@ func TestAgentAndPrincipalParamsConfigMapsConverge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAgentAndPrincipalParamsConfigMap_CustomKeySurvivesTheSwitchUntilNothingRemains(t *testing.T) {
+	const customKey = "principal.some.future.setting"
+
+	cr := makeTestArgoCD()
+	cr.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{
+		Principal: &argoproj.PrincipalSpec{Enabled: new(true), LogLevel: "debug"},
+		Agent:     &argoproj.AgentSpec{Enabled: new(false), LogLevel: "trace"},
+	}
+
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, []client.Object{cr})
+
+	reconcileBoth := func() {
+		require.NoError(t, argocdagent.ReconcilePrincipalParamsConfigMap(cl, "principal", cr, sch))
+		require.NoError(t, ReconcileAgentParamsConfigMap(cl, "agent", cr, sch))
+	}
+	assertAbsent := func() {
+		t.Helper()
+		err := cl.Get(context.TODO(), types.NamespacedName{
+			Name:      common.ArgoCDAgentParamsConfigMapName,
+			Namespace: cr.Namespace,
+		}, &corev1.ConfigMap{})
+		assert.True(t, errors.IsNotFound(err))
+	}
+
+	reconcileBoth()
+	cm := getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Equal(t, map[string]string{
+		common.ArgoCDAgentPrincipalLogLevelKey:     "debug",
+		common.ArgoCDAgentPrincipalFullDetailKey:   "",
+		common.ArgoCDAgentPrincipalPProfEnabledKey: "false",
+	}, cm.Data)
+	assert.Equal(t, "principal", cm.Labels[common.ArgoCDKeyComponent])
+
+	cm.Data[customKey] = "42"
+	require.NoError(t, cl.Update(context.TODO(), cm))
+
+	cr.Spec.ArgoCDAgent.Principal.Enabled = new(false)
+	reconcileBoth()
+	cm = getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Equal(t, map[string]string{customKey: "42"}, cm.Data)
+	assert.Equal(t, "principal", cm.Labels[common.ArgoCDKeyComponent])
+
+	cr.Spec.ArgoCDAgent.Agent.Enabled = new(true)
+	reconcileBoth()
+	cm = getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Equal(t, map[string]string{
+		customKey:                              "42",
+		common.ArgoCDAgentAgentLogLevelKey:     "trace",
+		common.ArgoCDAgentAgentFullDetailKey:   "",
+		common.ArgoCDAgentAgentPProfEnabledKey: "false",
+	}, cm.Data)
+	assert.Equal(t, "principal", cm.Labels[common.ArgoCDKeyComponent],
+		"the agent writes its keys into the existing ConfigMap without adopting it")
+
+	delete(cm.Data, customKey)
+	require.NoError(t, cl.Update(context.TODO(), cm))
+	cr.Spec.ArgoCDAgent.Agent.Enabled = new(false)
+	reconcileBoth()
+	cm = getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Empty(t, cm.Data)
+	assert.Equal(t, "principal", cm.Labels[common.ArgoCDKeyComponent])
+
+	reconcileBoth()
+	assertAbsent()
 }
