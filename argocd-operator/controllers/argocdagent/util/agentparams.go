@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package argoutil
+package util
 
 import (
 	"context"
@@ -31,6 +31,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // AgentParamsConfigMapOptions describes the agent/principal's details required to reconcile the
@@ -87,19 +88,8 @@ func ReconcileAgentParamsConfigMap(c client.Client, log logr.Logger, cr *argopro
 	// keys inside it, but must never adopt or delete the object itself.
 	ours := exists && isOwnedByAgentComponent(existing, cr, opts.Component)
 
-	if !opts.Enabled {
-		if !exists {
-			return nil
-		}
-		if ours {
-			LogResourceDeletion(log, existing, fmt.Sprintf("%s params configmap is being deleted as the component is disabled", opts.Component))
-			if err := c.Delete(context.TODO(), existing); err != nil {
-				return fmt.Errorf("failed to delete %s configmap: %w", name, err)
-			}
-			return nil
-		}
-		// Fall through with an empty Desired so that only this component's own keys are
-		// stripped, leaving the sibling's keys and the object itself in place.
+	if !opts.Enabled && !exists {
+		return nil
 	}
 
 	if !exists {
@@ -114,7 +104,7 @@ func ReconcileAgentParamsConfigMap(c client.Client, log logr.Logger, cr *argopro
 		if err := controllerutil.SetControllerReference(cr, cm, scheme); err != nil {
 			return fmt.Errorf("failed to set ArgoCD CR %s as owner for configmap %s: %w", cr.Name, name, err)
 		}
-		LogResourceCreation(log, cm)
+		argoutil.LogResourceCreation(log, cm)
 		if err := c.Create(context.TODO(), cm); err != nil {
 			return fmt.Errorf("failed to create %s configmap: %w", name, err)
 		}
@@ -140,12 +130,22 @@ func ReconcileAgentParamsConfigMap(c client.Client, log logr.Logger, cr *argopro
 		}
 	}
 
+	// Drop only this component's keys once it is disabled. Remove the ConfigMap when this
+	// component owns it and nothing remains; otherwise keep the object and any leftover keys.
+	if !opts.Enabled && ours && len(data) == 0 {
+		argoutil.LogResourceDeletion(log, existing, fmt.Sprintf("%s params configmap is being deleted as the component is disabled", opts.Component))
+		if err := c.Delete(context.TODO(), existing); err != nil {
+			return fmt.Errorf("failed to delete %s configmap: %w", name, err)
+		}
+		return nil
+	}
+
 	if !changed {
 		return nil
 	}
 
 	existing.Data = data
-	LogResourceUpdate(log, existing, fmt.Sprintf("%s params are being updated", opts.Component))
+	argoutil.LogResourceUpdate(log, existing, fmt.Sprintf("%s params are being updated", opts.Component))
 	if err := c.Update(context.TODO(), existing); err != nil {
 		return fmt.Errorf("failed to update %s configmap: %w", name, err)
 	}
@@ -160,6 +160,15 @@ func isOwnedByAgentComponent(cm *corev1.ConfigMap, cr *argoproj.ArgoCD, componen
 		return false
 	}
 	return cm.Labels[common.ArgoCDKeyComponent] == component
+}
+
+// AgentLogLevelParam returns the value to write for a log level key: the configured level
+// verbatim, or the component's own default when the ArgoCD CR leaves it unset.
+func AgentLogLevelParam(value string) string {
+	if value == "" {
+		return common.ArgoCDAgentDefaultLogLevel
+	}
+	return value
 }
 
 // AgentFullDetailParam returns the value to write for a full-detail key. An empty value turns

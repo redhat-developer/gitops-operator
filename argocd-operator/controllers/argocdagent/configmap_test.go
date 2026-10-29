@@ -107,7 +107,7 @@ func TestReconcilePrincipalParamsConfigMap_PrincipalEnabled_NoDebugFieldsSet(t *
 	// Every managed key carries the principal's own default rather than being left out, so the
 	// deployment can safely source them with a ConfigMapKeyRef.
 	assert.Equal(t, map[string]string{
-		common.ArgoCDAgentPrincipalLogLevelKey:     "",
+		common.ArgoCDAgentPrincipalLogLevelKey:     common.ArgoCDAgentDefaultLogLevel,
 		common.ArgoCDAgentPrincipalFullDetailKey:   "",
 		common.ArgoCDAgentPrincipalPProfEnabledKey: "false",
 	}, cm.Data)
@@ -301,6 +301,32 @@ func TestReconcilePrincipalParamsConfigMap_DeletedWhenComponentsAreDisabled(t *t
 	assert.True(t, errors.IsNotFound(err))
 }
 
+func TestReconcilePrincipalParamsConfigMap_DisabledKeepsOwnedConfigMapWhenDataRemains(t *testing.T) {
+	// Disabling the component strips the keys it manages. An owned ConfigMap is deleted only
+	// once that leaves it empty, so a setting the operator does not know about survives.
+	cr := makeTestArgoCD(withPrincipalLogLevel("debug"))
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, []client.Object{cr})
+
+	require.NoError(t, ReconcilePrincipalParamsConfigMap(cl, testCompName, cr, sch))
+
+	cm := getParamsConfigMap(t, cl, cr.Namespace)
+	cm.Data["principal.some.future.setting"] = "42"
+	require.NoError(t, cl.Update(context.TODO(), cm))
+
+	withPrincipalEnabled(false)(cr)
+	require.NoError(t, ReconcilePrincipalParamsConfigMap(cl, testCompName, cr, sch))
+
+	cm = getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Equal(t, map[string]string{"principal.some.future.setting": "42"}, cm.Data)
+	assert.Equal(t, "principal", cm.Labels[common.ArgoCDKeyComponent])
+
+	require.NoError(t, ReconcilePrincipalParamsConfigMap(cl, testCompName, cr, sch))
+	again := getParamsConfigMap(t, cl, cr.Namespace)
+	assert.Equal(t, cm.ResourceVersion, again.ResourceVersion)
+	assert.Equal(t, cm.Data, again.Data)
+}
+
 func TestReconcilePrincipalParamsConfigMap_DeletedWhenTheAgentSpecIsRemovedEntirely(t *testing.T) {
 	// Dropping spec.argoCDAgent altogether is a different nil path than setting enabled: false,
 	// and the reconciler runs unconditionally, so it has to clean up in both cases.
@@ -373,7 +399,7 @@ func TestBuildPrincipalParams_WritesEveryKey(t *testing.T) {
 	// Enabled with nothing configured still yields every key, at the principal's own defaults.
 	cr := makeTestArgoCD(withPrincipalEnabled(true))
 	assert.Equal(t, map[string]string{
-		common.ArgoCDAgentPrincipalLogLevelKey:     "",
+		common.ArgoCDAgentPrincipalLogLevelKey:     common.ArgoCDAgentDefaultLogLevel,
 		common.ArgoCDAgentPrincipalFullDetailKey:   "",
 		common.ArgoCDAgentPrincipalPProfEnabledKey: "false",
 	}, buildPrincipalParams(cr))

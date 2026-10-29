@@ -30,7 +30,7 @@ import (
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
@@ -138,7 +138,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// key that is missing - so a key that could disappear would strand the principal on
 			// whatever value it happened to start with.
 			Eventually(paramsConfigMap, "90s", "5s").Should(SatisfyAll(
-				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalLogLevelKey, ""),
+				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalLogLevelKey, common.ArgoCDAgentDefaultLogLevel),
 				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalFullDetailKey, ""),
 				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalPProfEnabledKey, "false"),
 			))
@@ -157,7 +157,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			} {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{
 					Name:      envName,
-					ValueFrom: argoutil.AgentParamsEnvVarSource(cmKey),
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
 				}), "%s must be sourced from the params ConfigMap, not set to a literal", envName)
 			}
 
@@ -202,8 +202,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"the principal pod template must be unchanged after toggling the debug settings")
 
 			By("unsetting the debug settings and verifying the keys revert to defaults")
-			// Reset in place rather than removed: a key that disappeared would let the
-			// principal fall back to the env baseline it started with and never let go of it.
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.LogLevel = ""
@@ -212,7 +210,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			})
 
 			Eventually(paramsConfigMap, "90s", "5s").Should(SatisfyAll(
-				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalLogLevelKey, ""),
+				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalLogLevelKey, common.ArgoCDAgentDefaultLogLevel),
 				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalFullDetailKey, ""),
 				configmapFixture.HaveStringDataKeyValue(common.ArgoCDAgentPrincipalPProfEnabledKey, "false"),
 			))
