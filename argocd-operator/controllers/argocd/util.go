@@ -36,13 +36,13 @@ import (
 	"github.com/go-logr/logr"
 	certificates "k8s.io/api/certificates/v1beta1"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent/agent"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/gitopspromoter"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/agent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/gitopspromoter"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -1915,7 +1915,7 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 				}
 
 				// Skip cleanup if managed-by label exists
-				if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == valOld.Namespace {
+				if isNamespaceLabelledManagedBy(ns, valOld.Namespace) {
 					log.Info(fmt.Sprintf("Skipping cleanup for namespace %s because it's still labeled as managed by this ArgoCD instance", nsEntry))
 					continue
 				}
@@ -1937,7 +1937,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *
 	}
 
 	// Skip Update if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == oldNSMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, oldNSMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping update cleanup", oldNSMgmt.Namespace))
 		return false
 	}
@@ -1959,7 +1959,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.Names
 	}
 
 	// Skip cleanup if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == nsMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
 		return false
 	}

@@ -282,7 +282,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 	fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Always")
 		// 	defer func() {
 		// 		By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-		// 		fixture.RestoreSubcriptionToDefault()
+		// 		fixture.RestoreSubscriptionToDefault()
 		// 	}()
 
 		// 	By("verifying Argo CD in openshift-gitops exists and is available")
@@ -342,7 +342,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 	fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "Never")
 		// 	defer func() {
 		// 		By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-		// 		fixture.RestoreSubcriptionToDefault()
+		// 		fixture.RestoreSubscriptionToDefault()
 		// 	}()
 
 		// 	By("verifying backend deployment has ImagePullPolicy changed based on env variable")
@@ -377,7 +377,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		// 	fixture.SetEnvInOperatorSubscriptionOrDeployment("IMAGE_PULL_POLICY", "IfNotPresent")
 		// 	defer func() {
 		// 		By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-		// 		fixture.RestoreSubcriptionToDefault()
+		// 		fixture.RestoreSubscriptionToDefault()
 		// 	}()
 
 		// 	By("verifying backend deployment has ImagePullPolicy changed based on env variable")

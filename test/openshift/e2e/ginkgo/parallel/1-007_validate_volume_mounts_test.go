@@ -19,9 +19,9 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -153,7 +153,15 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: argov1beta1api.SSOProviderTypeDex,
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							OpenShiftOAuth: true,
+							Config: `connectors:
+  - type: github
+    id: github
+    name: github-using-first-class
+    config:
+      clientID: first-class
+      clientSecret: $dex.github.clientSecret
+      orgs:
+        - name: first-class`,
 							Volumes: []corev1.Volume{
 								{Name: "custom-dex-volume", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 							},

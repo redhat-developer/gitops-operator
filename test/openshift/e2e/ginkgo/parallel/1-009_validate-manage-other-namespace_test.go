@@ -19,11 +19,11 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
@@ -86,6 +86,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Eventually(defaultClusterConfigSecret).Should(
 				secretFixture.HaveStringDataKeyValue("namespaces", argoCDInRandomNS.Namespace+","+nsTest_1_9_custom.Name))
+
+			By("wait until dest ns has controller rbac before we create the app")
+			Eventually(&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: nsTest_1_9_custom.Name}}).Should(k8sFixture.ExistByName())
+			Eventually(func() bool {
+				rb := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: nsTest_1_9_custom.Name}}
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(rb), rb); err != nil {
+					return false
+				}
+				for _, subject := range rb.Subjects {
+					if subject.Kind == "ServiceAccount" && subject.Name == "argocd-argocd-application-controller" && subject.Namespace == argoCDInRandomNS.Namespace {
+						return true
+					}
+				}
+				return false
+			}).Should(BeTrue(), "controller rolebinding never pointed at our sa")
 
 			By("creating Argo CD Application targeting the other namespace")
 			app := &argocdv1alpha1.Application{

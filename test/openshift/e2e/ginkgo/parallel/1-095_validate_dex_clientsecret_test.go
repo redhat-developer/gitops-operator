@@ -21,10 +21,10 @@ import (
 	"strings"
 	"time"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -72,7 +72,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that the Dex client secret is sourced from a short-lived TokenRequest token and is correctly set in argocd-secret", func() {
+		It("verifies that the Dex client secret is sourced from a short-lived TokenRequest token and is correctly set in argocd-secret", Label("openshift"), func() {
 
 			By("creating simple Argo CD instance with Dex and Openshift OAuth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
@@ -173,7 +173,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}, "2m", "5s").Should(BeTrue(), "Dex client secret in argocd-secret must match the token in the dedicated Dex token Secret")
 		})
 
-		It("verifies the operator deletes legacy non-expiring Dex kubernetes.io/service-account-token Secrets and drops them from the Dex SA", func() {
+		// Openshift OAuth is not supported in xKS
+		It("verifies the operator deletes legacy non-expiring Dex kubernetes.io/service-account-token Secrets and drops them from the Dex SA", Label("openshift"), func() {
 
 			By("creating simple Argo CD instance with Dex and Openshift OAuth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

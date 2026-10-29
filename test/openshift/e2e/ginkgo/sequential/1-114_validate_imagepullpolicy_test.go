@@ -19,9 +19,9 @@ package sequential
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -31,7 +31,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -63,6 +62,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
 					ImagePullPolicy: policy,
+					Notifications: argov1beta1api.ArgoCDNotifications{
+						Enabled: true,
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -78,6 +80,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"argocd-server",
 				"argocd-repo-server",
 				"argocd-redis",
+				"argocd-notifications-controller",
 			}
 
 			for _, deplName := range deploymentNames {
@@ -148,7 +151,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
-					Enabled: ptr.To(bool(true)),
+					Enabled: new(bool(true)),
 				}
 			})
 
@@ -210,7 +213,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
-					Enabled: ptr.To(bool(true)),
+					Enabled: new(bool(true)),
 				}
 			})
 
@@ -282,7 +285,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			defer func() {
 				By("removing IMAGE_PULL_POLICY environment variable to restore default behavior")
-				fixture.RestoreSubcriptionToDefault()
+				fixture.RestoreSubscriptionToDefault()
 			}()
 
 			By("verifying second ArgoCD deployments inherit operator-level imagePullPolicy (Always)")

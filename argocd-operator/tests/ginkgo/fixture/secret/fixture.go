@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 // Update will keep trying to update object until it succeeds, or times out.
@@ -62,10 +62,12 @@ func HaveNonEmptyKeyValue(key string) matcher.GomegaMatcher {
 			return false
 		}
 
-		GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, " Have:", string(a))
-
-		return len(a) > 0
+		// Printing string that looks like secret causes openshift-ci to redact the entire log file, preventing investigating failures in any other tests.
+		empty := len(a) == 0
+		GinkgoWriter.Println("HaveNonEmptyKeyValue - Key:", key, " empty:", empty)
+		return !empty
 	})
+
 }
 
 // HaveStringDataKeyValue returns true if Secret has 'key' field under .data map, and the value of that field is equal to 'value'

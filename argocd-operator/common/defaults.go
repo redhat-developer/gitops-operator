@@ -82,7 +82,7 @@ const (
 	ArgoCDDefaultArgoImage = "quay.io/argoproj/argocd"
 
 	// ArgoCDDefaultArgoVersion is the Argo CD container image digest to use when version not specified.
-	ArgoCDDefaultArgoVersion = "sha256:e2aadfae709d904e87f46ba4aa49601d827b3022db22cd4d03aae816a2e7097b" // v3.5.2
+	ArgoCDDefaultArgoVersion = "sha256:8e5cc5bb008df8a09dba439462e58c94c55b7735888d3ebde0c25fc05e4e5335" // v3.5.6
 
 	// ArgoCDDefaultBackupKeyLength is the length of the generated default backup key.
 	ArgoCDDefaultBackupKeyLength = 32
@@ -197,13 +197,13 @@ const (
 	ArgoCDDefaultRedisHAReplicas = int32(3)
 
 	// ArgoCDDefaultRedisHAProxyImage is the default Redis HAProxy image to use when not specified.
-	ArgoCDDefaultRedisHAProxyImage = "public.ecr.aws/docker/library/haproxy"
+	ArgoCDDefaultRedisHAProxyImage = "quay.io/akuity/haproxy"
 
 	// ArgoCDDefaultRedisHAProxyVersion is the default Redis HAProxy image tag to use when not specified.
-	ArgoCDDefaultRedisHAProxyVersion = "sha256:e11f034e651603f10a365e5ad5a0321825e18eded9620e40c4f4d6ae58419bfe" // 3.0.8-alpine
+	ArgoCDDefaultRedisHAProxyVersion = "sha256:09b826a755db651927a63ec73c5d98e9f68883665169d3911053e2146e0584fe" // 3.3.17-alpine (3.3.17, OpenSSL 3.5)
 
 	// ArgoCDDefaultRedisImage is the Redis container image to use when not specified.
-	ArgoCDDefaultRedisImage = "public.ecr.aws/docker/library/redis"
+	ArgoCDDefaultRedisImage = "quay.io/akuity/redis"
 
 	// ArgoCDDefaultRedisPort is the default listen port for Redis.
 	ArgoCDDefaultRedisPort = 6379
@@ -215,10 +215,10 @@ const (
 	ArgoCDDefaultRedisSuffix = "redis"
 
 	// ArgoCDDefaultRedisVersion is the Redis container image tag to use when not specified.
-	ArgoCDDefaultRedisVersion = "sha256:08ad0b1d280850169a790dba1393ff7a90aef951fc19632cf4d3ce4f78e679ba" // 8.2.3-alpine
+	ArgoCDDefaultRedisVersion = "sha256:4ed22bc23e35e4c2315b365ed63355f48eca31edbc5f17e8e54b7859645ef14d" // 8.2.3-alpine
 
 	// ArgoCDDefaultRedisVersionHA is the Redis container image tag to use when not specified in HA mode.
-	ArgoCDDefaultRedisVersionHA = "sha256:08ad0b1d280850169a790dba1393ff7a90aef951fc19632cf4d3ce4f78e679ba" // 8.2.3-alpine
+	ArgoCDDefaultRedisVersionHA = "sha256:4ed22bc23e35e4c2315b365ed63355f48eca31edbc5f17e8e54b7859645ef14d" // 8.2.3-alpine
 
 	// ArgoCDDefaultRepoMetricsPort is the default listen port for the Argo CD repo server metrics.
 	ArgoCDDefaultRepoMetricsPort = 8084
@@ -329,10 +329,10 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 	ArgoCDDefaultWebTerminalEnabled = "false"
 
 	// GitOpsPromoterDefaultImageName is the default image name for the GitOps Promoter
-	GitOpsPromoterDefaultImageName = "quay.io/argoprojlabs/gitops-promoter:v0.35.0"
+	GitOpsPromoterDefaultImageName = "quay.io/argoprojlabs/gitops-promoter:v0.35.1"
 
 	// GitopsPromoterExtensionInstallerName is the default url for the GitOps Promoter extension
-	GitopsPromoterExtensionURL = "https://github.com/argoproj-labs/gitops-promoter/releases/download/v0.35.0/gitops-promoter-argocd-extension.tar.gz"
+	GitopsPromoterExtensionURL = "https://github.com/argoproj-labs/gitops-promoter/releases/download/v0.35.1/gitops-promoter-argocd-extension.tar.gz"
 )
 
 // DefaultLabels returns the default set of labels for controllers.

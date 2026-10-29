@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 // ReconcilePrincipalDeployment reconciles the ArgoCD agent principal deployment.
@@ -221,7 +221,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "jwt-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-jwt",
+					SecretName: "argocd-agent-jwt", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "jwt.key",
@@ -236,7 +236,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "userpass-passwd",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-principal-userpass",
+					SecretName: "argocd-agent-principal-userpass", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "passwd",

@@ -26,12 +26,12 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -383,6 +383,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				"example-argocd-repo-server-network-policy",
 				"example-argocd-server-network-policy",
 				"example-argocd-application-controller-network-policy",
+				"example-argocd-redis-network-policy",
+				"example-argocd-redis-ha-network-policy",
 			}
 			for _, npName := range coreNPs {
 				Eventually(&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: npName, Namespace: nsObj.Name}}, "3m", "5s").Should(k8sFixture.NotExistByName())

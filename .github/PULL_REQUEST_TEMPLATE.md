@@ -1,29 +1,23 @@
+**What does this PR do?**
+<!-- Why do we need it? -->
+<!-- Which issue(s) this PR fixes? -->
+
+**PR acceptance criteria:**
+<!-- Indicate if following criteria are met, or explain why they are not applicable for this change -->
+
+* [ ] Documentation was updated and verified using `make serve-docs`
+* [ ] Unit tests were updated
+* [ ] E2E tests were updated
+
 **What type of PR is this?**
-> Uncomment only one ` /kind` line, and delete the rest.
-> For example, `> /kind bug` would simply become: `/kind bug`
+<!-- Keep appropriate `/kind` line and delete the rest -->
 
-> /kind bug
-> /kind cleanup
-> /kind failing-test
-> /kind enhancement
-> /kind documentation
-> /kind code-refactoring
+/kind bug
+/kind cleanup
+/kind failing-ci
+/kind failing-test
+/kind enhancement
+/kind documentation
 
-
-**What does this PR do / why we need it**:
-
-**Have you updated the necessary documentation?**
-
-* [ ] Documentation update is required by this PR.
-* [ ] Documentation has been updated.
-
-**Which issue(s) this PR fixes**:
-
-Fixes #?
-
-**Test acceptance criteria**:
-
-* [ ] Unit Test
-* [ ] E2E Test
-
-**How to test changes / Special notes to the reviewer**:
+**Special notes to the reviewer:**
+<!-- How to test changes? What to watch for? -->

@@ -139,6 +139,7 @@ func (r *Repo) git(args ...string) (string, error) {
 		return "", fmt.Errorf("repository has not been cloned")
 	}
 
+	// #nosec G204
 	cmd := exec.Command("git", args...)
 	cmd.Dir = r.cloneDir.Name()
 	if r.transport == TransportHTTPS {
