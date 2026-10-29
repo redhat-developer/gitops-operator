@@ -95,3 +95,52 @@ func TestReconcilePrincipalNetworkPolicy_Exists_PrincipalDisabled_Deletes(t *tes
 	}, np)
 	assert.True(t, errors.IsNotFound(err))
 }
+
+func TestReconcilePrincipalNetworkPolicy_HA_Enabled_IncludesAdminPort(t *testing.T) {
+	adminPort := int32(8405)
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalHA(
+		true,
+		"primary",
+		"",
+		nil,
+		&adminPort,
+		"mtls:subject:CN=ha-admin",
+		"5m",
+	))
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalNetworkPolicy(cl, testCompName, cr, sch)
+	assert.NoError(t, err)
+
+	np := &networkingv1.NetworkPolicy{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName) + "-network-policy",
+		Namespace: cr.Namespace,
+	}, np)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 6, len(np.Spec.Ingress[0].Ports))
+
+	foundAdminPort := false
+	for _, p := range np.Spec.Ingress[0].Ports {
+		if p.Port != nil && p.Port.IntVal == adminPort {
+			foundAdminPort = true
+			break
+		}
+	}
+	assert.True(t, foundAdminPort, "ha-admin port should be present in network policy when HA is enabled")
+}
+
+func TestReconcilePrincipalNetworkPolicy_HA_Disabled_ExcludesAdminPort(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+
+	spec := buildPrincipalNetworkPolicySpec(testCompName, cr)
+	assert.Equal(t, 5, len(spec.Ingress[0].Ports))
+
+	for _, p := range spec.Ingress[0].Ports {
+		assert.NotEqual(t, int32(8405), p.Port.IntVal, "ha-admin port should not be present when HA is disabled")
+	}
+}

@@ -971,6 +971,59 @@ spec:
                           - name
                           type: object
                         type: array
+                      ha:
+                        description: HA defines the active/passive High Availability
+                          configuration for the Principal component.
+                        properties:
+                          adminAuth:
+                            description: |-
+                              AdminAuth is the authorization policy for the HA admin endpoint.
+                              When TLS is active and this is unset, all admin calls are denied.
+                              Format: "mtls:subject:<regex>" or "mtls:uri:<regex>".
+                              Example: "mtls:subject:CN=ha-admin"
+                            type: string
+                          adminPort:
+                            description: |-
+                              AdminPort is the port for the HAAdmin gRPC server used by
+                              argocd-agentctl ha status/promote/demote. Access via kubectl port-forward. (default: 8405)
+                            format: int32
+                            type: integer
+                          allowedReplicationClients:
+                            description: |-
+                              AllowedReplicationClients is the list of mTLS identities permitted to connect for replication.
+                              When empty, any authenticated peer is allowed.
+                            items:
+                              type: string
+                            type: array
+                          enabled:
+                            description: 'Enabled enables active/passive High Availability
+                              for the principal. (default: false)'
+                            type: boolean
+                          peerAddress:
+                            description: |-
+                              PeerAddress is the gRPC address (host:port) of the peer principal.
+                              Required when PreferredRole is "replica".
+                            type: string
+                          preferredRole:
+                            description: |-
+                              PreferredRole is the startup role of this principal instance.
+                              "primary" starts in ACTIVE state.
+                              "replica" starts in SYNCING → REPLICATING state.
+                            enum:
+                            - primary
+                            - replica
+                            type: string
+                          replicationInitialAckTimeout:
+                            description: |-
+                              ReplicationInitialAckTimeout is the duration the primary waits for the replica's
+                              initial acknowledgement after delivering the full snapshot. (default: 5m)
+                            type: string
+                        type: object
+                        x-kubernetes-validations:
+                        - message: peerAddress must be set when preferredRole is replica
+                          rule: '!(has(self.enabled) && self.enabled && has(self.preferredRole)
+                            && self.preferredRole == ''replica'') || (has(self.peerAddress)
+                            && self.peerAddress != '''')'
                       image:
                         description: Image is the name of Argo CD Agent image
                         type: string
@@ -14190,6 +14243,59 @@ spec:
                           - name
                           type: object
                         type: array
+                      ha:
+                        description: HA defines the active/passive High Availability
+                          configuration for the Principal component.
+                        properties:
+                          adminAuth:
+                            description: |-
+                              AdminAuth is the authorization policy for the HA admin endpoint.
+                              When TLS is active and this is unset, all admin calls are denied.
+                              Format: "mtls:subject:<regex>" or "mtls:uri:<regex>".
+                              Example: "mtls:subject:CN=ha-admin"
+                            type: string
+                          adminPort:
+                            description: |-
+                              AdminPort is the port for the HAAdmin gRPC server used by
+                              argocd-agentctl ha status/promote/demote. Access via kubectl port-forward. (default: 8405)
+                            format: int32
+                            type: integer
+                          allowedReplicationClients:
+                            description: |-
+                              AllowedReplicationClients is the list of mTLS identities permitted to connect for replication.
+                              When empty, any authenticated peer is allowed.
+                            items:
+                              type: string
+                            type: array
+                          enabled:
+                            description: 'Enabled enables active/passive High Availability
+                              for the principal. (default: false)'
+                            type: boolean
+                          peerAddress:
+                            description: |-
+                              PeerAddress is the gRPC address (host:port) of the peer principal.
+                              Required when PreferredRole is "replica".
+                            type: string
+                          preferredRole:
+                            description: |-
+                              PreferredRole is the startup role of this principal instance.
+                              "primary" starts in ACTIVE state.
+                              "replica" starts in SYNCING → REPLICATING state.
+                            enum:
+                            - primary
+                            - replica
+                            type: string
+                          replicationInitialAckTimeout:
+                            description: |-
+                              ReplicationInitialAckTimeout is the duration the primary waits for the replica's
+                              initial acknowledgement after delivering the full snapshot. (default: 5m)
+                            type: string
+                        type: object
+                        x-kubernetes-validations:
+                        - message: peerAddress must be set when preferredRole is replica
+                          rule: '!(has(self.enabled) && self.enabled && has(self.preferredRole)
+                            && self.preferredRole == ''replica'') || (has(self.peerAddress)
+                            && self.peerAddress != '''')'
                       image:
                         description: Image is the name of Argo CD Agent image
                         type: string
