@@ -311,6 +311,13 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 	// ArgoCDCmdParamsConfigMapName is the upstream hard-coded ArgoCD command params ConfigMap name.
 	ArgoCDCmdParamsConfigMapName = "argocd-cmd-params-cm"
 
+	// ArgoCDAgentParamsConfigMapName is the name of the ConfigMap holding the configuration
+	// parameters for the Argo CD Agent principal and agent components.
+	ArgoCDAgentParamsConfigMapName = "argocd-agent-params"
+
+	// ArgoCDAgentDefaultLogLevel is the default log level for the ArgoCD agent/principal components.
+	ArgoCDAgentDefaultLogLevel = "info"
+
 	// ArgoCDAgentPrincipalDefaultImageName is the default image name for the ArgoCD agent's principal component.
 	ArgoCDAgentPrincipalDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.10.0"
 

@@ -32,6 +32,7 @@ import (
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/agent"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
@@ -170,9 +171,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 
-			// List environment variables with expected values for the agent deployment
+			// List environment variables with expected values for the agent deployment.
+			// NOTE: the runtime-switchable settings (log level, full detail, pprof enabled) are
+			// deliberately absent: they are sourced from the argocd-agent-params ConfigMap via a
+			// ConfigMapKeyRef rather than set to a literal value, so that changing them does not
+			// restart the agent.
 			expectedEnvVariables = map[string]string{
-				agent.EnvArgoCDAgentLogLevel:            "info",
 				agent.EnvArgoCDAgentNamespace:           ns.Name,
 				agent.EnvArgoCDAgentServerAddress:       "argocd-agent-principal.example.com",
 				agent.EnvArgoCDAgentServerPort:          "443",
@@ -302,8 +306,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are set correctly")
 
-			// update expected value in default environment variables according to ArgoCD CR in the test
-			expectedEnvVariables[agent.EnvArgoCDAgentLogLevel] = "trace"
+			// The runtime-switchable settings reference argocd-agent-params ConfigMap keys
+			// instead of carrying literal values, so that changing one rewrites the ConfigMap
+			// without rolling the agent.
+			for envName, cmKey := range map[string]string{
+				agent.EnvArgoCDAgentLogLevel:     common.ArgoCDAgentAgentLogLevelKey,
+				agent.EnvArgoCDAgentFullDetail:   common.ArgoCDAgentAgentFullDetailKey,
+				agent.EnvArgoCDAgentPProfEnabled: common.ArgoCDAgentAgentPProfEnabledKey,
+			} {
+				Expect(container.Env).To(ContainElement(corev1.EnvVar{
+					Name:      envName,
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
+				}), "%s should be sourced from the params ConfigMap", envName)
+			}
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
@@ -432,7 +447,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are updated correctly")
 
-			expectedEnvVariables[agent.EnvArgoCDAgentLogLevel] = "trace"
 			expectedEnvVariables[agent.EnvArgoCDAgentLogFormat] = "json"
 			expectedEnvVariables[agent.EnvArgoCDAgentKeepAliveInterval] = "60s"
 			expectedEnvVariables[agent.EnvArgoCDAgentEnableWebSocket] = "true"
