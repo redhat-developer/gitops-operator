@@ -21,9 +21,9 @@ import (
 	stderrors "errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
-	"github.com/argoproj-labs/argocd-operator/controllers/argoutil"
 	oappsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
@@ -32,6 +32,7 @@ import (
 	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,7 +42,9 @@ import (
 )
 
 const (
-	clusterVersionName = "version"
+	clusterVersionName       = "version"
+	operatorPodNamespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	DefaultOperatorNamespace = "openshift-gitops-operator"
 )
 
 var (
@@ -53,6 +56,10 @@ var (
 	appsAPIFound       = false
 	oauthAPIFound      = false
 	olmAPIFound        = false
+
+	// verifyAPI is the function used to check API group availability.
+	// It defaults to argoutil.VerifyAPI and can be overridden in tests.
+	verifyAPI = argoutil.VerifyAPI
 )
 
 // GetClusterVersion returns the OpenShift Cluster version in which the operator is installed
@@ -85,6 +92,11 @@ func NewClusterVersion(version string) *configv1.ClusterVersion {
 	}
 }
 
+// InspectCluster probes the API server to determine which optional API groups
+// (OLM, Monitoring, Route, Config, Console, Template, Apps, OAuth) are available
+// in the cluster and sets the corresponding package-level flags. On non-OpenShift
+// clusters where config.openshift.io is absent, only OLM, Monitoring, and Route
+// APIs are checked; remaining OpenShift-specific groups are skipped.
 func InspectCluster() error {
 	var errs []error
 	if err := verifyOLMAPI(); err != nil {
@@ -93,17 +105,19 @@ func InspectCluster() error {
 	if err := verifyMonitoringAPI(); err != nil {
 		errs = append(errs, err)
 	}
+	if err := verifyRouteAPI(); err != nil {
+		errs = append(errs, err)
+	}
 
 	if err := verifyConfigAPI(); err != nil {
 		errs = append(errs, err)
 		return stderrors.Join(errs...)
 	}
 	if !configAPIFound {
-		return nil
+		return stderrors.Join(errs...)
 	}
 
 	for _, check := range []func() error{
-		verifyRouteAPI,
 		verifyConsoleAPI,
 		verifyTemplateAPI,
 		verifyAppsAPI,
@@ -128,7 +142,7 @@ func IsOpenShiftCluster() bool {
 
 // verify if the Config.Openshift.io API is found
 func verifyConfigAPI() error {
-	found, err := argoutil.VerifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
+	found, err := verifyAPI(configv1.GroupName, configv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -142,7 +156,7 @@ func IsConsoleAPIFound() bool {
 }
 
 func verifyConsoleAPI() error {
-	found, err := argoutil.VerifyAPI(console.GroupName, console.GroupVersion.Version)
+	found, err := verifyAPI(console.GroupName, console.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -156,7 +170,7 @@ func IsRouteAPIFound() bool {
 }
 
 func verifyRouteAPI() error {
-	found, err := argoutil.VerifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
+	found, err := verifyAPI(routev1.GroupName, routev1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -165,7 +179,7 @@ func verifyRouteAPI() error {
 }
 
 func verifyMonitoringAPI() error {
-	found, err := argoutil.VerifyAPI(
+	found, err := verifyAPI(
 		monitoringv1.SchemeGroupVersion.Group,
 		monitoringv1.SchemeGroupVersion.Version,
 	)
@@ -187,7 +201,7 @@ func IsTemplateAPIFound() bool {
 }
 
 func verifyTemplateAPI() error {
-	found, err := argoutil.VerifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
+	found, err := verifyAPI(templatev1.GroupName, templatev1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -201,7 +215,7 @@ func IsAppsAPIFound() bool {
 }
 
 func verifyAppsAPI() error {
-	found, err := argoutil.VerifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
+	found, err := verifyAPI(oappsv1.GroupName, oappsv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -215,7 +229,7 @@ func IsOAuthAPIFound() bool {
 }
 
 func verifyOAuthAPI() error {
-	found, err := argoutil.VerifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
+	found, err := verifyAPI(oauthv1.GroupName, oauthv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -229,7 +243,7 @@ func IsOLMAPIFound() bool {
 }
 
 func verifyOLMAPI() error {
-	found, err := argoutil.VerifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
+	found, err := verifyAPI(operatorsv1.GroupVersion.Group, operatorsv1.GroupVersion.Version)
 	if err != nil {
 		return err
 	}
@@ -243,6 +257,9 @@ func ProxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {
 	proxyKeys := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 	for _, p := range proxyKeys {
 		if k, v := caseInsensitiveGetenv(p); k != "" {
+			if p == "NO_PROXY" {
+				v = addToNoProxy(v, ".cluster.local.") // add .cluster.local. (with trailing dot) to allow entry typically not added by OpenShift
+			}
 			result = append(result, corev1.EnvVar{Name: k, Value: v})
 		}
 	}
@@ -258,6 +275,17 @@ func caseInsensitiveGetenv(s string) (string, string) {
 		return ls, v
 	}
 	return "", ""
+}
+
+func addToNoProxy(noProxy string, entry string) string {
+	if noProxy == "" {
+		return entry
+	}
+
+	if !slices.Contains(strings.Split(noProxy, ","), entry) {
+		return fmt.Sprintf("%s,%s", noProxy, entry)
+	}
+	return noProxy
 }
 
 func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec) {
@@ -288,4 +316,18 @@ func AddSeccompProfileForOpenShift(client client.Client, podspec *corev1.PodSpec
 			}
 		}
 	}
+}
+
+// GetOperatorNamespace returns the namespace the operator is running in by reading
+// the serviceaccount namespace file. If the file is not found (e.g. running locally),
+// it returns the default operator namespace and a nil error.
+func GetOperatorNamespace() (string, error) {
+	data, err := os.ReadFile(operatorPodNamespacePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return DefaultOperatorNamespace, nil
+		}
+		return "", fmt.Errorf("error retrieving operator namespace: %w", err)
+	}
+	return strings.TrimSpace(string(data)), nil
 }

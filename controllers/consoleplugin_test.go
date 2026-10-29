@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
@@ -26,7 +27,7 @@ import (
 )
 
 func TestPlugin(t *testing.T) {
-	testConsolePlugin := consolePlugin()
+	testConsolePlugin := consolePlugin(serviceNamespace)
 
 	testDisplayName := displayName
 	assert.Equal(t, testConsolePlugin.Spec.DisplayName, testDisplayName)
@@ -602,7 +603,7 @@ func TestPlugin_reconcileDeployment_changedTemplateLabels(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService(), d).Build()
 			reconciler := newReconcileGitOpsService(fakeClient, s)
 
-			_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+			_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 			assertNoError(t, err)
 
 			deployment := &appsv1.Deployment{}
@@ -647,7 +648,7 @@ func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
 		assert.DeepEqual(t, deployment.Spec.Template.Spec.Containers[0].SecurityContext, securityContextForPlugin())
 	}
 
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// There should be a new console plugin deployment created
@@ -672,7 +673,7 @@ func TestPlugin_reconcileDeployment_changedContainers(t *testing.T) {
 	assertNoError(t, err)
 
 	// Verify if the containers are reconciled back to the default values
-	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment = &appsv1.Deployment{}
@@ -979,7 +980,7 @@ func TestPlugin_reconcileDeployment_infraNodeSelectorNotInPodSpec(t *testing.T) 
 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(gitopsService).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
-	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -999,7 +1000,7 @@ func TestPlugin_reconcileDeployment(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
 
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -1036,7 +1037,7 @@ func TestPlugin_reconcileDeployment_ChangedResources(t *testing.T) {
 		},
 	}
 
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -1056,7 +1057,7 @@ func TestPlugin_ReconcileDeployment_DefaultResourceValues(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(newGitopsService()).Build()
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 	instance := &pipelinesv1alpha1.GitopsService{}
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -1096,7 +1097,7 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 			Resources: Resources,
 		},
 	}
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment := &appsv1.Deployment{}
@@ -1120,7 +1121,7 @@ func TestPlugin_ReconcileDeployment_ChangeExistingResourceValues(t *testing.T) {
 	}
 	instance.Spec.ConsolePlugin.Backend.Resources, instance.Spec.ConsolePlugin.GitopsPlugin.Resources = updatedResources, updatedResources
 
-	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	deployment = &appsv1.Deployment{}
@@ -1593,7 +1594,7 @@ func TestPlug_reconcileConfigMap(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	instance := &pipelinesv1alpha1.GitopsService{}
-	_, err := reconciler.reconcileConfigMap(instance, newRequest(serviceNamespace, httpdConfigMapName), reconciler.pluginConfigMap())
+	_, err := reconciler.reconcileConfigMap(instance, newRequest(serviceNamespace, httpdConfigMapName), reconciler.pluginConfigMap(serviceNamespace))
 	assertNoError(t, err)
 
 	configMap := &corev1.ConfigMap{}
@@ -1669,7 +1670,7 @@ func TestReconcileDeployment_NoUpdateWhenContainersOrderDiffers(t *testing.T) {
 	instance := &pipelinesv1alpha1.GitopsService{}
 
 	// Create deployment
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Get the deployment and capture initial ResourceVersion and Generation
@@ -1692,7 +1693,7 @@ func TestReconcileDeployment_NoUpdateWhenContainersOrderDiffers(t *testing.T) {
 	}
 
 	// Reconcile again - should NOT trigger an update
-	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Verify no update was triggered
@@ -1715,7 +1716,7 @@ func TestReconcileDeployment_NoUpdateWhenVolumesOrderDiffers(t *testing.T) {
 	instance := &pipelinesv1alpha1.GitopsService{}
 
 	// Create deployment
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Get the deployment
@@ -1740,7 +1741,7 @@ func TestReconcileDeployment_NoUpdateWhenVolumesOrderDiffers(t *testing.T) {
 		genAfterManualUpdate := deployment.Generation
 
 		// Reconcile again - should NOT trigger an update
-		_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+		_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 		assertNoError(t, err)
 
 		// Verify no update was triggered
@@ -1786,7 +1787,7 @@ func TestReconcileDeployment_NoUpdateWhenTolerationsOrderDiffers(t *testing.T) {
 	reconciler := newReconcileGitOpsService(fakeClient, s)
 
 	// Create deployment
-	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Get the deployment
@@ -1811,7 +1812,7 @@ func TestReconcileDeployment_NoUpdateWhenTolerationsOrderDiffers(t *testing.T) {
 		genAfterManualUpdate := deployment.Generation
 
 		// Reconcile again - should NOT trigger an update
-		_, err = reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+		_, err = reconciler.reconcileDeployment(gitopsService, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 		assertNoError(t, err)
 
 		// Verify no update was triggered
@@ -1837,7 +1838,7 @@ func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
 	instance := &pipelinesv1alpha1.GitopsService{}
 
 	// Create deployment
-	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Get the deployment and capture initial ResourceVersion and Generation
@@ -1852,7 +1853,7 @@ func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
 	assertNoError(t, err)
 
 	// Reconcile again - should trigger an update
-	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), false)
+	_, err = reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), false)
 	assertNoError(t, err)
 
 	// Verify update was triggered
@@ -1866,61 +1867,129 @@ func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
 func TestBuildHttpdConfig(t *testing.T) {
 	tests := []struct {
 		name              string
-		CentralTLSProfile configv1.TLSProfileSpec
+		CentralTLSProfile tlsprofile.TLSConfigProfile
 		wantProtocol      bool
 		wantCipherSuite   bool
+		wantGroups        bool
 		protocol          string
 		cipherSuite       string
+		groups            string
 	}{
 		{
 			name: "no TLS version no ciphers",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "",
-				Ciphers:       nil,
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "",
+				Ciphers:    nil,
 			},
 			wantProtocol:    false,
 			wantCipherSuite: false,
+			wantGroups:      false,
 		},
 		{
 			name: "TLS 1.2 with cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS12",
-				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				Ciphers:    []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
 			},
 			wantProtocol:    true,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 		},
 		{
 			name: "TLS 1.3 ignores cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS13",
-				Ciphers:       []string{"TLS_AES_128_GCM_SHA256"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS13",
+				Ciphers:    []string{"TLS_AES_128_GCM_SHA256"},
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.3",
 		},
 		{
 			name: "TLS 1.2 without cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS12",
-				Ciphers:       nil,
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				Ciphers:    nil,
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 		{
 			name: "invalid TLS version with cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "invalid",
-				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "invalid",
+				Ciphers:    []string{"ECDHE-RSA-AES256-GCM-SHA384"},
 			},
 			wantProtocol:    false,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384",
+		},
+		{
+			name: "TLS groups configure SSLOpenSSLConfCmd Groups",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519MLKEM768:X25519:secp256r1:secp384r1",
+		},
+		{
+			name: "TLS 1.3 with groups",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS13",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.3",
+			groups:          "X25519:secp256r1",
+		},
+		{
+			name: "unknown groups are filtered out",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroup("UnknownGroup"),
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519:secp384r1",
+		},
+		{
+			name: "only unknown groups omits SSLOpenSSLConfCmd",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      false,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 	}
 
@@ -1952,6 +2021,13 @@ func TestBuildHttpdConfig(t *testing.T) {
 				assert.Assert(t, cmp.Contains(cfg, "SSLCipherSuite "+tt.cipherSuite))
 			} else {
 				assert.Assert(t, !strings.Contains(cfg, "SSLCipherSuite"))
+			}
+
+			// SSLOpenSSLConfCmd Groups
+			if tt.wantGroups {
+				assert.Assert(t, cmp.Contains(cfg, "SSLOpenSSLConfCmd Groups "+tt.groups))
+			} else {
+				assert.Assert(t, !strings.Contains(cfg, "SSLOpenSSLConfCmd Groups"))
 			}
 		})
 	}
@@ -2022,7 +2098,7 @@ func TestReconcileDeployment_AddsHashAnnotation(t *testing.T) {
 			"httpd.conf": "config-v1",
 		},
 	}
-	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme}
+	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme, PluginNamespace: serviceNamespace}
 	_, err := r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm, false)
 	assert.NilError(t, err)
 	deployment := &appsv1.Deployment{}
@@ -2055,7 +2131,7 @@ func TestReconcileDeployment_UpdatesHashAnnotationWhenConfigChanges(t *testing.T
 			"httpd.conf": "config-v2",
 		},
 	}
-	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme}
+	r := &ReconcileGitopsService{Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(instance).Build(), Scheme: scheme, PluginNamespace: serviceNamespace}
 	_, err := r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm1, false)
 	assert.NilError(t, err)
 	_, err = r.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsService), cm2, false)
@@ -2113,7 +2189,7 @@ func TestPlugin_reconcileDeployment_PluginImage(t *testing.T) {
 			reconciler := newReconcileGitOpsService(fakeClient, s)
 			instance := &pipelinesv1alpha1.GitopsService{}
 
-			_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(), test.isPF5)
+			_, err := reconciler.reconcileDeployment(instance, newRequest(serviceNamespace, gitopsPluginName), reconciler.pluginConfigMap(serviceNamespace), test.isPF5)
 			assertNoError(t, err)
 
 			deployment := &appsv1.Deployment{}

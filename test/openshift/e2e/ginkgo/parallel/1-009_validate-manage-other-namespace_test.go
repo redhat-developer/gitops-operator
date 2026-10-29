@@ -19,16 +19,16 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -71,7 +71,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argoCDInRandomNS, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("modifying the labels of another namespace to add the argocd managed-by label")
-			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
+			namespaceFixture.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
 				n.Labels["argocd.argoproj.io/managed-by"] = argoCDInRandomNS.Namespace
 			})
 
@@ -86,6 +86,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			Eventually(defaultClusterConfigSecret).Should(
 				secretFixture.HaveStringDataKeyValue("namespaces", argoCDInRandomNS.Namespace+","+nsTest_1_9_custom.Name))
+
+			By("wait until dest ns has controller rbac before we create the app")
+			Eventually(&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: nsTest_1_9_custom.Name}}).Should(k8sFixture.ExistByName())
+			Eventually(func() bool {
+				rb := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-application-controller", Namespace: nsTest_1_9_custom.Name}}
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(rb), rb); err != nil {
+					return false
+				}
+				for _, subject := range rb.Subjects {
+					if subject.Kind == "ServiceAccount" && subject.Name == "argocd-argocd-application-controller" && subject.Namespace == argoCDInRandomNS.Namespace {
+						return true
+					}
+				}
+				return false
+			}).Should(BeTrue(), "controller rolebinding never pointed at our sa")
 
 			By("creating Argo CD Application targeting the other namespace")
 			app := &argocdv1alpha1.Application{
@@ -113,7 +128,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(app, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("removing managed-by label from that other Namespace")
-			namespace.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
+			namespaceFixture.Update(nsTest_1_9_custom, func(n *corev1.Namespace) {
 				delete(n.Labels, "argocd.argoproj.io/managed-by")
 			})
 

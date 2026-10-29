@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
@@ -33,14 +34,13 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 
 	agentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/agent"
 )
@@ -117,12 +117,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Principal: &argov1beta1api.PrincipalSpec{
-							Enabled:                 ptr.To(true),
-							DestinationBasedMapping: ptr.To(true),
+							Enabled:                 new(true),
+							DestinationBasedMapping: new(true),
 							Auth:                    "mtls:CN=([^,]+)",
 							LogLevel:                "debug",
 							Image:                   destMapAgentImage,
@@ -132,15 +132,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								},
 							},
 							TLS: &argov1beta1api.PrincipalTLSSpec{
-								InsecureGenerate: ptr.To(false),
+								InsecureGenerate: new(false),
 							},
 							JWT: &argov1beta1api.PrincipalJWTSpec{
-								InsecureGenerate: ptr.To(false),
+								InsecureGenerate: new(false),
 							},
 							Server: &argov1beta1api.PrincipalServerSpec{
 								KeepAliveMinInterval: "30s",
 								Route: argov1beta1api.ArgoCDAgentPrincipalRouteSpec{
-									Enabled: ptr.To(false),
+									Enabled: new(false),
 								},
 								Service: argov1beta1api.ArgoCDAgentPrincipalServiceSpec{
 									Type: corev1.ServiceTypeLoadBalancer,
@@ -148,7 +148,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							},
 						},
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled: ptr.To(false),
+							Enabled: new(false),
 						},
 					},
 				},
@@ -165,17 +165,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					SourceNamespaces: []string{
 						destMapNsAgent,
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Principal: &argov1beta1api.PrincipalSpec{
-							Enabled: ptr.To(false),
+							Enabled: new(false),
 						},
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled:  ptr.To(true),
+							Enabled:  new(true),
 							Creds:    "mtls:any",
 							LogLevel: "debug",
 							Image:    destMapAgentImage,
@@ -191,11 +191,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 							TLS: &argov1beta1api.AgentTLSSpec{
 								SecretName:       destMapClientTLSSecretName,
 								RootCASecretName: destMapRootCASecretName,
-								Insecure:         ptr.To(false),
+								Insecure:         new(false),
 							},
 							DestinationBasedMapping: &argov1beta1api.DestinationBasedMappingSpec{
-								Enabled:         ptr.To(true),
-								CreateNamespace: ptr.To(true),
+								Enabled:         new(true),
+								CreateNamespace: new(true),
 							},
 							AllowedNamespaces: []string{
 								destMapNsAgent,
@@ -250,8 +250,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					SyncPolicy: &argocdv1alpha1.SyncPolicy{
 						Automated: &argocdv1alpha1.SyncPolicyAutomated{
-							Prune:    ptr.To(true),
-							SelfHeal: ptr.To(true),
+							Prune:    new(true),
+							SelfHeal: new(true),
 						},
 						ManagedNamespaceMetadata: &argocdv1alpha1.ManagedNamespaceMetadata{
 							Labels: map[string]string{
@@ -263,8 +263,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		}
 
-		// deployDestMapPrincipal deploys the principal ArgoCD instance with destination-based mapping.
-		deployDestMapPrincipal := func() {
+		// deployDestMapPrincipal deploys the principal ArgoCD instance with destination-based mapping,
+		// and returns the created ArgoCD CR.
+		deployDestMapPrincipal := func() *argov1beta1api.ArgoCD {
 			GinkgoHelper()
 
 			nsPrincipal, cleanup := fixture.CreateNamespaceWithCleanupFunc(destMapNsPrincipal)
@@ -328,10 +329,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify principal logs contain expected messages")
 			agentFixture.VerifyLogs(destMapDeploymentPrincipal, nsPrincipal.Name, destMapPrincipalStartupLogs)
+
+			return argoCDInstance
 		}
 
-		// deployDestMapAgent deploys the managed agent ArgoCD instance with destination-based mapping.
-		deployDestMapAgent := func() {
+		// deployDestMapAgent deploys the managed agent ArgoCD instance with destination-based mapping,
+		// and returns the created ArgoCD CR.
+		deployDestMapAgent := func() *argov1beta1api.ArgoCD {
 			GinkgoHelper()
 
 			nsAgent, cleanup := fixture.CreateNamespaceWithCleanupFunc(destMapNsAgent)
@@ -370,6 +374,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify managed agent logs contain expected messages")
 			agentFixture.VerifyLogs(destMapDeploymentAgent, nsAgent.Name, destMapAgentStartupLogs)
+
+			return argoCDInstanceAgent
 		}
 
 		createAdminCRBForAgent := func() {
@@ -447,10 +453,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should deploy principal and agent with destination-based mapping", Label("openshift"), func() {
 
 			By("Deploy principal with destination-based mapping enabled")
-			deployDestMapPrincipal()
+			principalArgoCD := deployDestMapPrincipal()
 
 			By("Deploy managed agent with destination-based mapping enabled")
-			deployDestMapAgent()
+			agentArgoCD := deployDestMapAgent()
+
+			By("Verify principal and agent ArgoCD instances are available")
+			Eventually(principalArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(agentArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("Verify principal is connected to the managed agent")
 			agentFixture.VerifyLogs(destMapDeploymentPrincipal, destMapNsPrincipal, []string{
@@ -480,9 +490,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				"Application should be routed from principal to agent namespace")
 
 			By("Verify application on agent is synced and healthy")
-			Eventually(agentApp, "120s", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced),
+			Eventually(agentApp, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced),
 				"Application on agent should be synced")
-			Eventually(agentApp, "120s", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
+			Eventually(agentApp, "4m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
 				"Application on agent should be healthy")
 
 			By("Verify application is synced and healthy on the principal")

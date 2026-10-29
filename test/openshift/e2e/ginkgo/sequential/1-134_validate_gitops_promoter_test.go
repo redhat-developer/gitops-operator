@@ -29,11 +29,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/argocd-operator/common"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argoCDFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
@@ -101,19 +100,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Promoter: &argov1beta1api.PromoterSpec{
-						Enabled: ptr.To(true),
+						Enabled: new(true),
 					},
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					Server: argov1beta1api.ArgoCDServerSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					Repo: argov1beta1api.ArgoCDRepoSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 					Redis: argov1beta1api.ArgoCDRedisSpec{
-						Enabled: ptr.To(false),
+						Enabled: new(false),
 					},
 				},
 			}
@@ -242,7 +241,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			promoterFixture.VerifyExpectedResourcesExist(apiServerResources)
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.Promoter.Enabled = ptr.To(false)
+				ac.Spec.Promoter.Enabled = new(false)
 			})
 
 			By("Verify that Controller resources were deleted")
@@ -256,7 +255,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Create Argo CD Instance with Promoter's API Server enabled")
 
 			argoCD.Spec.Promoter.APIServer = &argov1beta1api.PromoterAPIServerSpec{}
-			argoCD.Spec.Promoter.APIServer.Enabled = ptr.To(true)
+			argoCD.Spec.Promoter.APIServer.Enabled = new(true)
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			apiServerResources := promoterFixture.VerifyExpectedResourcesExistParams{
@@ -278,7 +277,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter.APIServer = &argov1beta1api.PromoterAPIServerSpec{
-					Enabled: ptr.To(false),
+					Enabled: new(false),
 				}
 			})
 			promoterFixture.VerifyExpectedResourcesDontExist(apiServerResources)
@@ -287,7 +286,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter.APIServer = &argov1beta1api.PromoterAPIServerSpec{
-					Enabled: ptr.To(true),
+					Enabled: new(true),
 				}
 			})
 			promoterFixture.VerifyExpectedResourcesExist(apiServerResources)
@@ -307,7 +306,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter.Webhook = &argov1beta1api.PromoterControllerWebhookSpec{
-					Enabled: ptr.To(true),
+					Enabled: new(true),
 				}
 			})
 			promoterFixture.VerifyExpectedResourcesExist(webhookResources)
@@ -316,7 +315,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter.Webhook = &argov1beta1api.PromoterControllerWebhookSpec{
-					Enabled:     ptr.To(true),
+					Enabled:     new(true),
 					ServiceType: "NodePort",
 				}
 			})
@@ -331,7 +330,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter.Webhook = &argov1beta1api.PromoterControllerWebhookSpec{
-					Enabled: ptr.To(false),
+					Enabled: new(false),
 				}
 			})
 			promoterFixture.VerifyExpectedResourcesDontExist(webhookResources)
@@ -346,7 +345,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					CABundleSecretKey:  apiServerCABundleSecretKey,
 					CertSecretName:     apiServerTLSSecretName,
 				},
-				Enabled: ptr.To(true),
+				Enabled: new(true),
 			}
 
 			createAPIServerTLSSecrets(ns)
@@ -394,7 +393,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 				Spec: argov1beta1api.ArgoCDSpec{
 					Promoter: &argov1beta1api.PromoterSpec{
-						Enabled:                  ptr.To(true),
+						Enabled:                  new(true),
 						ArgoCDUIExtensionEnabled: true,
 					},
 				},
@@ -448,7 +447,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verify that disabling the extension cleans up its settings")
 			argoCDFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.Promoter = &argov1beta1api.PromoterSpec{
-					Enabled:                  ptr.To(true),
+					Enabled:                  new(true),
 					ArgoCDUIExtensionEnabled: false,
 				}
 			})

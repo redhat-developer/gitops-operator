@@ -22,13 +22,14 @@ import (
 	"os"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/argocd-operator/api/v1beta1"
-	argocommon "github.com/argoproj-labs/argocd-operator/common"
-	"github.com/argoproj-labs/argocd-operator/controllers/argocd"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
@@ -62,7 +63,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 		image := "quay.io/org/test"
 		t.Setenv(backendImageEnvName, image)
 
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != image {
@@ -70,7 +74,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 	t.Run("env variable for image not found", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		got := deployment.Spec.Template.Spec.Containers[0].Image
 		if got != backendImage {
@@ -79,7 +86,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.3 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS13})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -93,7 +103,10 @@ func TestImageFromEnvVariable(t *testing.T) {
 	})
 
 	t.Run("TLS Min Version 1.2 and empty ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS12})
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{MinVersion: configv1.VersionTLS12})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
@@ -106,43 +119,97 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+	t.Run("TLS Min Version 1.3 maps OpenSSL ciphers to IANA names", func(t *testing.T) {
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS13,
+			Ciphers:    []string{"ECDHE-ECDSA-AES128-GCM-SHA256"},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
 				gotTLSMinVersion = env.Value
-				break
 			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1" {
+		if gotTLSMinVersion != "1.3" {
 			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1")
+		}
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
+	t.Run("TLS Min Version 1.2 maps and filters TLS 1.3 cipher suites", func(t *testing.T) {
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS12,
+			Ciphers: []string{
+				"TLS_AES_128_GCM_SHA256",
+				"ECDHE-ECDSA-AES128-GCM-SHA256",
+				"ECDHE-RSA-AES128-GCM-SHA256",
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
 				gotTLSMinVersion = env.Value
-				break
 			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1:dummy2" {
-			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1:dummy2")
+		if gotTLSMinVersion != "1.2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.2")
+		}
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
+		}
+	})
+
+	t.Run("maps OpenShift curve preferences to Go curve names", func(t *testing.T) {
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			MinVersion: configv1.VersionTLS12,
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupX25519MLKEM768,
+				configv1.TLSGroupX25519,
+				configv1.TLSGroupSecP256r1,
+				configv1.TLSGroupSecP384r1,
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var gotCurves string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_CURVE_PREFERENCES" {
+				gotCurves = env.Value
+			}
+		}
+		want := "X25519MLKEM768:X25519:CurveP256:CurveP384"
+		if gotCurves != want {
+			t.Errorf("TLS curve preferences mismatch: got %s, want %s", gotCurves, want)
+		}
+	})
+
+	t.Run("errors when curve preferences contain only unsupported groups", func(t *testing.T) {
+		_, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+		})
+		if err == nil {
+			t.Fatal("expected error for incompatible TLS curve preference profile, got nil")
 		}
 	})
 }
@@ -221,22 +288,75 @@ func TestReconcileDisableDefault(t *testing.T) {
 
 	argoCD := &argoapp.ArgoCD{}
 
-	// ArgoCD instance SHOULD NOT created (in openshift-gitops namespace)
+	// ArgoCD instance SHOULD NOT be created (in openshift-gitops namespace)
 	if err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: serviceNamespace},
 		argoCD); err == nil || !errors.IsNotFound(err) {
 
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD be created
+	// openshift-gitops namespace SHOULD NOT be created when DISABLE_DEFAULT_ARGOCD_INSTANCE is true
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Namespace should not exist when DISABLE_DEFAULT_ARGOCD_INSTANCE is true, error: %v", err)
+	}
 
-	// backend Deployment SHOULD be created
+	// backend Deployment SHOULD NOT be created (no namespace to deploy into)
 	deploy := &appsv1.Deployment{}
 	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
-	assertNoError(t, err)
+	if err == nil || !errors.IsNotFound(err) {
+		t.Fatalf("Backend deployment should not exist when namespace doesn't exist, error: %v", err)
+	}
 
+}
+
+// The console plugin is installed regardless of whether the default install is disabled, so the
+// namespace it is deployed into must always exist by the time its resources are created. On a real
+// cluster a missing namespace makes every plugin resource creation fail admission, leaving the
+// controller to error on each reconcile forever. The fake client does not enforce NamespaceLifecycle,
+// so the existence of the namespace and not of the resources within it is what is asserted here.
+func TestReconcile_PluginNamespaceIsCreated(t *testing.T) {
+
+	tests := []struct {
+		name string
+		// pluginNamespace is the namespace the console plugin is deployed into: the operator namespace
+		// in a normal install, but it may be the default Argo CD instance namespace.
+		pluginNamespace       string
+		disableDefaultInstall bool
+	}{
+		{
+			name:            "plugin namespace is the operator namespace",
+			pluginNamespace: "openshift-gitops-operator",
+		},
+		{
+			// The default install, which would otherwise create the namespace, is skipped here.
+			name:                  "plugin namespace is the default Argo CD namespace and the default install is disabled",
+			pluginNamespace:       serviceNamespace,
+			disableDefaultInstall: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer util.SetConsoleAPIFound(util.IsConsoleAPIFound())
+			util.SetConsoleAPIFound(true)
+
+			logf.SetLogger(argocd.ZapLogger(true))
+			s := scheme.Scheme
+			addKnownTypesToScheme(s)
+
+			fakeClient := fake.NewFakeClient(util.NewClusterVersion("4.19.0"), newGitopsService())
+			reconciler := newReconcileGitOpsService(fakeClient, s)
+			reconciler.PluginNamespace = test.pluginNamespace
+			reconciler.DisableDefaultInstall = test.disableDefaultInstall
+
+			_, err := reconciler.Reconcile(context.TODO(), newRequest("test", "test"))
+			assertNoError(t, err)
+
+			err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: test.pluginNamespace}, &corev1.Namespace{})
+			assertNoError(t, err)
+		})
+	}
 }
 
 // If the DISABLE_DEFAULT_ARGOCD_INSTANCE is set, ensure that the default ArgoCD instance is deleted if it already exists.
@@ -275,13 +395,36 @@ func TestReconcileDisableDefault_DeleteIfAlreadyExists(t *testing.T) {
 		t.Fatalf("ArgoCD instance should not exist in namespace, error: %v", err)
 	}
 
-	// openshift-gitops namespace SHOULD still exist
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
-	assertNoError(t, err)
+	// The resources the operator created for the backend SHOULD be deleted. The ClusterRole and
+	// ClusterRoleBinding are owned by the GitopsService CR, but that CR is never deleted while the
+	// operator is installed, so garbage collection will not remove them. A surviving binding would
+	// re-grant cluster-wide access as soon as a ServiceAccount of the same name exists again.
+	backendName := types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}
+	prefixedName := types.NamespacedName{Name: gitopsServicePrefix + serviceName, Namespace: serviceNamespace}
+	clusterRoleName := types.NamespacedName{Name: gitopsServicePrefix + serviceName}
 
-	// backend Deployment SHOULD still exist
-	deploy := &appsv1.Deployment{}
-	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceName, Namespace: serviceNamespace}, deploy)
+	backendResources := []struct {
+		kind   string
+		name   types.NamespacedName
+		object client.Object
+	}{
+		{"Deployment", backendName, &appsv1.Deployment{}},
+		{"Service", backendName, &corev1.Service{}},
+		{"ClusterRoleBinding", clusterRoleName, &rbacv1.ClusterRoleBinding{}},
+		{"ClusterRole", clusterRoleName, &rbacv1.ClusterRole{}},
+		{"ServiceAccount", prefixedName, &corev1.ServiceAccount{}},
+	}
+
+	for _, resource := range backendResources {
+		err = fakeClient.Get(context.TODO(), resource.name, resource.object)
+		if err == nil || !errors.IsNotFound(err) {
+			t.Fatalf("backend %s should be deleted when DISABLE_DEFAULT_ARGOCD_INSTANCE is enabled, error: %v", resource.kind, err)
+		}
+	}
+
+	// The openshift-gitops namespace itself SHOULD still exist, because it may contain resources
+	// that were created outside of the operator. Cleaning it up is left to the user.
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{Name: serviceNamespace}, &corev1.Namespace{})
 	assertNoError(t, err)
 
 }
@@ -1133,8 +1276,9 @@ func addKnownTypesToScheme(scheme *runtime.Scheme) {
 
 func newReconcileGitOpsService(client client.Client, scheme *runtime.Scheme) *ReconcileGitopsService {
 	return &ReconcileGitopsService{
-		Client: client,
-		Scheme: scheme,
+		Client:          client,
+		Scheme:          scheme,
+		PluginNamespace: serviceNamespace,
 	}
 }
 

@@ -13,9 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
       - name: Download all Go modules
@@ -25,15 +27,22 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code -- .
+      - name: Check for tidyness of argocd-operator go.mod and go.sum
+        working-directory: argocd-operator
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
 
   check-sdk-codegen:
     name: "Check for changes from make bundle"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
       - name: Run make bundle
@@ -64,9 +73,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
 

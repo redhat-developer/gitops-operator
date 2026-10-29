@@ -18,13 +18,13 @@ package parallel
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 
-	"github.com/argoproj-labs/argocd-operator/common"
-	certFixture "github.com/argoproj-labs/argocd-operator/tests/ginkgo/fixture/certificate"
 	routev1 "github.com/openshift/api/route/v1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	certFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/certificate"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
@@ -124,7 +124,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", Label("openshift"), func() {
+		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", func() {
 			certPem, keyPem, err := certFixture.GenerateCert()
 			Expect(err).NotTo(HaveOccurred())
 

@@ -22,15 +22,17 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
-	argov1beta1api "github.com/argoproj-labs/argocd-operator/api/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	routeFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/route"
+	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,8 +46,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-030_validate_reencrypt", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx             context.Context
+			k8sClient       client.Client
+			test_1_30_argo1 *corev1.Namespace
+			cleanupFunc     func()
 		)
 
 		BeforeEach(func() {
@@ -54,12 +58,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+
+			fixture.OutputDebugOnFail(test_1_30_argo1)
+
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+
+		})
+
 		It("verifies Argo CD Server's Route can be enabled with TLSTerminationReencrypt", Label("openshift"), func() {
 
 			By("creating namespace-scoped Argo CD instance with rencrypt Route")
 
-			test_1_30_argo1, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
-			defer cleanupFunc()
+			test_1_30_argo1, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("test-1-30-argo1")
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test_1_30_argo1.Name},
@@ -89,31 +102,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(r).Should(routeFixture.HaveTo(routev1.RouteTargetReference{Kind: "Service", Name: "argocd-server", Weight: new(int32(100))}))
 
 			By("verifying the Route was successfully admitted, and ths TLS Secret exists")
-			Eventually(func() bool {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(r), r); err != nil {
-					GinkgoWriter.Println(err)
-					return false
-				}
-
-				ingressSlice := r.Status.Ingress
-				if ingressSlice == nil || len(ingressSlice) != 1 {
-					return false
-				}
-
-				ingress := ingressSlice[0]
-
-				if ingress.Conditions == nil || len(ingress.Conditions) != 1 {
-					return false
-				}
-
-				condition := ingress.Conditions[0]
-
-				return condition.Status == "True" && condition.Type == routev1.RouteAdmitted
-
-			}).Should(BeTrue(), ".status.ingress.conditions[0] should have status:true and type:admitted")
+			Eventually(r, "3m", "5s").Should(routeFixture.HaveAdmittedIngress())
 
 			secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argocd-server-tls", Namespace: test_1_30_argo1.Name}}
 			Eventually(secret).Should(k8sFixture.ExistByName())
+			Eventually(secret, "2m", "5s").Should(secretFixture.HaveNonEmptyKeyValue("tls.crt"))
 
 			fixture.WaitForAllPodsInTheNamespaceToBeReady(test_1_30_argo1.Name, k8sClient)
 
@@ -130,37 +123,38 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 				host := r.Status.Ingress[0].Host
 
-				// Create a custom HTTP transport
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true, // Disable TLS certificate verification
+						InsecureSkipVerify: true,
 					},
 				}
 
-				// Create an HTTP client with the custom transport
-				client := &http.Client{Transport: tr}
+				httpClient := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 
-				// Make a GET request
-				resp, err := client.Get("https://" + host)
+				resp, err := httpClient.Get("https://" + host)
 				if err != nil {
 					GinkgoWriter.Println("Error:", err)
 					return false
 				}
 				defer resp.Body.Close()
 
-				// Read the response body
 				body, err := io.ReadAll(resp.Body)
 				if err != nil {
 					GinkgoWriter.Println("Error reading body:", err)
 					return false
 				}
 
-				// Print the response body
-				GinkgoWriter.Println(string(body))
+				bodyStr := string(body)
+				GinkgoWriter.Println(bodyStr)
+				GinkgoWriter.Println(r.Status.Ingress, r.Spec.Host)
 
-				return strings.Contains(string(body), "Your browser does not support JavaScript.")
+				if strings.Contains(bodyStr, "Application is not available") {
+					return false
+				}
 
-			}, "90s", "5s").Should(BeTrue())
+				return strings.Contains(bodyStr, "Your browser does not support JavaScript.")
+
+			}, "3m", "5s").Should(BeTrue())
 
 		})
 
