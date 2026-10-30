@@ -231,18 +231,6 @@ spec:
           verbs:
           - update
         - apiGroups:
-          - apps.openshift.io
-          resources:
-          - '*'
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
           - argoproj.io
           resources:
           - analysisruns
@@ -517,18 +505,6 @@ spec:
           - update
           - watch
         - apiGroups:
-          - oauth.openshift.io
-          resources:
-          - oauthclients
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
           - operators.coreos.com
           resources:
           - clusterserviceversions
@@ -653,20 +629,6 @@ spec:
           verbs:
           - create
           - get
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - template.openshift.io
-          resources:
-          - templateconfigs
-          - templateinstances
-          - templates
-          verbs:
-          - create
-          - delete
-          - get
-          - list
           - patch
           - update
           - watch

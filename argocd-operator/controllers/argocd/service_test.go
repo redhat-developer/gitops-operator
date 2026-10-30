@@ -71,8 +71,9 @@ func TestEnsureAutoTLSAnnotation(t *testing.T) {
 	})
 	t.Run("Ensure annotation will not be set for non-OpenShift, even with Route API", func(t *testing.T) {
 		sccAPIFound = false
+		origRouteAPIFound := argoutil.IsRouteAPIAvailable()
 		argoutil.SetRouteAPIFound(true)
-		t.Cleanup(func() { argoutil.SetRouteAPIFound(false) })
+		t.Cleanup(func() { argoutil.SetRouteAPIFound(origRouteAPIFound) })
 		svc := newService(a)
 		needUpdate, err := ensureAutoTLSAnnotation(fakeClient, svc, "some-secret", true)
 		assert.Nil(t, err)

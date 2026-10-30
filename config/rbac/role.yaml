@@ -350,18 +350,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - oauth.openshift.io
-  resources:
-  - oauthclients
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - operators.coreos.com
   resources:
   - clusterserviceversions
@@ -464,14 +452,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - template.openshift.io
-  resources:
-  - templateconfigs
-  - templateinstances
-  - templates
-  verbs:
-  - '*'
 - apiGroups:
   - traefik.containo.us
   resources:
