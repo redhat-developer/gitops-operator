@@ -848,6 +848,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -861,6 +862,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -1310,6 +1312,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -1323,6 +1326,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
