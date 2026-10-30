@@ -1051,11 +1051,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should propagate self-registration configuration to principal deployment env vars", func() {
-			By("Create ArgoCD instance with self-registration enabled")
+			By("Create ArgoCD instance with self-registration enabled and cluster secret labels")
 
 			argoCD.Spec.ArgoCDAgent.Principal.SelfRegistration = &argov1beta1api.PrincipalSelfRegistrationSpec{
 				Enabled:              new(true),
 				ClientCertSecretName: "argocd-agent-shared-client-cert",
+				ClusterSecretLabels:  map[string]string{"env": "production", "team": "platform"},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
@@ -1075,12 +1076,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
 
-			By("Update self-registration configuration: disable and change client cert secret")
+			By("Verify cluster secret labels env var contains all expected key=value pairs")
+
+			var secretLabelsEnvValue string
+			for _, env := range container.Env {
+				if env.Name == argocdagent.EnvArgoCDPrincipalSelfRegistrationSecretLabels {
+					secretLabelsEnvValue = env.Value
+					break
+				}
+			}
+			Expect(secretLabelsEnvValue).To(ContainSubstring("env=production"), "Cluster secret labels should contain env=production")
+			Expect(secretLabelsEnvValue).To(ContainSubstring("team=platform"), "Cluster secret labels should contain team=platform")
+
+			By("Update self-registration configuration: disable, change client cert secret, and update labels")
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.Enabled = new(false)
 				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName = "updated-client-cert"
+				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels = map[string]string{"foo": "bar"}
 			})
 
 			By("Wait for the client cert secret update to propagate, then verify all env vars")
@@ -1108,6 +1122,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
+
+			By("Verify updated cluster secret labels env var")
+
+			secretLabelsEnvValue = ""
+			for _, env := range container.Env {
+				if env.Name == argocdagent.EnvArgoCDPrincipalSelfRegistrationSecretLabels {
+					secretLabelsEnvValue = env.Value
+					break
+				}
+			}
+			Expect(secretLabelsEnvValue).To(Equal("foo=bar"), "Cluster secret labels should be updated to foo=bar")
 		})
 	})
 })

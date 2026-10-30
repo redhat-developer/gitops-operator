@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -442,6 +443,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalSelfRegistrationClientCertSecret,
 			Value: getPrincipalSelfRegistrationClientCertSecret(cr),
 		}, {
+			Name:  EnvArgoCDPrincipalSelfRegistrationSecretLabels,
+			Value: getPrincipalSelfRegistrationSecretLabels(cr),
+		}, {
 			Name:  EnvArgoCDPrincipalResourceProxyAddress,
 			Value: getPrincipalResourceProxyAddress(cr),
 		},
@@ -487,6 +491,7 @@ const (
 	EnvArgoCDPrincipalCipherSuites                     = "ARGOCD_PRINCIPAL_TLS_CIPHERSUITES"
 	EnvArgoCDPrincipalEnableSelfClusterRegistration    = "ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION"
 	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
+	EnvArgoCDPrincipalSelfRegistrationSecretLabels     = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_SECRET_LABELS"
 	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
 	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
 )
@@ -753,6 +758,23 @@ func getPrincipalSelfRegistrationClientCertSecret(cr *argoproj.ArgoCD) string {
 		return cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName
 	}
 	return ""
+}
+
+func getPrincipalSelfRegistrationSecretLabels(cr *argoproj.ArgoCD) string {
+	if !hasSelfRegistration(cr) || len(cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels) == 0 {
+		return ""
+	}
+	labels := cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	pairs := make([]string, 0, len(labels))
+	for _, k := range keys {
+		pairs = append(pairs, k+"="+labels[k])
+	}
+	return strings.Join(pairs, ",")
 }
 
 func getPrincipalResourceProxyAddress(cr *argoproj.ArgoCD) string {
