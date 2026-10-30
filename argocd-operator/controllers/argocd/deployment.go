@@ -477,9 +477,10 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 	redisVolume, redisMount := argoutil.MountRedisAuthToRedis(cr)
 
 	if !IsSCCAPIAvailable() {
-		deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
-			RunAsUser: new(int64(1000)),
+		if deploy.Spec.Template.Spec.SecurityContext == nil {
+			deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 		}
+		deploy.Spec.Template.Spec.SecurityContext.RunAsUser = new(int64(1000))
 	}
 	arguments := getArgoRedisArgs(useTLS, r.CentralTLSConfigProfile)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{{

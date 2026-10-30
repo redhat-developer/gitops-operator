@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -460,32 +461,21 @@ func redisHAStatefulSetName(cr *argoproj.ArgoCD) string {
 	return argoutil.NameWithSuffixForStatefulSet(cr.ObjectMeta, "redis-ha-server")
 }
 
-// InspectCluster will verify the availability of extra features available to the cluster, such as Prometheus and
-// OpenShift Routes.
+// InspectCluster will verify the availability of extra features available to the cluster, such as Prometheus,
+// OpenShift Routes and SCC API.
 func InspectCluster() error {
-	if err := verifyPrometheusAPI(); err != nil {
-		return err
-	}
-
-	if err := argoutil.VerifyRouteAPI(); err != nil {
-		return err
-	}
-
 	if err := verifyImageUpdaterAPI(); err != nil {
 		log.Error(err, "could not verify ImageUpdater API, disabling feature")
 		imageUpdaterAPIFound = false
 	}
 
-	if err := verifyVersionAPI(); err != nil {
-		return err
-	}
-	if err := verifyClusterTrustBundleAPI(); err != nil {
-		return err
-	}
-	if err := verifySCCAPI(); err != nil {
-		return err
-	}
-	return nil
+	return errors.Join(
+		verifyPrometheusAPI(),
+		argoutil.VerifyRouteAPI(),
+		verifyVersionAPI(),
+		verifyClusterTrustBundleAPI(),
+		verifySCCAPI(),
+	)
 }
 
 // reconcileCertificateAuthority will reconcile all Certificate Authority resources.
