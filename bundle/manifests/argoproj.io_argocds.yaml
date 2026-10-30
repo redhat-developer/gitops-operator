@@ -1031,6 +1031,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
@@ -14218,6 +14225,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
