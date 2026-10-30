@@ -1276,6 +1276,7 @@ func ConvertAlphaToBetaPrincipalSelfRegistration(src *PrincipalSelfRegistrationS
 		dst = &v1beta1.PrincipalSelfRegistrationSpec{
 			Enabled:              src.Enabled,
 			ClientCertSecretName: src.ClientCertSecretName,
+			ClusterSecretLabels:  src.ClusterSecretLabels,
 		}
 	}
 	return dst
@@ -1287,6 +1288,7 @@ func ConvertBetaToAlphaPrincipalSelfRegistration(src *v1beta1.PrincipalSelfRegis
 		dst = &PrincipalSelfRegistrationSpec{
 			Enabled:              src.Enabled,
 			ClientCertSecretName: src.ClientCertSecretName,
+			ClusterSecretLabels:  src.ClusterSecretLabels,
 		}
 	}
 	return dst
