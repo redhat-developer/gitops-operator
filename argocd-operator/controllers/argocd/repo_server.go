@@ -356,9 +356,7 @@ func (r *ReconcileArgoCD) reconcileRepoDeployment(cr *argocdoperatorv1beta1.Argo
 		})
 	}
 
-	if cr.Spec.Repo.Volumes != nil {
-		repoServerVolumes = append(repoServerVolumes, cr.Spec.Repo.Volumes...)
-	}
+	repoServerVolumes = mergeOperatorVolumes(repoServerVolumes, cr.Spec.Repo.Volumes)
 	deploy.Spec.Template.Spec.Volumes = repoServerVolumes
 
 	r.injectCATrustToContainers(cr, deploy)
