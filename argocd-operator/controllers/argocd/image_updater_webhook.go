@@ -676,6 +676,8 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookConfigIssues(cr *argoproj.ArgoCD) (
 		}
 	}
 
+	issues = append(issues, overriddenImageUpdaterWebhookEnv(cr)...)
+
 	// Settings below are typically left over from exposing the webhook server by hand in earlier versions.
 	if env := argoutil.EnvGet(cr.Spec.ImageUpdater.Env, "WEBHOOK_PORT"); env != nil && (env.ValueFrom != nil || env.Value != strconv.Itoa(imageUpdaterWebhookPort)) {
 		issues = append(issues, fmt.Sprintf("WEBHOOK_PORT is set in .spec.imageUpdater.env, but the webhook Service and NetworkPolicy only use port %d; remove it", imageUpdaterWebhookPort))
@@ -732,6 +734,40 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookConfigIssues(cr *argoproj.ArgoCD) (
 	}
 
 	return issues, nil
+}
+
+// overriddenImageUpdaterWebhookEnv reports environment variables in .spec.imageUpdater.env that the operator
+// replaces with a different value while the webhook is exposed, so that the override is not silent. A variable
+// replaced by the value it already has is not reported. Values sourced with valueFrom cannot be compared and are
+// always reported.
+func overriddenImageUpdaterWebhookEnv(cr *argoproj.ArgoCD) []string {
+	userEnv := cr.Spec.ImageUpdater.Env
+	var issues []string
+
+	// differs returns true if env is set and does not hold the boolean value want.
+	differs := func(env *corev1.EnvVar, want bool) bool {
+		if env == nil {
+			return false
+		}
+		if env.ValueFrom != nil {
+			return true
+		}
+		v, err := strconv.ParseBool(env.Value)
+		return err != nil || v != want
+	}
+
+	if differs(argoutil.EnvGet(userEnv, "ENABLE_WEBHOOK"), true) {
+		issues = append(issues, "ENABLE_WEBHOOK in .spec.imageUpdater.env is overridden to true because the webhook is exposed; remove it")
+	}
+	if differs(argoutil.EnvGet(userEnv, "DISABLE_TLS"), cr.Spec.ImageUpdater.WebhookServer.Insecure) {
+		issues = append(issues, fmt.Sprintf("DISABLE_TLS in .spec.imageUpdater.env is overridden by webhookServer.insecure (%t); remove it", cr.Spec.ImageUpdater.WebhookServer.Insecure))
+	}
+	for _, reg := range imageUpdaterWebhookRegistries {
+		if reg.declaredRef(cr) != nil && argoutil.EnvGet(userEnv, reg.envName) != nil {
+			issues = append(issues, fmt.Sprintf("%s in .spec.imageUpdater.env is overridden by webhookServer.secrets.%s; remove one of them", reg.envName, reg.field))
+		}
+	}
+	return issues
 }
 
 // imageUpdaterWebhookOwnershipConflicts reports each webhook Service, Route or Ingress the operator should manage

@@ -476,6 +476,69 @@ func TestImageUpdaterWebhookConfigIssues(t *testing.T) {
 			wantIssues: 0,
 		},
 		{
+			name: "ENABLE_WEBHOOK overridden to true",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "ENABLE_WEBHOOK", Value: "false"}}
+			},
+			wantIssues: 1,
+		},
+		{
+			name: "ENABLE_WEBHOOK already true",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "ENABLE_WEBHOOK", Value: "true"}}
+			},
+			wantIssues: 0,
+		},
+		{
+			name: "DISABLE_TLS contradicting secure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "DISABLE_TLS", Value: "true"}}
+			},
+			wantIssues: 1,
+		},
+		{
+			name: "DISABLE_TLS matching secure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "DISABLE_TLS", Value: "false"}}
+			},
+			wantIssues: 0,
+		},
+		{
+			name: "DISABLE_TLS matching insecure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "DISABLE_TLS", Value: "true"}}
+				a.Spec.ImageUpdater.WebhookServer.Insecure = true
+			},
+			wantIssues: 0,
+		},
+		{
+			name: "DISABLE_TLS from a ConfigMap cannot be compared",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{
+					{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"},
+					{Name: "DISABLE_TLS", ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: ArgocdImageUpdaterConfigCM},
+						Key:                  "disable-tls",
+					}}},
+				}
+			},
+			wantIssues: 1,
+		},
+		{
+			name: "webhook secret set in both env and CR",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "QUAY_WEBHOOK_SECRET", Value: "from-env"}}
+				a.Spec.ImageUpdater.WebhookServer.Secrets = &argoproj.ImageUpdaterWebhookSecretsSpec{
+					Quay: &argoproj.WebhookSecretKeySelector{Name: "s", Key: "k"},
+				}
+			},
+			objs: []client.Object{&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: "s", Namespace: testNamespace},
+				Data:       map[string][]byte{"k": []byte("v")},
+			}},
+			wantIssues: 1,
+		},
+		{
 			name: "leftover WEBHOOK_PORT",
 			opts: func(a *argoproj.ArgoCD) {
 				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}, {Name: "WEBHOOK_PORT", Value: "8080"}}
