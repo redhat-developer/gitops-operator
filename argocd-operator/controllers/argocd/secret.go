@@ -1156,16 +1156,25 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
-	if newExists && secretIsHealthy(new) {
-		// Healthy - keep it
-		return r.deleteLegacyRedisSecret(cr)
-	} else if newExists && !secretIsHealthy(new) {
+	if newExists {
+		if secretIsComplete(new) {
+			// Healthy - keep it
+			return r.deleteLegacyRedisSecret(cr)
+		}
 		// secret not healthy, update
 		new = argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
-		err := prepareSecretForUpdateCreate(r, cr, new)
+		redisInitialPassword, err := generateRedisAdminPassword()
 		if err != nil {
 			return err
 		}
+
+		new.Data = argoutil.GetRedisSecretData(redisInitialPassword)
+
+		err = controllerutil.SetControllerReference(cr, new, r.Scheme)
+		if err != nil {
+			return err
+		}
+
 		if err := r.deleteLegacyRedisSecret(cr); err != nil {
 			return err
 		}
@@ -1179,17 +1188,24 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	if err != nil {
 		return err
 	}
-	if oldExists && secretIsHealthy(old) {
-		// Carry the password over from the legacy secret
-		new.Data = argoutil.GetRedisSecretData(old.Data[common.ArgoCDKeyAdminPassword])
 
-		if err := controllerutil.SetControllerReference(cr, new, r.Scheme); err != nil {
+	// We should not rely on completeness check for old secret
+	// Old secrets might not contain users.acl but still contain ArgoCDKeyAdminPassword or auth
+	var pwd []byte
+	if oldExists {
+		pwd = salvageRedisPassword(old)
+	}
+	if pwd == nil {
+		pwd, err = generateRedisAdminPassword()
+		if err != nil {
 			return err
 		}
-	} else {
-		if err := prepareSecretForUpdateCreate(r, cr, new); err != nil {
-			return err
-		}
+	}
+	new.Data = argoutil.GetRedisSecretData(pwd)
+
+	err = controllerutil.SetControllerReference(cr, new, r.Scheme)
+	if err != nil {
+		return err
 	}
 
 	if err := r.deleteLegacyRedisSecret(cr); err != nil {
@@ -1308,7 +1324,7 @@ func (r *ReconcileArgoCD) deleteLegacyRedisSecret(cr *argoproj.ArgoCD) error {
 	return nil
 }
 
-func secretIsHealthy(s *corev1.Secret) bool {
+func secretIsComplete(s *corev1.Secret) bool {
 	healthy := false
 	if s.Data != nil {
 		_, hasPwd := s.Data[common.ArgoCDKeyAdminPassword]
@@ -1323,18 +1339,14 @@ func secretIsHealthy(s *corev1.Secret) bool {
 	return healthy
 }
 
-func prepareSecretForUpdateCreate(r *ReconcileArgoCD, cr *argoproj.ArgoCD, s *corev1.Secret) error {
-	redisInitialPassword, err := generateRedisAdminPassword()
-	if err != nil {
-		return err
+func salvageRedisPassword(s *corev1.Secret) []byte {
+	pwd := s.Data[common.ArgoCDKeyAdminPassword]
+	if len(pwd) == 0 {
+		pwd = s.Data["auth"]
 	}
 
-	s.Data = argoutil.GetRedisSecretData(redisInitialPassword)
-
-	err = controllerutil.SetControllerReference(cr, s, r.Scheme)
-	if err != nil {
-		return err
+	if len(pwd) == 0 {
+		return nil
 	}
-
-	return nil
+	return pwd
 }

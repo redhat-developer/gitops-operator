@@ -135,7 +135,7 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 		assert.True(t, apierrors.IsNotFound(err), "default-named CA secret must not be created when a custom name is set; got err: %v", err)
 	})
 
-	t.Run("replaces an incomplete redis-initial-password secret with a regenerated argocd-redis", func(t *testing.T) {
+	t.Run("carries the password over from a pre-users.acl redis-initial-password secret", func(t *testing.T) {
 		argocd := &argoproj.ArgoCD{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "argocd",
@@ -143,8 +143,12 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 			},
 		}
 
+		// The shape written by operators older than the auth/users.acl keys: admin.password only.
 		oldRedisSecret := argoutil.NewSecretWithSuffix(argocd, "redis-initial-password")
-		oldRedisSecret.Data = map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("something")}
+		oldRedisSecret.Data = map[string][]byte{
+			"immutable":                   []byte("true"),
+			common.ArgoCDKeyAdminPassword: []byte("something"),
+		}
 		tlsSecret := argoutil.NewSecretWithSuffix(argocd, "tls")
 
 		resObjs := []client.Object{argocd}
@@ -170,9 +174,16 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 
 		newSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: newRedisSecret.Name, Namespace: "argocd-operator"}, newRedisSecret)
 		assert.NoError(t, newSecretErr)
-		assert.NotEmpty(t, newRedisSecret.Data[common.ArgoCDKeyAdminPassword], "argocd-redis should contain admin redis password")
-		assert.NotEqual(t, []byte("something"), newRedisSecret.Data[common.ArgoCDKeyAdminPassword],
-			"the legacy secret was incomplete, so its password should not be carried over")
+		// The legacy secret predates the auth/users.acl keys, but its password is still usable
+		// and must survive the upgrade rather than being rotated.
+		assert.Equal(t, "something", string(newRedisSecret.Data[common.ArgoCDKeyAdminPassword]),
+			"the legacy password should be carried over, not regenerated")
+		assert.Equal(t, "something", string(newRedisSecret.Data["auth"]))
+		assert.Equal(t, "default", string(newRedisSecret.Data["auth_username"]))
+		assert.Equal(t, "true", string(newRedisSecret.Data["immutable"]))
+		assert.Contains(t, string(newRedisSecret.Data["users.acl"]), "something",
+			"the missing keys should be derived from the carried-over password")
+		assert.NotEmpty(t, newRedisSecret.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
 	})
 
 	t.Run("skips creation when custom-named CA secret already exists", func(t *testing.T) {
@@ -593,6 +604,7 @@ func Test_ReconcileArgoCD_ReconcileRedisSecret(t *testing.T) {
 		actualPwd := string(actual.Data["auth"])
 		assert.NotEqual(t, "", actualPwd)
 		assert.Contains(t, string(actual.Data["users.acl"]), actualPwd, "Password is mentioned in the ACL file")
+		assert.NotEmpty(t, actual.OwnerReferences, "Secret is owned by the ArgoCD CR")
 		return actualPwd
 	}
 
@@ -645,8 +657,8 @@ func Test_secretReferencedByPodSpec(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		spec corev1.PodSpec
+		name     string
+		spec     corev1.PodSpec
 		expected bool
 	}{
 		{
@@ -658,8 +670,8 @@ func Test_secretReferencedByPodSpec(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "mounted as a secret volume",
-			spec: corev1.PodSpec{Volumes: []corev1.Volume{secretVolume(secretName)}},
+			name:     "mounted as a secret volume",
+			spec:     corev1.PodSpec{Volumes: []corev1.Volume{secretVolume(secretName)}},
 			expected: true,
 		},
 		{
@@ -735,6 +747,63 @@ func Test_secretReferencedByPodSpec(t *testing.T) {
 	}
 }
 
+func Test_salvageRedisPassword(t *testing.T) {
+	tests := []struct {
+		name string
+		data map[string][]byte
+		want []byte
+	}{
+		{
+			name: "nil data",
+			data: nil,
+			want: nil,
+		},
+		{
+			name: "no password keys at all",
+			data: map[string][]byte{"immutable": []byte("true")},
+			want: nil,
+		},
+		{
+			name: "admin.password only (pre-users.acl secret)",
+			data: map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("ancient")},
+			want: []byte("ancient"),
+		},
+		{
+			name: "auth only",
+			data: map[string][]byte{"auth": []byte("from-auth")},
+			want: []byte("from-auth"),
+		},
+		{
+			name: "both present and equal, as every operator-written secret has them",
+			data: argoutil.GetRedisSecretData([]byte("agreed")),
+			want: []byte("agreed"),
+		},
+		{
+			name: "empty admin.password falls through to auth",
+			data: map[string][]byte{
+				common.ArgoCDKeyAdminPassword: []byte(""),
+				"auth":                        []byte("from-auth"),
+			},
+			want: []byte("from-auth"),
+		},
+		{
+			name: "both empty",
+			data: map[string][]byte{
+				common.ArgoCDKeyAdminPassword: []byte(""),
+				"auth":                        []byte(""),
+			},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := salvageRedisPassword(&corev1.Secret{Data: tt.data})
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func Test_ReconcileArgoCD_ReconcileRedisSecret_LegacyMigration(t *testing.T) {
 	const legacyPwd = "legacy-password"
 	const namespace = "argocd-operator"
@@ -780,8 +849,51 @@ func Test_ReconcileArgoCD_ReconcileRedisSecret_LegacyMigration(t *testing.T) {
 		assert.Equal(t, "true", string(actual.Data["immutable"]), "keys derived by GetRedisSecretData must be present")
 		assert.Contains(t, string(actual.Data["users.acl"]), legacyPwd, "the ACL file must match the carried-over password")
 
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
+
 		_, err = getSecret(t, r, legacy.Name)
 		assert.True(t, apierrors.IsNotFound(err), "legacy secret should be deleted once nothing references it")
+	})
+
+	t.Run("salvages the password from the auth key when admin.password is absent", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := argoutil.NewSecretWithSuffix(argocd, REDIS_INITIAL_PASSWORD)
+		legacy.Data = map[string][]byte{
+			"immutable":     []byte("true"),
+			"auth":          []byte(legacyPwd),
+			"auth_username": []byte("default"),
+		}
+		r := newReconciler(argocd, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		assert.Equal(t, legacyPwd, string(actual.Data["auth"]), "auth should be used when admin.password is missing")
+		assert.Equal(t, legacyPwd, string(actual.Data[common.ArgoCDKeyAdminPassword]))
+		assert.Contains(t, string(actual.Data["users.acl"]), legacyPwd)
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
+	})
+
+	t.Run("generates a fresh password when the legacy secret holds nothing salvageable", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := argoutil.NewSecretWithSuffix(argocd, REDIS_INITIAL_PASSWORD)
+		legacy.Data = map[string][]byte{"immutable": []byte("true")} // no admin.password, no auth
+		r := newReconciler(argocd, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		// There is no password to carry over, but argocd-redis must still come out complete
+		// and owned - not an empty secret.
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		pwd := string(actual.Data["auth"])
+		assert.NotEmpty(t, pwd, "a password must be generated when none can be salvaged")
+		assert.Equal(t, pwd, string(actual.Data[common.ArgoCDKeyAdminPassword]))
+		assert.Equal(t, "default", string(actual.Data["auth_username"]))
+		assert.Equal(t, "true", string(actual.Data["immutable"]))
+		assert.Contains(t, string(actual.Data["users.acl"]), pwd)
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
 	})
 
 	t.Run("deletes the legacy secret when argocd-redis is already healthy", func(t *testing.T) {
