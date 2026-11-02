@@ -199,7 +199,7 @@ spec:
         enabled: true
 ```
 
-Route TLS settings can be overridden through `.spec.imageUpdater.webhookServer.route.tls`, the same way as for other operator-managed Routes. The termination must match the `insecure` setting: `edge` for an insecure webhook server, `reencrypt` or `passthrough` otherwise.
+Route TLS settings can be overridden through `.spec.imageUpdater.webhookServer.route.tls`, the same way as for other operator-managed Routes. To present your own certificate to registries, reference a `kubernetes.io/tls` Secret with `route.tls.externalCertificate`; the operator updates the Route when that Secret is renewed. The termination must match the `insecure` setting: `edge` for an insecure webhook server, `reencrypt` or `passthrough` otherwise.
 
 As with the Argo CD server Route, the operator only requests a service serving certificate when the Route uses `reencrypt` termination. With `passthrough`, registries see the webhook server's own certificate, so provide one they trust in a `kubernetes.io/tls` Secret named `<instance-name>-image-updater-webhook-tls`. If you switch an existing Route from `reencrypt` to `passthrough`, the operator stops requesting a certificate, but the Secret still holds the previously issued one: replace its contents with your certificate. If you later switch back to `reencrypt` while the Secret holds your own certificate, the operator does not replace it; either delete the Secret so the service CA issues a new one, or set `destinationCACertificate` in the Route TLS settings so the router trusts your certificate.
 
@@ -217,7 +217,7 @@ When the webhook configuration cannot work as intended, the operator sets an `Im
 * no registry webhook secret is configured and `WEBHOOK_REQUIRE_SECRET` is not set to `false` in `.spec.imageUpdater.env`
 * the Route TLS termination contradicts the `insecure` setting
 * a Secret or key referenced under `webhookServer.secrets` does not exist or is empty
-* a Service, Route or Ingress named `<instance-name>-image-updater-webhook` already exists and is controlled by another owner; the operator leaves it untouched
+* a Service, Route or Ingress named `<instance-name>-image-updater-webhook` already exists and is controlled by another owner, or is managed by an Argo CD Application; the operator leaves it untouched
 * `WEBHOOK_PORT` is set in `.spec.imageUpdater.env` to a port other than `8082`
 * `TLS_CERT_PATH` or `TLS_KEY_PATH` is set in `.spec.imageUpdater.env` while `insecure` is `false`
 * `.spec.imageUpdater.image` is an upstream Image Updater image older than v1.4.0 while `insecure` is `false`
@@ -235,7 +235,7 @@ To switch to the operator-managed configuration:
 2. Remove the webhook settings the operator now manages from `.spec.imageUpdater.env`: `ENABLE_WEBHOOK`, `DISABLE_TLS`, `WEBHOOK_PORT`, `TLS_CERT_PATH` and `TLS_KEY_PATH`. The operator overrides `ENABLE_WEBHOOK` and `DISABLE_TLS` anyway, and reports the others in the `ImageUpdaterWebhookConfigurationError` condition.
 3. Optionally move webhook secrets to `webhookServer.secrets`. Existing `*_WEBHOOK_SECRET` entries in `.spec.imageUpdater.env` keep working and take precedence over the `argocd-image-updater-secret` fallback.
 4. Enable `webhookServer.route` (or `webhookServer.ingress`).
-5. Update the webhook URL in your registries to the new Route host, then delete the Service, Route or Ingress you created by hand. If yours were named `<instance-name>-image-updater-webhook`, the operator adopts and reconfigures them instead, and deletes them when the webhook is disabled again. Objects with that name that are controlled by another owner, such as another operator, are never adopted or deleted.
+5. Update the webhook URL in your registries to the new Route host, then delete the Service, Route or Ingress you created by hand. If yours were named `<instance-name>-image-updater-webhook`, the operator adopts and reconfigures them instead, and deletes them when the webhook is disabled again. Objects with that name that are controlled by another owner, such as another operator, are never adopted or deleted. Neither are objects carrying Argo CD tracking metadata (the `argocd.argoproj.io/tracking-id` annotation, or the `app.kubernetes.io/instance` or custom application instance label), because the operator and Argo CD would keep reverting each other's changes. If you manage your hand-made objects with Argo CD, remove them from the Application before enabling `webhookServer`.
 6. Remove any other workarounds you put in place for the webhook certificate once the new configuration works.
 
 ## Uninstallation

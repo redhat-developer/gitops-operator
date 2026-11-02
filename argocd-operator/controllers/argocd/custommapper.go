@@ -101,6 +101,8 @@ func (r *ReconcileArgoCD) isUserManagedSecret(ctx context.Context, o client.Obje
 		ok = true
 	} else if argocd.Spec.ApplicationSet != nil && argocd.Spec.ApplicationSet.WebhookServer.Route.UseExternalCertificate() && argocd.Spec.ApplicationSet.WebhookServer.Route.TLS.ExternalCertificate.Name == o.GetName() {
 		ok = true
+	} else if argocd.Spec.ImageUpdater.WebhookServer.Route.UseExternalCertificate() && argocd.Spec.ImageUpdater.WebhookServer.Route.TLS.ExternalCertificate.Name == o.GetName() {
+		ok = true
 	}
 
 	return namespacedName, ok

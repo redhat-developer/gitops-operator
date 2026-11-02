@@ -50,6 +50,9 @@ const (
 	// from imageUpdaterWebhookTLSMountPath. Earlier releases either serve plain HTTP only (v1.1 and earlier) or read it
 	// from /app/config/tls, which holds the Argo CD TLS certs ConfigMap (v1.2 and v1.3).
 	minImageUpdaterWebhookTLSVersion = "v1.4.0"
+
+	// argoCDTrackingIDAnnotation is set by Argo CD on the resources it syncs when it tracks them by annotation.
+	argoCDTrackingIDAnnotation = "argocd.argoproj.io/tracking-id"
 )
 
 // imageUpdaterWebhookRegistry describes how the webhook secret of one registry type is passed to Image Updater.
@@ -304,16 +307,38 @@ func controlledByOther(obj client.Object, cr *argoproj.ArgoCD) bool {
 	return controller != nil && controller.UID != cr.UID
 }
 
+// argoCDTrackingMarker returns a description of the Argo CD tracking metadata on obj, or "" if there is none.
+// Argo CD does not set owner references on the resources it syncs, so this metadata is the only sign that an
+// Argo CD Application manages obj. Adopting such an object would make the operator and Argo CD revert each
+// other's changes. The Argo CD instance managing obj may not be this one, so both the default tracking label key
+// and this instance's custom key are checked.
+func argoCDTrackingMarker(obj client.Object, cr *argoproj.ArgoCD) string {
+	if _, ok := obj.GetAnnotations()[argoCDTrackingIDAnnotation]; ok {
+		return fmt.Sprintf("annotation %s", argoCDTrackingIDAnnotation)
+	}
+	for _, key := range []string{common.ArgoCDDefaultApplicationInstanceLabelKey, cr.ApplicationInstanceLabelKey()} {
+		if _, ok := obj.GetLabels()[key]; ok {
+			return fmt.Sprintf("label %s", key)
+		}
+	}
+	return ""
+}
+
 // adoptImageUpdaterWebhookObject makes this ArgoCD instance the controller of an existing webhook Service, Route
 // or Ingress that was created by hand under the name the operator uses. It returns the list of changes made, for
-// logging, and false if the object is controlled by something else. Such an object is left untouched and reported
-// by imageUpdaterWebhookConfigIssues, rather than failing the reconciliation of the whole instance.
+// logging, and false if the object is controlled by something else or managed by Argo CD. Such an object is left
+// untouched and reported by imageUpdaterWebhookConfigIssues, rather than failing the reconciliation of the whole
+// instance.
 func (r *ReconcileArgoCD) adoptImageUpdaterWebhookObject(cr *argoproj.ArgoCD, obj client.Object) ([]string, bool, error) {
 	if metav1.IsControlledBy(obj, cr) {
 		return nil, true, nil
 	}
 	if controlledByOther(obj, cr) {
 		log.Info(fmt.Sprintf("not reconciling %T %s/%s: it is controlled by another owner", obj, obj.GetNamespace(), obj.GetName()))
+		return nil, false, nil
+	}
+	if marker := argoCDTrackingMarker(obj, cr); marker != "" {
+		log.Info(fmt.Sprintf("not reconciling %T %s/%s: it has the Argo CD tracking %s", obj, obj.GetNamespace(), obj.GetName(), marker))
 		return nil, false, nil
 	}
 	if err := controllerutil.SetControllerReference(cr, obj, r.Scheme); err != nil {
@@ -710,7 +735,7 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookConfigIssues(cr *argoproj.ArgoCD) (
 }
 
 // imageUpdaterWebhookOwnershipConflicts reports each webhook Service, Route or Ingress the operator should manage
-// that already exists under the same name but is controlled by another owner.
+// that already exists under the same name but is controlled by another owner or managed by Argo CD.
 func (r *ReconcileArgoCD) imageUpdaterWebhookOwnershipConflicts(cr *argoproj.ArgoCD) ([]string, error) {
 	name := imageUpdaterWebhookServiceName(cr)
 	type candidate struct {
@@ -731,10 +756,16 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookOwnershipConflicts(cr *argoproj.Arg
 		if err != nil {
 			return nil, err
 		}
-		if found && controlledByOther(c.obj, cr) {
+		if !found || metav1.IsControlledBy(c.obj, cr) {
+			continue
+		}
+		if controlledByOther(c.obj, cr) {
 			controller := metav1.GetControllerOf(c.obj)
 			conflicts = append(conflicts, fmt.Sprintf("%s %q is controlled by %s %q, so the operator does not manage it; rename or delete it",
 				c.kind, name, controller.Kind, controller.Name))
+		} else if marker := argoCDTrackingMarker(c.obj, cr); marker != "" {
+			conflicts = append(conflicts, fmt.Sprintf("%s %q has the Argo CD tracking %s, so the operator does not manage it; remove it from the Argo CD Application, or rename or delete it",
+				c.kind, name, marker))
 		}
 	}
 	return conflicts, nil
