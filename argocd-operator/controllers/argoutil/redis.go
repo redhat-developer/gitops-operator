@@ -26,6 +26,7 @@ func MountRedisAuthToRedis(cr *argoproj.ArgoCD) (volume corev1.Volume, mount cor
 		Name: RedisAuthVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			Secret: &corev1.SecretVolumeSource{
+				// gosec:disable G101 -- This is a false positive
 				SecretName: "argocd-redis",
 			},
 		},
