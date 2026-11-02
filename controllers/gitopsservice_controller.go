@@ -824,11 +824,29 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 		})
 	}
 
-	if len(CentralTLSProfile.Ciphers) > 0 {
-		env = append(env, corev1.EnvVar{
-			Name:  "TLS_CIPHER_SUITES",
-			Value: strings.Join(CentralTLSProfile.Ciphers, ":"),
-		})
+	// gitops-backend is Go-based and accepts IANA cipher names only (e.g.
+	// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), not OpenSSL names from the
+	// OpenShift TLSSecurityProfile (e.g. ECDHE-ECDSA-AES128-GCM-SHA256).
+	if ciphers := argocdutil.MapCipherSuites(CentralTLSProfile.Ciphers); len(ciphers) > 0 {
+		// Go does not allow configuring TLS 1.3 cipher suites; gitops-backend
+		// also rejects TLS 1.3 suites when looking up crypto/tls.CipherSuites().
+		tls13Ciphers := map[string]bool{
+			"TLS_AES_128_GCM_SHA256":       true,
+			"TLS_AES_256_GCM_SHA384":       true,
+			"TLS_CHACHA20_POLY1305_SHA256": true,
+		}
+		filtered := make([]string, 0, len(ciphers))
+		for _, cipher := range ciphers {
+			if !tls13Ciphers[cipher] {
+				filtered = append(filtered, cipher)
+			}
+		}
+		if len(filtered) > 0 {
+			env = append(env, corev1.EnvVar{
+				Name:  "TLS_CIPHER_SUITES",
+				Value: strings.Join(filtered, ":"),
+			})
+		}
 	}
 	podSpec := corev1.PodSpec{
 		Containers: []corev1.Container{
