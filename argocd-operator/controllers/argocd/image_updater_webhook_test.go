@@ -799,3 +799,63 @@ func TestReconcileImageUpdaterController_RouteErrorDoesNotBlockDeployment(t *tes
 	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: testArgoCDName + "-argocd-image-updater-controller", Namespace: testNamespace}, deployment))
 	assert.Equal(t, "true", argoutil.EnvGet(deployment.Spec.Template.Spec.Containers[0].Env, "ENABLE_WEBHOOK").Value)
 }
+
+func TestImageUpdaterWebhook_ArgoCDTrackedObjectsAreNotAdopted(t *testing.T) {
+	name := testArgoCDName + "-image-updater-webhook"
+	tests := []struct {
+		name        string
+		meta        metav1.ObjectMeta
+		labelKey    string
+		wantMessage string
+	}{
+		{
+			name:        "tracking annotation",
+			meta:        metav1.ObjectMeta{Annotations: map[string]string{"argocd.argoproj.io/tracking-id": "app:/Service:ns/" + name}},
+			wantMessage: "annotation argocd.argoproj.io/tracking-id",
+		},
+		{
+			name:        "default tracking label",
+			meta:        metav1.ObjectMeta{Labels: map[string]string{"app.kubernetes.io/instance": "my-app"}},
+			wantMessage: "label app.kubernetes.io/instance",
+		},
+		{
+			name:        "custom tracking label of this instance",
+			meta:        metav1.ObjectMeta{Labels: map[string]string{"example.com/app": "my-app"}},
+			labelKey:    "example.com/app",
+			wantMessage: "label example.com/app",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setRouteAPIFoundForTest(t)
+			cr := makeImageUpdaterWebhookArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ApplicationInstanceLabelKey = tt.labelKey
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Host = "webhook.example.org"
+			})
+			tracked := &corev1.Service{
+				ObjectMeta: tt.meta,
+				Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 9000}}},
+			}
+			tracked.Name = name
+			tracked.Namespace = testNamespace
+			r := makeImageUpdaterWebhookReconciler(t, cr, tracked)
+			key := types.NamespacedName{Name: name, Namespace: testNamespace}
+
+			issues, err := r.imageUpdaterWebhookConfigIssues(cr)
+			require.NoError(t, err)
+			require.Len(t, issues, 1)
+			assert.Contains(t, issues[0], `Service "`+name+`" has the Argo CD tracking `+tt.wantMessage)
+
+			require.NoError(t, r.reconcileImageUpdaterWebhookNetworking(cr))
+			svc := &corev1.Service{}
+			require.NoError(t, r.Get(context.TODO(), key, svc))
+			assert.Equal(t, int32(9000), svc.Spec.Ports[0].Port)
+			assert.Empty(t, svc.OwnerReferences)
+
+			cr.Spec.ImageUpdater.WebhookServer.Route.Enabled = false
+			require.NoError(t, r.reconcileImageUpdaterWebhookNetworking(cr))
+			require.NoError(t, r.Get(context.TODO(), key, svc))
+		})
+	}
+}
