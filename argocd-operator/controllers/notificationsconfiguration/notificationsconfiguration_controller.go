@@ -19,6 +19,7 @@ package notificationsconfiguration
 import (
 	"context"
 	"fmt"
+	"time"
 
 	v1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 
@@ -137,7 +138,7 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 
 	if existingCM.DeletionTimestamp != nil {
 		reqLogger.Info("ConfigMap is being deleted, requeueing to create a fresh one later")
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 	}
 
 	return reconcile.Result{}, r.updateManagedConfigMap(ctx, existingCM, mergeResult.Data)
