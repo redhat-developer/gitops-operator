@@ -369,9 +369,9 @@ apidocs-gen: ## Generate API documentation.
 
 define crd-ref-docs
 # The config have the k8s version injected so it does not have to be updated there
-cd argocd-operator && go run github.com/elastic/crd-ref-docs@v0.3.0 \
+go run github.com/elastic/crd-ref-docs@v0.3.0 \
 	--config=<(sed 's/__KUBERNETES_API_VERSION__/$(KUBERNETES_API_VERSION)/' ./docs/crd-ref-docs.config.yaml) \
-	--source-path=$(1) \
+	--source-path=argocd-operator/$(1) \
 	--log-level=info \
 	--renderer=markdown \
 	--output-path=$(2)
@@ -379,4 +379,4 @@ endef
 
 .PHONY: serve-docs
 serve-docs: apidocs-gen ## Serve documentation locally using mkdocs in a container
-	$(CONTAINER_RUNTIME) run --rm -it -p 8000:8000 -v $(PWD)/argocd-operator:/argocd-operator:Z -w /argocd-operator --name argocd-operator-mkdocs registry.access.redhat.com/ubi9/python-311:latest /bin/bash -c "pip install -r docs/requirements.txt && mkdocs serve -a 0.0.0.0:8000"
+	$(CONTAINER_RUNTIME) run --rm -it -p 8000:8000 -v $(PWD):/gitops-operator:Z -w /gitops-operator --name gitops-operator-mkdocs registry.access.redhat.com/ubi9/python-311:latest /bin/bash -c "pip install -r docs/requirements.txt && mkdocs serve -a 0.0.0.0:8000"
