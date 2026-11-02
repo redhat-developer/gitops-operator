@@ -106,43 +106,48 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and single ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1"}})
+	t.Run("maps OpenSSL ciphers to IANA names", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{
+			MinTLSVersion: configv1.VersionTLS12,
+			Ciphers:       []string{"ECDHE-ECDSA-AES128-GCM-SHA256"},
+		})
 		var gotTLSMinVersion string
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
 			if env.Name == "TLS_MIN_VERSION" {
 				gotTLSMinVersion = env.Value
-				break
 			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1" {
-			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1")
+		if gotTLSMinVersion != "1.2" {
+			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.2")
+		}
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
 
-	t.Run("TLS Min Version 1.3 and double ciphers", func(t *testing.T) {
-		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{MinTLSVersion: configv1.VersionTLS13, Ciphers: []string{"dummy1", "dummy2"}})
-		var gotTLSMinVersion string
+	t.Run("maps multiple OpenSSL ciphers and drops TLS 1.3 suites", func(t *testing.T) {
+		deployment := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), configv1.TLSProfileSpec{
+			MinTLSVersion: configv1.VersionTLS12,
+			Ciphers: []string{
+				"TLS_AES_128_GCM_SHA256",
+				"ECDHE-ECDSA-AES128-GCM-SHA256",
+				"ECDHE-RSA-AES128-GCM-SHA256",
+			},
+		})
 		var gotTLSCiphers string
 		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
-			if env.Name == "TLS_MIN_VERSION" {
-				gotTLSMinVersion = env.Value
-				break
-			}
 			if env.Name == "TLS_CIPHER_SUITES" {
 				gotTLSCiphers = env.Value
-				break
 			}
 		}
-		if gotTLSMinVersion != "1.3" && gotTLSCiphers != "dummy1:dummy2" {
-			t.Errorf("TLS Min Version mismatch: got %s, want %s", gotTLSMinVersion, "1.3")
-			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, "dummy1:dummy2")
+		want := "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+		if gotTLSCiphers != want {
+			t.Errorf("TLS Cipher mismatch: got %s, want %s", gotTLSCiphers, want)
 		}
 	})
 }
