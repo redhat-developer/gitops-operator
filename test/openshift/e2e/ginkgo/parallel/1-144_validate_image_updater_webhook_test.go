@@ -76,8 +76,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-144_validate_image_updater_webhook", func() {
 
 		var (
-			ctx       context.Context
-			k8sClient client.Client
+			ctx         context.Context
+			k8sClient   client.Client
+			ns          *corev1.Namespace
+			cleanupFunc func()
 		)
 
 		BeforeEach(func() {
@@ -86,12 +88,20 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			// Output debug information before the namespace is deleted, so that it includes the namespace contents.
+			fixture.OutputDebugOnFail(ns)
+
+			if cleanupFunc != nil {
+				cleanupFunc()
+			}
+		})
+
 		It("ensures that the Image Updater webhook Service, Route and pod configuration follow the ArgoCD CR", Label("openshift"), func() {
 
 			fixture.EnsureRunningOnOpenShift()
 
-			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating a Secret holding the Quay webhook secret")
 			quaySecret := &corev1.Secret{
