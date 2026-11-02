@@ -549,6 +549,19 @@ The following properties are available for configuring the Image Updater control
 | Image     | [Empty] | The container image for Image Updater. Takes precedence over the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable; when both are unset, defaults to the stable Image Updater image at quay.io for this version of OpenShift GitOps. |
 | Env       | [Empty] | Environment to set for the image updater workloads.                                                                                                                                                                                  |
 | Resources | [Empty] | The container compute resources.                                                                                                                                                                                                     |
+| WebhookServer | [Empty] | Options for exposing the Image Updater webhook server. See [Image Updater Webhook Server Options](#image-updater-webhook-server-options).                                                                                     |
+
+### Image Updater Webhook Server Options
+
+The following properties are available under `.spec.imageUpdater.webhookServer`. See the [Image Updater usage guide](../usage/image-updater.md#webhook) for details.
+
+| Name     | Default | Description |
+|----------|---------|-------------|
+| Host     | [Empty] | The hostname to use for the Route or Ingress. For a Route, defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>`. |
+| Ingress  | [Object] | Ingress configuration options. The webhook server is exposed when `ingress.enabled` is `true`. |
+| Route    | [Object] | Route configuration options. The webhook server is exposed when `route.enabled` is `true`. |
+| Insecure | `false` | Disable TLS on the webhook server. When `false`, the server uses an OpenShift service serving certificate and the Route defaults to `reencrypt` termination. When `true`, the Route defaults to `edge` termination. |
+| Secrets  | [Empty] | References to Secret keys holding the per-registry webhook secrets: `docker`, `ghcr`, `quay`, `harbor`, `acr`, `aliyunACR`, `cloudEvents`. Each entry has a `name` and a `key`. |
 
 ### Image Updater Controller Example
 

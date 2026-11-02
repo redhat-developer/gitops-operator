@@ -48,6 +48,9 @@ func isSecretOfInterest(o client.Object) bool {
 	if o.GetName() == common.ArgoCDRedisServerTLSSecretName {
 		return true
 	}
+	if strings.HasSuffix(o.GetName(), "-"+common.ImageUpdaterWebhookTLSSecretSuffix) {
+		return true
+	}
 	return false
 }
 
@@ -62,6 +65,9 @@ func isOwnerOfInterest(owner v1.OwnerReference) bool {
 		return true
 	}
 	if strings.HasSuffix(owner.Name, "-redis") {
+		return true
+	}
+	if strings.HasSuffix(owner.Name, "-"+common.ImageUpdaterWebhookSuffix) {
 		return true
 	}
 	return false
