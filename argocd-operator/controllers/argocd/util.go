@@ -886,6 +886,10 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 	// Watch for secrets of type TLS that might be created by external processes
 	bldr.Watches(&corev1.Secret{Type: corev1.SecretTypeTLS}, handler.EnqueueRequestsFromMapFunc(tlsSecretMapper))
 
+	// Watch for user secrets referenced as Image Updater webhook secrets, so that the Image Updater pod is rolled
+	// when one of them changes.
+	bldr.Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.imageUpdaterWebhookSecretMapper))
+
 	// Watch for cluster secrets added to the argocd instance
 	bldr.Watches(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{
 		Labels: map[string]string{
@@ -1513,6 +1517,11 @@ func updateStatusAndConditionsOfArgoCD(ctx context.Context, condition metav1.Con
 		changed = true
 	}
 
+	// Conditions other than the one passed in may have been set or removed on the in-memory CR during reconciliation.
+	if !conditionsEquivalent(cr.Status.Conditions, newConditions) {
+		changed = true
+	}
+
 	if changed {
 		cr.Status = *argocdStatus
 		cr.Status.Conditions = newConditions
@@ -1555,6 +1564,19 @@ func insertOrUpdateConditionsInSlice(newCondition metav1.Condition, existingCond
 	}
 
 	return changed, existingConditions
+}
+
+// conditionsEquivalent returns true if a and b contain the same conditions, ignoring LastTransitionTime and ObservedGeneration.
+func conditionsEquivalent(a, b []metav1.Condition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Type != b[i].Type || a[i].Status != b[i].Status || a[i].Reason != b[i].Reason || a[i].Message != b[i].Message {
+			return false
+		}
+	}
+	return true
 }
 
 func removeCondition(conditions *[]metav1.Condition, conditionType string) {
