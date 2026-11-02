@@ -46,13 +46,11 @@ func decodeContext(t *testing.T, data map[string]string) map[string]string {
 	return decoded
 }
 
-// assertContextValuesAreStrings decodes the "context" ConfigMap key into
-// map[string]interface{} and verifies every value is a string. This catches
-// cases where yaml.Marshal failed to quote a value (e.g. "true" decoded as
-// bool, "42" as int, "null" as nil).
+// assertContextValuesAreStrings checks that YAML values such as "true", "42",
+// and "null" remain strings after serialization.
 func assertContextValuesAreStrings(t *testing.T, raw string) {
 	t.Helper()
-	var generic map[string]interface{}
+	var generic map[string]any
 	require.NoError(t, yaml.Unmarshal([]byte(raw), &generic))
 	for k, v := range generic {
 		_, ok := v.(string)
@@ -424,7 +422,7 @@ func TestMerge_Context_RoundTrip(t *testing.T) {
 
 			raw := result.Data["context"]
 
-			// Verify all values decode as strings via interface{}.
+			// Verify all values decode as strings via any.
 			assertContextValuesAreStrings(t, raw)
 
 			// Verify exact round-trip into map[string]string.
@@ -548,7 +546,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 		})
 		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 		require.NoError(t, err)
-		assert.Empty(t, result.SkippedCRs)
+		assert.Empty(t, result.SkippedEntries)
 		assert.Equal(t, cr.Spec.Triggers, result.Data)
 	})
 
@@ -601,28 +599,35 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 	})
 }
 
-func TestMerge_Subscriptions_InvalidYAML_SkipsCR(t *testing.T) {
+func TestMerge_Subscriptions_InvalidYAML_SkipsOnlySubscriptions(t *testing.T) {
 	cr := makeCR("bad-cr", v1alpha1.NotificationsConfigurationSpec{
+		Triggers:      map[string]string{"trigger.keep": "when: true"},
 		Subscriptions: map[string]string{"subscriptions": ": [invalid yaml"},
 	})
 
 	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "bad-cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "invalid YAML")
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "bad-cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "invalid YAML")
+	// Other entries from the same CR are still merged.
+	assert.Equal(t, "when: true", result.Data["trigger.keep"])
 }
 
-func TestMerge_Subscriptions_NonList_SkipsCR(t *testing.T) {
+func TestMerge_Subscriptions_NonList_SkipsOnlySubscriptions(t *testing.T) {
 	cr := makeCR("bad-cr", v1alpha1.NotificationsConfigurationSpec{
+		Triggers:      map[string]string{"trigger.keep": "val"},
 		Subscriptions: map[string]string{"subscriptions": "not-a-list: true"},
 	})
 
 	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "bad-cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "must be a YAML list")
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "bad-cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "must be a YAML list")
+	assert.Equal(t, "val", result.Data["trigger.keep"])
 }
 
 func TestMerge_Subscriptions_ExtraMapEntriesPassThrough(t *testing.T) {
@@ -642,7 +647,7 @@ func TestMerge_Subscriptions_ExtraMapEntriesPassThrough(t *testing.T) {
 	assert.Equal(t, "- on-health-degraded", result.Data["defaultTriggers.team"])
 }
 
-func TestMerge_Subscriptions_MultiDocument_SkipsCR(t *testing.T) {
+func TestMerge_Subscriptions_MultiDocument_SkipsOnlySubscriptions(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		raw    string
@@ -654,14 +659,17 @@ func TestMerge_Subscriptions_MultiDocument_SkipsCR(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cr := makeCR("multi-cr", v1alpha1.NotificationsConfigurationSpec{
+				Triggers:      map[string]string{"trigger.keep": "val"},
 				Subscriptions: map[string]string{"subscriptions": tc.raw},
 			})
 			result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 			require.NoError(t, err)
-			require.Len(t, result.SkippedCRs, 1)
-			assert.Equal(t, cr.Name, result.SkippedCRs[0].Name)
-			assert.Contains(t, result.SkippedCRs[0].Reason, tc.reason)
-			assert.Empty(t, result.Data)
+			require.Len(t, result.SkippedEntries, 1)
+			assert.Equal(t, cr.Name, result.SkippedEntries[0].CR)
+			assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+			assert.Contains(t, result.SkippedEntries[0].Reason, tc.reason)
+			// Other entries from the same CR are still merged.
+			assert.Equal(t, "val", result.Data["trigger.keep"])
 		})
 	}
 
@@ -674,9 +682,9 @@ func TestMerge_Subscriptions_MultiDocument_SkipsCR(t *testing.T) {
 
 		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 		require.NoError(t, err)
-		require.Len(t, result.SkippedCRs, 1)
-		assert.Equal(t, "multi-cr", result.SkippedCRs[0].Name)
-		assert.Contains(t, result.SkippedCRs[0].Reason, "multiple YAML documents")
+		require.Len(t, result.SkippedEntries, 1)
+		assert.Equal(t, "multi-cr", result.SkippedEntries[0].CR)
+		assert.Contains(t, result.SkippedEntries[0].Reason, "multiple YAML documents")
 	})
 
 	t.Run("explicit empty second document", func(t *testing.T) {
@@ -688,8 +696,8 @@ func TestMerge_Subscriptions_MultiDocument_SkipsCR(t *testing.T) {
 
 		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 		require.NoError(t, err)
-		require.Len(t, result.SkippedCRs, 1)
-		assert.Equal(t, "empty-doc-cr", result.SkippedCRs[0].Name)
+		require.Len(t, result.SkippedEntries, 1)
+		assert.Equal(t, "empty-doc-cr", result.SkippedEntries[0].CR)
 	})
 
 	t.Run("trailing whitespace and comments are allowed", func(t *testing.T) {
@@ -705,30 +713,38 @@ func TestMerge_Subscriptions_MultiDocument_SkipsCR(t *testing.T) {
 	})
 }
 
-func TestMerge_ReservedKeyCollision_SubscriptionsInServices_SkipsCR(t *testing.T) {
+func TestMerge_ReservedKeyCollision_SubscriptionsInServices_SkipsKey(t *testing.T) {
 	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
-		Services: map[string]string{"subscriptions": "should-not-be-a-service-key"},
+		Services: map[string]string{
+			"subscriptions":  "should-not-be-a-service-key",
+			"service.keeper": "kept",
+		},
 	})
 
 	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "reserved")
-	assert.Contains(t, result.SkippedCRs[0].Reason, "\"subscriptions\"")
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "reserved")
+	assert.Equal(t, "kept", result.Data["service.keeper"])
 }
 
-func TestMerge_ReservedKeyCollision_ContextInServices_SkipsCR(t *testing.T) {
+func TestMerge_ReservedKeyCollision_ContextInServices_SkipsKey(t *testing.T) {
 	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
-		Services: map[string]string{"context": "should-not-be-here"},
+		Services: map[string]string{
+			"context":        "should-not-be-here",
+			"service.keeper": "kept",
+		},
 	})
 
 	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "reserved")
-	assert.Contains(t, result.SkippedCRs[0].Reason, "\"context\"")
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "context", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "reserved")
+	assert.Equal(t, "kept", result.Data["service.keeper"])
 }
 
 // ---------- F. Safety and Determinism ----------
@@ -869,53 +885,65 @@ func TestMerge_ReorderedInputSameResult(t *testing.T) {
 	assert.ElementsMatch(t, result1.Conflicts, result3.Conflicts)
 }
 
-func TestMerge_ReservedKeyCollision_ContextInTriggers_SkipsCR(t *testing.T) {
+func TestMerge_ReservedKeyCollision_ContextInTriggers_SkipsKey(t *testing.T) {
 	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
-		Triggers: map[string]string{"context": "should-not-be-a-trigger-key"},
-	})
-
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
-	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "reserved")
-	assert.Contains(t, result.SkippedCRs[0].Reason, "\"context\"")
-}
-
-func TestMerge_ReservedKeyCollision_SubscriptionsInTemplates_SkipsCR(t *testing.T) {
-	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
-		Templates: map[string]string{"subscriptions": "should-not-be-a-template-key"},
-	})
-
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
-	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "reserved")
-	assert.Contains(t, result.SkippedCRs[0].Reason, "\"subscriptions\"")
-}
-
-func TestMerge_ReservedKeyCollision_ContextInSubscriptionsExtra_SkipsCR(t *testing.T) {
-	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
-		Subscriptions: map[string]string{
-			"subscriptions": "- recipients: [slack:test]",
-			"context":       "should-not-be-here",
+		Triggers: map[string]string{
+			"context":      "should-not-be-a-trigger-key",
+			"trigger.keep": "kept",
 		},
 	})
 
 	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
 	require.NoError(t, err)
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "cr", result.SkippedCRs[0].Name)
-	assert.Contains(t, result.SkippedCRs[0].Reason, "reserved")
-	assert.Contains(t, result.SkippedCRs[0].Reason, "\"context\"")
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "context", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "reserved")
+	assert.Equal(t, "kept", result.Data["trigger.keep"])
 }
 
-func TestMerge_InvalidCR_SkippedButValidCRStillMerged(t *testing.T) {
+func TestMerge_ReservedKeyCollision_SubscriptionsInTemplates_SkipsKey(t *testing.T) {
+	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
+		Templates: map[string]string{
+			"subscriptions":  "should-not-be-a-template-key",
+			"template.keep": "kept",
+		},
+	})
+
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	require.NoError(t, err)
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "reserved")
+	assert.Equal(t, "kept", result.Data["template.keep"])
+}
+
+func TestMerge_ReservedKeyCollision_ContextInSubscriptionsExtra_SkipsKey(t *testing.T) {
+	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
+		Subscriptions: map[string]string{
+			"subscriptions": "- recipients: [slack:test]",
+			"context":       "should-not-be-here",
+			"extra.keep":    "kept",
+		},
+	})
+
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	require.NoError(t, err)
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "context", result.SkippedEntries[0].Key)
+	assert.Contains(t, result.SkippedEntries[0].Reason, "reserved")
+	// The valid entries are still merged.
+	assert.Equal(t, "kept", result.Data["extra.keep"])
+	assert.Contains(t, result.Data["subscriptions"], "slack:test")
+}
+
+func TestMerge_ReservedKey_OnlyBadKeySkipped_OtherEntriesKept(t *testing.T) {
 	badCR := makeCR("bad-cr", v1alpha1.NotificationsConfigurationSpec{
 		Triggers: map[string]string{
 			"context":           "reserved-key-collision",
-			"trigger.on-deploy": "should-be-excluded",
+			"trigger.on-deploy": "should-be-kept",
 		},
 	})
 	goodCR := makeCR("good-cr", v1alpha1.NotificationsConfigurationSpec{
@@ -927,17 +955,20 @@ func TestMerge_InvalidCR_SkippedButValidCRStillMerged(t *testing.T) {
 		[]v1alpha1.NotificationsConfiguration{badCR, goodCR})
 	require.NoError(t, err)
 
-	// bad-cr is skipped entirely — none of its keys appear.
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "bad-cr", result.SkippedCRs[0].Name)
-	assert.NotContains(t, result.Data, "trigger.on-deploy")
+	// Only the reserved key is skipped.
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "bad-cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "context", result.SkippedEntries[0].Key)
+
+	// bad-cr's valid trigger IS kept.
+	assert.Equal(t, "should-be-kept", result.Data["trigger.on-deploy"])
 
 	// good-cr is merged normally.
 	assert.Equal(t, "valid-trigger", result.Data["trigger.on-sync"])
 	assert.Equal(t, "token: xoxb", result.Data["service.slack"])
 }
 
-func TestMerge_InvalidSubscriptions_SkippedButOtherCRsMerged(t *testing.T) {
+func TestMerge_InvalidSubscriptions_OnlySubsSkipped_OtherEntriesKept(t *testing.T) {
 	badCR := makeCR("bad-sub-cr", v1alpha1.NotificationsConfigurationSpec{
 		Triggers: map[string]string{"trigger.deploy": "bad-cr-trigger"},
 		Subscriptions: map[string]string{
@@ -955,10 +986,13 @@ func TestMerge_InvalidSubscriptions_SkippedButOtherCRsMerged(t *testing.T) {
 		[]v1alpha1.NotificationsConfiguration{badCR, goodCR})
 	require.NoError(t, err)
 
-	// bad-sub-cr is skipped entirely — its trigger is also excluded.
-	require.Len(t, result.SkippedCRs, 1)
-	assert.Equal(t, "bad-sub-cr", result.SkippedCRs[0].Name)
-	assert.NotContains(t, result.Data, "trigger.deploy")
+	// Only the subscriptions entry from bad-sub-cr is skipped.
+	require.Len(t, result.SkippedEntries, 1)
+	assert.Equal(t, "bad-sub-cr", result.SkippedEntries[0].CR)
+	assert.Equal(t, "subscriptions", result.SkippedEntries[0].Key)
+
+	// bad-sub-cr's trigger IS kept.
+	assert.Equal(t, "bad-cr-trigger", result.Data["trigger.deploy"])
 
 	// good-cr is merged normally.
 	assert.Equal(t, "good-trigger", result.Data["trigger.sync"])

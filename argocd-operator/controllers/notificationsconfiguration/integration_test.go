@@ -34,10 +34,8 @@ const (
 	envtestInterval = 250 * time.Millisecond
 )
 
-// setupControllerForTest mirrors the real SetupWithManager path — same
-// Named controller, same Watches, same mappers — but adds SkipNameValidation
-// so multiple managers can be started in a single test process without
-// controller-name collisions in the global metrics registry.
+// setupControllerForTest mirrors production watches and allows the same controller
+// name to be registered again when the test restarts the manager.
 func setupControllerForTest(mgr ctrl.Manager) error {
 	r := &NotificationsConfigurationReconciler{
 		Client: mgr.GetClient(),
@@ -62,8 +60,7 @@ func cmKeyForNS(ns string) types.NamespacedName {
 	return types.NamespacedName{Namespace: ns, Name: ArgoCDNotificationsConfigMap}
 }
 
-// TestIntegration exercises watch-driven reconciliation through the actual
-// SetupWithManager path using a real kube-apiserver from envtest.
+// TestIntegration exercises watch-driven reconciliation with an envtest API server.
 //
 // Explicit test command:
 //
@@ -71,9 +68,8 @@ func cmKeyForNS(ns string) types.NamespacedName {
 //	  go test -tags envtest -count=1 -v -timeout 300s \
 //	  ./controllers/notificationsconfiguration/... -run TestIntegration
 //
-// Each scenario uses a separate namespace for isolation. The envtest
-// environment is shared across all scenarios; the manager is stopped and
-// restarted for the downtime scenario (4).
+// Scenarios use separate namespaces and share one API server. The downtime
+// scenario restarts the manager to check recovery from missed events.
 func TestIntegration(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 

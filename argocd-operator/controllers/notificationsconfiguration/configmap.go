@@ -19,9 +19,8 @@ const (
 	ArgoCDNotificationsConfigMap = "argocd-notifications-cm"
 )
 
-// createManagedConfigMap creates a new operator-managed ConfigMap with the
-// merged notification configuration data and the operator tracking label.
-// No individual NotificationsConfiguration owner reference is set.
+// createManagedConfigMap creates the shared ConfigMap with an operator tracking
+// label and no individual CR owner, so deleting one CR cannot garbage-collect it.
 func (r *NotificationsConfigurationReconciler) createManagedConfigMap(ctx context.Context, namespace string, data map[string]string) error {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -35,17 +34,8 @@ func (r *NotificationsConfigurationReconciler) createManagedConfigMap(ctx contex
 	return r.Create(ctx, cm)
 }
 
-// updateManagedConfigMap updates an existing operator-managed ConfigMap to
-// match the desired merged data. It also migrates legacy single-CR owner
-// references left by the old reconciler.
-//
-// Returns nil without performing a write when the ConfigMap already matches
-// the desired state and has no legacy owner references to remove.
-//
-// Preserves unrelated labels and annotations. Owner references are validated
-// before any mutation: if the complete list contains any unsupported reference,
-// the function returns an error without mutating the cached object or issuing
-// an API write.
+// updateManagedConfigMap validates ownership before updating data and removing
+// legacy CR owner references. It preserves other metadata and skips unchanged writes.
 func (r *NotificationsConfigurationReconciler) updateManagedConfigMap(ctx context.Context, existing *corev1.ConfigMap, desiredData map[string]string) error {
 	if !argoutil.IsTrackedByOperator(existing.Labels) {
 		return fmt.Errorf(
@@ -81,12 +71,9 @@ func (r *NotificationsConfigurationReconciler) updateManagedConfigMap(ctx contex
 	return r.Update(ctx, updated)
 }
 
-// deleteManagedConfigMap deletes the operator-managed ConfigMap. It:
-//   - Leaves unmanaged ConfigMaps untouched.
-//   - Refuses to delete when any unsupported owner reference is present.
-//   - Treats a ConfigMap already marked for deletion as successful cleanup.
-//   - Uses UID/ResourceVersion preconditions to avoid deleting a replacement.
-//   - Treats NotFound as successful cleanup.
+// deleteManagedConfigMap deletes only operator-managed ConfigMaps with supported
+// owners. UID/resource-version preconditions protect against concurrent changes;
+// absent or already-deleting ConfigMaps need no further cleanup.
 func (r *NotificationsConfigurationReconciler) deleteManagedConfigMap(ctx context.Context, cm *corev1.ConfigMap) error {
 	if !argoutil.IsTrackedByOperator(cm.Labels) {
 		log.Info("ConfigMap exists but is not managed by this operator, skipping deletion",
@@ -119,18 +106,8 @@ func (r *NotificationsConfigurationReconciler) deleteManagedConfigMap(ctx contex
 	return err
 }
 
-// isRecognizedLegacyOwnerReference returns true when the owner reference
-// matches the complete shape produced by the old single-CR reconciler calling
-// controllerutil.SetControllerReference:
-//   - APIVersion: argoproj.io/v1alpha1
-//   - Kind: NotificationsConfiguration
-//   - Name: non-empty (any CR name, not just the default)
-//   - UID: non-empty
-//   - Controller: explicitly true
-//
-// A reference that partially matches (e.g. correct APIVersion/Kind but empty
-// Name or missing Controller=true) is not recognized and will be treated as
-// unsupported.
+// isRecognizedLegacyOwnerReference identifies NotificationsConfiguration
+// controller references created by the old single-CR reconciler.
 func isRecognizedLegacyOwnerReference(ref metav1.OwnerReference) bool {
 	return ref.APIVersion == v1alpha1.GroupVersion.String() &&
 		ref.Kind == "NotificationsConfiguration" &&
@@ -139,15 +116,8 @@ func isRecognizedLegacyOwnerReference(ref metav1.OwnerReference) bool {
 		ref.Controller != nil && *ref.Controller
 }
 
-// hasUnsupportedOwnerReference returns true if the ConfigMap carries any owner
-// reference that is not a recognized legacy NotificationsConfiguration
-// reference.
-//
-// This is a shared ConfigMap managed exclusively by the operator through its
-// tracking label. Any owner reference that does not match the exact legacy
-// SetControllerReference shape is unsupported, regardless of its Controller
-// field value. Non-controller references from unknown sources are not
-// automatically safe for a shared resource.
+// hasUnsupportedOwnerReference detects owners outside the legacy CR format,
+// including non-controller references that could affect garbage collection.
 func hasUnsupportedOwnerReference(cm *corev1.ConfigMap) bool {
 	for _, ref := range cm.OwnerReferences {
 		if !isRecognizedLegacyOwnerReference(ref) {
@@ -157,14 +127,8 @@ func hasUnsupportedOwnerReference(cm *corev1.ConfigMap) bool {
 	return false
 }
 
-// migrateLegacyOwnerReferences removes all owner references from the ConfigMap.
-// The new multi-CR reconciler does not use individual CR ownership.
-//
-// Precondition: the caller must verify via hasUnsupportedOwnerReference that
-// every reference is a recognized legacy shape before calling this function.
-// This precondition is enforced by updateManagedConfigMap.
-//
-// Returns true if any references were removed.
+// migrateLegacyOwnerReferences removes individual CR ownership from the shared
+// ConfigMap and reports whether it changed. Callers must first reject unsupported owners.
 func migrateLegacyOwnerReferences(cm *corev1.ConfigMap) bool {
 	if len(cm.OwnerReferences) == 0 {
 		return false

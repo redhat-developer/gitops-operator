@@ -140,7 +140,29 @@ func (r *ReconcileArgoCD) reconcileNotificationsConfigurationCR(cr *argoproj.Arg
 		argoutil.LogResourceDeletion(log, defaultNotificationsConfigurationCR, "notifications are disabled")
 		return r.Delete(context.TODO(), defaultNotificationsConfigurationCR)
 	}
-	return nil
+	return r.reconcileNotificationsConfigMapLabel(cr.Namespace)
+}
+
+// reconcileNotificationsConfigMapLabel tracks existing ConfigMaps when notifications
+// are enabled, including those used by an older operator without a tracking label.
+func (r *ReconcileArgoCD) reconcileNotificationsConfigMapLabel(namespace string) error {
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(context.TODO(), types.NamespacedName{
+		Name: "argocd-notifications-cm", Namespace: namespace,
+	}, cm); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+	if cm.DeletionTimestamp != nil {
+		return nil
+	}
+	if _, exists := cm.Labels[common.ArgoCDTrackedByOperatorLabel]; exists {
+		return nil
+	}
+
+	before := cm.DeepCopy()
+	argoutil.AddTrackedByOperatorLabel(&cm.ObjectMeta)
+	argoutil.LogResourceUpdate(log, cm, "adding notifications ConfigMap tracking label")
+	return r.Patch(context.TODO(), cm, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))
 }
 
 // The code to create/delete notifications resources is written within the reconciliation logic itself. However, these functions must be called
@@ -852,10 +874,12 @@ func (r *ReconcileArgoCD) reconcileSourceNamespaceNotificationsConfigurationCR(c
 			},
 		}
 		argoutil.LogResourceCreation(log, sourceNotifCfg, "creating NotificationsConfiguration for namespace")
-		return r.Create(context.TODO(), newCfg)
+		if err := r.Create(context.TODO(), newCfg); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	return r.reconcileNotificationsConfigMapLabel(sourceNamespace)
 }
 
 func (r *ReconcileArgoCD) getNotificationsCommand(cr *argoproj.ArgoCD) []string {

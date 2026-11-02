@@ -35,15 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// blank assignment to verify that NotificationsConfigurationReconciler implements reconcile.Reconciler
 var _ reconcile.Reconciler = &NotificationsConfigurationReconciler{}
 
 var log = logr.Log.WithName("controller_notificationsconfiguration")
 
-// NotificationsConfigurationReconciler reconciles NotificationsConfiguration
-// objects at the namespace level. Every event (CR or ConfigMap) in a namespace
-// is mapped to a single reconcile key — the shared ConfigMap name — so the
-// reconciler always operates on the full set of CRs in that namespace.
+// NotificationsConfigurationReconciler merges a namespace's CRs into one ConfigMap.
+// CR and ConfigMap events share one reconcile key per namespace.
 type NotificationsConfigurationReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -61,14 +58,13 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		return reconcile.Result{}, fmt.Errorf("namespace-scoped reconciliation required but request has no namespace")
 	}
 
-	// List all NotificationsConfiguration CRs in the namespace.
-	// A failed List must never be interpreted as "no CRs exist".
+	// A failed List must not trigger cleanup as though no CRs exist.
 	crList := &v1alpha1.NotificationsConfigurationList{}
 	if err := r.List(ctx, crList, client.InNamespace(request.Namespace)); err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to list NotificationsConfigurations in namespace %s: %w", request.Namespace, err)
 	}
 
-	// Count active (non-deleting) CRs to decide create-vs-delete.
+	// Deleting CRs no longer contribute to the shared ConfigMap.
 	activeCRs := 0
 	for i := range crList.Items {
 		if crList.Items[i].DeletionTimestamp == nil {
@@ -76,7 +72,6 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		}
 	}
 
-	// Fetch the existing ConfigMap.
 	existingCM := &corev1.ConfigMap{}
 	cmKey := types.NamespacedName{
 		Namespace: request.Namespace,
@@ -90,7 +85,6 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		cmExists = false
 	}
 
-	// --- No active CRs → cleanup ---
 	if activeCRs == 0 {
 		if cmExists {
 			return reconcile.Result{}, r.deleteManagedConfigMap(ctx, existingCM)
@@ -98,17 +92,17 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		return reconcile.Result{}, nil
 	}
 
-	// --- Active CRs exist → merge ---
 	mergeResult, err := MergeNotificationsConfigurations(crList.Items)
 	if err != nil {
 		reqLogger.Error(err, "merge failed, preserving existing ConfigMap data")
 		return reconcile.Result{}, err
 	}
 
-	for _, skipped := range mergeResult.SkippedCRs {
+	for _, skipped := range mergeResult.SkippedEntries {
 		reqLogger.Error(nil,
-			"CR skipped: invalid configuration, all entries from this CR are excluded from the merged ConfigMap",
-			"cr", fmt.Sprintf("%s/%s", request.Namespace, skipped.Name),
+			"entry skipped: invalid key excluded from the merged ConfigMap; other entries from this CR are still merged",
+			"key", skipped.Key,
+			"cr", fmt.Sprintf("%s/%s", request.Namespace, skipped.CR),
 			"reason", skipped.Reason,
 		)
 	}
@@ -131,7 +125,6 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		)
 	}
 
-	// --- Create or update ---
 	if !cmExists {
 		return reconcile.Result{}, r.createManagedConfigMap(ctx, request.Namespace, mergeResult.Data)
 	}
@@ -174,9 +167,7 @@ func mapCRToConfigMapRequest(_ context.Context, obj client.Object) []reconcile.R
 	}}
 }
 
-// mapConfigMapToReconcileRequest maps ConfigMap events to reconcile requests,
-// but only for ConfigMaps named argocd-notifications-cm. Events for unrelated
-// ConfigMaps produce no requests.
+// mapConfigMapToReconcileRequest queues only events for the shared notifications ConfigMap.
 func mapConfigMapToReconcileRequest(_ context.Context, obj client.Object) []reconcile.Request {
 	if obj.GetName() != ArgoCDNotificationsConfigMap {
 		return nil

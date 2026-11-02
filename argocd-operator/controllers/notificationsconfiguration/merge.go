@@ -29,8 +29,7 @@ const (
 // MergeConflict records a single key-level precedence resolution where two
 // NotificationsConfiguration CRs defined the same entry with different values.
 type MergeConflict struct {
-	// Key is the conflicting entry key. For flat fields this is the ConfigMap
-	// data key. For context this is the individual context entry key.
+	// Key is a ConfigMap data key or an individual context entry key.
 	Key string
 
 	// ExistingCR is the metadata.name of the CR whose value is preserved.
@@ -40,43 +39,42 @@ type MergeConflict struct {
 	ConflictingCR string
 }
 
-// MergeDuplicate records a same-value duplicate where two CRs define the
-// same key with identical values. The value is kept; the duplicate is logged.
+// MergeDuplicate records CRs that define the same value for the same key.
 type MergeDuplicate struct {
 	Key         string
 	FirstCR     string
 	DuplicateCR string
 }
 
-// SkippedCR records a CR that was excluded from the merge because it
-// contains invalid configuration (reserved key, malformed YAML, etc.).
-type SkippedCR struct {
-	Name   string
+// SkippedEntry records an individual key that was excluded from the merge
+// because it uses a reserved ConfigMap key or has invalid content.
+// The rest of the CR's entries are still merged normally.
+type SkippedEntry struct {
+	// Key is the entry key that was skipped.
+	Key string
+	// CR is the metadata.name of the CR that contained the skipped key.
+	CR string
+	// Reason explains why the key was skipped.
 	Reason string
 }
 
 // MergeResult holds the output of MergeNotificationsConfigurations.
 type MergeResult struct {
-	// Data is the desired ConfigMap.Data map. It is never nil when err is nil,
-	// but may be empty when no active CRs contribute entries.
+	// Data is the merged ConfigMap data; it is non-nil on success, but may be empty.
 	Data map[string]string
 
-	// Conflicts records key-level precedence resolutions where two CRs
-	// defined the same entry with different values.
 	Conflicts []MergeConflict
 
-	// Duplicates records same-value duplicates where two CRs define the
-	// same key with identical values.
 	Duplicates []MergeDuplicate
 
-	// SkippedCRs records CRs that were excluded from the merge because
-	// they contain invalid configuration.
-	SkippedCRs []SkippedCR
+	// SkippedEntries records individual keys that were excluded because
+	// they use a reserved key or have invalid content. The rest of the
+	// CR's entries are still merged.
+	SkippedEntries []SkippedEntry
 }
 
-// entryMerger collects key/value entries from multiple CRs and records
-// conflicts (same key, different values) and duplicates (same key, same value).
-// Oldest CR wins because entries are added in precedence order.
+// entryMerger keeps the first value for each key and records conflicts and
+// duplicates. Callers must add CRs in precedence order.
 type entryMerger struct {
 	data       map[string]string
 	owners     map[string]string
@@ -117,7 +115,10 @@ func (m *entryMerger) add(key, value, crName string) {
 //   - Context entries are serialized into a single "context" YAML key.
 //   - Subscriptions["subscriptions"] lists are concatenated across CRs.
 //   - CRs with a non-nil DeletionTimestamp are excluded.
-//   - CRs with invalid configuration are skipped and recorded in SkippedCRs.
+//   - Individual entries that use reserved keys are skipped and recorded
+//     in SkippedEntries; the rest of the CR's entries are still merged.
+//   - CRs with malformed subscriptions YAML have their subscription list
+//     skipped; their other entries (triggers, templates, etc.) are still merged.
 //
 // Conflict resolution (same key, different values):
 //   - Oldest CR by creationTimestamp wins. CRs are the only source of truth.
@@ -132,27 +133,22 @@ func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration)
 		return MergeResult{Data: make(map[string]string)}, nil
 	}
 
-	var valid []v1alpha1.NotificationsConfiguration
-	var skippedCRs []SkippedCR
 	flat := newEntryMerger()
+	var allSkipped []SkippedEntry
 
 	for i := range sorted {
 		cr := &sorted[i]
-		entries, err := collectFlatEntries(cr)
-		if err != nil {
-			skippedCRs = append(skippedCRs, SkippedCR{Name: cr.Name, Reason: err.Error()})
-			continue
-		}
-		valid = append(valid, sorted[i])
+		entries, skipped := collectFlatEntries(cr)
+		allSkipped = append(allSkipped, skipped...)
 		for k, v := range entries {
 			flat.add(k, v, cr.Name)
 		}
 	}
 
-	// Merge context entries across valid CRs.
+	// Merge context entries across all CRs.
 	ctx := newEntryMerger()
-	for i := range valid {
-		cr := &valid[i]
+	for i := range sorted {
+		cr := &sorted[i]
 		if cr.Spec.Context == nil {
 			continue
 		}
@@ -168,26 +164,26 @@ func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration)
 		flat.data[contextConfigMapKey] = ctxData
 	}
 
-	// Merge subscription lists across valid CRs.
-	subData, err := mergeSubscriptionLists(valid)
+	// Merge subscription lists. CRs with malformed YAML are skipped
+	// individually; their other entries remain in the merge.
+	subData, subSkipped, err := mergeSubscriptionLists(sorted)
 	if err != nil {
 		return MergeResult{}, err
 	}
+	allSkipped = append(allSkipped, subSkipped...)
 	if subData != "" {
 		flat.data[subscriptionsConfigMapKey] = subData
 	}
 
 	return MergeResult{
-		Data:       flat.data,
-		Conflicts:  append(flat.conflicts, ctx.conflicts...),
-		Duplicates: append(flat.duplicates, ctx.duplicates...),
-		SkippedCRs: skippedCRs,
+		Data:           flat.data,
+		Conflicts:      append(flat.conflicts, ctx.conflicts...),
+		Duplicates:     append(flat.duplicates, ctx.duplicates...),
+		SkippedEntries: allSkipped,
 	}, nil
 }
 
-// filterActive returns a new slice containing only CRs without a non-nil
-// DeletionTimestamp. Input CRs are shallow-copied; their spec maps are not
-// cloned.
+// filterActive returns a new slice of non-deleting CRs, sharing their spec maps.
 func filterActive(crs []v1alpha1.NotificationsConfiguration) []v1alpha1.NotificationsConfiguration {
 	var out []v1alpha1.NotificationsConfiguration
 	for i := range crs {
@@ -215,47 +211,33 @@ func sortByPrecedence(crs []v1alpha1.NotificationsConfiguration) []v1alpha1.Noti
 	return sorted
 }
 
-// collectFlatEntries returns the flat ConfigMap entries contributed by one CR.
-//
-// Fields are processed in the same order as the existing reconciler
-// (Triggers → Templates → Services → Subscriptions), so within a single CR
-// later fields overwrite earlier ones for the same key, matching existing
-// maps.Copy semantics.
-//
-// The reserved "subscriptions" key in Spec.Subscriptions is excluded because
-// it is handled by YAML-list concatenation. All other Subscriptions map
-// entries are included as flat entries.
-//
-// Returns an error if any flat-field entry uses a reserved ConfigMap key
-// ("context" or "subscriptions"), or if the subscriptions YAML is malformed.
-func collectFlatEntries(cr *v1alpha1.NotificationsConfiguration) (map[string]string, error) {
-	merged := make(map[string]string)
+// collectFlatEntries collects triggers, templates, services, and extra subscription
+// keys in that order; later fields overwrite earlier ones within the same CR.
+// Reserved keys are skipped individually and recorded in skipped; the rest of
+// the CR's entries are still returned.
+func collectFlatEntries(cr *v1alpha1.NotificationsConfiguration) (entries map[string]string, skipped []SkippedEntry) {
+	entries = make(map[string]string)
 
-	addMapEntries := func(m map[string]string, area string) error {
+	addMapEntries := func(m map[string]string, area string) {
 		if m == nil {
-			return nil
+			return
 		}
 		for k, v := range m {
 			if k == contextConfigMapKey || k == subscriptionsConfigMapKey {
-				return fmt.Errorf(
-					"CR %q: %s field contains reserved ConfigMap key %q which is managed by dedicated merge logic",
-					cr.Name, area, k,
-				)
+				skipped = append(skipped, SkippedEntry{
+					Key:    k,
+					CR:     cr.Name,
+					Reason: fmt.Sprintf("%s field contains reserved ConfigMap key %q which is managed by dedicated merge logic", area, k),
+				})
+				continue
 			}
-			merged[k] = v
+			entries[k] = v
 		}
-		return nil
 	}
 
-	if err := addMapEntries(cr.Spec.Triggers, "triggers"); err != nil {
-		return nil, err
-	}
-	if err := addMapEntries(cr.Spec.Templates, "templates"); err != nil {
-		return nil, err
-	}
-	if err := addMapEntries(cr.Spec.Services, "services"); err != nil {
-		return nil, err
-	}
+	addMapEntries(cr.Spec.Triggers, "triggers")
+	addMapEntries(cr.Spec.Templates, "templates")
+	addMapEntries(cr.Spec.Services, "services")
 
 	if cr.Spec.Subscriptions != nil {
 		for k, v := range cr.Spec.Subscriptions {
@@ -263,29 +245,21 @@ func collectFlatEntries(cr *v1alpha1.NotificationsConfiguration) (map[string]str
 				continue
 			}
 			if k == contextConfigMapKey {
-				return nil, fmt.Errorf(
-					"CR %q: subscriptions field contains reserved ConfigMap key %q which is managed by dedicated merge logic",
-					cr.Name, k,
-				)
+				skipped = append(skipped, SkippedEntry{
+					Key:    k,
+					CR:     cr.Name,
+					Reason: fmt.Sprintf("subscriptions field contains reserved ConfigMap key %q which is managed by dedicated merge logic", k),
+				})
+				continue
 			}
-			merged[k] = v
-		}
-
-		// Validate the "subscriptions" YAML early so invalid CRs are
-		// skipped before they reach mergeSubscriptionLists.
-		if raw, ok := cr.Spec.Subscriptions[subscriptionsConfigMapKey]; ok && strings.TrimSpace(raw) != "" {
-			if _, err := decodeSingleDocumentList(raw, cr.Name); err != nil {
-				return nil, err
-			}
+			entries[k] = v
 		}
 	}
 
-	return merged, nil
+	return entries, skipped
 }
 
-// serializeContext produces a deterministic YAML string from a context map.
-// It uses yaml.Marshal which sorts keys alphabetically and correctly quotes
-// values that YAML would otherwise interpret as booleans, numbers, or null.
+// serializeContext writes YAML with stable key ordering and preserves string values.
 func serializeContext(m map[string]string) (string, error) {
 	out, err := yaml.Marshal(m)
 	if err != nil {
@@ -294,22 +268,14 @@ func serializeContext(m map[string]string) (string, error) {
 	return string(out), nil
 }
 
-// mergeSubscriptionLists parses the "subscriptions" entry from each CR's
-// Spec.Subscriptions map as a YAML list, concatenates the lists in precedence
-// order, and returns the serialized result.
-//
-// Rules:
-//   - Absent or empty Subscriptions["subscriptions"] contributes nothing.
-//   - Malformed YAML returns an error identifying the offending CR.
-//   - A non-list top-level value returns an error identifying the offending CR.
-//   - Multiple YAML documents (separated by ---) are rejected.
-//   - Lists are concatenated in CR precedence order; within-CR order is
-//     preserved.
-//   - Duplicate list entries are preserved (no deduplication).
-//
-// Returns an empty string when no CR contributes subscription entries.
-func mergeSubscriptionLists(sortedCRs []v1alpha1.NotificationsConfiguration) (string, error) {
+// mergeSubscriptionLists concatenates subscription lists in CR precedence order,
+// preserving each list's order and duplicates. CRs with malformed YAML are
+// skipped individually and recorded in the returned skipped slice; their other
+// entries (triggers, templates, etc.) remain in the merge.
+func mergeSubscriptionLists(sortedCRs []v1alpha1.NotificationsConfiguration) (string, []SkippedEntry, error) {
 	var combined []any
+	var skipped []SkippedEntry
+
 	for i := range sortedCRs {
 		cr := &sortedCRs[i]
 		if cr.Spec.Subscriptions == nil {
@@ -322,7 +288,12 @@ func mergeSubscriptionLists(sortedCRs []v1alpha1.NotificationsConfiguration) (st
 
 		list, err := decodeSingleDocumentList(raw, cr.Name)
 		if err != nil {
-			return "", err
+			skipped = append(skipped, SkippedEntry{
+				Key:    subscriptionsConfigMapKey,
+				CR:     cr.Name,
+				Reason: err.Error(),
+			})
+			continue
 		}
 		if list == nil {
 			continue
@@ -332,20 +303,19 @@ func mergeSubscriptionLists(sortedCRs []v1alpha1.NotificationsConfiguration) (st
 	}
 
 	if len(combined) == 0 {
-		return "", nil
+		return "", skipped, nil
 	}
 
 	out, err := yaml.Marshal(combined)
 	if err != nil {
-		return "", fmt.Errorf("failed to serialize merged subscriptions: %w", err)
+		return "", nil, fmt.Errorf("failed to serialize merged subscriptions: %w", err)
 	}
 
-	return strings.TrimRight(string(out), "\n"), nil
+	return strings.TrimRight(string(out), "\n"), skipped, nil
 }
 
-// decodeSingleDocumentList parses raw as a single YAML document that must be a
-// list. It returns nil for a null/empty document. It rejects multiple YAML
-// documents, a non-list top-level value, and malformed YAML.
+// decodeSingleDocumentList accepts one YAML list or an empty/null document.
+// It rejects malformed YAML, other value types, and additional documents.
 func decodeSingleDocumentList(raw string, crName string) ([]any, error) {
 	dec := yaml.NewDecoder(bytes.NewReader([]byte(raw)))
 
@@ -379,14 +349,8 @@ func decodeSingleDocumentList(raw string, crName string) ([]any, error) {
 	return list, nil
 }
 
-// rejectTrailingDocuments verifies that the YAML decoder has no more documents
-// to read. Ordinary trailing whitespace and comments are allowed (the decoder
-// returns io.EOF for those). Additional documents — including an explicit empty
-// second document (---\n) — are rejected.
-//
-// Tested against yaml.v2 v2.4.0: the Decoder returns ordinary errors (not
-// panics) for malformed trailing content including binary garbage and invalid
-// syntax after a document separator.
+// rejectTrailingDocuments rejects additional YAML documents or malformed
+// trailing content, while allowing trailing whitespace and comments.
 func rejectTrailingDocuments(dec *yaml.Decoder, crName string) error {
 	var extra any
 	err := dec.Decode(&extra)

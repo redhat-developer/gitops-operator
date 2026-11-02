@@ -113,8 +113,7 @@ func managedCM(namespace string, data map[string]string, ownerRefs ...metav1.Own
 
 func boolPtr(b bool) *bool { return &b }
 
-// legacyRef builds a recognized legacy owner reference matching the
-// SetControllerReference shape from the old single-CR reconciler.
+// legacyRef builds an owner reference from the old single-CR reconciler.
 func legacyRef(name, uid string) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion:         "argoproj.io/v1alpha1",
@@ -126,14 +125,13 @@ func legacyRef(name, uid string) metav1.OwnerReference {
 	}
 }
 
-// noWriteInterceptors returns interceptor functions that record whether
-// Update, Patch, or Delete was called on a ConfigMap.
 type writeTracker struct {
 	updateCalled bool
 	patchCalled  bool
 	deleteCalled bool
 }
 
+// noWriteInterceptors records ConfigMap update, patch, and delete calls.
 func noWriteInterceptors(tracker *writeTracker) interceptor.Funcs {
 	return interceptor.Funcs{
 		Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
@@ -352,7 +350,7 @@ func TestReconcile_UpdateKeyChangesConfigMap(t *testing.T) {
 func TestReconcile_RemoveKeyChangesConfigMap(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
-			Triggers: map[string]string{
+		Triggers: map[string]string{
 				"trigger.alpha": "when: true",
 				"trigger.beta":  "when: false",
 			},
@@ -789,11 +787,7 @@ func TestReconcile_MigrationEvenWhenDataMatches(t *testing.T) {
 	assert.Empty(t, cm.OwnerReferences)
 }
 
-// TestReconcile_UnsupportedNonControllerRef_BlocksUpdate is an intentional
-// correction from the prior iteration. A non-controller owner reference from
-// an unknown source is not automatically safe on a shared, operator-managed
-// ConfigMap. The operator must not mutate or delete a resource whose ownership
-// it does not fully understand, regardless of the Controller field value.
+// Non-controller owner references can still affect garbage collection.
 func TestReconcile_UnsupportedNonControllerRef_BlocksUpdate(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
@@ -861,12 +855,12 @@ func TestReconcile_InvalidCR_SkippedAndConfigMapUpdated(t *testing.T) {
 	assert.Empty(t, cm.Data, "stale data should be cleared when the only CR is skipped")
 }
 
-func TestReconcile_InvalidCR_SkippedButValidCRMerged(t *testing.T) {
+func TestReconcile_InvalidKey_SkippedButOtherEntriesKept(t *testing.T) {
 	badCR := newTestCR("bad-cr", "default",
 		v1alpha1.NotificationsConfigurationSpec{
 			Triggers: map[string]string{
 				"context":           "reserved-key",
-				"trigger.on-deploy": "should-be-excluded",
+				"trigger.on-deploy": "should-be-kept",
 			},
 		})
 	goodCR := newTestCR("good-cr", "default",
@@ -884,7 +878,9 @@ func TestReconcile_InvalidCR_SkippedButValidCRMerged(t *testing.T) {
 
 	cm := getConfigMap(t, cl, "default")
 	assert.Equal(t, "valid-trigger", cm.Data["trigger.on-sync"], "good CR entries should be present")
-	assert.NotContains(t, cm.Data, "trigger.on-deploy", "bad CR entries should be excluded")
+	assert.Equal(t, "should-be-kept", cm.Data["trigger.on-deploy"], "bad CR's valid entries should still be kept")
+	assert.NotContains(t, cm.Data, "context", "reserved key should not appear as a flat entry")
+	assert.NotContains(t, cm.Data, "trigger.x", "stale data from old ConfigMap should be replaced")
 }
 
 func TestReconcile_WriteConflict_ReturnsForRetry(t *testing.T) {
@@ -1035,15 +1031,8 @@ func TestMigrateLegacyOwnerReferences_OnlyLegacy(t *testing.T) {
 // ---------------------------------------------------------------------------
 // G. Ownership Safety
 //
-// The shared notifications ConfigMap is managed exclusively by this operator
-// through its tracking label. The only supported owner references are those
-// matching the exact SetControllerReference shape from the old single-CR
-// reconciler (see isRecognizedLegacyOwnerReference). Any other owner
-// reference — including non-controller references from unknown sources —
-// indicates an ownership arrangement the operator does not understand and
-// must not silently accept. This is an intentional correction: the prior
-// iteration tolerated arbitrary non-controller references, which is unsafe
-// for a shared resource.
+// Only recognized legacy CR references may be removed from the shared ConfigMap.
+// Other owners block updates and deletion, regardless of the Controller field.
 // ---------------------------------------------------------------------------
 
 func TestReconcile_UnknownControllerOwner_BlocksUpdate(t *testing.T) {
@@ -1198,9 +1187,6 @@ func TestReconcile_SameKindDifferentAPIGroup_BlocksUpdate(t *testing.T) {
 	assert.False(t, tracker.updateCalled)
 }
 
-// TestReconcile_SameAPIVersionKind_NonController_BlocksUpdate verifies that
-// a reference with the correct APIVersion and Kind but Controller != true
-// is NOT recognized as a legacy reference and blocks reconciliation.
 func TestReconcile_SameAPIVersionKind_NonController_BlocksUpdate(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
@@ -1227,8 +1213,6 @@ func TestReconcile_SameAPIVersionKind_NonController_BlocksUpdate(t *testing.T) {
 	assert.False(t, tracker.updateCalled)
 }
 
-// TestReconcile_CorrectAPIVersionKindController_EmptyName_Blocks verifies
-// that an otherwise valid legacy shape with an empty Name is not recognized.
 func TestReconcile_CorrectAPIVersionKindController_EmptyName_Blocks(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
@@ -1256,8 +1240,6 @@ func TestReconcile_CorrectAPIVersionKindController_EmptyName_Blocks(t *testing.T
 	assert.False(t, tracker.updateCalled)
 }
 
-// TestReconcile_CorrectAPIVersionKindController_EmptyUID_Blocks verifies
-// that an otherwise valid legacy shape with an empty UID is not recognized.
 func TestReconcile_CorrectAPIVersionKindController_EmptyUID_Blocks(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
