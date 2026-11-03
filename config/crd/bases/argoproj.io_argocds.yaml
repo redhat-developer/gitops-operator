@@ -13857,6 +13857,7 @@ spec:
                           LogFullDetail is the list of categories the Agent component logs in full detail.
 
                           Applied at runtime: changing this does not restart the Agent.
+                          Default: []
                         items:
                           type: string
                         type: array
@@ -13864,6 +13865,7 @@ spec:
                         description: |-
                           LogLevel refers to the log level used by the Agent component.
                           Applied at runtime: changing this does not restart the Agent.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -13888,6 +13890,7 @@ spec:
                             description: |-
                               Enabled toggles whether the pprof endpoint answers requests.
                               Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
                             type: boolean
                         type: object
                       redis:
@@ -14207,6 +14210,7 @@ spec:
                           LogFullDetail is the list of categories the Principal component logs in full detail.
 
                           Applied at runtime: changing this does not restart the Principal.
+                          Default: []
                         items:
                           type: string
                         type: array
@@ -14214,6 +14218,7 @@ spec:
                         description: |-
                           LogLevel refers to the log level used by the Principal component.
                           Applied at runtime: changing this does not restart the Principal.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -14264,6 +14269,7 @@ spec:
                             description: |-
                               Enabled toggles whether the pprof endpoint answers requests.
                               Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
                             type: boolean
                         type: object
                       redis:
