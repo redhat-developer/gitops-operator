@@ -678,15 +678,15 @@ func getEffectivePrincipalAuth(cr *argoproj.ArgoCD) string {
 
 	// If SPIFFE is enabled but auth is not set, infer the default pattern
 	if principal.SPIFFE != nil && principal.SPIFFE.Enabled {
-		authMethod := common.SpiffeAuthMethodJWT
+		authMethod := argoproj.SpiffeAuthMethodJWT
 		if principal.SPIFFE.AuthMethod != "" {
 			authMethod = principal.SPIFFE.AuthMethod
 		}
 
 		switch authMethod {
-		case common.SpiffeAuthMethodJWT:
+		case argoproj.SpiffeAuthMethodJWT:
 			return defaultPrincipalSPIFFEJWTAuth
-		case common.SpiffeAuthMethodMTLS:
+		case argoproj.SpiffeAuthMethodMTLS:
 			return defaultPrincipalSPIFFEMTLSAuth
 		}
 	}
@@ -852,9 +852,9 @@ func hasPrincipalSPIFFE(cr *argoproj.ArgoCD) bool {
 
 func getPrincipalSpireAuthMethod(cr *argoproj.ArgoCD) string {
 	if hasPrincipalSPIFFE(cr) && cr.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod != "" {
-		return cr.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod
+		return string(cr.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod)
 	}
-	return common.SpiffeAuthMethodJWT
+	return string(argoproj.SpiffeAuthMethodJWT)
 }
 
 func getPrincipalSpiffeCSIDriver(cr *argoproj.ArgoCD) string {

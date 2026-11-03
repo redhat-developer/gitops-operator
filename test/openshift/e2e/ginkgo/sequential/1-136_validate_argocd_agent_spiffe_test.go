@@ -35,6 +35,7 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
@@ -71,18 +72,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Add privileged Pod Security Admission labels required for SPIFFE CSI driver
 			By("Adding privileged pod security labels to namespace for SPIFFE CSI driver")
-			Eventually(func() error {
-				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(ns), ns); err != nil {
-					return err
+			namespaceFixture.Update(ns, func(n *corev1.Namespace) {
+				if n.Labels == nil {
+					n.Labels = make(map[string]string)
 				}
-				if ns.Labels == nil {
-					ns.Labels = make(map[string]string)
-				}
-				ns.Labels["pod-security.kubernetes.io/enforce"] = "privileged"
-				ns.Labels["pod-security.kubernetes.io/audit"] = "privileged"
-				ns.Labels["pod-security.kubernetes.io/warn"] = "privileged"
-				return k8sClient.Update(ctx, ns)
-			}, "30s", "2s").Should(Succeed())
+				n.Labels["pod-security.kubernetes.io/enforce"] = "privileged"
+				n.Labels["pod-security.kubernetes.io/audit"] = "privileged"
+				n.Labels["pod-security.kubernetes.io/warn"] = "privileged"
+			})
 
 			principalDeployment = &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
@@ -197,7 +194,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{
 				Name:  argocdagent.EnvArgoCDPrincipalSpireAuthMethod,
-				Value: common.SpiffeAuthMethodJWT,
+				Value: string(argov1beta1api.SpiffeAuthMethodJWT),
 			}), "Should default to 'jwt' auth method")
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{
@@ -234,7 +231,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoCD = createBasePrincipalArgoCD()
 			argoCD.Spec.ArgoCDAgent.Principal.SPIFFE = &argov1beta1api.SPIFFESpec{
 				Enabled:    true,
-				AuthMethod: common.SpiffeAuthMethodMTLS,
+				AuthMethod: argov1beta1api.SpiffeAuthMethodMTLS,
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
@@ -246,7 +243,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{
 				Name:  argocdagent.EnvArgoCDPrincipalSpireAuthMethod,
-				Value: common.SpiffeAuthMethodMTLS,
+				Value: string(argov1beta1api.SpiffeAuthMethodMTLS),
 			}), "Should use 'mtls' auth method")
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{
@@ -305,7 +302,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SPIFFE = &argov1beta1api.SPIFFESpec{
 					Enabled:    true,
-					AuthMethod: common.SpiffeAuthMethodJWT,
+					AuthMethod: argov1beta1api.SpiffeAuthMethodJWT,
 				}
 			})
 
@@ -320,7 +317,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					return false
 				}
 				for _, env := range container.Env {
-					if env.Name == argocdagent.EnvArgoCDPrincipalSpireAuthMethod && env.Value == common.SpiffeAuthMethodJWT {
+					if env.Name == argocdagent.EnvArgoCDPrincipalSpireAuthMethod && env.Value == string(argov1beta1api.SpiffeAuthMethodJWT) {
 						return true
 					}
 				}
@@ -329,7 +326,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Update auth method from JWT to mTLS")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod = common.SpiffeAuthMethodMTLS
+				ac.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod = argov1beta1api.SpiffeAuthMethodMTLS
 			})
 
 			By("Verify auth method changed to mTLS")
@@ -344,7 +341,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				}
 				for _, env := range container.Env {
 					if env.Name == argocdagent.EnvArgoCDPrincipalSpireAuthMethod {
-						return env.Value == common.SpiffeAuthMethodMTLS
+						return env.Value == string(argov1beta1api.SpiffeAuthMethodMTLS)
 					}
 				}
 				return false
@@ -417,14 +414,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{
 				Name:  agent.EnvArgoCDAgentSpireAuthMethod,
-				Value: common.SpiffeAuthMethodJWT,
+				Value: string(argov1beta1api.SpiffeAuthMethodJWT),
 			}), "Agent should default to JWT")
 
 			verifySpiffeVolumeAndMount(agentDeployment, container, spiffeCSIDriverDefault)
 
 			By("Update to mTLS mode with custom CSI driver")
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod = common.SpiffeAuthMethodMTLS
+				ac.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod = argov1beta1api.SpiffeAuthMethodMTLS
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE.CSIDriverName = spiffeCSIDriverCustom
 			})
 
@@ -441,7 +438,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				// Check auth method
 				authMethodOK := false
 				for _, env := range container.Env {
-					if env.Name == agent.EnvArgoCDAgentSpireAuthMethod && env.Value == common.SpiffeAuthMethodMTLS {
+					if env.Name == agent.EnvArgoCDAgentSpireAuthMethod && env.Value == string(argov1beta1api.SpiffeAuthMethodMTLS) {
 						authMethodOK = true
 						break
 					}
@@ -476,7 +473,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.SPIFFE = &argov1beta1api.SPIFFESpec{
 					Enabled:    true,
-					AuthMethod: common.SpiffeAuthMethodJWT,
+					AuthMethod: argov1beta1api.SpiffeAuthMethodJWT,
 				}
 			})
 

@@ -245,10 +245,11 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.Containers[0].Name = generateAgentResourceName(cr.Name, compName)
 	}
 
-	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, buildAgentContainerEnv(cr)) {
+	desiredEnv := buildAgentContainerEnv(cr)
+	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, desiredEnv) {
 		log.Info("deployment container env is being updated")
 		changed = true
-		deployment.Spec.Template.Spec.Containers[0].Env = buildAgentContainerEnv(cr)
+		deployment.Spec.Template.Spec.Containers[0].Env = desiredEnv
 	}
 
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Args, buildArgs(compName)) {
@@ -314,14 +315,18 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 	tlsSecretName := getAgentTLSSecretName(cr)
 	tlsRootCASecretName := getAgentTLSRootCASecretName(cr)
 
-	// If both SPIFFE and legacy TLS configs are present
-	// SPIFFE takes precedence and legacy TLS configs will be ignored by the agent binary
+	// If both SPIFFE and legacy TLS configs are present, SPIFFE takes precedence.
+	// SecretName/RootCASecretName are ignored by the agent binary; TLS.Insecure must be
+	// suppressed by the operator because the agent fatals when SPIRE and insecure TLS are both set.
 	if hasAgentSPIFFE(cr) && hasTLS(cr) {
 		if cr.Spec.ArgoCDAgent.Agent.TLS.SecretName != "" {
 			log.Info("Both SPIFFE and legacy TLS configs are provided. SPIFFE will be used and TLS.SecretName configs will be ignored by the agent.")
 		}
 		if cr.Spec.ArgoCDAgent.Agent.TLS.RootCASecretName != "" {
 			log.Info("Both SPIFFE and legacy TLS.RootCASecretName are configured. SPIFFE will be used and TLS.RootCASecretName configs will be ignored by the agent.")
+		}
+		if cr.Spec.ArgoCDAgent.Agent.TLS.Insecure != nil && *cr.Spec.ArgoCDAgent.Agent.TLS.Insecure {
+			log.Info("Both SPIFFE and TLS.Insecure are configured. SPIFFE will be used and TLS.Insecure will be ignored to prevent agent startup failure.")
 		}
 	}
 
@@ -539,6 +544,10 @@ func getAgentTLSSecretName(cr *argoproj.ArgoCD) string {
 }
 
 func getAgentTLSInsecure(cr *argoproj.ArgoCD) string {
+	// Agent binary rejects SPIRE + insecure TLS; always emit false when SPIFFE is enabled.
+	if hasAgentSPIFFE(cr) {
+		return "false"
+	}
 	if hasTLS(cr) && cr.Spec.ArgoCDAgent.Agent.TLS.Insecure != nil && *cr.Spec.ArgoCDAgent.Agent.TLS.Insecure {
 		return "true"
 	}
@@ -562,6 +571,13 @@ func getAgentMode(cr *argoproj.ArgoCD) string {
 func getAgentCreds(cr *argoproj.ArgoCD) string {
 	if hasAgent(cr) && cr.Spec.ArgoCDAgent.Agent.Creds != "" {
 		return cr.Spec.ArgoCDAgent.Agent.Creds
+	}
+	// When SPIFFE is enabled,but SPIRE Auth Method is not set, use default value
+	if hasAgentSPIFFE(cr) {
+		if getAgentSpireAuthMethod(cr) == string(argoproj.SpiffeAuthMethodMTLS) {
+			return "mtls:"
+		}
+		return "spiffe-jwt:"
 	}
 	return "mtls:any"
 }
@@ -637,9 +653,9 @@ func hasAgentSPIFFE(cr *argoproj.ArgoCD) bool {
 
 func getAgentSpireAuthMethod(cr *argoproj.ArgoCD) string {
 	if hasAgentSPIFFE(cr) && cr.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod != "" {
-		return cr.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod
+		return string(cr.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod)
 	}
-	return common.SpiffeAuthMethodJWT
+	return string(argoproj.SpiffeAuthMethodJWT)
 }
 
 func getAgentSpiffeCSIDriver(cr *argoproj.ArgoCD) string {

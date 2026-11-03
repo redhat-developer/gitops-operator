@@ -1307,6 +1307,18 @@ type PrincipalSelfRegistrationSpec struct {
 	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
 }
 
+// SpiffeAuthMethod is the SPIFFE authentication method for SPIRE workload attestation.
+type SpiffeAuthMethod string
+
+// SPIFFE auth methods.
+const (
+	// SpiffeAuthMethodJWT is the SPIFFE auth method for JWT-SVIDs.
+	SpiffeAuthMethodJWT SpiffeAuthMethod = "jwt"
+
+	// SpiffeAuthMethodMTLS is the SPIFFE auth method for X.509-SVIDs (mTLS).
+	SpiffeAuthMethodMTLS SpiffeAuthMethod = "mtls"
+)
+
 // SPIFFESpec defines the SPIFFE/SPIRE configuration for ArgoCD components.
 // +k8s:openapi-gen=true
 type SPIFFESpec struct {
@@ -1318,7 +1330,7 @@ type SPIFFESpec struct {
 	// Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
 	// Default: "jwt"
 	// +kubebuilder:validation:Enum=jwt;mtls
-	AuthMethod string `json:"authMethod,omitempty"`
+	AuthMethod SpiffeAuthMethod `json:"authMethod,omitempty"`
 
 	// CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
 	// Default: "csi.spiffe.io"

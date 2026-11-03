@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	v1beta1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 )
 
 type argoCDAlphaOpt func(*ArgoCD)
@@ -905,7 +904,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						Enabled: &enabled,
 						SPIFFE: &SPIFFESpec{
 							Enabled:       true,
-							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							AuthMethod:    SpiffeAuthMethodMTLS,
 							CSIDriverName: "custom.csi.driver.io",
 						},
 					},
@@ -918,7 +917,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						Enabled: &enabled,
 						SPIFFE: &v1beta1.SPIFFESpec{
 							Enabled:       true,
-							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							AuthMethod:    v1beta1.SpiffeAuthMethodMTLS,
 							CSIDriverName: "custom.csi.driver.io",
 						},
 					},
@@ -1425,7 +1424,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						Enabled: &enabled,
 						SPIFFE: &v1beta1.SPIFFESpec{
 							Enabled:       true,
-							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							AuthMethod:    v1beta1.SpiffeAuthMethodMTLS,
 							CSIDriverName: "custom.csi.driver.io",
 						},
 					},
@@ -1438,7 +1437,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						Enabled: &enabled,
 						SPIFFE: &SPIFFESpec{
 							Enabled:       true,
-							AuthMethod:    common.SpiffeAuthMethodMTLS,
+							AuthMethod:    SpiffeAuthMethodMTLS,
 							CSIDriverName: "custom.csi.driver.io",
 						},
 					},

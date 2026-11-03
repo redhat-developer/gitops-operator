@@ -1137,7 +1137,7 @@ func ConvertAlphaToBetaSPIFFE(src *SPIFFESpec) *v1beta1.SPIFFESpec {
 	if src != nil {
 		dst = &v1beta1.SPIFFESpec{
 			Enabled:       src.Enabled,
-			AuthMethod:    src.AuthMethod,
+			AuthMethod:    v1beta1.SpiffeAuthMethod(src.AuthMethod),
 			CSIDriverName: src.CSIDriverName,
 		}
 	}
@@ -1149,7 +1149,7 @@ func ConvertBetaToAlphaSPIFFE(src *v1beta1.SPIFFESpec) *SPIFFESpec {
 	if src != nil {
 		dst = &SPIFFESpec{
 			Enabled:       src.Enabled,
-			AuthMethod:    src.AuthMethod,
+			AuthMethod:    SpiffeAuthMethod(src.AuthMethod),
 			CSIDriverName: src.CSIDriverName,
 		}
 	}
