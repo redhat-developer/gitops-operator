@@ -103,7 +103,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			} else {
 				// when running against RC/ released version of gitops
-				expected_argocdVersion = "v3.5.5"
+				expected_argocdVersion = "v3.5.6"
 				expected_dexVersion = "v2.45.1"
 				expected_redisVersion = "7.2.16"
 				expected_kustomizeVersion = "v5.8.2"
