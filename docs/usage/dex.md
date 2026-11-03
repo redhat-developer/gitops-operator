@@ -92,7 +92,7 @@ metadata:
   name: <argocd-instance-name>
 spec:
   rbac:
-    policy.csv: |
+    policy: |
       g, foo-admins, role:admin
 ```
 
@@ -114,7 +114,7 @@ metadata:
   name: <argocd-instance-name>
 spec:
   rbac:
-    policy.csv: |
+    policy: |
       g, foo@example.com, role:admin
       g, bar, role:admin
     scopes: '[groups,name,email]'
