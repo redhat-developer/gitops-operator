@@ -437,7 +437,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.ArgoCDAgent.Principal.LogFormat = "json"
 				ac.Spec.ArgoCDAgent.Principal.Server.KeepAliveMinInterval = "60s"
 				ac.Spec.ArgoCDAgent.Principal.Server.EnableWebSocket = new(true)
-				ac.Spec.ArgoCDAgent.Principal.Image = common.ArgoCDAgentPrincipalDefaultImageName
+				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 				ac.Spec.ArgoCDAgent.Principal.LabelSelector = "env=staging"
 
 				ac.Spec.ArgoCDAgent.Principal.Namespace.AllowedNamespaces = []string{"agent-managed", "agent-autonomous"}
@@ -484,7 +484,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == common.ArgoCDAgentPrincipalDefaultImageName
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 				}, "120s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
 
 			By("verify that deployment is in Ready state")
@@ -763,14 +763,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			Eventually(principalService).Should(k8sFixture.ExistByName())
-			Eventually(func() map[string]string {
+			Eventually(func() (map[string]string, error) {
 				err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalService)
-				if err != nil {
-					return nil
-				}
-				return principalService.Annotations
+				return principalService.Annotations, err
 			}, "30s", "2s").ShouldNot(HaveKey("test.argocd.io/annotation"))
-
 		})
 
 		It("should handle service type updates correctly", func() {
