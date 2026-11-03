@@ -5,6 +5,7 @@
 Operators may be responsible for hundreds of clusters (including cluster additions and deletions), and thus installing and managing these add-ons must be fully automated. Monorepos present problems with manual effort, and giving users the correct level of access to applications can be a challenge overall. 
 
 A lot of these problems can be solved with the use of the App-of-Apps pattern; however, the App-of-Apps pattern still presents some issues: 
+
 - Users must still maintain a collection of individual Application resources in git
 - Because of the repetitive nature of writing these Application specs, users often end up scripting the generation of Application specs
 - Because the Application CR exposes sensitive fields such as project, cluster, namespace a high degree of trust is required of developers
@@ -17,6 +18,7 @@ A better way to solve these problems than using the App-of-Apps pattern is throu
 ApplicationSets are a separate CRD that allows cluster administrators to define a single ApplicationSet Kubernetes YAML resource that will generate (and update or delete) multiple corresponding Argo CD Application CRs.
 
 ApplicationSets offers a number of improvements via automation. With ApplicationSets you can: 
+
 - automatically deploy to multiple cluster at once, and automatically adapt to the addition/removal of clusters
 - handle large deployments of Argo CD Applications from a single mono-repository, automatically responding to the addition/removal of new applications to the repository
 - enable development teams to manage large groups of applications securely, via self-service, without cluster administrator review, on a cluster managed via Argo CD.
@@ -25,10 +27,12 @@ ApplicationSets offers a number of improvements via automation. With Application
 When you create, update, or delete an ApplicationSet resource, the ApplicationSet Controller responds by creating, updating, or deleting one or more corresponding Argo CD Application resources.
 
 The ApplicationSet Controller does: 
+
 - create, update, and delete Application resources within the default `gitops-operator` namespace. 
 - ensure that the Application resources remain consistent with the defined declarative ApplicationSet resource
 
 The ApplicationSet Controller does NOT:
+
 - Create/modify/delete Kubernetes resources (other than the Application CR)
 - Connect to clusters other than the one Argo CD is deployed to
 - Interact with namespaces other than the one Argo CD is deployed within
@@ -64,11 +68,11 @@ The following options are available for the Argo CD ApplicationSet Controller in
 <!--- | enabled    | true  | Enabled is the flag to enable the Application Set Controller during ArgoCD installation. (optional) | -->
 
 
-**ApplicationSet ExtraCommandArgs:**
+#### ApplicationSet ExtraCommandArgs
 
 The example shows how a user can add command arguments to the ApplicationSet Controller. 
 
-```
+```yaml
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
@@ -81,7 +85,7 @@ spec:
 ```
 
 The following describes all the available fields of an ApplicationSet: 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -126,6 +130,7 @@ spec:
 Generators are responsible for generating parameters, which are then rendered into the template fields of the ApplicationSet resource.
 
 There are currently (as of GitOps v1.11.0) 9 types of Generators:
+
 - List Generator: The List generator allows you to target Argo CD Applications to clusters based on a fixed list of any chosen key/value element pairs.
 - Cluster Generator: The Cluster generator allows you to target Argo CD Applications to clusters, based on the list of clusters defined within (and managed by) Argo CD (which includes automatically responding to cluster addition/removal events from Argo CD).
 - Git Generator: The Git generator allows you to create Applications based on files within a Git repository, or based on the directory structure of a Git repository.
@@ -146,6 +151,7 @@ The ApplicationSet Controller creates/modifies/deletes Argo CD Application resou
 Once again, please note that **only admins may create, update, and delete ApplicationSets.**
 
 All Argo CD Application resources created by the ApplicationSet controller (from an ApplicationSet) will contain:
+
 - A `.metadata.ownerReferences` reference back to the parent ApplicationSet resource
   - This means that when the ApplicationSet is deleted, the Applications will automatically be deleted.
 - An Argo CD `resources-finalizer.argocd.argoproj.io` finalizer in `.metadata.finalizers` of the Application (only applies if `.syncPolicy.preserveResourcesOnDeletion` is set to false)
@@ -167,25 +173,27 @@ To prevent the ApplicationSet controller from creating, modifying, or deleting a
   To enable dry-run: 
 
   1. Add `--dryrun true` to the ApplicationSet Deployment's container launch parameters with `kubectl edit deployment/openshift-gitops-applicationset-controller -n openshift-gitops`
-  2. Locate the `.spec.template.spec.containers[0].command` field, and add the required parameter(s):
-  ```
+  2. Locate the `.spec.template.spec.containers[0].command` field, and add the required parameter(s):  
+```yaml
+spec:
+  # (...)
+template:
+  # (...)
   spec:
-    # (...)
-  template:
-    # (...)
-    spec:
-      containers:
-      - command:
-        - entrypoint.sh
-        - openshift-gitops-applicationset-controller
-        # Insert new parameters here, for example:
-        # --dryrun true
-    # (...)
-  ```
+    containers:
+    - command:
+      - entrypoint.sh
+      - openshift-gitops-applicationset-controller
+      # Insert new parameters here, for example:
+      # --dryrun true
+  # (...)
+```
+
 #### 2. Using Managed Application Modification Policies
 
 The ApplicationSet Controller spec allows you to add a `syncPolicy.applicationsSync` field, like so: 
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -193,15 +201,18 @@ spec:
   syncPolicy:
     applicationsSync: create-only 
 ```
+
 The options for the `applicationsSync` field are:
-- create-only: Prevents ApplicationSet controller from modifying or deleting Applications.
-- create-update: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
-- create-delete: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
-- sync (default): Update and Delete are allowed.
+ 
+- `create-only`: Prevents ApplicationSet controller from modifying or deleting Applications.
+- `create-update`: Prevents ApplicationSet controller from deleting Applications. Update is allowed.
+- `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
+- `sync` (default): Update and Delete are allowed.
 
 You could also do the same via the `--policy` addition to the ApplicationSet controller Deployment.
 Run `kubectl edit deployment/gitops-applicationset-controller -n openshift-gitops` and then edit the `.spec.template.spec.containers[0].command` to have the following: 
-```
+
+```yaml
 spec:
     # (...)
   template:
@@ -223,7 +234,7 @@ Note: this does not prevent deletion of Applications if the ApplicationSet itsel
 
 The ApplicationSet spec has an `ignoreApplicationDifferences` field which allows you to specify which fields of the ApplicationSet should be ignored when comparing Applications. Multiple ignore rules can be used and each ignore rule may specify a list of either `jsonPointers` or `jqPathExpressions` to ignore. You may optionally also specify a name to apply the ignore rule to a specific Application, or omit the name to apply the ignore rule to all Applications.
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -234,10 +245,11 @@ spec:
       jqPathExpressions:
         - .spec.source.helm.values
 ```
-**Temporarily Ignoring Certain Changes to Applications**
+##### Temporarily Ignoring Certain Changes to Applications
 
-If you have an ApplicationSet that is configured to automatically sync Applications, there may come a time when you may want to temporarily disable auto-sync for a specific Application. You can do this by adding an ignore rule for the spec.syncPolicy.automated field:
-```
+If you have an ApplicationSet that is configured to automatically sync Applications, there may come a time when you may want to temporarily disable auto-sync for a specific Application. You can do this by adding an ignore rule for the `spec.syncPolicy.automated` field:
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -246,10 +258,11 @@ spec:
         - /spec/syncPolicy
 ```
 
-**Limitations of `ignoreApplicationDifferences`: **
+##### Limitations of `ignoreApplicationDifferences`
 
 When the ignored field is part of a list, such as when you have an Application with multiple sources, changes to other fields or in other sources will cause the entire list to be replaced, and the related fields will be reset to the value defined in the ApplicationSet. This is due to how ApplicationSets generate MergePatches, which state that “existing lists will be completely replaced by new lists" when there is a change to the list. So in the case of having multiple sources, if we have an ApplicationSet that looks like this: 
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -265,7 +278,8 @@ spec:
         targetRevision: main
 ```
 We can change the `targetRevision` of the first repo source and the ApplicationSet controller will not overwrite the changes. 
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
@@ -276,7 +290,8 @@ spec:
     targetRevision: main
 ```
 But if we change the targetRevision of the second repo source, the ApplicationSet will overwrite the entire sources field. 
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
@@ -290,7 +305,8 @@ spec:
 #### 4. Preventing an Application’s child resources from being deleted when the parent application is deleted
 
 By default, when an Application resource is deleted by the ApplicationSet controller, all of the child resources of the Application will be deleted as well. To prevent this behavior and keep the child resources, add the `preserveResourcesOnDeletion: true` field to the syncPolicy of the ApplicationSet:
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -301,6 +317,7 @@ spec:
 Using the `preserveResourcesOnDeletion` policy will prevent the finalizer from being added to Applications, thus stopping their deletion. 
 
 Another way of achieving this behavior would be to delete the ApplicationSet using a non-cascading delete:
+
 ```
 kubectl delete ApplicationSet (NAME) --cascade=orphan
 ```
@@ -311,7 +328,8 @@ Please note though that when using the non-cascaded delete, the `resources-final
 #### 5. Preventing an Application’s child resources from being modified
 
 When an Application resource is updated by the ApplicationSet controller, all of the child resources of the Application will be updated accordingly. However, by default (and as a safety mechanism), automated syncs will not delete resources when Argo CD detects the resource is no longer defined in Git. You can "pause" updates to cluster resources managed by the `Application` resource by unsetting the `spec.template.syncPolicy.automated`. As an extra precaution, you could also have `spec.template.syncPolicy.automated.prune` set to false to prevent any unexpected changes. 
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
@@ -324,7 +342,8 @@ spec:
 #### 6. Preserving Application annotation and labels
 
 If you have annotations and/or labels that you have applied to Applications after their generation by an ApplicationSet, to keep those annotations/labels when syncing you must use the `preservedFields` property like below:
-```
+
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:

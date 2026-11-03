@@ -1,10 +1,3 @@
-- [Overview](#overview)
-- [Installing & Configuring Dex](#installing--configuring-dex)
-- [Dex OpenShift OAuth Connector](#dex-openshift-oauth-connector)
-    - [Role Mappings](#role-mappings)
-- [Dex GitHub Connector](#dex-github-connector)
-- [Uninstalling Dex](#uninstalling-dex)
-
 ## Overview
 
 Dex can be used to delegate authentication to external identity providers like GitHub, SAML and others. SSO configuration of Argo CD requires updating the Argo CD CR with [Dex connector](https://dexidp.io/docs/connectors/) settings.

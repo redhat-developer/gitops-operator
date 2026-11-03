@@ -1406,9 +1406,11 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 
 func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 	tests := []struct {
-		name         string
-		centralTLS   tlsProfile.TLSConfigProfile
-		expectedArgs []string
+		name           string
+		centralTLS     tlsProfile.TLSConfigProfile
+		expectedArgs   []string
+		unexpectedArgs []string
+		wantErr        bool
 	}{
 		{
 			name: "central tls profile",
@@ -1428,11 +1430,50 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			},
 		},
 		{
+			name: "central tls profile with curve preferences",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: false,
+				MinVersion:               configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+				},
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			expectedArgs: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlsciphers",
+				"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+				"--tlscurvepreferences",
+				"X25519MLKEM768:X25519:CurveP256",
+			},
+		},
+		{
 			name: "Disable cluster tls profile",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				DisableClusterTLSProfile: true,
 			},
-			expectedArgs: []string{},
+			expectedArgs:   []string{},
+			unexpectedArgs: []string{"--tlsminversion", "--tlsciphers", "--tlscurvepreferences"},
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: false,
+				MinVersion:               configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expectedArgs: []string{
+				"--tlsminversion",
+				"1.2",
+			},
+			unexpectedArgs: []string{"--tlscurvepreferences"},
 		},
 	}
 	for _, tt := range tests {
@@ -1452,6 +1493,10 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 				CentralTLSConfigProfile: tt.centralTLS,
 			}
 			err := r.reconcileImageUpdaterDeployment(cr, sa, "", nil)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 			deployment := &appsv1.Deployment{}
 			err = client.Get(context.TODO(), types.NamespacedName{Name: nameWithSuffix(common.ArgoCDImageUpdaterControllerComponent, cr), Namespace: cr.Namespace}, deployment)
@@ -1460,8 +1505,41 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			for _, expected := range tt.expectedArgs {
 				assert.Contains(t, args, expected)
 			}
+			for _, unexpected := range tt.unexpectedArgs {
+				assert.NotContains(t, args, unexpected)
+			}
 		})
 	}
+}
+
+func TestReconcileImageUpdaterDeployment_DisabledWithUnsupportedCurves(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = appsv1.AddToScheme(scheme)
+	_ = v1.AddToScheme(scheme)
+	_ = argoproj.AddToScheme(scheme)
+
+	cr := makeTestArgoCD()
+	cr.Spec.ImageUpdater.Enabled = false
+	sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "test-sa", Namespace: cr.Namespace}}
+	existing := newDeploymentWithSuffix(common.ArgoCDImageUpdaterControllerComponent, "controller", cr)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cr, sa, existing).Build()
+	r := &ReconcileArgoCD{
+		Client: client,
+		Scheme: scheme,
+		CentralTLSConfigProfile: tlsProfile.TLSConfigProfile{
+			DisableClusterTLSProfile: false,
+			MinVersion:               configv1.VersionTLS12,
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+			},
+		},
+	}
+
+	require.NoError(t, r.reconcileImageUpdaterDeployment(cr, sa, "", nil))
+
+	deployment := &appsv1.Deployment{}
+	err := client.Get(context.TODO(), types.NamespacedName{Name: existing.Name, Namespace: cr.Namespace}, deployment)
+	assert.True(t, errors.IsNotFound(err), "disabled Image Updater deployment should be deleted even when curve preferences are unsupported")
 }
 
 func TestSelectImageUpdaterImage(t *testing.T) {

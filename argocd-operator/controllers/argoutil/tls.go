@@ -209,7 +209,10 @@ var openShiftTLSGroupToGoCurve = map[configv1.TLSGroup]string{
 }
 
 // MapOpenShiftTLSGroupsToGoCurves converts OpenShift TLS groups to a
-// colon-separated list of Go crypto/tls curve names (e.g. CurveP256, X25519).
+// colon-separated list of Go crypto/tls curve names (e.g. CurveP256, X25519)
+// for Go-based components (gitops-backend, argocd-agent principal, etc.).
+// Callers that need a different separator (e.g. commas for the agent principal
+// ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES) should replace ":" as needed.
 // Unsupported groups are skipped and logged. If groups is non-empty but none
 // are supported by Go, an error is returned so callers do not treat an
 // incompatible profile as an absent preference.
