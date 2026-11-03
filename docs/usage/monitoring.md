@@ -113,7 +113,18 @@ Short bursts should not fire. The alert only fires if the rate stays above the t
 
 - To change thresholds, edit `gitops-operator-argocd-sync-loop-alerts` in place; the Operator will not revert your changes. Adding a separate `PrometheusRule` with the same alert name does not override the shipped one; both will fire. The Operator does not expose tunables on the Argo CD CR.
 
-A failing loop with a high enough total rate can fire both `ArgoCDAppSyncFailureLoop` and `ArgoCDAppSyncLoop`. The Operator does not manage Alertmanager. If you want a single notification, inhibit the `ArgoCDAppSyncFailureLoop` warning when the failure alert is already firing for the same Application (`name` and `namespace`).
+A failing loop with a high enough total rate can fire both `ArgoCDAppSyncFailureLoop` and `ArgoCDAppSyncLoop`. The Operator does not manage Alertmanager. If you want a single notification, inhibit the general `ArgoCDAppSyncLoop` alert while `ArgoCDAppSyncFailureLoop` is firing for the same Application, matching on `name` and `namespace`. For example, in the `alertmanager.yaml` configuration of the Alertmanager that receives these alerts (an `AlertmanagerConfig` resource uses a different, camelCase syntax):
+
+```yaml
+inhibit_rules:
+- source_matchers:
+  - alertname = ArgoCDAppSyncFailureLoop
+  target_matchers:
+  - alertname = ArgoCDAppSyncLoop
+  equal:
+  - name
+  - namespace
+```
 
 ## Querying Argo CD metrics
 
