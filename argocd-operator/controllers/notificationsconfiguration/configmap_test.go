@@ -295,7 +295,7 @@ func TestReconcile_DuplicateKeyPrecedence(t *testing.T) {
 		"oldest CR should win by precedence")
 }
 
-func TestReconcile_TiedConflictWarningOmitsValues(t *testing.T) {
+func TestReconcile_TiedConflictErrorOmitsValues(t *testing.T) {
 	timestamp := metav1.NewTime(time.Now())
 	crA := newTestCR("cr-a", "default", v1alpha1.NotificationsConfigurationSpec{
 		Services: map[string]string{"service.webhook": "token: selected-secret"},
@@ -312,13 +312,129 @@ func TestReconcile_TiedConflictWarningOmitsValues(t *testing.T) {
 	_, err := r.Reconcile(ctrl.LoggerInto(context.TODO(), logger), reconcileReq("default"))
 	require.NoError(t, err)
 
-	assert.Contains(t, output, "Warning: merge conflict")
-	assert.Contains(t, output, "oldest creationTimestamp, then alphabetical CR name")
+	assert.Contains(t, output, "merge conflict: equal creation timestamps")
+	assert.Contains(t, output, `"error":`)
 	assert.Contains(t, output, `"key":"service.webhook"`)
-	assert.Contains(t, output, `"selectedCR":"default/cr-a"`)
+	assert.Contains(t, output, `"existingCR":"default/cr-a"`)
 	assert.Contains(t, output, `"conflictingCR":"default/cr-b"`)
 	assert.NotContains(t, output, "selected-secret")
 	assert.NotContains(t, output, "conflicting-secret")
+	assert.NotContains(t, getConfigMap(t, r.Client, "default").Data, "service.webhook")
+}
+
+func TestReconcile_TimestampTieRetainsExistingKeyUntilResolved(t *testing.T) {
+	for _, existing := range []string{"absent", "matching", "unmatched"} {
+		for _, resolution := range []string{"edit", "delete"} {
+			t.Run(fmt.Sprintf("existing=%s/%s", existing, resolution), func(t *testing.T) {
+				timestamp := metav1.NewTime(time.Now())
+				a := newTestCR("a", "default", v1alpha1.NotificationsConfigurationSpec{
+					Triggers: map[string]string{"trigger.shared": "a", "trigger.valid": "new"},
+					Context:  map[string]string{"region": "east", "environment": "new"},
+				})
+				b := newTestCR("b", "default", v1alpha1.NotificationsConfigurationSpec{
+					Triggers: map[string]string{"trigger.shared": "b"},
+					Context:  map[string]string{"region": "west"},
+				})
+				a.CreationTimestamp, b.CreationTimestamp = timestamp, timestamp
+				objects := []client.Object{a, b}
+				if existing != "absent" {
+					value, context := "stored", "region: stored\n"
+					if existing == "matching" {
+						value, context = "b", "region: west\n"
+					}
+					objects = append(objects, managedCM("default", map[string]string{
+						"trigger.shared": value, "context": context, "stale": "remove",
+					}))
+				}
+				cl := testClient(objects...)
+				r := testReconciler(cl)
+				for i := 0; i < 2; i++ {
+					_, err := r.Reconcile(context.TODO(), reconcileReq("default"))
+					require.NoError(t, err)
+					cm := getConfigMap(t, cl, "default")
+					if existing == "matching" {
+						assert.Equal(t, "b", cm.Data["trigger.shared"])
+						assert.Equal(t, "west", decodeContext(t, cm.Data)["region"])
+					} else {
+						assert.NotContains(t, cm.Data, "trigger.shared")
+						assert.NotContains(t, decodeContext(t, cm.Data), "region")
+					}
+					assert.Equal(t, "new", cm.Data["trigger.valid"])
+					assert.Equal(t, "new", decodeContext(t, cm.Data)["environment"])
+					assert.NotContains(t, cm.Data, "stale")
+				}
+				if resolution == "delete" {
+					require.NoError(t, cl.Delete(context.TODO(), b))
+				} else {
+					current := &v1alpha1.NotificationsConfiguration{}
+					require.NoError(t, cl.Get(context.TODO(), client.ObjectKeyFromObject(b), current))
+					current.Spec = a.Spec
+					require.NoError(t, cl.Update(context.TODO(), current))
+				}
+				_, err := r.Reconcile(context.TODO(), reconcileReq("default"))
+				require.NoError(t, err)
+				cm := getConfigMap(t, cl, "default")
+				assert.Equal(t, "a", cm.Data["trigger.shared"])
+				assert.Equal(t, "east", decodeContext(t, cm.Data)["region"])
+			})
+		}
+	}
+}
+
+func TestReconcile_UnreadableContextDoesNotBlockOtherKeys(t *testing.T) {
+	timestamp := metav1.NewTime(time.Now())
+	a := newTestCR("a", "default", v1alpha1.NotificationsConfigurationSpec{
+		Context:  map[string]string{"region": "east", "environment": "new"},
+		Triggers: map[string]string{"trigger.valid": "new-trigger"},
+	})
+	b := newTestCR("b", "default", v1alpha1.NotificationsConfigurationSpec{
+		Context: map[string]string{"region": "west"},
+	})
+	a.CreationTimestamp, b.CreationTimestamp = timestamp, timestamp
+	raw := "region: old\nunrelated: [stored-secret]\n"
+	cl := testClient(a, b, managedCM("default", map[string]string{
+		"context": raw, "trigger.valid": "old-trigger", "stale": "remove",
+	}))
+	r := testReconciler(cl)
+	var output string
+	logger := funcr.NewJSON(func(entry string) { output += entry + "\n" }, funcr.Options{})
+	ctx := ctrl.LoggerInto(context.TODO(), logger)
+
+	_, err := r.Reconcile(ctx, reconcileReq("default"))
+	require.NoError(t, err)
+	cm := getConfigMap(t, cl, "default")
+	assert.Equal(t, map[string]string{"environment": "new"}, decodeContext(t, cm.Data))
+	assert.Equal(t, "new-trigger", cm.Data["trigger.valid"])
+	assert.NotContains(t, cm.Data, "stale")
+	assert.Contains(t, output, "existing context is not a single YAML string mapping")
+	assert.Contains(t, output, `"configMap":"default/argocd-notifications-cm"`)
+	assert.NotContains(t, output, "stored-secret")
+
+	version := cm.ResourceVersion
+	_, err = r.Reconcile(ctx, reconcileReq("default"))
+	require.NoError(t, err)
+	assert.Equal(t, version, getConfigMap(t, cl, "default").ResourceVersion)
+
+	// A readable stored value is retained only when a tied CR defines it.
+	cm.Data["context"] = "region: west\n"
+	require.NoError(t, cl.Update(context.TODO(), cm))
+	output = ""
+	_, err = r.Reconcile(ctx, reconcileReq("default"))
+	require.NoError(t, err)
+	cm = getConfigMap(t, cl, "default")
+	assert.Equal(t, map[string]string{"region": "west", "environment": "new"}, decodeContext(t, cm.Data))
+	assert.NotContains(t, output, "existing context is not a single YAML string mapping")
+
+	// Resolving the CR conflict also replaces unreadable stored context normally.
+	cm.Data["context"] = raw
+	require.NoError(t, cl.Update(context.TODO(), cm))
+	current := &v1alpha1.NotificationsConfiguration{}
+	require.NoError(t, cl.Get(context.TODO(), client.ObjectKeyFromObject(b), current))
+	current.Spec.Context = a.Spec.Context
+	require.NoError(t, cl.Update(context.TODO(), current))
+	_, err = r.Reconcile(ctx, reconcileReq("default"))
+	require.NoError(t, err)
+	assert.Equal(t, a.Spec.Context, decodeContext(t, getConfigMap(t, cl, "default").Data))
 }
 
 func TestReconcile_UpdateKeyChangesConfigMap(t *testing.T) {
@@ -350,7 +466,7 @@ func TestReconcile_UpdateKeyChangesConfigMap(t *testing.T) {
 func TestReconcile_RemoveKeyChangesConfigMap(t *testing.T) {
 	cr := newTestCR(DefaultNotificationsConfigurationName, "default",
 		v1alpha1.NotificationsConfigurationSpec{
-		Triggers: map[string]string{
+			Triggers: map[string]string{
 				"trigger.alpha": "when: true",
 				"trigger.beta":  "when: false",
 			},

@@ -92,10 +92,18 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 		return reconcile.Result{}, nil
 	}
 
-	mergeResult, err := MergeNotificationsConfigurations(crList.Items)
+	mergeResult, err := MergeNotificationsConfigurations(crList.Items, existingCM.Data)
 	if err != nil {
 		reqLogger.Error(err, "merge failed, preserving existing ConfigMap data")
 		return reconcile.Result{}, err
+	}
+
+	if mergeResult.InvalidExistingContext {
+		reqLogger.Error(nil,
+			"existing context is not a single YAML string mapping; disputed context entries omitted, other entries merged from CRs",
+			"key", contextConfigMapKey,
+			"configMap", cmKey.String(),
+		)
 	}
 
 	for _, skipped := range mergeResult.SkippedEntries {
@@ -108,11 +116,19 @@ func (r *NotificationsConfigurationReconciler) Reconcile(ctx context.Context, re
 	}
 
 	for _, conflict := range mergeResult.Conflicts {
+		if conflict.EqualTimestamp {
+			reqLogger.Error(nil,
+				"merge conflict: equal creation timestamps; existing value retained only if an oldest tied CR defines it, otherwise key omitted",
+				"key", conflict.Key,
+				"existingCR", fmt.Sprintf("%s/%s", request.Namespace, conflict.ExistingCR),
+				"conflictingCR", fmt.Sprintf("%s/%s", request.Namespace, conflict.ConflictingCR),
+			)
+			continue
+		}
 		reqLogger.Info(
-			"Warning: merge conflict: selected CR takes precedence by oldest creationTimestamp, "+
-				"then alphabetical CR name; conflicting entry ignored",
+			"Warning: merge conflict: newer CR entry ignored",
 			"key", conflict.Key,
-			"selectedCR", fmt.Sprintf("%s/%s", request.Namespace, conflict.ExistingCR),
+			"olderCR", fmt.Sprintf("%s/%s", request.Namespace, conflict.ExistingCR),
 			"conflictingCR", fmt.Sprintf("%s/%s", request.Namespace, conflict.ConflictingCR),
 		)
 	}

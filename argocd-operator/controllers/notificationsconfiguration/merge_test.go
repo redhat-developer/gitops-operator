@@ -71,7 +71,7 @@ func TestMerge_SingleCR_AllFields(t *testing.T) {
 		Context: map[string]string{"env": "prod", "region": "us-east-1"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "- when: \"true\"\n  send: [app-created]", result.Data["trigger.on-created"])
@@ -93,7 +93,7 @@ func TestMerge_SingleCR_CompatibleWithExistingSemantics(t *testing.T) {
 		Templates: map[string]string{"template.app-created": "email: subject: test"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "- when: \"true\"", result.Data["trigger.on-created"])
@@ -113,7 +113,7 @@ func TestMerge_SingleCR_IntraCRCrossFieldOverwrite(t *testing.T) {
 		Templates: map[string]string{"shared.key": "from-templates"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "from-templates", result.Data["shared.key"],
@@ -132,7 +132,7 @@ func TestMerge_MultipleCRs_DisjointKeys(t *testing.T) {
 		Triggers: map[string]string{"trigger.b": "when: false"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "when: true", result.Data["trigger.a"])
@@ -148,7 +148,7 @@ func TestMerge_MultipleCRs_SameValueRecordsDuplicate(t *testing.T) {
 		Triggers: map[string]string{"trigger.shared": "when: true"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "when: true", result.Data["trigger.shared"])
@@ -173,7 +173,7 @@ func TestMerge_MultipleCRs_DifferentValueConflict(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crOlder, crNewer})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crOlder, crNewer}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "OlderValue", result.Data["template.sync"])
@@ -197,7 +197,7 @@ func TestMerge_MultipleCRs_OldestWinsRegardlessOfName(t *testing.T) {
 		Triggers: map[string]string{"trigger.health": "NewerValue"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOldest})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOldest}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "OldestValue", result.Data["trigger.health"],
@@ -207,7 +207,7 @@ func TestMerge_MultipleCRs_OldestWinsRegardlessOfName(t *testing.T) {
 	assert.Equal(t, "aaa-custom", result.Conflicts[0].ConflictingCR)
 }
 
-func TestMerge_MultipleCRs_EqualTimestampsUseName(t *testing.T) {
+func TestMerge_MultipleCRs_EqualTimestampsOmitConflictingKeys(t *testing.T) {
 	created := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	crA := makeCRAt("cr-a", created, v1alpha1.NotificationsConfigurationSpec{
 		Triggers:      map[string]string{"trigger.shared": "A-value"},
@@ -221,19 +221,158 @@ func TestMerge_MultipleCRs_EqualTimestampsUseName(t *testing.T) {
 	})
 
 	for _, crs := range [][]v1alpha1.NotificationsConfiguration{{crA, crB}, {crB, crA}} {
-		result, err := MergeNotificationsConfigurations(crs)
+		result, err := MergeNotificationsConfigurations(crs, nil)
 		require.NoError(t, err)
-		assert.Equal(t, "A-value", result.Data["trigger.shared"])
-		assert.Equal(t, "east", decodeContext(t, result.Data)["region"])
+		assert.NotContains(t, result.Data, "trigger.shared")
+		assert.NotContains(t, result.Data, "context")
 		assert.ElementsMatch(t, []MergeConflict{
-			{Key: "region", ExistingCR: "cr-a", ConflictingCR: "cr-b"},
-			{Key: "trigger.shared", ExistingCR: "cr-a", ConflictingCR: "cr-b"},
+			{Key: "region", ExistingCR: "cr-a", ConflictingCR: "cr-b", EqualTimestamp: true},
+			{Key: "trigger.shared", ExistingCR: "cr-a", ConflictingCR: "cr-b", EqualTimestamp: true},
 		}, result.Conflicts)
 		assert.Equal(t, "- recipients:\n  - slack:a\n- recipients:\n  - slack:b", result.Data["subscriptions"])
 	}
 }
 
 // ---------- B2. Existing-ConfigMap precedence ----------
+
+func TestMerge_TimestampTiesRetainOnlyMatchingValues(t *testing.T) {
+	created := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	a := makeCRAt("a", created, v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"region": "a", "service.valid": "new"},
+		Context:  map[string]string{"region": "east", "environment": "new"},
+	})
+	b := makeCRAt("b", created, v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"region": "b"},
+		Context:  map[string]string{"region": "west"},
+	})
+	c := makeCRAt("c", created, v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"region": "c"},
+		Context:  map[string]string{"region": "north"},
+	})
+	d := makeCRAt("d", created.Add(time.Hour), v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"region": "newer"},
+		Context:  map[string]string{"region": "newer"},
+	})
+	duplicate := makeCRAt("duplicate", created, a.Spec)
+	deleting := makeCRAt("deleting", created, v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"region": "deleted"},
+		Context:  map[string]string{"region": "deleted"},
+	})
+	deletedAt := metav1.NewTime(created.Add(time.Hour))
+	deleting.DeletionTimestamp = &deletedAt
+	for _, tc := range []struct {
+		name        string
+		existing    map[string]string
+		wantFlat    bool
+		wantContext bool
+	}{
+		{name: "absent"},
+		{name: "first CR", existing: map[string]string{"region": "a", "context": "region: east"}, wantFlat: true, wantContext: true},
+		{name: "second CR", existing: map[string]string{"region": "b", "context": "region: west"}, wantFlat: true, wantContext: true},
+		{name: "third CR", existing: map[string]string{"region": "c", "context": "region: north"}, wantFlat: true, wantContext: true},
+		{name: "no matching CR", existing: map[string]string{"region": "stored", "context": "region: stored"}},
+		{name: "only newer CR matches", existing: map[string]string{"region": "newer", "context": "region: newer"}},
+		{name: "only deleting CR matches", existing: map[string]string{"region": "deleted", "context": "region: deleted"}},
+		{name: "unmatched empty values", existing: map[string]string{"region": "", "context": "region: \"\""}},
+		{name: "flat only", existing: map[string]string{"region": "b"}, wantFlat: true},
+		{name: "context only", existing: map[string]string{"context": "region: west"}, wantContext: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, crs := range [][]v1alpha1.NotificationsConfiguration{
+				{a, b, c, d, duplicate, deleting}, {deleting, duplicate, d, c, b, a}, {b, a, duplicate, d, deleting, c},
+			} {
+				result, err := MergeNotificationsConfigurations(crs, tc.existing)
+				require.NoError(t, err)
+				value, present := result.Data["region"]
+				assert.Equal(t, tc.wantFlat, present)
+				if tc.wantFlat {
+					assert.Equal(t, tc.existing["region"], value)
+				}
+				context := decodeContext(t, result.Data)
+				value, present = context["region"]
+				assert.Equal(t, tc.wantContext, present)
+				if tc.wantContext {
+					assert.Equal(t, decodeContext(t, tc.existing)["region"], value)
+				}
+				assert.Equal(t, "new", result.Data["service.valid"])
+				assert.Equal(t, "new", context["environment"])
+			}
+		})
+	}
+
+	// Equal values and conflicts between newer CRs do not override an older winner.
+	for _, crs := range [][]v1alpha1.NotificationsConfiguration{
+		{a, duplicate},
+		{makeCRAt("oldest", created.Add(-time.Hour), a.Spec), a, b},
+	} {
+		result, err := MergeNotificationsConfigurations(crs, map[string]string{"region": "stored"})
+		require.NoError(t, err)
+		assert.Equal(t, "a", result.Data["region"])
+		for _, conflict := range result.Conflicts {
+			assert.False(t, conflict.EqualTimestamp)
+		}
+	}
+}
+
+func TestMerge_TimestampTieMatchingEmptyValue(t *testing.T) {
+	a := makeCR("a", v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"service.shared": "a"},
+		Context:  map[string]string{"region": "east"},
+	})
+	b := makeCR("b", v1alpha1.NotificationsConfigurationSpec{
+		Services: map[string]string{"service.shared": ""},
+		Context:  map[string]string{"region": ""},
+	})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{a, b}, map[string]string{
+		"service.shared": "", "context": "region: \"\"",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, result.Data, "service.shared")
+	assert.Empty(t, result.Data["service.shared"])
+	assert.Equal(t, map[string]string{"region": ""}, decodeContext(t, result.Data))
+
+	result, err = MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{a, b}, nil)
+	require.NoError(t, err)
+	assert.NotContains(t, result.Data, "service.shared")
+	assert.NotContains(t, result.Data, "context")
+}
+
+func TestMerge_TiedContextOmitsUnreadableValue(t *testing.T) {
+	a := makeCR("a", v1alpha1.NotificationsConfigurationSpec{
+		Context:       map[string]string{"region": "east", "environment": "new"},
+		Triggers:      map[string]string{"trigger.valid": "new-trigger"},
+		Templates:     map[string]string{"template.valid": "new-template"},
+		Services:      map[string]string{"service.valid": "new-service"},
+		Subscriptions: map[string]string{"subscriptions": "- recipients: [slack:ops]"},
+	})
+	b := makeCR("b", v1alpha1.NotificationsConfigurationSpec{Context: map[string]string{"region": "west"}})
+	for _, raw := range []string{
+		"region: [secret-value]",
+		"region: east\nunrelated: [secret-value]",
+		"region: [unterminated",
+		"region: old\n---\nregion: other",
+		"null\n---\nregion: other",
+		"region: old\n---\n",
+	} {
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{a, b}, map[string]string{"context": raw})
+		require.NoError(t, err)
+		assert.True(t, result.InvalidExistingContext)
+		assert.Equal(t, map[string]string{"environment": "new"}, decodeContext(t, result.Data))
+		assert.Equal(t, "new-trigger", result.Data["trigger.valid"])
+		assert.Equal(t, "new-template", result.Data["template.valid"])
+		assert.Equal(t, "new-service", result.Data["service.valid"])
+		assert.Contains(t, result.Data["subscriptions"], "slack:ops")
+		require.Len(t, result.Conflicts, 1)
+		assert.True(t, result.Conflicts[0].EqualTimestamp)
+	}
+
+	for _, raw := range []string{"", "# comment only\n", "null", "{}"} {
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{a, b}, map[string]string{"context": raw})
+		require.NoError(t, err)
+		assert.False(t, result.InvalidExistingContext)
+		assert.Equal(t, map[string]string{"environment": "new"}, decodeContext(t, result.Data))
+	}
+}
 
 func TestMerge_OldestCR_AlwaysWins_RegardlessOfConfigMap(t *testing.T) {
 	older := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -247,7 +386,7 @@ func TestMerge_OldestCR_AlwaysWins_RegardlessOfConfigMap(t *testing.T) {
 	})
 
 	result, err := MergeNotificationsConfigurations(
-		[]v1alpha1.NotificationsConfiguration{crNewer, crOlder})
+		[]v1alpha1.NotificationsConfiguration{crNewer, crOlder}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "older-val", result.Data["trigger.x"],
@@ -271,7 +410,7 @@ func TestMerge_MultipleCRs_ConflictingCRNonConflictingKeysRetained(t *testing.T)
 		Services:  map[string]string{"service.webhook": "url: http://example.com"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "A-value", result.Data["trigger.shared"])
@@ -293,7 +432,7 @@ func TestMerge_MultipleCRs_CrossFieldConflictAcrossCRs(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, "A-value", result.Data["defaultTriggers"])
@@ -314,12 +453,12 @@ func TestMerge_ExistingCRRemoval(t *testing.T) {
 		Triggers: map[string]string{"trigger.shared": "B-value"},
 	})
 
-	result1, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result1, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "A-wins", result1.Data["trigger.shared"])
 	require.Len(t, result1.Conflicts, 1)
 
-	result2, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crB})
+	result2, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crB}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "B-value", result2.Data["trigger.shared"])
 	assert.Empty(t, result2.Conflicts)
@@ -335,7 +474,7 @@ func TestMerge_Context_DistinctEntries(t *testing.T) {
 		Context: map[string]string{"region": "us-east-1"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	ctx := decodeContext(t, result.Data)
@@ -355,7 +494,7 @@ func TestMerge_Context_OldestCRWins(t *testing.T) {
 		Context: map[string]string{"env": "staging"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOlder})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOlder}, nil)
 	require.NoError(t, err)
 
 	ctx := decodeContext(t, result.Data)
@@ -374,7 +513,7 @@ func TestMerge_Context_SerializationStable(t *testing.T) {
 
 	var prev string
 	for range 10 {
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 
 		if prev == "" {
@@ -417,7 +556,7 @@ func TestMerge_Context_RoundTrip(t *testing.T) {
 				Context: map[string]string{tc.key: tc.value},
 			})
 
-			result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+			result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 			require.NoError(t, err)
 
 			raw := result.Data["context"]
@@ -438,7 +577,7 @@ func TestMerge_Context_RoundTrip(t *testing.T) {
 func TestMerge_Context_AbsentNilEmpty(t *testing.T) {
 	t.Run("nil context", func(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{Context: nil})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["context"]
 		assert.False(t, has, "nil context should not produce a context key")
@@ -446,7 +585,7 @@ func TestMerge_Context_AbsentNilEmpty(t *testing.T) {
 
 	t.Run("empty context map", func(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{Context: map[string]string{}})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["context"]
 		assert.False(t, has, "empty context map should not produce a context key")
@@ -467,7 +606,7 @@ func TestMerge_Subscriptions_TwoCRsConcatenated(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Data["subscriptions"], "slack:team-a")
@@ -489,7 +628,7 @@ func TestMerge_Subscriptions_OrderFollowsPrecedence(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOlder})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crNewer, crOlder}, nil)
 	require.NoError(t, err)
 
 	sub := result.Data["subscriptions"]
@@ -508,7 +647,7 @@ func TestMerge_Subscriptions_WithinCROrderPreserved(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 
 	sub := result.Data["subscriptions"]
@@ -531,7 +670,7 @@ func TestMerge_Subscriptions_DuplicatesPreserved(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{crA, crB}, nil)
 	require.NoError(t, err)
 
 	count := strings.Count(result.Data["subscriptions"], "slack:same-channel")
@@ -544,7 +683,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 			Triggers:      map[string]string{"trigger.keep": "when: true"},
 			Subscriptions: map[string]string{"subscriptions": "# add subscriptions later\n"},
 		})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		assert.Empty(t, result.SkippedEntries)
 		assert.Equal(t, cr.Spec.Triggers, result.Data)
@@ -552,7 +691,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 
 	t.Run("absent subscriptions map", func(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["subscriptions"]
 		assert.False(t, has)
@@ -562,7 +701,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
 			Subscriptions: map[string]string{"subscriptions": ""},
 		})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["subscriptions"]
 		assert.False(t, has)
@@ -572,7 +711,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
 			Subscriptions: map[string]string{"subscriptions": "   \n  "},
 		})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["subscriptions"]
 		assert.False(t, has)
@@ -582,7 +721,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
 			Subscriptions: map[string]string{"subscriptions": "null"},
 		})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["subscriptions"]
 		assert.False(t, has)
@@ -592,7 +731,7 @@ func TestMerge_Subscriptions_EmptyInput(t *testing.T) {
 		cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
 			Subscriptions: map[string]string{"subscriptions": "[]"},
 		})
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		_, has := result.Data["subscriptions"]
 		assert.False(t, has)
@@ -605,7 +744,7 @@ func TestMerge_Subscriptions_InvalidYAML_SkipsOnlySubscriptions(t *testing.T) {
 		Subscriptions: map[string]string{"subscriptions": ": [invalid yaml"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "bad-cr", result.SkippedEntries[0].CR)
@@ -621,7 +760,7 @@ func TestMerge_Subscriptions_NonList_SkipsOnlySubscriptions(t *testing.T) {
 		Subscriptions: map[string]string{"subscriptions": "not-a-list: true"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "bad-cr", result.SkippedEntries[0].CR)
@@ -639,7 +778,7 @@ func TestMerge_Subscriptions_ExtraMapEntriesPassThrough(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, result.Data["subscriptions"], "slack:general")
@@ -662,7 +801,7 @@ func TestMerge_Subscriptions_MultiDocument_SkipsOnlySubscriptions(t *testing.T) 
 				Triggers:      map[string]string{"trigger.keep": "val"},
 				Subscriptions: map[string]string{"subscriptions": tc.raw},
 			})
-			result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+			result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 			require.NoError(t, err)
 			require.Len(t, result.SkippedEntries, 1)
 			assert.Equal(t, cr.Name, result.SkippedEntries[0].CR)
@@ -680,7 +819,7 @@ func TestMerge_Subscriptions_MultiDocument_SkipsOnlySubscriptions(t *testing.T) 
 			},
 		})
 
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		require.Len(t, result.SkippedEntries, 1)
 		assert.Equal(t, "multi-cr", result.SkippedEntries[0].CR)
@@ -694,7 +833,7 @@ func TestMerge_Subscriptions_MultiDocument_SkipsOnlySubscriptions(t *testing.T) 
 			},
 		})
 
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		require.Len(t, result.SkippedEntries, 1)
 		assert.Equal(t, "empty-doc-cr", result.SkippedEntries[0].CR)
@@ -707,7 +846,7 @@ func TestMerge_Subscriptions_MultiDocument_SkipsOnlySubscriptions(t *testing.T) 
 			},
 		})
 
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 		require.NoError(t, err)
 		assert.Contains(t, result.Data["subscriptions"], "slack:ops")
 	})
@@ -721,7 +860,7 @@ func TestMerge_ReservedKeyCollision_SubscriptionsInServices_SkipsKey(t *testing.
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
@@ -738,7 +877,7 @@ func TestMerge_ReservedKeyCollision_ContextInServices_SkipsKey(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
@@ -751,7 +890,7 @@ func TestMerge_ReservedKeyCollision_ContextInServices_SkipsKey(t *testing.T) {
 
 func TestMerge_EmptyInput(t *testing.T) {
 	t.Run("nil slice", func(t *testing.T) {
-		result, err := MergeNotificationsConfigurations(nil)
+		result, err := MergeNotificationsConfigurations(nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, result.Data)
 		assert.Empty(t, result.Data)
@@ -759,7 +898,7 @@ func TestMerge_EmptyInput(t *testing.T) {
 	})
 
 	t.Run("empty slice", func(t *testing.T) {
-		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{})
+		result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{}, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, result.Data)
 		assert.Empty(t, result.Data)
@@ -776,7 +915,7 @@ func TestMerge_NilAndEmptyMaps(t *testing.T) {
 		Context:       nil,
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	assert.Empty(t, result.Data)
 	assert.Nil(t, result.Conflicts)
@@ -793,7 +932,7 @@ func TestMerge_CRsMarkedForDeletion(t *testing.T) {
 		Triggers: map[string]string{"trigger.y": "should-appear"},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{deleting, active})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{deleting, active}, nil)
 	require.NoError(t, err)
 
 	_, hasX := result.Data["trigger.x"]
@@ -808,7 +947,7 @@ func TestMerge_AllCRsDeleted(t *testing.T) {
 	})
 	cr.DeletionTimestamp = &now
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	assert.Empty(t, result.Data)
 	assert.Nil(t, result.Conflicts)
@@ -832,7 +971,7 @@ func TestMerge_InputNotMutated(t *testing.T) {
 	}
 
 	input := []v1alpha1.NotificationsConfiguration{cr}
-	_, err := MergeNotificationsConfigurations(input)
+	_, err := MergeNotificationsConfigurations(input, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]string{"trigger.a": "val-a"}, triggers)
@@ -871,9 +1010,9 @@ func TestMerge_ReorderedInputSameResult(t *testing.T) {
 	order2 := []v1alpha1.NotificationsConfiguration{crC, crA, crB}
 	order3 := []v1alpha1.NotificationsConfiguration{crB, crC, crA}
 
-	result1, err1 := MergeNotificationsConfigurations(order1)
-	result2, err2 := MergeNotificationsConfigurations(order2)
-	result3, err3 := MergeNotificationsConfigurations(order3)
+	result1, err1 := MergeNotificationsConfigurations(order1, nil)
+	result2, err2 := MergeNotificationsConfigurations(order2, nil)
+	result3, err3 := MergeNotificationsConfigurations(order3, nil)
 
 	require.NoError(t, err1)
 	require.NoError(t, err2)
@@ -893,7 +1032,7 @@ func TestMerge_ReservedKeyCollision_ContextInTriggers_SkipsKey(t *testing.T) {
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
@@ -905,12 +1044,12 @@ func TestMerge_ReservedKeyCollision_ContextInTriggers_SkipsKey(t *testing.T) {
 func TestMerge_ReservedKeyCollision_SubscriptionsInTemplates_SkipsKey(t *testing.T) {
 	cr := makeCR("cr", v1alpha1.NotificationsConfigurationSpec{
 		Templates: map[string]string{
-			"subscriptions":  "should-not-be-a-template-key",
+			"subscriptions": "should-not-be-a-template-key",
 			"template.keep": "kept",
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
@@ -928,7 +1067,7 @@ func TestMerge_ReservedKeyCollision_ContextInSubscriptionsExtra_SkipsKey(t *test
 		},
 	})
 
-	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr})
+	result, err := MergeNotificationsConfigurations([]v1alpha1.NotificationsConfiguration{cr}, nil)
 	require.NoError(t, err)
 	require.Len(t, result.SkippedEntries, 1)
 	assert.Equal(t, "cr", result.SkippedEntries[0].CR)
@@ -952,7 +1091,7 @@ func TestMerge_ReservedKey_OnlyBadKeySkipped_OtherEntriesKept(t *testing.T) {
 	})
 
 	result, err := MergeNotificationsConfigurations(
-		[]v1alpha1.NotificationsConfiguration{badCR, goodCR})
+		[]v1alpha1.NotificationsConfiguration{badCR, goodCR}, nil)
 	require.NoError(t, err)
 
 	// Only the reserved key is skipped.
@@ -983,7 +1122,7 @@ func TestMerge_InvalidSubscriptions_OnlySubsSkipped_OtherEntriesKept(t *testing.
 	})
 
 	result, err := MergeNotificationsConfigurations(
-		[]v1alpha1.NotificationsConfiguration{badCR, goodCR})
+		[]v1alpha1.NotificationsConfiguration{badCR, goodCR}, nil)
 	require.NoError(t, err)
 
 	// Only the subscriptions entry from bad-sub-cr is skipped.

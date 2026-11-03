@@ -32,11 +32,15 @@ type MergeConflict struct {
 	// Key is a ConfigMap data key or an individual context entry key.
 	Key string
 
-	// ExistingCR is the metadata.name of the CR whose value is preserved.
+	// ExistingCR is the first CR defining the key in precedence order.
 	ExistingCR string
 
 	// ConflictingCR is the metadata.name of the CR whose value was ignored.
 	ConflictingCR string
+
+	// EqualTimestamp means the CRs have equal oldest timestamps. A stored value
+	// is retained only if one of those CRs defines it.
+	EqualTimestamp bool
 }
 
 // MergeDuplicate records CRs that define the same value for the same key.
@@ -67,6 +71,10 @@ type MergeResult struct {
 
 	Duplicates []MergeDuplicate
 
+	// InvalidExistingContext means stored context could not be decoded during a
+	// tie, so disputed entries were omitted while other CR entries were merged.
+	InvalidExistingContext bool
+
 	// SkippedEntries records individual keys that were excluded because
 	// they use a reserved key or have invalid content. The rest of the
 	// CR's entries are still merged.
@@ -77,37 +85,64 @@ type MergeResult struct {
 // duplicates. Callers must add CRs in precedence order.
 type entryMerger struct {
 	data       map[string]string
-	owners     map[string]string
+	owners     map[string]*v1alpha1.NotificationsConfiguration
+	tiedValues map[string]map[string]*v1alpha1.NotificationsConfiguration
 	conflicts  []MergeConflict
 	duplicates []MergeDuplicate
 }
 
 func newEntryMerger() *entryMerger {
 	return &entryMerger{
-		data:   make(map[string]string),
-		owners: make(map[string]string),
+		data:       make(map[string]string),
+		owners:     make(map[string]*v1alpha1.NotificationsConfiguration),
+		tiedValues: make(map[string]map[string]*v1alpha1.NotificationsConfiguration),
 	}
 }
 
-func (m *entryMerger) add(key, value, crName string) {
+func (m *entryMerger) add(key, value string, cr *v1alpha1.NotificationsConfiguration) {
 	if currentOwner, exists := m.owners[key]; exists {
 		if m.data[key] == value {
 			m.duplicates = append(m.duplicates, MergeDuplicate{
-				Key: key, FirstCR: currentOwner, DuplicateCR: crName,
+				Key: key, FirstCR: currentOwner.Name, DuplicateCR: cr.Name,
 			})
 		} else {
+			equalTimestamp := currentOwner.CreationTimestamp.Equal(&cr.CreationTimestamp)
+			if equalTimestamp {
+				if m.tiedValues[key] == nil {
+					m.tiedValues[key] = map[string]*v1alpha1.NotificationsConfiguration{m.data[key]: currentOwner}
+				}
+				if m.tiedValues[key][value] == nil {
+					m.tiedValues[key][value] = cr
+				}
+			}
 			m.conflicts = append(m.conflicts, MergeConflict{
-				Key: key, ExistingCR: currentOwner, ConflictingCR: crName,
+				Key: key, ExistingCR: currentOwner.Name, ConflictingCR: cr.Name,
+				EqualTimestamp: equalTimestamp,
 			})
 		}
 		return
 	}
 	m.data[key] = value
-	m.owners[key] = crName
+	m.owners[key] = cr
+}
+
+// retainTiedValues keeps a disputed key only when its stored value matches an
+// oldest tied CR. Run after collecting every entry so newer CRs cannot fill it.
+func (m *entryMerger) retainTiedValues(existing map[string]string) {
+	for key, candidates := range m.tiedValues {
+		value, exists := existing[key]
+		if owner := candidates[value]; exists && owner != nil {
+			m.data[key] = value
+			m.owners[key] = owner
+		} else {
+			delete(m.data, key)
+			delete(m.owners, key)
+		}
+	}
 }
 
 // MergeNotificationsConfigurations merges all CRs in a namespace into one
-// ConfigMap.Data map.
+// ConfigMap.Data map. Pass nil for existing when no ConfigMap exists.
 //
 // Merge rules:
 //   - Flat fields (Triggers, Templates, Services, non-reserved Subscriptions)
@@ -121,11 +156,14 @@ func (m *entryMerger) add(key, value, crName string) {
 //     skipped; their other entries (triggers, templates, etc.) are still merged.
 //
 // Conflict resolution (same key, different values):
-//   - Oldest CR by creationTimestamp wins. CRs are the only source of truth.
-//   - Equal creation timestamps are resolved alphabetically by CR name.
+//   - Oldest CR by creationTimestamp wins.
+//   - Conflicting values with equal oldest timestamps retain the existing value
+//     only if one of the oldest tied CRs defines it; otherwise the key is omitted.
+//   - If existing context cannot be decoded during a tie, disputed entries are
+//     omitted while other entries are merged from the CRs.
 //
 // Same key, same value → recorded as Duplicate (logged, not an error).
-func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration) (MergeResult, error) {
+func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration, existing map[string]string) (MergeResult, error) {
 	active := filterActive(crs)
 	sorted := sortByPrecedence(active)
 
@@ -141,9 +179,10 @@ func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration)
 		entries, skipped := collectFlatEntries(cr)
 		allSkipped = append(allSkipped, skipped...)
 		for k, v := range entries {
-			flat.add(k, v, cr.Name)
+			flat.add(k, v, cr)
 		}
 	}
+	flat.retainTiedValues(existing)
 
 	// Merge context entries across all CRs.
 	ctx := newEntryMerger()
@@ -153,8 +192,22 @@ func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration)
 			continue
 		}
 		for k, v := range cr.Spec.Context {
-			ctx.add(k, v, cr.Name)
+			ctx.add(k, v, cr)
 		}
+	}
+	invalidContext := false
+	if len(ctx.tiedValues) > 0 {
+		// Decode only when needed, and retain individual context entries so
+		// unrelated context updates are not blocked by a conflicting key.
+		var previous map[string]string
+		dec := yaml.NewDecoder(strings.NewReader(existing[contextConfigMapKey]))
+		decodeErr := dec.Decode(&previous)
+		var extra any
+		if (decodeErr != nil && decodeErr != io.EOF) || dec.Decode(&extra) != io.EOF {
+			invalidContext = true
+			previous = nil
+		}
+		ctx.retainTiedValues(previous)
 	}
 	if len(ctx.data) > 0 {
 		ctxData, err := serializeContext(ctx.data)
@@ -176,10 +229,11 @@ func MergeNotificationsConfigurations(crs []v1alpha1.NotificationsConfiguration)
 	}
 
 	return MergeResult{
-		Data:           flat.data,
-		Conflicts:      append(flat.conflicts, ctx.conflicts...),
-		Duplicates:     append(flat.duplicates, ctx.duplicates...),
-		SkippedEntries: allSkipped,
+		Data:                   flat.data,
+		Conflicts:              append(flat.conflicts, ctx.conflicts...),
+		Duplicates:             append(flat.duplicates, ctx.duplicates...),
+		InvalidExistingContext: invalidContext,
+		SkippedEntries:         allSkipped,
 	}, nil
 }
 
@@ -195,7 +249,8 @@ func filterActive(crs []v1alpha1.NotificationsConfiguration) []v1alpha1.Notifica
 }
 
 // sortByPrecedence returns a new slice sorted by merge precedence:
-// oldest CR first (by creationTimestamp), then alphabetically by name for ties.
+// oldest CR first. Names only stabilize subscription ordering and reports for
+// equal timestamps; conflicting key values are handled separately.
 // The input slice is not modified.
 func sortByPrecedence(crs []v1alpha1.NotificationsConfiguration) []v1alpha1.NotificationsConfiguration {
 	sorted := make([]v1alpha1.NotificationsConfiguration, len(crs))
