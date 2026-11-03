@@ -1452,6 +1452,7 @@ type PrincipalSpec struct {
 
 	// LogLevel refers to the log level used by the Principal component.
 	// Applied at runtime: changing this does not restart the Principal.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Principal component.
@@ -1504,6 +1505,7 @@ type PrincipalSpec struct {
 	// LogFullDetail is the list of categories the Principal component logs in full detail.
 	//
 	// Applied at runtime: changing this does not restart the Principal.
+	// Default: []
 	LogFullDetail []string `json:"logFullDetail,omitempty"`
 
 	// PProf defines the profiling options for the Principal component.
@@ -1514,6 +1516,7 @@ type PrincipalSpec struct {
 type ArgoCDAgentPProfSpec struct {
 	// Enabled toggles whether the pprof endpoint answers requests.
 	// Applied at runtime: changing this does not restart the component.
+	// Default: false when enabled is nil.
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -1657,6 +1660,7 @@ type AgentSpec struct {
 
 	// LogLevel refers to the log level used by the Agent component.
 	// Applied at runtime: changing this does not restart the Agent.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Agent component.
@@ -1697,6 +1701,7 @@ type AgentSpec struct {
 	// LogFullDetail is the list of categories the Agent component logs in full detail.
 	//
 	// Applied at runtime: changing this does not restart the Agent.
+	// Default: []
 	LogFullDetail []string `json:"logFullDetail,omitempty"`
 
 	// PProf defines the profiling options for the Agent component.
