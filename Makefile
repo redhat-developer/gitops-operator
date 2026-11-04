@@ -135,6 +135,18 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: update-dependencies
+update-dependencies: ## Update Go dependencies and regenerate CRDs, manifests and bundle.
+	$(MAKE) -C argocd-operator update-dependencies
+
+.PHONY: update-dependencies-argocd
+update-dependencies-argocd: ## Update only the Argo CD dependency.
+	$(MAKE) -C argocd-operator update-dependencies-argocd
+
+.PHONY: update-dependencies-gitops-promoter
+update-dependencies-gitops-promoter: ## Update only the GitOps Promoter dependency.
+	$(MAKE) -C argocd-operator update-dependencies-gitops-promoter
+
 .PHONY: test-all
 test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
