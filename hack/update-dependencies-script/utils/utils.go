@@ -160,6 +160,7 @@ func CloneRepoIntoTempDir(repoURL, latestReleaseVersionTag string) (string, erro
 		"--branch", latestReleaseVersionTag,
 		"--single-branch",
 		"--no-tags",
+		"-c", "advice.detachedHead=false",
 		repoURL,
 		outputDir); err != nil {
 		return "", err

@@ -32,7 +32,7 @@ func main() {
 		return
 	}
 
-	argocdOperatorRoot, err := filepath.Abs(wd + "/../../..")
+	argocdOperatorRoot, err := filepath.Abs(wd + "/../../../argocd-operator/")
 	if err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to get absolute dir: %v", err))
 		return

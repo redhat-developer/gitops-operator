@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 
-	argocdOperatorRoot, err := filepath.Abs(wd + "/../../..")
+	argocdOperatorRoot, err := filepath.Abs(wd + "../../../../argocd-operator/")
 	if err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to get absolute dir: %v", err))
 		return
@@ -44,7 +44,7 @@ func main() {
 	gitopsOperatorRoot := filepath.Dir(argocdOperatorRoot)
 
 	// Version variable is in the form of 'v3.1.1', note the 'v' prefix
-	targetArgoCDVersion := readTargetVersionFromMakefile(argocdOperatorRoot)
+	targetArgoCDVersion := readTargetVersionFromMakefile(gitopsOperatorRoot)
 
 	fmt.Println()
 	fmt.Println("Target Argo CD version from Makefile is", targetArgoCDVersion)
@@ -90,11 +90,11 @@ func main() {
 	fmt.Println()
 }
 
-func readTargetVersionFromMakefile(argocdOperatorRoot string) string {
+func readTargetVersionFromMakefile(operatorRoot string) string {
 	// Target version in Makefile looks like this:
 	// ARGO_CD_TARGET_VERSION ?= 3.1.1
 
-	fileToRead := filepath.Join(argocdOperatorRoot, "Makefile")
+	fileToRead := filepath.Join(operatorRoot, "Makefile")
 
 	bytes, err := os.ReadFile(fileToRead)
 	if err != nil {

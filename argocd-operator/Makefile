@@ -5,13 +5,6 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.20.0
 
-# ARGO_CD_TARGET_VERSION is the target version that argocd-operator will install.
-# Update this when you upgrade the Argo CD dependencies of the project.
-# After updating, call 'make update-dependencies'.
-# Notes:
-# - String should NOT begin with 'v' prefix, e.g. 'v3.1.1'
-ARGO_CD_TARGET_VERSION ?= 3.5.6
-
 # Try to detect Docker or Podman
 CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
 
@@ -191,19 +184,4 @@ GINKGO_MOD_VERSION = $(shell go list -m -f '{{.Version}}' github.com/onsi/ginkgo
 .PHONY: ginkgo
 ginkgo: ## Download ginkgo locally if necessary.
 	$(call go-install-tool,$(GINKGO_CLI),github.com/onsi/ginkgo/v2/ginkgo@$(GINKGO_MOD_VERSION))
-
-# Updates upstream dependencies throughout the repository
-.PHONY: update-dependencies
-update-dependencies:
-	hack/update-dependencies-script/run.sh
-
-# Updates only Argo CD dependencies
-.PHONY: update-dependencies-argocd
-update-dependencies-argocd:
-	hack/update-dependencies-script/argocd/run.sh
-
-# Updates only Argo CD dependencies
-.PHONY: update-dependencies-gitops-promoter
-update-dependencies-gitops-promoter:
-	hack/update-dependencies-script/gitops-promoter/run.sh
 
