@@ -73,8 +73,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			k8sClient    client.Client
 			ctx          context.Context
-			ns           *corev1.Namespace
-			cleanupNs    func()
 			image        string
 			imageVersion string
 
@@ -93,13 +91,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			image, imageVersion = getArgoCDComponentImageAndVersion(k8sClient, ctx)
 		})
 
-		AfterEach(func() {
-			fixture.OutputDebugOnFail(ns)
-		})
-
 		It("ensures that missing Secret aborts startup", func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with missing Secret")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -121,8 +116,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			// Create a bundle with 2 CA certs in it. Ubuntu's update-ca-certificates issues a warning, but apparently it works
 			// It is desirable to test with multiple certs in one bundle because OpenShift permits it
@@ -161,8 +157,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that CMs and Secrets are trusted in repo-server and plugins", func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
 			Expect(k8sClient.Create(ctx, cmCert)).To(Succeed())
@@ -210,8 +207,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -243,8 +241,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that empty trust keeps image certs in place", func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -258,8 +257,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		It("ensures that Secrets and ConfigMaps get reconciled", func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -350,8 +350,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			combinedCtb := createCtbFromCerts(getCACert("github.com"), getCACert("github.io"))
 
@@ -372,10 +373,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating ClusterTrustBundle with 2 certs")
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, combinedCtb)).To(Succeed())
-			})
-			DeferCleanup(func() {
-				// Will be absent if successfully deleted later on
-				_ = k8sClient.Delete(ctx, combinedCtb)
+				DeferCleanup(func() {
+					// Will be absent if successfully deleted later on
+					_ = k8sClient.Delete(ctx, combinedCtb)
+				})
 			})
 
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
@@ -406,8 +407,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			// Use random label value not to collide with leftover CTBs fom other tests
 			labelVal := rand.String(5)
@@ -439,8 +441,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			oneCtb.Spec.SignerName = signerName
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, oneCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, oneCtb)).To(Succeed()) })
 			})
-			DeferCleanup(func() { Expect(k8sClient.Delete(ctx, oneCtb)).To(Succeed()) })
 
 			actualTrust := repoServerSystemCaTrust(k8sClient, ns)
 			Eventually(actualTrust, "30s", "5s").Should(trustCerts(Equal(1), Not(BeEmpty())), actualTrust.diagnose())
@@ -452,8 +454,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			twoCtb.Spec.SignerName = signerName
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, twoCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, twoCtb)).To(Succeed()) })
 			})
-			DeferCleanup(func() { Expect(k8sClient.Delete(ctx, twoCtb)).To(Succeed()) })
 
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
 			Eventually(actualTrust, "30s", "5s").Should(trustCerts(Equal(2), Not(BeEmpty())), actualTrust.diagnose())
@@ -477,8 +479,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fourCtb := createCtbFromCerts(getCACert("google.com"))
 			expectReconcile(k8sClient, ns, false, func() {
 				Expect(k8sClient.Create(ctx, fourCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, fourCtb)).To(Succeed()) })
 			})
-			DeferCleanup(func() { Expect(k8sClient.Delete(ctx, fourCtb)).To(Succeed()) })
 
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
 			Consistently(actualTrust, "10s", "5s").Should(trustCerts(Equal(0), Not(BeEmpty())), actualTrust.diagnose())
