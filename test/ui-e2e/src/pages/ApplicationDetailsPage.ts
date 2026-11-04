@@ -242,12 +242,17 @@ export class ApplicationDetailsPage {
   }
 
   private async applicationOperation(appName: string) {
-    const res = await this.page.request.get(
-      `/api/v1/applications/${encodeURIComponent(appName)}`
-    );
-    if (!res.ok()) return undefined;
-    const app = await res.json();
-    return app?.status?.operationState;
+    try {
+      const res = await this.page.request.get(
+        `/api/v1/applications/${encodeURIComponent(appName)}`
+      );
+      if (!res.ok()) return undefined;
+      const app = await res.json();
+      return app?.status?.operationState;
+    } catch {
+      //keep polling on a transient api blip
+      return undefined;
+    }
   }
 }
 
