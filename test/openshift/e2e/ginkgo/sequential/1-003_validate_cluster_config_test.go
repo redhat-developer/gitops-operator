@@ -19,10 +19,15 @@ package sequential
 import (
 	"context"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	appFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
@@ -30,6 +35,7 @@ import (
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -45,6 +51,38 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			cleanupFunc func()
 		)
 
+		checkClusterConfig := func(argoCDInstance *argov1beta1api.ArgoCD) {
+			By("verifying ClusterRole/Bindings exist")
+			appController := argocd.GenerateUniqueResourceName(common.ArgoCDApplicationControllerComponent, argoCDInstance)
+			appcontrollerCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: appController}}
+			Eventually(appcontrollerCRB).Should(k8sFixture.ExistByName())
+			appControllerCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: appController}}
+			Eventually(appControllerCR).Should(k8sFixture.ExistByName())
+
+			server := argocd.GenerateUniqueResourceName(common.ArgoCDServerComponent, argoCDInstance)
+			serverCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: server}}
+			Eventually(serverCRB).Should(k8sFixture.ExistByName())
+			serverCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: server}}
+			Eventually(serverCR).Should(k8sFixture.ExistByName())
+
+			appSet := argocd.GenerateUniqueResourceName(common.ArgoCDApplicationSetControllerComponent, argoCDInstance)
+			appSetClusterRole := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: appSet}}
+			Eventually(appSetClusterRole).Should(k8sFixture.ExistByName())
+			appSetCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: appSet}}
+			Eventually(appSetCRB).Should(k8sFixture.ExistByName())
+
+			By("verifying ConfigMap 'argocd-ssh-known-hosts-cm' has the value from InitialSSHKnownHosts")
+			knownHostsCM := &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-ssh-known-hosts-cm",
+					Namespace: ns.Name,
+				},
+			}
+			Eventually(knownHostsCM).Should(k8sFixture.ExistByName())
+			Eventually(knownHostsCM).Should(configmapFixture.HaveStringDataKeyValue("ssh_known_hosts", "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="))
+
+		}
+
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
@@ -55,20 +93,54 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			fixture.OutputDebugOnFail("argocd-e2e-cluster-config", "openshift-gitops")
 
-			fixture.RestoreSubcriptionToDefault() // revert Subscription at end of test
+			fixture.RestoreSubscriptionToDefault() // revert Subscription at end of test
 
 			if cleanupFunc != nil {
 				cleanupFunc()
 			}
-
 		})
 
-		It("verifies that adding namespaces to ARGOCD_CLUSTER_CONFIG_NAMESPACES will cause clusterrole and clusterrolebinding to be created for server, app controller, and application set", func() {
+		It("create cluster config (clusterrole, clusterrolebinding, configmap) for namespaces in ARGOCD_CLUSTER_CONFIG_NAMESPACES initially", func() {
+
+			// For local run, this is expected to be set when the operator process is started
+			if !fixture.EnvLocalRun() {
+				fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
+			}
+
+			By("creating simple cluster-scoped Argo CD instance with initialSSHKnownHosts set")
+			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
+			defer cleanupFunc()
+
+			argoCDInstance := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
+				Spec: argov1beta1api.ArgoCDSpec{
+					InitialSSHKnownHosts: argov1beta1api.SSHHostsSpec{
+						ExcludeDefaultHosts: true,
+						Keys:                "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==",
+					},
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
+						SourceNamespaces: []string{"some-namespace", "some-other-namespace"},
+						SCMProviders:     []string{"github.com"},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCDInstance)).To(Succeed())
+
+			Eventually(argoCDInstance, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCDInstance, "5m", "5s").Should(argocdFixture.HaveServerStatus("Running"))
+
+			checkClusterConfig(argoCDInstance)
+		})
+
+		It("create cluster config (clusterrole, clusterrolebinding, configmap) when namespace added to ARGOCD_CLUSTER_CONFIG_NAMESPACES", func() {
 
 			if fixture.EnvLocalRun() {
 				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
 				return
 			}
+
+			// Make sure the namespace is not in ARGOCD_CLUSTER_CONFIG_NAMESPACES initially
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops")
 
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
 
@@ -80,65 +152,85 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						ExcludeDefaultHosts: true,
 						Keys:                "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ==",
 					},
+					ApplicationSet: &argov1beta1api.ArgoCDApplicationSet{
+						SourceNamespaces: []string{"some-namespace", "some-other-namespace"},
+						SCMProviders:     []string{"github.com"},
+					},
 				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
-			By("adding argocd-e2e-cluster-config to ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.HaveServerStatus("Running"))
 
+			By("adding argocd-e2e-cluster-config to ARGOCD_CLUSTER_CONFIG_NAMESPACES")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-e2e-cluster-config")
 
-			By("verifying ClusterRole/Binding were created for argocd-e2e-cluster-config server/app controller components, now that the namespace is specified in the CLUSTER_CONFIG env var")
-			appControllerCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-application-controller"}}
-			Eventually(appControllerCR, "2m", "5s").Should(k8sFixture.ExistByName())
+			checkClusterConfig(argoCD)
+		})
 
-			appControllerCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-application-controller"}}
-			Eventually(appControllerCRB).Should(k8sFixture.ExistByName())
+		It("verifies that the default openshift-gitops Argo CD instance can manage resources in arbitrary namespaces, without requiring the managed-by label or ARGOCD_CLUSTER_CONFIG_NAMESPACES", Label("openshift"), func() {
 
-			serverCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-server"}}
-			Eventually(serverCR).Should(k8sFixture.ExistByName())
+			openshiftGitopsArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
+			Expect(err).ToNot(HaveOccurred())
+			Eventually(openshiftGitopsArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			serverCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-server"}}
-			Eventually(serverCRB).Should(k8sFixture.ExistByName())
+			By("verifying the default AppProject exists in openshift-gitops")
+			Eventually(&argocdv1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: openshiftGitopsArgoCD.Namespace}}).Should(k8sFixture.ExistByName())
 
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(argoCD).Should(argocdFixture.HaveServerStatus("Running"))
+			By("preserving any pre-existing policy-configmap ConfigMap in the openshift-config namespace")
+			preExistingConfigMap := &corev1.ConfigMap{}
+			err = k8sClient.Get(ctx, client.ObjectKey{Name: "policy-configmap", Namespace: "openshift-config"}, preExistingConfigMap)
+			configMapPreExisted := err == nil
+			if !configMapPreExisted {
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+			}
 
-			By("verifying that the initialSSHKnownHosts value was set in the ConfigMap")
-
-			cm := &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-ssh-known-hosts-cm",
-					Namespace: "argocd-e2e-cluster-config",
+			By("creating an Argo CD Application in openshift-gitops that targets the openshift-config namespace")
+			app := &argocdv1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: openshiftGitopsArgoCD.Namespace},
+				Spec: argocdv1alpha1.ApplicationSpec{
+					Source: &argocdv1alpha1.ApplicationSource{
+						Path:           "test/examples/scheduler",
+						RepoURL:        "https://github.com/redhat-developer/gitops-operator",
+						TargetRevision: "HEAD",
+					},
+					Destination: argocdv1alpha1.ApplicationDestination{
+						Namespace: "openshift-config",
+						Server:    "https://kubernetes.default.svc",
+					},
+					Project: "default",
+					SyncPolicy: &argocdv1alpha1.SyncPolicy{
+						Automated: &argocdv1alpha1.SyncPolicyAutomated{},
+					},
 				},
 			}
-			Eventually(cm).Should(k8sFixture.ExistByName())
-			Eventually(cm).Should(configmapFixture.HaveStringDataKeyValue("ssh_known_hosts", "github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGmdnm9tUDbO9IDSwBK6TbQa+PXYPCPy6rbTrTtw7PHkccKrpp0yVhp5HdEIcKr6pLlVDBfOLX9QUsyCOV0wzfjIJNlGEYsdlLJizHhbn2mUjvSAHQqZETYP81eFzLQNnPHt4EVVUh7VfDESU84KezmD5QlWpXLmvU31/yMf+Se8xhHTvKSCZIFImWwoG6mbUoWf9nzpIoaSjB+weqqUUmpaaasXVal72J+UX2B+2RPW3RcT0eOzQgqlJL3RKrTJvdsjE3JEAvGq3lGHSZXy28G3skua2SmVi/w4yCE6gbODqnTWlg7+wC604ydGXA8VJiS5ap43JXiUFFAaQ=="))
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			defer func() {
+				// Deleting the Application does not cascade to the ConfigMap it deployed into
+				// openshift-config (no cascade-delete finalizer is set on the Application), so the
+				// ConfigMap must be cleaned up separately. openshift-config is a shared OpenShift
+				// system namespace that is not deleted at the end of the test, so restore any
+				// ConfigMap that pre-existed, rather than leaving it deleted or overwritten.
+				_ = k8sClient.Delete(ctx, app)
 
-			By("adding source namespaces and additional SCM providers to applications to controller")
+				testManagedConfigMap := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: "openshift-config"}}
+				_ = k8sClient.Delete(ctx, testManagedConfigMap)
 
-			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
-				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
-					SourceNamespaces: []string{
-						"some-namespace",
-						"some-other-namespace",
-					},
-					SCMProviders: []string{
-						"github.com",
-					},
+				if configMapPreExisted {
+					restoredConfigMap := preExistingConfigMap.DeepCopy()
+					restoredConfigMap.ResourceVersion = ""
+					restoredConfigMap.UID = ""
+					_ = k8sClient.Create(ctx, restoredConfigMap)
 				}
-			})
+			}()
 
-			By("verifying applicationset controller becomes available")
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(argoCD).Should(argocdFixture.HaveApplicationSetControllerStatus("Running"))
+			By("verifying the Application becomes healthy and synced")
+			Eventually(app, "5m", "5s").Should(appFixture.HaveHealthStatusCode(health.HealthStatusHealthy))
+			Eventually(app, "5m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
-			By("verifying ClusterRole/RoleBinding were created for the argocd-e2e-cluster-config namespace")
-			appsetControllerCR := &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-applicationset-controller"}}
-			Eventually(appsetControllerCR, "2m", "5s").Should(k8sFixture.ExistByName())
-
-			appsetControllerCRB := &rbacv1.ClusterRoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-argocd-e2e-cluster-config-argocd-applicationset-controller"}}
-			Eventually(appsetControllerCRB).Should(k8sFixture.ExistByName())
+			By("verifying the ConfigMap was created in the openshift-config namespace")
+			Eventually(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "policy-configmap", Namespace: "openshift-config"}}).Should(k8sFixture.ExistByName())
 
 		})
 

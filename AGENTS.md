@@ -13,6 +13,11 @@ When creating or modifying Ginkgo E2E test files:
 
 ### Parallel Tests (`test/openshift/e2e/ginkgo/parallel/*_test.go`)
 
+- Tests that run within this folder run in parallel against a single K8s cluster. Thus, these tests cannot step on each others toes by, for example, modifying cluster resources that are shared by other parallel tests. (It is fine to READ from shared resources, but NOT to write to them).
+  - A non-exhaustive list of examples:
+    - Tests that rely on managed-by label should remain in sequential.
+    - Tests that log in to an Argo CD instance via argocd cli should remain in sequential.
+    - Tests that use ArgoCD CR `.spec.sourceNamespaces` should remain in sequential.
 - Use `Describe("GitOps Operator Parallel E2E Tests", func() { ... })` as the top-level describe block
 - Call `fixture.EnsureParallelCleanSlate()` in the `BeforeEach` function. (not `EnsureSequentialCleanSlate`)
 

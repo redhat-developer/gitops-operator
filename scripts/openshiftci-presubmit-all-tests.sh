@@ -26,6 +26,6 @@ cd hack/upgrade-rollouts-manager
 go mod vendor
 cd ../..
 
-# Run e2e test
-make test-e2e
+
+# TODO: this file appears to no longer be needed.
 

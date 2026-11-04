@@ -11,10 +11,10 @@ import (
 	"sort"
 	"strings"
 
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -252,7 +252,7 @@ func securityContextForPlugin() *corev1.SecurityContext {
 
 // buildHttpdConfig generates httpd.conf with dynamic TLS settings
 func (r *ReconcileGitopsService) buildHttpdConfig() string {
-	minVersionTLS := string(r.CentralTLSProfile.MinTLSVersion)
+	minVersionTLS := string(r.CentralTLSProfile.MinVersion)
 	httpdConfigBase := fmt.Sprintf(`LoadModule ssl_module modules/mod_ssl.so
 Listen %d https
 ServerRoot "/etc/httpd"
@@ -274,6 +274,9 @@ ServerRoot "/etc/httpd"
 	}
 	if minVersionTLS != "VersionTLS13" && strings.Join(r.CentralTLSProfile.Ciphers, ":") != "" {
 		httpdConfigBase += fmt.Sprintf("\n\tSSLCipherSuite %s", strings.Join(r.CentralTLSProfile.Ciphers, ":"))
+	}
+	if groups := argocdutil.MapOpenShiftTLSGroupsToOpenSSL(r.CentralTLSProfile.CurvePreferences, "gitops-plugin httpd"); groups != "" {
+		httpdConfigBase += fmt.Sprintf("\n\tSSLOpenSSLConfCmd Groups %s", groups)
 	}
 	// Close VirtualHost
 	httpdConfigBase += "\n</VirtualHost>"
@@ -618,6 +621,31 @@ func (r *ReconcileGitopsService) cleanupOldPluginResources(ctx context.Context) 
 	return nil
 }
 
+// ensurePluginNamespace creates the namespace the plugin resources are deployed into, if it does not
+// already exist. The plugin namespace may be the same as the default Argo CD instance namespace, which
+// is not created when the default install is disabled, so this cannot rely on any other code path
+// having created it: without the namespace, every plugin resource creation below is rejected and the
+// controller loops on the same error forever.
+func (r *ReconcileGitopsService) ensurePluginNamespace(ctx context.Context) error {
+	err := r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, &corev1.Namespace{})
+	if err == nil {
+		return nil
+	}
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to retrieve plugin namespace %s: %w", r.PluginNamespace, err)
+	}
+
+	logs.WithValues().Info("Creating plugin namespace", "Name", r.PluginNamespace)
+	pluginNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{Name: r.PluginNamespace},
+	}
+	if err := r.Client.Create(ctx, pluginNS); err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create plugin namespace %s: %w", r.PluginNamespace, err)
+	}
+
+	return nil
+}
+
 // reconcilePlugin is the entry point for reconciling all console plugin resources.
 // isPF5 selects the PatternFly 5 image (OCP 4.18.x) vs the PatternFly 6 image (OCP >= 4.19).
 func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.GitopsService, request reconcile.Request, isPF5 bool) (reconcile.Result, error) {
@@ -625,6 +653,10 @@ func (r *ReconcileGitopsService) reconcilePlugin(instance *pipelinesv1alpha1.Git
 	if !util.IsConsoleAPIFound() {
 		reqLogger.Info("Skip console plugin reconcile: OpenShift Console API not found")
 		return reconcile.Result{}, nil
+	}
+
+	if err := r.ensurePluginNamespace(context.TODO()); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	// Generate ConfigMap once

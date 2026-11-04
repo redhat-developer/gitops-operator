@@ -1,0 +1,108 @@
+name: KinD E2E Job
+
+on:
+  workflow_call:
+    inputs:
+      test-type:
+        required: true
+        type: string
+        description: "Type of tests to run: sequential or parallel"
+
+env:
+  IMG: gitops-operator:test
+  LOG_DIR: /tmp/kind-ci-artifacts
+
+jobs:
+  ci-e2e:
+    name: Run E2E tests (${{ inputs.test-type }}) on xKS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare log directory
+        run: mkdir -p "${{ env.LOG_DIR }}"
+        
+      - name: Install Argo CD cli tool
+        run: |
+          curl -fsSL -o /tmp/argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
+          rm /tmp/argocd-linux-amd64
+          argocd version --client
+
+      - name: Create kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          cluster_name: gitops-test
+          config: test/kind-config.yaml
+
+      - name: Install Prometheus
+        run: |
+          set -o pipefail
+          {
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+            helm repo update
+            helm install prometheus prometheus-community/kube-prometheus-stack \
+              --namespace monitoring \
+              --create-namespace
+          } 2>&1 | tee "${{ env.LOG_DIR }}/install-prometheus.log"
+
+      # TODO: check if porting is required for non-OCP clusters
+      - name: Disable webhook and conversion for non-OCP cluster
+        run: |
+          sed -i 's|^- ../webhook|#- ../webhook|' config/default/kustomization.yaml
+          sed -i 's|^- patches/webhook_in_argocds.yaml|#- patches/webhook_in_argocds.yaml|' config/crd/kustomization.yaml
+          sed -i 's|^- patches/cainjection_in_argocds.yaml|#- patches/cainjection_in_argocds.yaml|' config/crd/kustomization.yaml
+          echo "=== Verify sed applied ==="
+          grep -n 'webhook' config/default/kustomization.yaml
+          grep -n 'patches/' config/crd/kustomization.yaml
+
+      - name: Build manager image
+        run: |
+          set -o pipefail
+          make docker-build IMG=${{ env.IMG }} 2>&1 | tee "${{ env.LOG_DIR }}/docker-build.log"
+
+      - name: Load image into kind
+        run: |
+          kind load docker-image ${{ env.IMG }} --name gitops-test
+
+      - name: Install CRDs
+        run: |
+          make install
+
+      - name: Deploy operator
+        run: |
+          set -o pipefail
+          make deploy IMG=${{ env.IMG }} 2>&1 | tee "${{ env.LOG_DIR }}/deploy.log"
+
+      - name: Verify Controller Manager deployment is available
+        run: |
+          set -o pipefail
+          {
+            kubectl get deployment -n openshift-gitops-operator
+            kubectl describe deployment -n openshift-gitops-operator
+            kubectl wait --for=condition=available --timeout=300s \
+              deployment/openshift-gitops-operator-controller-manager \
+              -n openshift-gitops-operator
+          } 2>&1 | tee "${{ env.LOG_DIR }}/verify-deployment.log"
+
+      - name: Run E2E tests (${{ inputs.test-type }}) on xKS
+        run: |
+          set -o pipefail
+          NON_OLM=true make "e2e-xks-tests-${{ inputs.test-type }}-ginkgo" 2>&1 | tee "${{ env.LOG_DIR }}/e2e-${{ inputs.test-type }}.log"
+
+      - name: Upload CI artifacts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kind-ci-artifacts-${{ inputs.test-type }}-${{ github.run_id }}
+          path: ${{ env.LOG_DIR }}/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -24,9 +24,9 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 var prometheusAPIFound = false
@@ -118,7 +118,7 @@ func getMetricsEndpoint(metrics *argoproj.ArgoCDMetricsSpec) monitoringv1.Endpoi
 func (r *ReconcileArgoCD) updateServiceMonitorEndpointIfNeeded(sm *monitoringv1.ServiceMonitor, desired monitoringv1.Endpoint) error {
 	if len(sm.Spec.Endpoints) == 1 &&
 		sm.Spec.Endpoints[0].Port == desired.Port &&
-		sm.Spec.Endpoints[0].Scheme == desired.Scheme &&
+		ptr.Equal(sm.Spec.Endpoints[0].Scheme, desired.Scheme) &&
 		sm.Spec.Endpoints[0].Interval == desired.Interval &&
 		sm.Spec.Endpoints[0].ScrapeTimeout == desired.ScrapeTimeout {
 		return nil

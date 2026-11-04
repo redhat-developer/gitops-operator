@@ -1,0 +1,126 @@
+version: 2
+# keep this file updated with in-support release versions when a new y-release is out
+# argocd-operator is now integrated into gitops-operator, so v1.23+ releases should change update entry from directory to directories, similar to master target-branch
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.20"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+              - "version-update:semver-major"
+              - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.21"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "v1.22"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
+
+  - package-ecosystem: "gomod"
+    directories:
+      - "/"
+      - "/argocd-operator"
+    target-branch: "master"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      # root go.mod has a local "replace" pointing at ./argocd-operator, so the
+      # two go.mod files share one build graph. Bumping a shared dependency in
+      # only one of them leaves the other's go.sum stale and fails `go mod tidy`
+      # in CI. Grouping by dependency name forces matching bumps in both
+      # directories into a single PR.
+      gomod-combined:
+        group-by: dependency-name
+    ignore:
+      # Skip test frameworks: we don't ship them, so need concern for these being slightly out of date re: security updates.
+      - dependency-name: "github.com/stretchr/testify"
+      - dependency-name: "github.com/onsi/gomega"
+      - dependency-name: "github.com/onsi/ginkgo/v2"
+      # Skip k8s.io: these need to be kept in sync with upstream argocd via 'hack/update-dependencies-script' (or manually)
+      - dependency-name: "k8s.io/*"
+      # Only suggest patch updates. Rest is manually controlled.
+      - dependency-name: "github.com/argoproj-labs/argocd-image-updater"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      # Ignore argo-cd altogether. Needs `make update-dependencies` to be done correctly.
+      - dependency-name: "github.com/argoproj/argo-cd/v3"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "argocd-operator/tests/auxiliary/smtplistener/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "docker.io/library/golang"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "golang"
+
+  - package-ecosystem: "docker"
+    directory: "openshift-ci/build-root/"
+    schedule:
+      interval: "daily"
+    ignore:
+      # Go version in Dockerfiles is manually controlled.
+      - dependency-name: "quay.io/devtools_gitops/go-toolset"

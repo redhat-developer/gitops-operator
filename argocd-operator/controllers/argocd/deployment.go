@@ -21,14 +21,15 @@ import (
 	"maps"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
-	argoprojv1alpha1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	argoprojv1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -983,7 +984,14 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 	if cr.Spec.Server.VolumeMounts != nil {
 		serverVolumeMounts = append(serverVolumeMounts, cr.Spec.Server.VolumeMounts...)
 	}
-	arguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
+	// argocd-server does not support --tlscurvepreferences yet; omit curves until a
+	// supporting image is the default. Keep min version and ciphers.
+	tlsProfileForServer := r.CentralTLSConfigProfile
+	tlsProfileForServer.CurvePreferences = nil
+	arguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForServer, "argocd-server")
+	if err != nil {
+		return err
+	}
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{{
 		Args:            arguments,
 		Command:         getArgoServerCommand(cr, useTLSForRedis),
@@ -1328,19 +1336,50 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 	return r.Create(context.TODO(), deploy)
 }
 
-// BuildTLSArgsFromClusterTLSProfile builds the command line arguments for the ArgoCD components based on the cluster's TLS profile configuration.
-func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProfile) []string {
+// BuildTLSArgsFromClusterTLSProfile builds the command line arguments for Argo CD
+// components based on the cluster's TLS profile configuration.
+// component identifies the caller in curve-preference error/log messages
+// (e.g. "argocd-server", "argocd-repo-server", "argocd-image-updater").
+func BuildTLSArgsFromClusterTLSProfile(centralTLSConfig tlsProfile.TLSConfigProfile, component string) ([]string, error) {
 	var args []string
 	if centralTLSConfig.DisableClusterTLSProfile {
-		return nil
+		return nil, nil
 	}
 	if v := argoutil.TLSProtocolVersionString(centralTLSConfig.MinVersion); v != "" {
 		args = append(args, "--tlsminversion", v)
 	}
 	if ciphers := argoutil.MapCipherSuites(centralTLSConfig.Ciphers); len(ciphers) > 0 {
-		args = append(args, "--tlsciphers", strings.Join(ciphers, ":"))
+		// Go does not allow configuring TLS 1.3 cipher suites.
+		// Only filter them when TLS versions below 1.3 are used.
+		if centralTLSConfig.MinVersion != "VersionTLS13" {
+			tls13Ciphers := map[string]bool{
+				"TLS_AES_128_GCM_SHA256":       true,
+				"TLS_AES_256_GCM_SHA384":       true,
+				"TLS_CHACHA20_POLY1305_SHA256": true,
+			}
+			filtered := make([]string, 0, len(ciphers))
+			for _, cipher := range ciphers {
+				if !tls13Ciphers[cipher] {
+					filtered = append(filtered, cipher)
+				}
+			}
+			ciphers = filtered
+		}
+		if len(ciphers) > 0 {
+			args = append(args, "--tlsciphers", strings.Join(ciphers, ":"))
+		}
 	}
-	return args
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSConfig.CurvePreferences, component)
+	if err != nil {
+		// Do not fail reconciliation for incompatible curve preferences. Keep min
+		// version/ciphers and fall back to the component's default curve selection
+		// so disable/delete paths (and other reconcile work) can still proceed.
+		log.Info("skipping TLS curve preferences; falling back to component defaults",
+			"component", component, "error", err.Error())
+	} else if curves != "" {
+		args = append(args, "--tlscurvepreferences", curves)
+	}
+	return args, nil
 }
 
 // triggerDeploymentRollout will update the label with the given key to trigger a new rollout of the Deployment.
@@ -1365,6 +1404,9 @@ func proxyEnvVars(vars ...corev1.EnvVar) []corev1.EnvVar {
 	proxyKeys := []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
 	for _, p := range proxyKeys {
 		if k, v := caseInsensitiveGetenv(p); k != "" {
+			if p == "NO_PROXY" {
+				v = addToNoProxy(v, ".cluster.local.") // add .cluster.local. (with trailing dot) to allow entry typically not added by OpenShift
+			}
 			result = append(result, corev1.EnvVar{Name: k, Value: v})
 		}
 	}
@@ -1380,6 +1422,17 @@ func caseInsensitiveGetenv(s string) (string, string) {
 		return ls, v
 	}
 	return "", ""
+}
+
+func addToNoProxy(noProxy string, entry string) string {
+	if noProxy == "" {
+		return entry
+	}
+
+	if !slices.Contains(strings.Split(noProxy, ","), entry) {
+		return fmt.Sprintf("%s,%s", noProxy, entry)
+	}
+	return noProxy
 }
 
 func isRemoveManagedByLabelOnArgoCDDeletion() bool {

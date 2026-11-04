@@ -30,11 +30,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 // ReconcilePrincipalDeployment reconciles the ArgoCD agent principal deployment.
@@ -61,7 +61,10 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 			return nil
 		}
 
-		deployment, changed := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		deployment, changed, err := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		if err != nil {
+			return err
+		}
 		if changed {
 			argoutil.LogResourceUpdate(log, deployment, "principal deployment is being updated")
 			if err := client.Update(context.TODO(), deployment); err != nil {
@@ -81,7 +84,11 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 	}
 
 	argoutil.LogResourceCreation(log, deployment)
-	deployment.Spec = buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	spec, err := buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	if err != nil {
+		return err
+	}
+	deployment.Spec = spec
 	if err := client.Create(context.TODO(), deployment); err != nil {
 		return fmt.Errorf("failed to create principal deployment %s in namespace %s: %v", deployment.Name, cr.Namespace, err)
 	}
@@ -98,9 +105,12 @@ func buildDeployment(compName string, cr *argoproj.ArgoCD) *appsv1.Deployment {
 	}
 }
 
-func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) appsv1.DeploymentSpec {
+func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) (appsv1.DeploymentSpec, error) {
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return appsv1.DeploymentSpec{}, err
+	}
 	return appsv1.DeploymentSpec{
 		Selector: buildSelector(compName, cr),
 		Template: corev1.PodTemplateSpec{
@@ -126,7 +136,7 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 				PriorityClassName:  cr.Spec.PriorityClassName,
 			},
 		},
-	}
+	}, nil
 }
 
 func buildSelector(compName string, cr *argoproj.ArgoCD) *metav1.LabelSelector {
@@ -221,7 +231,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "jwt-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-jwt",
+					SecretName: "argocd-agent-jwt", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "jwt.key",
@@ -236,7 +246,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "userpass-passwd",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-principal-userpass",
+					SecretName: "argocd-agent-principal-userpass", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "passwd",
@@ -251,9 +261,9 @@ func buildVolumes() []corev1.Volume {
 }
 
 // updateDeploymentIfChanged compares the current deployment with the desired state
-// and updates it if any changes are detected. Returns the updated deployment and a boolean
-// indicating whether any changes were made.
-func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool) {
+// and updates it if any changes are detected. Returns the updated deployment, a boolean
+// indicating whether any changes were made, and an error if desired state cannot be built.
+func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool, error) {
 	changed := false
 
 	if !reflect.DeepEqual(deployment.Spec.Selector, buildSelector(compName, cr)) {
@@ -279,7 +289,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		changed = true
 		deployment.Spec.Template.Spec.Containers[0].Name = generateAgentResourceName(cr.Name, compName)
 	}
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return nil, false, err
+	}
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, envParams) {
 		log.Info("deployment container env is being updated")
 		changed = true
@@ -338,11 +351,14 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.PriorityClassName = cr.Spec.PriorityClassName
 	}
 
-	return deployment, changed
+	return deployment, changed, nil
 }
 
-func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) []corev1.EnvVar {
-	arguments := getPrincipalTlsConfig(centralTLSProfile)
+func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) ([]corev1.EnvVar, error) {
+	arguments, err := getPrincipalTlsConfig(centralTLSProfile)
+	if err != nil {
+		return nil, err
+	}
 	env := []corev1.EnvVar{
 		{
 			Name:  EnvArgoCDPrincipalLogLevel,
@@ -408,6 +424,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalCipherSuites,
 			Value: arguments["--tlsciphers"],
 		}, {
+			Name:  EnvArgoCDPrincipalTLSCurvePreferences,
+			Value: arguments["--tlsCurvePreferences"],
+		}, {
 			Name:  EnvArgoCDPrincipalJwtSecretName,
 			Value: getPrincipalJWTSecretName(cr),
 		}, {
@@ -416,6 +435,15 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		}, {
 			Name:  EnvArgoCDPrincipalLabelSelector,
 			Value: getPrincipalLabelSelector(cr),
+		}, {
+			Name:  EnvArgoCDPrincipalEnableSelfClusterRegistration,
+			Value: getPrincipalEnableSelfClusterRegistration(cr),
+		}, {
+			Name:  EnvArgoCDPrincipalSelfRegistrationClientCertSecret,
+			Value: getPrincipalSelfRegistrationClientCertSecret(cr),
+		}, {
+			Name:  EnvArgoCDPrincipalResourceProxyAddress,
+			Value: getPrincipalResourceProxyAddress(cr),
 		},
 	}
 
@@ -426,42 +454,52 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		env = append(env, cr.Spec.ArgoCDAgent.Principal.Env...)
 	}
 
-	return env
+	return env, nil
 }
 
 // These constants are environment variables that correspond to the environment variables
 // used to configure Argo CD agent, and should match the names exactly from the agent
 const (
-	EnvArgoCDPrincipalLogLevel                  = "ARGOCD_PRINCIPAL_LOG_LEVEL"
-	EnvArgoCDPrincipalLogFormat                 = "ARGOCD_PRINCIPAL_LOG_FORMAT"
-	EnvArgoCDPrincipalNamespace                 = "ARGOCD_PRINCIPAL_NAMESPACE"
-	EnvArgoCDPrincipalAllowedNamespaces         = "ARGOCD_PRINCIPAL_ALLOWED_NAMESPACES"
-	EnvArgoCDPrincipalNamespaceCreateEnable     = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_ENABLE"
-	EnvArgoCDPrincipalNamespaceCreatePattern    = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_PATTERN"
-	EnvArgoCDPrincipalNamespaceCreateLabels     = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_LABELS"
-	EnvArgoCDPrincipalTLSServerAllowGenerate    = "ARGOCD_PRINCIPAL_TLS_SERVER_ALLOW_GENERATE"
-	EnvArgoCDPrincipalJWTAllowGenerate          = "ARGOCD_PRINCIPAL_JWT_ALLOW_GENERATE"
-	EnvArgoCDPrincipalAuth                      = "ARGOCD_PRINCIPAL_AUTH"
-	EnvArgoCDPrincipalEnableWebSocket           = "ARGOCD_PRINCIPAL_ENABLE_WEBSOCKET"
-	EnvArgoCDPrincipalEnableResourceProxy       = "ARGOCD_PRINCIPAL_ENABLE_RESOURCE_PROXY"
-	EnvArgoCDPrincipalKeepAliveMinInterval      = "ARGOCD_PRINCIPAL_KEEP_ALIVE_MIN_INTERVAL"
-	EnvArgoCDPrincipalRedisServerAddress        = "ARGOCD_PRINCIPAL_REDIS_SERVER_ADDRESS"
-	EnvArgoCDPrincipalRedisCompressionType      = "ARGOCD_PRINCIPAL_REDIS_COMPRESSION_TYPE"
-	EnvArgoCDPrincipalTLSSecretName             = "ARGOCD_PRINCIPAL_TLS_SECRET_NAME"
-	EnvArgoCDPrincipalTLSServerRootCASecretName = "ARGOCD_PRINCIPAL_TLS_SERVER_ROOT_CA_SECRET_NAME"
-	EnvArgoCDPrincipalResourceProxySecretName   = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_SECRET_NAME"
-	EnvArgoCDPrincipalResourceProxyCaSecretName = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_CA_SECRET_NAME"
-	EnvArgoCDPrincipalJwtSecretName             = "ARGOCD_PRINCIPAL_JWT_SECRET_NAME"
-	EnvArgoCDPrincipalImage                     = "ARGOCD_PRINCIPAL_IMAGE"
-	EnvArgoCDPrincipalDestinationBasedMapping   = "ARGOCD_PRINCIPAL_DESTINATION_BASED_MAPPING"
-	EnvArgoCDPrincipalLabelSelector             = "ARGOCD_PRINCIPAL_LABEL_SELECTOR"
-	EnvArgoCDPrincipalTlsMinVersion             = "ARGOCD_PRINCIPAL_TLS_MIN_VERSION"
-	EnvArgoCDPrincipalCipherSuites              = "ARGOCD_PRINCIPAL_TLS_CIPHERSUITES"
+	EnvArgoCDPrincipalLogLevel                         = "ARGOCD_PRINCIPAL_LOG_LEVEL"
+	EnvArgoCDPrincipalLogFormat                        = "ARGOCD_PRINCIPAL_LOG_FORMAT"
+	EnvArgoCDPrincipalNamespace                        = "ARGOCD_PRINCIPAL_NAMESPACE"
+	EnvArgoCDPrincipalAllowedNamespaces                = "ARGOCD_PRINCIPAL_ALLOWED_NAMESPACES"
+	EnvArgoCDPrincipalNamespaceCreateEnable            = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_ENABLE"
+	EnvArgoCDPrincipalNamespaceCreatePattern           = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_PATTERN"
+	EnvArgoCDPrincipalNamespaceCreateLabels            = "ARGOCD_PRINCIPAL_NAMESPACE_CREATE_LABELS"
+	EnvArgoCDPrincipalTLSServerAllowGenerate           = "ARGOCD_PRINCIPAL_TLS_SERVER_ALLOW_GENERATE"
+	EnvArgoCDPrincipalJWTAllowGenerate                 = "ARGOCD_PRINCIPAL_JWT_ALLOW_GENERATE"
+	EnvArgoCDPrincipalAuth                             = "ARGOCD_PRINCIPAL_AUTH"
+	EnvArgoCDPrincipalEnableWebSocket                  = "ARGOCD_PRINCIPAL_ENABLE_WEBSOCKET"
+	EnvArgoCDPrincipalEnableResourceProxy              = "ARGOCD_PRINCIPAL_ENABLE_RESOURCE_PROXY"
+	EnvArgoCDPrincipalKeepAliveMinInterval             = "ARGOCD_PRINCIPAL_KEEP_ALIVE_MIN_INTERVAL"
+	EnvArgoCDPrincipalRedisServerAddress               = "ARGOCD_PRINCIPAL_REDIS_SERVER_ADDRESS"
+	EnvArgoCDPrincipalRedisCompressionType             = "ARGOCD_PRINCIPAL_REDIS_COMPRESSION_TYPE"
+	EnvArgoCDPrincipalTLSSecretName                    = "ARGOCD_PRINCIPAL_TLS_SECRET_NAME"
+	EnvArgoCDPrincipalTLSServerRootCASecretName        = "ARGOCD_PRINCIPAL_TLS_SERVER_ROOT_CA_SECRET_NAME"
+	EnvArgoCDPrincipalResourceProxySecretName          = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_SECRET_NAME"
+	EnvArgoCDPrincipalResourceProxyCaSecretName        = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_CA_SECRET_NAME"
+	EnvArgoCDPrincipalJwtSecretName                    = "ARGOCD_PRINCIPAL_JWT_SECRET_NAME"
+	EnvArgoCDPrincipalImage                            = "ARGOCD_PRINCIPAL_IMAGE"
+	EnvArgoCDPrincipalDestinationBasedMapping          = "ARGOCD_PRINCIPAL_DESTINATION_BASED_MAPPING"
+	EnvArgoCDPrincipalLabelSelector                    = "ARGOCD_PRINCIPAL_LABEL_SELECTOR"
+	EnvArgoCDPrincipalTlsMinVersion                    = "ARGOCD_PRINCIPAL_TLS_MIN_VERSION"
+	EnvArgoCDPrincipalCipherSuites                     = "ARGOCD_PRINCIPAL_TLS_CIPHERSUITES"
+	EnvArgoCDPrincipalEnableSelfClusterRegistration    = "ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION"
+	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
+	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
+	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
 )
 
-func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[string]string {
+// getPrincipalTlsConfig maps the cluster TLS security profile into env values for the
+// argocd-agent principal process (ARGOCD_PRINCIPAL_TLS_*). Curve preferences are converted
+// from OpenShift TLSGroup names to Go crypto/tls CurveID names and joined with commas, as
+// expected by ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES. Empty curve preferences mean the
+// principal keeps its default behavior; a non-empty profile with no Go-supported groups
+// is an error so an incompatible profile is not silently ignored.
+func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) (map[string]string, error) {
 	if centralTLSProfile.DisableClusterTLSProfile {
-		return nil
+		return nil, nil
 	}
 	arguments := make(map[string]string)
 	if v := argoutil.AgentTLSProtocolVersionString(centralTLSProfile.MinVersion); v != "" {
@@ -488,7 +526,17 @@ func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[st
 			arguments["--tlsciphers"] = strings.Join(ciphers, ",")
 		}
 	}
-	return arguments
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSProfile.CurvePreferences, "argocd-agent principal")
+	if err != nil {
+		return nil, err
+	}
+	if curves != "" {
+		// MapOpenShiftTLSGroupsToGoCurves joins with ":" for components that expect that
+		// separator; the agent principal expects a comma-separated list.
+		arguments["--tlsCurvePreferences"] = strings.ReplaceAll(curves, ":", ",")
+	}
+
+	return arguments, nil
 }
 
 // Logging Configuration
@@ -685,4 +733,30 @@ func hasRedis(cr *argoproj.ArgoCD) bool {
 	return cr.Spec.ArgoCDAgent != nil &&
 		cr.Spec.ArgoCDAgent.Principal != nil &&
 		cr.Spec.ArgoCDAgent.Principal.Redis != nil
+}
+
+func hasSelfRegistration(cr *argoproj.ArgoCD) bool {
+	return cr.Spec.ArgoCDAgent != nil &&
+		cr.Spec.ArgoCDAgent.Principal != nil &&
+		cr.Spec.ArgoCDAgent.Principal.SelfRegistration != nil
+}
+
+func getPrincipalEnableSelfClusterRegistration(cr *argoproj.ArgoCD) string {
+	if hasSelfRegistration(cr) && cr.Spec.ArgoCDAgent.Principal.SelfRegistration.Enabled != nil {
+		return strconv.FormatBool(*cr.Spec.ArgoCDAgent.Principal.SelfRegistration.Enabled)
+	}
+	return "false"
+}
+
+func getPrincipalSelfRegistrationClientCertSecret(cr *argoproj.ArgoCD) string {
+	if hasSelfRegistration(cr) && cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName != "" {
+		return cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName
+	}
+	return ""
+}
+
+func getPrincipalResourceProxyAddress(cr *argoproj.ArgoCD) string {
+	return fmt.Sprintf("%s:%d",
+		generateAgentResourceName(cr.Name, string(argoproj.AgentComponentTypePrincipal)+"-resource-proxy"),
+		PrincipalResourceProxyServicePort)
 }

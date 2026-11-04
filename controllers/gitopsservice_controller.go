@@ -24,14 +24,16 @@ import (
 	"reflect"
 	"strings"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	argocdcontroller "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocd"
-	argocdutil "github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
+	configv1 "github.com/openshift/api/config/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	argocdcontroller "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocd"
+	argocdutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	argocd "github.com/redhat-developer/gitops-operator/controllers/argocd"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
@@ -54,8 +56,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	configv1 "github.com/openshift/api/config/v1"
 )
 
 var logs = logf.Log.WithName("controller_gitopsservice")
@@ -148,8 +148,8 @@ type ReconcileGitopsService struct {
 
 	// disableDefaultInstall, if true, will ensure that the default ArgoCD instance is not instantiated in the openshift-gitops namespace.
 	DisableDefaultInstall bool
-	//CentralTLSProfile contains MinVersion and CipherSuites
-	CentralTLSProfile configv1.TLSProfileSpec
+	// CentralTLSProfile contains cluster TLS settings (min version, ciphers, curve preferences).
+	CentralTLSProfile tlsprofile.TLSConfigProfile
 
 	// PluginNamespace is the namespace where console plugin resources (Deployment, Service, ConfigMap) are deployed.
 	// This is typically the operator's own namespace (e.g. "openshift-gitops-operator").
@@ -258,29 +258,6 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Create namespace if it doesn't already exist
-	namespaceRef := newRestrictedNamespace(namespace)
-	err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating a new Namespace", "Name", namespace)
-			ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
-			err = r.Client.Create(ctx, namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		} else {
-			return reconcile.Result{}, err
-		}
-	} else {
-		if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
-			err = r.Client.Update(context.TODO(), namespaceRef)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	}
-
 	gitopsserviceNamespacedName := types.NamespacedName{
 		Name:      serviceName,
 		Namespace: namespace,
@@ -293,9 +270,37 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 	}
 
 	if !r.DisableDefaultInstall {
-		// Create/reconcile the default Argo CD instance, unless default install is disabled
+		// Create namespace if it doesn't already exist (only when default install is enabled)
+		namespaceRef := newRestrictedNamespace(namespace)
+		err = r.Client.Get(ctx, types.NamespacedName{Name: namespace}, namespaceRef)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				reqLogger.Info("Creating a new Namespace", "Name", namespace)
+				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+				err = r.Client.Create(ctx, namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			} else {
+				return reconcile.Result{}, err
+			}
+		} else {
+			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
+				err = r.Client.Update(context.TODO(), namespaceRef)
+				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+		}
+
+		// Create/reconcile the default Argo CD instance
 		if result, err := r.reconcileDefaultArgoCDInstance(instance, reqLogger); err != nil {
 			return result, fmt.Errorf("unable to reconcile default Argo CD instance: %v", err)
+		}
+
+		// Reconcile backend service
+		if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
+			return result, err
 		}
 	} else {
 		// If installation of default Argo CD instance is disabled, make sure it doesn't exist,
@@ -303,30 +308,17 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		if err := r.ensureDefaultArgoCDInstanceDoesntExist(); err != nil {
 			return reconcile.Result{}, fmt.Errorf("unable to ensure non-existence of default Argo CD instance: %v", err)
 		}
-	}
 
-	if result, err := r.reconcileBackend(gitopsserviceNamespacedName, instance, reqLogger); err != nil {
-		return result, err
-	}
-
-	if r.PluginNamespace != namespace {
-		pluginNS := &corev1.Namespace{}
-		err = r.Client.Get(ctx, types.NamespacedName{Name: r.PluginNamespace}, pluginNS)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				reqLogger.Info("Creating plugin namespace", "Name", r.PluginNamespace)
-				pluginNS = &corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{Name: r.PluginNamespace},
-				}
-				err = r.Client.Create(ctx, pluginNS)
-				if err != nil {
-					return reconcile.Result{}, err
-				}
-			} else {
-				return reconcile.Result{}, err
-			}
+		// The backend is part of the default install, so it is not created either. Remove whatever a
+		// previous reconcile created for it.
+		if err := r.cleanupBackendResources(ctx, gitopsserviceNamespacedName, reqLogger); err != nil {
+			return reconcile.Result{}, err
 		}
 	}
+
+	// The console plugin is decoupled from the default Argo CD instance, so it is reconciled into
+	// its own namespace regardless of whether the default install is disabled. That namespace is
+	// created by reconcilePlugin, which runs below.
 
 	dynamicPluginStartOCPVersion := os.Getenv(dynamicPluginStartOCPVersionEnv)
 	if dynamicPluginStartOCPVersion == "" {
@@ -428,7 +420,9 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 		}
 	}
 
-	// Delete the existing Argo CD instance, if it exists
+	// Delete the existing Argo CD instance, if it exists. The namespace it lives in is deliberately
+	// left in place, because it may hold resources that were created outside of the operator. It is up
+	// to the user to clean up the namespace and anything else they put in it.
 	existingArgoCD := &argoapp.ArgoCD{}
 	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: defaultArgoCDInstance.Name, Namespace: defaultArgoCDInstance.Namespace}, existingArgoCD)
 	if err == nil {
@@ -440,6 +434,44 @@ func (r *ReconcileGitopsService) ensureDefaultArgoCDInstanceDoesntExist() error 
 	} else if !errors.IsNotFound(err) {
 		// If an unexpected error occurred (eg not the 'not found' error, which is expected) then just return it
 		return err
+	}
+
+	return nil
+}
+
+// cleanupBackendResources deletes the resources that reconcileBackend creates, and only those. The
+// namespace they live in is deliberately left in place, since it may hold resources that were
+// created outside of the operator, and cleaning those up is left to the user.
+//
+// The ClusterRole and ClusterRoleBinding are cluster-scoped, so they would survive even if the user
+// did delete the namespace, and are otherwise only garbage collected once the GitopsService CR
+// itself is deleted. Leaving the binding behind would re-grant cluster-wide access as soon as a
+// ServiceAccount of the same name in that namespace exists again.
+//
+// Keep in sync with reconcileBackend.
+func (r *ReconcileGitopsService) cleanupBackendResources(ctx context.Context, gitopsserviceNamespacedName types.NamespacedName, reqLogger logr.Logger) error {
+
+	// Deleted in this order so the workload is told to stop before the RBAC it runs with is
+	// revoked.
+	backendResources := []struct {
+		kind   string
+		object client.Object
+	}{
+		{"Deployment", &appsv1.Deployment{ObjectMeta: backendDeploymentObjectMeta(gitopsserviceNamespacedName)}},
+		{"Service", newBackendService(gitopsserviceNamespacedName)},
+		{"ClusterRoleBinding", newClusterRoleBinding(gitopsserviceNamespacedName)},
+		{"ClusterRole", newClusterRole(gitopsserviceNamespacedName)},
+		{"ServiceAccount", newServiceAccount(gitopsserviceNamespacedName)},
+	}
+
+	for _, resource := range backendResources {
+		if err := r.Client.Delete(ctx, resource.object); err != nil {
+			if !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete backend %s %q: %w", resource.kind, resource.object.GetName(), err)
+			}
+		} else {
+			reqLogger.Info("Deleted backend "+resource.kind, "Name", resource.object.GetName())
+		}
 	}
 
 	return nil
@@ -696,7 +728,10 @@ func (r *ReconcileGitopsService) reconcileBackend(gitopsserviceNamespacedName ty
 
 	// Define a new backend Deployment
 	{
-		deploymentObj := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
+		deploymentObj, err := newBackendDeployment(gitopsserviceNamespacedName, instance.Spec.ImagePullPolicy, r.CentralTLSProfile)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 
 		// Add SeccompProfile based on cluster version
 		util.AddSeccompProfileForOpenShift(r.Client, &deploymentObj.Spec.Template.Spec)
@@ -834,7 +869,7 @@ func objectMeta(resourceName string, namespace string, opts ...func(*metav1.Obje
 	return objectMeta
 }
 
-func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile configv1.TLSProfileSpec) *appsv1.Deployment {
+func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.PullPolicy, CentralTLSProfile tlsprofile.TLSConfigProfile) (*appsv1.Deployment, error) {
 	image := os.Getenv(backendImageEnvName)
 	if image == "" {
 		image = backendImage
@@ -845,17 +880,51 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 			Value: insecureEnvVarValue,
 		},
 	}
-	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion) != "" {
+	if argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinVersion) != "" {
 		env = append(env, corev1.EnvVar{
 			Name:  "TLS_MIN_VERSION",
-			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinTLSVersion),
+			Value: argocdutil.TLSProtocolVersionString(CentralTLSProfile.MinVersion),
 		})
 	}
 
-	if len(CentralTLSProfile.Ciphers) > 0 {
+	// gitops-backend is Go-based and accepts IANA cipher names only (e.g.
+	// TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256), not OpenSSL names from the
+	// OpenShift TLSSecurityProfile (e.g. ECDHE-ECDSA-AES128-GCM-SHA256).
+	if ciphers := argocdutil.MapCipherSuites(CentralTLSProfile.Ciphers); len(ciphers) > 0 {
+		// Go does not allow configuring TLS 1.3 cipher suites; gitops-backend
+		// also rejects TLS 1.3 suites when the configured minimum is below 1.3.
+		if CentralTLSProfile.MinVersion != configv1.VersionTLS13 {
+			tls13Ciphers := map[string]bool{
+				"TLS_AES_128_GCM_SHA256":       true,
+				"TLS_AES_256_GCM_SHA384":       true,
+				"TLS_CHACHA20_POLY1305_SHA256": true,
+			}
+			filtered := make([]string, 0, len(ciphers))
+			for _, cipher := range ciphers {
+				if !tls13Ciphers[cipher] {
+					filtered = append(filtered, cipher)
+				}
+			}
+			ciphers = filtered
+		}
+		if len(ciphers) > 0 {
+			env = append(env, corev1.EnvVar{
+				Name:  "TLS_CIPHER_SUITES",
+				Value: strings.Join(ciphers, ":"),
+			})
+		}
+	}
+
+	// gitops-backend expects Go crypto/tls curve names (e.g. CurveP256, X25519),
+	// not OpenShift TLSGroup names (e.g. secp256r1).
+	curves, err := argocdutil.MapOpenShiftTLSGroupsToGoCurves(CentralTLSProfile.CurvePreferences, "gitops-backend")
+	if err != nil {
+		return nil, err
+	}
+	if curves != "" {
 		env = append(env, corev1.EnvVar{
-			Name:  "TLS_CIPHER_SUITES",
-			Value: strings.Join(CentralTLSProfile.Ciphers, ":"),
+			Name:  "TLS_CURVE_PREFERENCES",
+			Value: curves,
 		})
 	}
 	podSpec := corev1.PodSpec{
@@ -929,11 +998,18 @@ func newBackendDeployment(ns types.NamespacedName, crImagePullPolicy corev1.Pull
 	}
 
 	deploymentObj := &appsv1.Deployment{
-		ObjectMeta: objectMeta(ns.Name, ns.Namespace),
+		ObjectMeta: backendDeploymentObjectMeta(ns),
 		Spec:       deploymentSpec,
 	}
 
-	return deploymentObj
+	return deploymentObj, nil
+}
+
+// backendDeploymentObjectMeta identifies the backend Deployment. It is shared by newBackendDeployment
+// and cleanupBackendResources, so that the Deployment is deleted under exactly the name it is created
+// with.
+func backendDeploymentObjectMeta(ns types.NamespacedName) metav1.ObjectMeta {
+	return objectMeta(ns.Name, ns.Namespace)
 }
 
 func newBackendService(ns types.NamespacedName) *corev1.Service {

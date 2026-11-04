@@ -30,9 +30,9 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 // Helper function to create a test deployment
@@ -43,8 +43,16 @@ func makeTestDeployment(cr *argoproj.ArgoCD) *appsv1.Deployment {
 			Namespace: cr.Namespace,
 			Labels:    buildLabelsForAgentPrincipal(cr.Name, testCompName),
 		},
-		Spec: buildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
+		Spec: mustBuildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
 	}
+}
+
+func mustBuildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, profile tlsprofile.TLSConfigProfile) appsv1.DeploymentSpec {
+	spec, err := buildPrincipalSpec(compName, saName, cr, profile)
+	if err != nil {
+		panic(err)
+	}
+	return spec
 }
 
 // Helper function to create a test deployment with custom image
@@ -132,7 +140,7 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, buildLabelsForAgentPrincipal(cr.Name, testCompName), deployment.Labels)
 
 	// Verify Deployment has expected spec
-	expectedSpec := buildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
+	expectedSpec := mustBuildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
 	assert.Equal(t, expectedSpec.Selector, deployment.Spec.Selector)
 	assert.Equal(t, expectedSpec.Template.Labels, deployment.Spec.Template.Labels)
 	assert.Equal(t, expectedSpec.Template.Spec.ServiceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
@@ -143,7 +151,9 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, generateAgentResourceName(cr.Name, testCompName), container.Name)
 	assert.Equal(t, buildPrincipalImage(cr), container.Image)
 	assert.Equal(t, buildArgs(testCompName), container.Args)
-	assert.Equal(t, buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{}), container.Env)
+	env, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+	assert.Equal(t, env, container.Env)
 	assert.Equal(t, buildSecurityContext(), container.SecurityContext)
 	assert.Equal(t, buildPorts(testCompName), container.Ports)
 
@@ -771,18 +781,95 @@ func TestGetPrincipalTlsConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "curve preferences mapped to comma-separated Go curve names",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			expected: map[string]string{
+				"--tlsminversion":       "tls1.2",
+				"--tlsCurvePreferences": "X25519,CurveP256,CurveP384",
+			},
+			wantErr: false,
+		},
+		{
+			name: "unsupported curve groups skipped when others remain",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: map[string]string{
+				"--tlsCurvePreferences": "X25519",
+			},
+			wantErr: false,
+		},
+		{
+			name: "all unsupported curve groups returns error",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name: "empty curve preferences omit env value",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion:       configv1.VersionTLS12,
+				CurvePreferences: nil,
+			},
+			expected: map[string]string{
+				"--tlsminversion": "tls1.2",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getPrincipalTlsConfig(
-				tt.tlsProfile,
-			)
+			got, err := getPrincipalTlsConfig(tt.tlsProfile)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %#v got %#v", tt.expected, got)
 			}
 		})
 	}
+}
+
+func TestBuildPrincipalContainerEnv_TLSCurvePreferences(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+	envVars, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
+	})
+	assert.NoError(t, err)
+
+	envMap := make(map[string]string)
+	for _, e := range envVars {
+		envMap[e.Name] = e.Value
+	}
+	assert.Equal(t, "X25519,CurveP256", envMap[EnvArgoCDPrincipalTLSCurvePreferences])
+
+	_, err = buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupSecP256r1MLKEM768,
+		},
+	})
+	assert.Error(t, err)
 }
 
 func withPrincipalLabelSelector(selector string) argoCDOpt {
@@ -852,13 +939,141 @@ func TestBuildPrincipalContainerEnv_LabelSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			for _, e := range envVars {
 				envMap[e.Name] = e.Value
 			}
 			assert.Equal(t, tt.expected, envMap[EnvArgoCDPrincipalLabelSelector],
 				"ARGOCD_PRINCIPAL_LABEL_SELECTOR mismatch")
+		})
+	}
+}
+
+func withSelfRegistration(enabled bool, clientCertSecretName string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.SelfRegistration = &argoproj.PrincipalSelfRegistrationSpec{
+			Enabled:              &enabled,
+			ClientCertSecretName: clientCertSecretName,
+		}
+	}
+}
+
+func TestGetPrincipalEnableSelfClusterRegistration(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: "false",
+		},
+		{
+			name:     "self-registration not configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "false",
+		},
+		{
+			name:     "self-registration enabled",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "")),
+			expected: "true",
+		},
+		{
+			name:     "self-registration disabled",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(false, "")),
+			expected: "false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalEnableSelfClusterRegistration(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSelfRegistrationClientCertSecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: "",
+		},
+		{
+			name:     "self-registration not configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "",
+		},
+		{
+			name:     "client cert secret set",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "argocd-agent-shared-client-cert")),
+			expected: "argocd-agent-shared-client-cert",
+		},
+		{
+			name:     "client cert secret empty",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "")),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSelfRegistrationClientCertSecret(tt.cr))
+		})
+	}
+}
+
+func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
+	tests := []struct {
+		name                      string
+		cr                        *argoproj.ArgoCD
+		expectedEnabled           string
+		expectedClientCertSecret  string
+		expectedResourceProxyAddr string
+	}{
+		{
+			name:                      "defaults when self-registration not configured",
+			cr:                        makeTestArgoCD(withPrincipalEnabled(true)),
+			expectedEnabled:           "false",
+			expectedClientCertSecret:  "",
+			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
+		},
+		{
+			name:                      "self-registration enabled with client cert",
+			cr:                        makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "argocd-agent-shared-client-cert")),
+			expectedEnabled:           "true",
+			expectedClientCertSecret:  "argocd-agent-shared-client-cert",
+			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
+			envMap := make(map[string]string)
+			for _, e := range envVars {
+				envMap[e.Name] = e.Value
+			}
+			assert.Equal(t, tt.expectedEnabled, envMap[EnvArgoCDPrincipalEnableSelfClusterRegistration],
+				"ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION mismatch")
+			assert.Equal(t, tt.expectedClientCertSecret, envMap[EnvArgoCDPrincipalSelfRegistrationClientCertSecret],
+				"ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET mismatch")
+			assert.Equal(t, tt.expectedResourceProxyAddr, envMap[EnvArgoCDPrincipalResourceProxyAddress],
+				"ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS mismatch")
 		})
 	}
 }

@@ -31,9 +31,9 @@ import (
 	argopass "github.com/argoproj/argo-cd/v3/util/password"
 	certmanagerv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -81,9 +81,11 @@ func nowNano() string {
 	return fmt.Sprintf("%d", time.Now().UTC().UnixNano())
 }
 
-// newCASecret creates a new CA secret with the given suffix for the given ArgoCD.
+// newCASecret creates a new CA secret for the given ArgoCD.
+// The secret name is taken from spec.tls.ca.secretName when set, otherwise it defaults to the "{cr.Name}-ca" suffix.
 func newCASecret(cr *argoproj.ArgoCD) (*corev1.Secret, error) {
-	secret := argoutil.NewTLSSecret(cr, "ca")
+	secret := argoutil.NewSecretWithName(cr, getCASecretName(cr))
+	secret.Type = corev1.SecretTypeTLS
 
 	key, err := argoutil.NewPrivateKey()
 	if err != nil {
@@ -260,7 +262,7 @@ func (r *ReconcileArgoCD) reconcileClusterTLSSecret(cr *argoproj.ArgoCD) error {
 		return nil // Secret found, do nothing
 	}
 
-	caSecret := argoutil.NewSecretWithSuffix(cr, "ca")
+	caSecret := argoutil.NewSecretWithName(cr, getCASecretName(cr))
 	caSecret, err = argoutil.FetchSecret(r.Client, cr.ObjectMeta, caSecret.Name)
 	if err != nil {
 		return err
@@ -291,7 +293,18 @@ func (r *ReconcileArgoCD) reconcileClusterTLSSecret(cr *argoproj.ArgoCD) error {
 
 // reconcileClusterCASecret ensures the CA Secret is created for the ArgoCD cluster.
 func (r *ReconcileArgoCD) reconcileClusterCASecret(cr *argoproj.ArgoCD) error {
-	secret := argoutil.NewSecretWithSuffix(cr, "ca")
+	caSecretName := getCASecretName(cr)
+
+	// If spec.tls.ca.secretName equals {cr.Name}-tls, CA reconciliation would create
+	// or adopt that secret first, and TLS reconciliation would then see it as the
+	// existing server-TLS secret and skip generating a proper signed certificate.
+	tlsSecretName := argoutil.GetSecretNameWithSuffix(cr, "tls")
+	if caSecretName == tlsSecretName {
+		return fmt.Errorf("spec.tls.ca.secretName %q conflicts with the operator-managed cluster TLS secret %q; choose a different name",
+			caSecretName, tlsSecretName)
+	}
+
+	secret := argoutil.NewSecretWithName(cr, caSecretName)
 	secretExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, secret.Name, secret)
 	if err != nil {
 		return err

@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	argoapp "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
 	configv1 "github.com/openshift/api/config/v1"
+	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"

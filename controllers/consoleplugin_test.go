@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	argocommon "github.com/argoproj-labs/gitops-operator/argocd-operator/common"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
+	argocommon "github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	"github.com/redhat-developer/gitops-operator/common"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
@@ -1866,61 +1867,129 @@ func TestReconcileDeployment_UpdateWhenActualChange(t *testing.T) {
 func TestBuildHttpdConfig(t *testing.T) {
 	tests := []struct {
 		name              string
-		CentralTLSProfile configv1.TLSProfileSpec
+		CentralTLSProfile tlsprofile.TLSConfigProfile
 		wantProtocol      bool
 		wantCipherSuite   bool
+		wantGroups        bool
 		protocol          string
 		cipherSuite       string
+		groups            string
 	}{
 		{
 			name: "no TLS version no ciphers",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "",
-				Ciphers:       nil,
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "",
+				Ciphers:    nil,
 			},
 			wantProtocol:    false,
 			wantCipherSuite: false,
+			wantGroups:      false,
 		},
 		{
 			name: "TLS 1.2 with cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS12",
-				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				Ciphers:    []string{"ECDHE-RSA-AES256-GCM-SHA384", "ECDHE-RSA-AES128-GCM-SHA256"},
 			},
 			wantProtocol:    true,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256",
 		},
 		{
 			name: "TLS 1.3 ignores cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS13",
-				Ciphers:       []string{"TLS_AES_128_GCM_SHA256"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS13",
+				Ciphers:    []string{"TLS_AES_128_GCM_SHA256"},
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.3",
 		},
 		{
 			name: "TLS 1.2 without cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "VersionTLS12",
-				Ciphers:       nil,
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				Ciphers:    nil,
 			},
 			wantProtocol:    true,
 			wantCipherSuite: false,
+			wantGroups:      false,
 			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 		{
 			name: "invalid TLS version with cipher suites",
-			CentralTLSProfile: configv1.TLSProfileSpec{
-				MinTLSVersion: "invalid",
-				Ciphers:       []string{"ECDHE-RSA-AES256-GCM-SHA384"},
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "invalid",
+				Ciphers:    []string{"ECDHE-RSA-AES256-GCM-SHA384"},
 			},
 			wantProtocol:    false,
 			wantCipherSuite: true,
+			wantGroups:      false,
 			cipherSuite:     "ECDHE-RSA-AES256-GCM-SHA384",
+		},
+		{
+			name: "TLS groups configure SSLOpenSSLConfCmd Groups",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519MLKEM768:X25519:secp256r1:secp384r1",
+		},
+		{
+			name: "TLS 1.3 with groups",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS13",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.3",
+			groups:          "X25519:secp256r1",
+		},
+		{
+			name: "unknown groups are filtered out",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroup("UnknownGroup"),
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      true,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
+			groups:          "X25519:secp384r1",
+		},
+		{
+			name: "only unknown groups omits SSLOpenSSLConfCmd",
+			CentralTLSProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: "VersionTLS12",
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
+				},
+			},
+			wantProtocol:    true,
+			wantCipherSuite: false,
+			wantGroups:      false,
+			protocol:        "-all +TLSv1.2 +TLSv1.3",
 		},
 	}
 
@@ -1952,6 +2021,13 @@ func TestBuildHttpdConfig(t *testing.T) {
 				assert.Assert(t, cmp.Contains(cfg, "SSLCipherSuite "+tt.cipherSuite))
 			} else {
 				assert.Assert(t, !strings.Contains(cfg, "SSLCipherSuite"))
+			}
+
+			// SSLOpenSSLConfCmd Groups
+			if tt.wantGroups {
+				assert.Assert(t, cmp.Contains(cfg, "SSLOpenSSLConfCmd Groups "+tt.groups))
+			} else {
+				assert.Assert(t, !strings.Contains(cfg, "SSLOpenSSLConfCmd Groups"))
 			}
 		})
 	}

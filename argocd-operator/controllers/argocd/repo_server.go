@@ -38,9 +38,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	argocdoperatorv1beta1 "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argocdoperatorv1beta1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // getArgoCDRepoServerReplicas will return the size value for the argocd-repo-server replica count if it
@@ -211,7 +211,14 @@ func (r *ReconcileArgoCD) reconcileRepoDeployment(cr *argocdoperatorv1beta1.Argo
 		repoServerVolumeMounts = append(repoServerVolumeMounts, cr.Spec.Repo.VolumeMounts...)
 	}
 
-	arguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
+	// argocd-repo-server does not support --tlscurvepreferences yet; omit curves until a
+	// supporting image is the default. Keep min version and ciphers.
+	tlsProfileForRepoServer := r.CentralTLSConfigProfile
+	tlsProfileForRepoServer.CurvePreferences = nil
+	arguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForRepoServer, "argocd-repo-server")
+	if err != nil {
+		return err
+	}
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{{
 		Args:            arguments,
 		Command:         getArgoRepoCommand(cr, useTLSForRedis),

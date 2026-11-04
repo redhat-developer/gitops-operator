@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -20,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	tlsProfile "github.com/argoproj-labs/gitops-operator/argocd-operator/pkg/tlsprofile"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -32,13 +33,13 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 )
 
 const (
 	testHTTPProxy  = "example.com:8888"
 	testHTTPSProxy = "example.com:8443"
-	testNoProxy    = ".example.com"
+	testNoProxy    = ".example.com,42.43.44.45"
 )
 
 var deploymentNames = []string{
@@ -1177,7 +1178,7 @@ func Test_proxyEnvVars(t *testing.T) {
 			want: []corev1.EnvVar{
 				{Name: "HTTP_PROXY", Value: "example.com:8888"},
 				{Name: "HTTPS_PROXY", Value: "example.com:8443"},
-				{Name: "no_proxy", Value: ".example.com"},
+				{Name: "no_proxy", Value: ".example.com,42.43.44.45,.cluster.local."},
 			},
 		},
 		{
@@ -1188,7 +1189,7 @@ func Test_proxyEnvVars(t *testing.T) {
 				{Name: "TEST_VAR", Value: "testing"},
 				{Name: "HTTP_PROXY", Value: "example.com:8888"},
 				{Name: "HTTPS_PROXY", Value: "example.com:8443"},
-				{Name: "no_proxy", Value: ".example.com"},
+				{Name: "no_proxy", Value: ".example.com,42.43.44.45,.cluster.local."},
 			},
 		},
 	}
@@ -1197,6 +1198,13 @@ func Test_proxyEnvVars(t *testing.T) {
 		e := proxyEnvVars(tt.vars...)
 		assert.Equal(t, tt.want, e)
 	}
+}
+
+func Test_proxyEnvVars_NO_PROXY_no_dupes(t *testing.T) {
+	t.Setenv("NO_PROXY", ".cluster.local.,.example.com")
+	env := proxyEnvVars(corev1.EnvVar{})
+	noProxy := argoutil.EnvGet(env, "NO_PROXY")
+	assert.Equal(t, ".cluster.local.,.example.com", noProxy.Value)
 }
 
 func TestReconcileArgoCD_reconcileDeployment_nodePlacement(t *testing.T) {
@@ -2269,7 +2277,7 @@ func assertDeploymentHasProxyVars(t *testing.T, c client.Client, name string) {
 	want := []corev1.EnvVar{
 		{Name: "HTTP_PROXY", Value: testHTTPProxy},
 		{Name: "HTTPS_PROXY", Value: testHTTPSProxy},
-		{Name: "no_proxy", Value: testNoProxy},
+		{Name: "no_proxy", Value: fmt.Sprintf("%s,.cluster.local.", testNoProxy)},
 	}
 	for _, c := range deployment.Spec.Template.Spec.Containers {
 		for _, w := range want {
@@ -3489,11 +3497,49 @@ func TestBuildTLSArgs(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "central TLS config with curve preferences",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlscurvepreferences",
+				"X25519MLKEM768:X25519:CurveP256",
+			},
+			wantErr: false,
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildTLSArgsFromClusterTLSProfile(tt.centralTLS)
+			got, err := BuildTLSArgsFromClusterTLSProfile(tt.centralTLS, "test")
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %#v got %#v", tt.expected, got)
 			}
@@ -3517,15 +3563,26 @@ func TestArgoCDServerAndRepoServerDeploymentArgs(t *testing.T) {
 			"ECDHE-RSA-AES128-GCM-SHA256",
 			"ECDHE-RSA-AES256-GCM-SHA384",
 		},
+		// Curve preferences are set on the central profile but omitted for
+		// server/repo-server until those components support --tlscurvepreferences.
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
 	}
 	deployment := &appsv1.Deployment{}
 	assert.NoError(t, r.reconcileServerDeployment(a, false))
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: "argocd-server", Namespace: a.Namespace}, deployment))
-	args := []string{"--tlsminversion", "1.2", "--tlsciphers", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"}
+	args := []string{
+		"--tlsminversion", "1.2",
+		"--tlsciphers", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+	}
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
+	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 	assert.NoError(t, r.reconcileRepoDeployment(a, false))
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: "argocd-repo-server", Namespace: a.Namespace}, deployment))
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
+	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 }
 
 func TestReconcileServer_PromoterUIExtension(t *testing.T) {

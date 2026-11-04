@@ -102,9 +102,13 @@ func sigHandler() {
 	// Keep the daemon busy by waiting for signals to come
 	for sig := range signalChannel {
 		if sig == syscall.SIGHUP {
-			d.ReloadConfigFile(configPath)
+			if err := d.ReloadConfigFile(configPath); err != nil {
+				mainlog.WithError(err).Error("Failed reloading config file")
+			}
 		} else if sig == syscall.SIGUSR1 {
-			d.ReopenLogs()
+			if err := d.ReopenLogs(); err != nil {
+				mainlog.WithError(err).Error("Failed reopening logs")
+			}
 		} else if sig == syscall.SIGTERM || sig == syscall.SIGQUIT || sig == syscall.SIGINT {
 			mainlog.Infof("Shutdown signal caught")
 			d.Shutdown()

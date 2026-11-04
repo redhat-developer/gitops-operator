@@ -32,9 +32,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // Useful constants for the Promoter's Deployment
@@ -68,6 +68,8 @@ func createControllerConfig() deploymentConfig {
 		securityContext: buildControllerSecurityContext(),
 		livenessProbe:   buildControllerLivenessProbe(),
 		readinessProbe:  buildControllerReadinessProbe(),
+		volumes:         buildControllerVolumes(),
+		volumeMounts:    buildControllerVolumeMounts(),
 	}
 }
 
@@ -442,6 +444,28 @@ func buildAPIServerArgs() []string {
 		"--secure-port=6443",
 		"--tls-cert-file=/serving-certs/tls.crt",
 		"--tls-private-key-file=/serving-certs/tls.key",
+	}
+}
+
+// buildControllerVolumes provides writable storage for Git clones and temporary index files.
+func buildControllerVolumes() []corev1.Volume {
+	return []corev1.Volume{
+		{
+			Name: "tmp",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+}
+
+// buildControllerVolumeMounts mounts the controller's writable temporary storage.
+func buildControllerVolumeMounts() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      "tmp",
+			MountPath: "/tmp",
+		},
 	}
 }
 

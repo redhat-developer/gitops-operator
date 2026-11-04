@@ -30,8 +30,8 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 func makeExistingDeployment(sa *corev1.ServiceAccount, cr *argoproj.ArgoCD) *appsv1.Deployment {
@@ -477,6 +477,8 @@ func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
 	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
 	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
 	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
+	assert.Equal(t, cfg.volumeMounts, retrievedDeployment.Spec.Template.Spec.Containers[0].VolumeMounts)
+	assert.Equal(t, cfg.volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterDisabled(t *testing.T) {

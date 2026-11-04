@@ -36,13 +36,13 @@ import (
 	"github.com/go-logr/logr"
 	certificates "k8s.io/api/certificates/v1beta1"
 
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1alpha1"
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent/agent"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/gitopspromoter"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/agent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/gitopspromoter"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
@@ -826,7 +826,7 @@ func removeString(slice []string, s string) []string {
 }
 
 // setResourceWatches will register Watches for each of the supported Resources.
-func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResourceMapper, tlsSecretMapper, namespaceResourceMapper, clusterSecretResourceMapper, applicationSetGitlabSCMTLSConfigMapMapper, nmMapper, systemCATrustMapper, imagePullSecretMapper handler.MapFunc) *builder.Builder {
+func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResourceMapper, tlsSecretMapper, namespaceResourceMapper, clusterSecretResourceMapper, applicationSetGitlabSCMTLSConfigMapMapper, nmMapper, systemCATrustMapper, imagePullSecretMapper handler.MapFunc, imageUpdaterWatchNSMapper handler.MapFunc) *builder.Builder {
 	// Add new predicate to delete Notifications Resources. The predicate watches the Argo CD CR for changes to the `.spec.Notifications.Enabled`
 	// field. When a change is detected that results in notifications being disabled, we trigger deletion of notifications resources
 	deleteNotificationsPred := predicate.Funcs{
@@ -929,6 +929,17 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 
 	namespaceHandler := handler.EnqueueRequestsFromMapFunc(namespaceResourceMapper)
 	bldr.Watches(&corev1.Namespace{}, namespaceHandler, builder.WithPredicates(r.namespaceFilterPredicate()))
+
+	// Watch Namespace create/delete events that may match IMAGE_UPDATER_WATCH_NAMESPACES patterns so
+	// that RBAC and the deployment env var are updated without delay when a new tenant namespace appears
+	// or an existing one is removed.
+	bldr.Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(imageUpdaterWatchNSMapper),
+		builder.WithPredicates(predicate.Funcs{
+			CreateFunc:  func(e event.CreateEvent) bool { return true },
+			DeleteFunc:  func(e event.DeleteEvent) bool { return true },
+			UpdateFunc:  func(e event.UpdateEvent) bool { return false },
+			GenericFunc: func(e event.GenericEvent) bool { return false },
+		}))
 
 	bldrHook := newBuilderHook(r.Client, bldr)
 	err := applyReconcilerHook(&argoproj.ArgoCD{}, bldrHook, "")
@@ -1904,7 +1915,7 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 				}
 
 				// Skip cleanup if managed-by label exists
-				if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == valOld.Namespace {
+				if isNamespaceLabelledManagedBy(ns, valOld.Namespace) {
 					log.Info(fmt.Sprintf("Skipping cleanup for namespace %s because it's still labeled as managed by this ArgoCD instance", nsEntry))
 					continue
 				}
@@ -1926,7 +1937,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *
 	}
 
 	// Skip Update if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == oldNSMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, oldNSMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping update cleanup", oldNSMgmt.Namespace))
 		return false
 	}
@@ -1948,7 +1959,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.Names
 	}
 
 	// Skip cleanup if managed-by label exists and matches .spec.managedBy
-	if labelVal, labelExists := ns.Labels[common.ArgoCDManagedByLabel]; labelExists && labelVal == nsMgmt.Spec.ManagedBy {
+	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
 		return false
 	}

@@ -29,20 +29,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argov1beta1api "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argocdagent/agent"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/argoproj-labs/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/agent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
+	deploymentFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	const (
 		argoCDName           = "example"
 		argoCDAgentAgentName = "example-agent-agent" // argoCDName + "-agent-agent"
+
+		// Secret names
+		agentRootCASecretName    = "argocd-agent-ca"
+		agentClientTLSSecretName = "argocd-agent-client-tls"
 	)
 
 	Context("1-052_validate_argocd_agent_agent", func() {

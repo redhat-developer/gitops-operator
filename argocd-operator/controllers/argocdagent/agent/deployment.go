@@ -30,9 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // ReconcileAgentDeployment reconciles the ArgoCD agent's agent deployment.
@@ -199,7 +199,7 @@ func buildVolumes() []corev1.Volume {
 			Name: "userpass-passwd",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: "argocd-agent-agent-userpass",
+					SecretName: "argocd-agent-agent-userpass", // #nosec G101 -- this is a Secret resource name, not a credential
 					Items: []corev1.KeyToPath{
 						{
 							Key:  "credentials",

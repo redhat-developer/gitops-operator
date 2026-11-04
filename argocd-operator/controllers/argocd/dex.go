@@ -21,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	argoproj "github.com/argoproj-labs/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/common"
-	"github.com/argoproj-labs/gitops-operator/argocd-operator/controllers/argoutil"
+	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
 // DexConnector represents an authentication connector for Dex.
@@ -290,7 +290,7 @@ func (r *ReconcileArgoCD) getOpenShiftDexConfig(cr *argoproj.ArgoCD) (string, er
 		Config: map[string]any{
 			"issuer":       "https://kubernetes.default.svc", // TODO: Should this be hard-coded?
 			"clientID":     getDexOAuthClientID(cr),
-			"clientSecret": "$oidc.dex.clientSecret",
+			"clientSecret": "$oidc.dex.clientSecret", // #nosec G101 -- this is a Dex config reference placeholder resolved at runtime, not a credential
 			"redirectURI":  redirectURI,
 			"insecureCA":   true, // TODO: Configure for openshift CA,
 			"groups":       groups,
