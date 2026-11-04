@@ -7,6 +7,9 @@ on:
     branches:
       - '*'
 
+permissions:
+  contents: read
+
 jobs:
   check-go-modules:
     name: "Check for go.mod/go.sum synchronicity"
