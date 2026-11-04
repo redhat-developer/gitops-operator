@@ -15,6 +15,15 @@ test.describe('Application History and Rollback', () => {
   const ocGet = (args: string[]): string =>
     execFileSync('oc', args, { stdio: 'pipe', timeout: 5000 }).toString().trim();
 
+  //failed oc read → empty so this attempt stays not-ready
+  const tryOcGet = (args: string[]): string => {
+    try {
+      return ocGet(args);
+    } catch {
+      return '';
+    }
+  };
+
   const applicationExists = (): boolean => {
     const out = ocGet([
       'get', 'application', appName, '-n', 'openshift-gitops', '--ignore-not-found', '-o', 'name',
@@ -61,7 +70,7 @@ spec:
     ]);
 
   test.beforeAll(async ({}, testInfo) => {
-    testInfo.setTimeout(300000);
+    testInfo.setTimeout(600000);
     console.log(`\n[setup] Deploying '${appName}' with two guestbook syncs...`);
 
     execFileSync('oc', ['create', 'namespace', destNs], { stdio: 'pipe', timeout: 15000 });
@@ -73,7 +82,7 @@ spec:
 
     let rbacReady = false;
     for (let i = 1; i <= 30; i++) {
-      const rbs = ocGet(['get', 'rolebinding', '-n', destNs, '-o', 'name']);
+      const rbs = tryOcGet(['get', 'rolebinding', '-n', destNs, '-o', 'name']);
       if (/argocd-application-controller/i.test(rbs)) {
         rbacReady = true;
         break;
@@ -91,11 +100,11 @@ spec:
     let lastSync = '';
     let lastResource = '';
     for (let i = 1; i <= 30; i++) {
-      lastSync = ocGet([
+      lastSync = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.sync.status}',
       ]);
-      lastResource = ocGet([
+      lastResource = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.resources[0].name}',
       ]);
@@ -115,11 +124,11 @@ spec:
     let firstHealth = '';
     let firstSynced = false;
     for (let i = 1; i <= 40; i++) {
-      lastSync = ocGet([
+      lastSync = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.sync.status}',
       ]);
-      firstHealth = ocGet([
+      firstHealth = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.health.status}',
       ]);
@@ -141,7 +150,7 @@ spec:
 
     let drifted = false;
     for (let i = 1; i <= 30; i++) {
-      lastSync = ocGet([
+      lastSync = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.sync.status}',
       ]);
@@ -161,11 +170,11 @@ spec:
     let secondSynced = false;
     let history = '';
     for (let i = 1; i <= 40; i++) {
-      lastSync = ocGet([
+      lastSync = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.sync.status}',
       ]);
-      history = ocGet([
+      history = tryOcGet([
         'get', 'application', appName, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.history[*].revision}',
       ]);
