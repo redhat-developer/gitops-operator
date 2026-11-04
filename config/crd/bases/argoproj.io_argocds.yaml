@@ -1012,7 +1012,7 @@ spec:
                         - message: peerAddress must be set when preferredRole is replica
                           rule: '!(has(self.enabled) && self.enabled && has(self.preferredRole)
                             && self.preferredRole == ''replica'') || (has(self.peerAddress)
-                            && self.peerAddress != '''')'
+                            && size(self.peerAddress) > 0)'
                       image:
                         description: Image is the name of Argo CD Agent image
                         type: string
@@ -14284,7 +14284,7 @@ spec:
                         - message: peerAddress must be set when preferredRole is replica
                           rule: '!(has(self.enabled) && self.enabled && has(self.preferredRole)
                             && self.preferredRole == ''replica'') || (has(self.peerAddress)
-                            && self.peerAddress != '''')'
+                            && size(self.peerAddress) > 0)'
                       image:
                         description: Image is the name of Argo CD Agent image
                         type: string

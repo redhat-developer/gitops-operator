@@ -1318,7 +1318,7 @@ type ArgoCDAgentPProfSpec struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// +kubebuilder:validation:XValidation:rule="!(has(self.enabled) && self.enabled && has(self.preferredRole) && self.preferredRole == 'replica') || (has(self.peerAddress) && self.peerAddress != '')",message="peerAddress must be set when preferredRole is replica"
+// +kubebuilder:validation:XValidation:rule="!(has(self.enabled) && self.enabled && has(self.preferredRole) && self.preferredRole == 'replica') || (has(self.peerAddress) && size(self.peerAddress) > 0)",message="peerAddress must be set when preferredRole is replica"
 // PrincipalHASpec defines the active/passive High Availability configuration
 // for the Principal component of ArgoCD Agent.
 type PrincipalHASpec struct {
