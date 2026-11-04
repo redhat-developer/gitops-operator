@@ -238,7 +238,7 @@ export class ApplicationDetailsPage {
   async assertOutOfSyncHealthy() {
     const panel = this.page.locator('.application-status-panel');
     await expect(panel.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({ timeout: 30000 });
-    await expect(panel.getByText(/Healthy/i).first()).toBeVisible({ timeout: 30000 });
+    await expect(panel.getByText('Healthy', { exact: true }).first()).toBeVisible({ timeout: 30000 });
   }
 
   private async applicationOperation(appName: string) {

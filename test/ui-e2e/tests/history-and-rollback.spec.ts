@@ -196,7 +196,7 @@ spec:
   });
 
   test.afterAll(async ({}, testInfo) => {
-    testInfo.setTimeout(90000);
+    testInfo.setTimeout(180000);
     console.log(`\n[teardown] Cleaning up '${appName}' and '${destNs}'...`);
 
     try {
