@@ -96,7 +96,7 @@ func readTargetVersionFromMakefile(operatorRoot string) string {
 
 	fileToRead := filepath.Join(operatorRoot, "Makefile")
 
-	bytes, err := os.ReadFile(fileToRead)
+	bytes, err := os.ReadFile(fileToRead) // #nosec G304 -- File is read with a trusted source
 	if err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to read %s: %v", fileToRead, err))
 		return ""
@@ -172,7 +172,7 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 	// Parse install YAML
 	fileToParse := filepath.Join(argoCDRepoRoot, "manifests/ha/install.yaml")
 
-	installYamlBytes, err := os.ReadFile(fileToParse)
+	installYamlBytes, err := os.ReadFile(fileToParse) // #nosec G304 -- File is read with a trusted source
 	if err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to read Argo CD install yaml"))
 		return nil, nil
