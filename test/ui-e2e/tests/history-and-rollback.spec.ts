@@ -242,11 +242,11 @@ spec:
     await expect
       .poll(
         () => {
-          const sync = ocGet([
+          const sync = tryOcGet([
             'get', 'application', appName, '-n', 'openshift-gitops',
             '-o', 'jsonpath={.status.sync.status}',
           ]);
-          const health = ocGet([
+          const health = tryOcGet([
             'get', 'application', appName, '-n', 'openshift-gitops',
             '-o', 'jsonpath={.status.health.status}',
           ]);
