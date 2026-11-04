@@ -64,7 +64,7 @@ spec:
   };
 
   const guestbookImage = (): string =>
-    ocGet([
+    tryOcGet([
       'get', 'deploy', 'guestbook-ui', '-n', destNs, '--ignore-not-found',
       '-o', 'jsonpath={.spec.template.spec.containers[0].image}',
     ]);
@@ -256,7 +256,9 @@ spec:
       )
       .toBe('OutOfSync,Healthy');
 
-    expect(guestbookImage(), 'rollback should restore the previous guestbook image').toBe(previousImage);
+    await expect
+      .poll(guestbookImage, { timeout: 180000, message: 'waiting for guestbook image after rollback' })
+      .toBe(previousImage);
 
     await detailsPage.assertOutOfSyncHealthy();
   });
