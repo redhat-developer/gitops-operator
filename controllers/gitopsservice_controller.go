@@ -173,7 +173,6 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;replicasets;statefulsets,verbs=create;delete;get;list;patch;update;watch
 //+kubebuilder:rbac:groups=apps,resourceNames=gitops-operator,resources=deployments/finalizers,verbs=update
 
-
 //+kubebuilder:rbac:groups=route.openshift.io,resources=routes;routes/custom-host,verbs=get;list;watch;create;delete;patch;update
 //+kubebuilder:rbac:groups=route.openshift.io,resources=*,verbs=get;list;watch;create;delete;patch;update
 
@@ -190,7 +189,6 @@ type ReconcileGitopsService struct {
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses;networkpolicies,verbs=get;list;watch;create;delete;patch;update
 
 //+kubebuilder:rbac:groups=operators.coreos.com,resources=operatorgroups;subscriptions;clusterserviceversions,verbs=create;get;list;watch
-
 
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutmanagers,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=argoproj.io,resources=rolloutmanagers/status,verbs=get;update;patch
