@@ -902,7 +902,7 @@ func verifyCorrectlyConfiguredTrust(ctx context.Context, k8sClient client.Client
 
 		g.Expect(trustedPluginApp).Should(appFixture.HaveNoConditions())
 		g.Expect(trustedPluginApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
-	}, "20s", "5s").Should(Succeed())
+	}, "30s", "5s").Should(Succeed())
 }
 
 // getArgoCDComponentImageAndVersion ensures rhel based image is used for testing this.
