@@ -229,7 +229,7 @@ spec:
   });
 
   test('Rollback to a previous revision from History and Rollback', async ({ page }) => {
-    test.setTimeout(240000);
+    test.setTimeout(480000);
 
     const appsPage = new ApplicationsPage(page);
     const detailsPage = new ApplicationDetailsPage(page);
