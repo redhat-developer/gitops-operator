@@ -925,6 +925,7 @@ func TestReconcileArgoCD_reconcileRedisHAProxyDeployment_ModifyContainerSpec(t *
 			Namespace: a.Namespace,
 		},
 		deployment))
+	assert.False(t, *deployment.Spec.Template.Spec.AutomountServiceAccountToken)
 
 	// Modify the deployment container environment variables
 	deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
@@ -1362,6 +1363,7 @@ func TestReconcileArgoCD_reconcileServerDeployment(t *testing.T) {
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -1852,6 +1854,7 @@ func TestReconcileArgoCD_reconcileServerDeploymentWithInsecure(t *testing.T) {
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -1937,6 +1940,7 @@ func TestReconcileArgoCD_reconcileServerDeploymentChangedToInsecure(t *testing.T
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -2069,6 +2073,7 @@ func TestReconcileArgoCD_reconcileRedisDeployment(t *testing.T) {
 	d := &appsv1.Deployment{}
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-redis", Namespace: cr.Namespace}, d))
 	assert.Equal(t, int32(3), *d.Spec.Replicas)
+	assert.False(t, *d.Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func TestReconcileArgoCD_reconcileRedisDeployment_volumeUpdate(t *testing.T) {

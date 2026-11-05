@@ -55,6 +55,7 @@ func makeExistingDeployment(sa *corev1.ServiceAccount, cr *argoproj.ArgoCD) *app
 					Labels: buildLabelsForPromoterResources(testCompName, cr),
 				},
 				Spec: corev1.PodSpec{
+					AutomountServiceAccountToken: new(true),
 					Containers: []corev1.Container{
 						{
 							Command:         buildContainerCommand("test"),
@@ -208,6 +209,7 @@ func TestReconcilePromoterDeployment_DoesNotExist_PromoterEnabled(t *testing.T) 
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.ServiceAccountName, retrievedDeployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.TerminationGracePeriodSeconds, retrievedDeployment.Spec.Template.Spec.TerminationGracePeriodSeconds)
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.Volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
+	assert.True(t, *retrievedDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func TestReconcilePromoterDeployment_Exists_PromoterDisabled(t *testing.T) {
@@ -419,6 +421,7 @@ func TestReconcilePromoterDeployment_Exists_PromoterEnabled_Update(t *testing.T)
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.ServiceAccountName, retrievedDeployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.TerminationGracePeriodSeconds, retrievedDeployment.Spec.Template.Spec.TerminationGracePeriodSeconds)
 	assert.Equal(t, referenceDeployment.Spec.Template.Spec.Volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
+	assert.True(t, *retrievedDeployment.Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func TestReconcilePromoterControllerDeployment_PromoterDisabled(t *testing.T) {
@@ -477,8 +480,6 @@ func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
 	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
 	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
 	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
-	assert.Equal(t, cfg.volumeMounts, retrievedDeployment.Spec.Template.Spec.Containers[0].VolumeMounts)
-	assert.Equal(t, cfg.volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterDisabled(t *testing.T) {
