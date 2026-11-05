@@ -284,6 +284,25 @@ func TestReconcileImageUpdaterWebhookIngress(t *testing.T) {
 	assert.Equal(t, testArgoCDName+"-image-updater-webhook", rule.HTTP.Paths[0].Backend.Service.Name)
 	assert.Equal(t, "webhook", rule.HTTP.Paths[0].Backend.Service.Port.Name)
 
+	// User annotations are merged on top of the operator defaults instead of replacing them, so that an
+	// unrelated annotation such as a cert-manager issuer does not drop the TLS backend protocol.
+	cr.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+		"cert-manager.io/cluster-issuer": "letsencrypt",
+	}
+	require.NoError(t, r.reconcileImageUpdaterWebhookIngress(cr))
+	require.NoError(t, r.Get(context.TODO(), key, ingress))
+	assert.Equal(t, "letsencrypt", ingress.Annotations["cert-manager.io/cluster-issuer"])
+	assert.Equal(t, "HTTPS", ingress.Annotations[common.ArgoCDKeyIngressBackendProtocol])
+	assert.Equal(t, "true", ingress.Annotations[common.ArgoCDKeyIngressSSLRedirect])
+
+	// An explicit user value still wins over the operator default.
+	cr.Spec.ImageUpdater.WebhookServer.Ingress.Annotations[common.ArgoCDKeyIngressBackendProtocol] = "HTTP"
+	require.NoError(t, r.reconcileImageUpdaterWebhookIngress(cr))
+	require.NoError(t, r.Get(context.TODO(), key, ingress))
+	assert.Equal(t, "HTTP", ingress.Annotations[common.ArgoCDKeyIngressBackendProtocol])
+
+	cr.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = nil
+
 	// Switching to insecure mode updates the backend protocol of the existing Ingress.
 	cr.Spec.ImageUpdater.WebhookServer.Insecure = true
 	require.NoError(t, r.reconcileImageUpdaterWebhookIngress(cr))
