@@ -274,6 +274,17 @@ func CreateRandomE2ETestNamespaceWithCleanupFunc() (*corev1.Namespace, func()) {
 	return ns, nsDeletionFunc(ns)
 }
 
+// CreatePerTestNs creates a random namespace for the running spec. The namespace is deleted when the spec ends,
+// and it is included in the debug output if the spec fails, so the spec has nothing to register itself.
+// Call it from the body of a spec or from a BeforeEach, not from a BeforeAll.
+func CreatePerTestNs() *corev1.Namespace {
+
+	ns := CreateRandomE2ETestNamespace()
+	DeferCleanup(DeleteNamespace, ns)
+	RegisterNsForDebug(ns)
+	return ns
+}
+
 // CreateNamespaceWithArgoCDInstance creates a random namespace, creates an ArgoCD instance with
 // the given name in it, waits for it to be available, and returns the ArgoCD, namespace, and a
 // cleanup func that deletes the namespace.
@@ -893,10 +904,46 @@ func OutputDebugOnFail(namespaceParams ...any) {
 	OutputDebug(namespaceParams...)
 }
 
-func OutputDebug(namespaceParams ...any) {
+var debugNamespacesLock sync.Mutex
+var debugNamespaces = []string{} // namespaces registered by the running spec: acquire debugNamespacesLock before reading/writing
 
-	// Convert parameter to string of namespace name:
-	// - You can specify Namespace, *Namespae, or string, and we will convert it to string namespace
+// RegisterNsForDebug adds namespaces to the debug output that is printed if the running spec fails. It can be
+// called any number of times during a spec, and the namespaces are forgotten when the spec ends.
+// Namespaces created with CreatePerTestNs are registered automatically.
+// Call it from the body of a spec or from a BeforeEach, not from a BeforeAll: the registered namespaces are forgotten
+// when the first spec of the container ends.
+// - Namespace parameter may be a string, *Namespace, or Namespace
+func RegisterNsForDebug(namespaceParams ...any) {
+	namespaces := namespaceNames(namespaceParams...)
+
+	debugNamespacesLock.Lock()
+	defer debugNamespacesLock.Unlock()
+	debugNamespaces = append(debugNamespaces, namespaces...)
+}
+
+// takeDebugNamespaces returns the namespaces registered so far, and forgets them
+func takeDebugNamespaces() []any {
+	debugNamespacesLock.Lock()
+	defer debugNamespacesLock.Unlock()
+
+	params := make([]any, 0, len(debugNamespaces))
+	for _, namespace := range debugNamespaces {
+		params = append(params, namespace)
+	}
+	debugNamespaces = []string{}
+	return params
+}
+
+// Defined at the top level, this AfterEach runs after the AfterEach of the containers of the spec, and before the
+// cleanups registered with DeferCleanup. A spec that calls OutputDebugOnFail itself still prints its own output
+// first: OutputDebug only prints once per test.
+var _ = AfterEach(func() {
+	OutputDebugOnFail(takeDebugNamespaces()...)
+})
+
+// namespaceNames converts parameters to namespace names:
+// - You can specify Namespace, *Namespace, or string, and we will convert it to string namespace
+func namespaceNames(namespaceParams ...any) []string {
 	namespaces := []string{}
 	for _, param := range namespaceParams {
 
@@ -923,6 +970,12 @@ func OutputDebug(namespaceParams ...any) {
 			Fail(fmt.Sprintf("unrecognized parameter value: %v", param))
 		}
 	}
+	return namespaces
+}
+
+func OutputDebug(namespaceParams ...any) {
+
+	namespaces := namespaceNames(namespaceParams...)
 
 	csr := CurrentSpecReport()
 	testName := strings.Join(csr.ContainerHierarchyTexts, " ")

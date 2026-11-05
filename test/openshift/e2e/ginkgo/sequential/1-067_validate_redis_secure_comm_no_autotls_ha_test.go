@@ -47,10 +47,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-067_validate_redis_secure_comm_no_autotls_ha", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
@@ -61,11 +59,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-			defer cleanupFunc()
-			fixture.OutputDebugOnFail(ns)
-		})
-
 		It("ensures that redis HA can be enabled with tls with generated certificate", Label("HA"), func() {
 			By("verifying we are running on a cluster with at least 3 nodes. This is required for Redis HA")
 			nodeFixture.ExpectHasAtLeastXNodes(3)
@@ -73,7 +66,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Note: Redis HA requires a cluster which contains multiple nodes
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns := fixture.CreatePerTestNs()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -311,7 +304,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			nodeFixture.ExpectHasAtLeastXNodes(3)
 
 			By("creating simple Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns := fixture.CreatePerTestNs()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

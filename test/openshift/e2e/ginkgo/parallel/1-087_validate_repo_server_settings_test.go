@@ -37,10 +37,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-087_validate_repo_server_settings", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
@@ -49,18 +47,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-
-			fixture.OutputDebugOnFail(ns)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-		})
-
 		It("validates that setting mountSAToken and serviceAccount on .spec.repo will cause the values to be set on Repo Server Deployment", func() {
 
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns := fixture.CreatePerTestNs()
 
 			By("creating simple Argo CD instance in " + ns.Name)
 
