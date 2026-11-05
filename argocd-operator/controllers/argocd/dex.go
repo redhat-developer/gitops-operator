@@ -485,6 +485,7 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 	}}
 
 	deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDDefaultDexServiceAccountName)
+	deploy.Spec.Template.Spec.AutomountServiceAccountToken = new(true)
 	deploy.Spec.Template.Spec.Volumes = dexVolumes
 
 	if cr.Spec.PriorityClassName != "" {
