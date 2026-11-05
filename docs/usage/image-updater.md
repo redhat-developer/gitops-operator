@@ -133,7 +133,7 @@ When a Route or an Ingress is enabled, the operator:
 
 * sets `ENABLE_WEBHOOK=true` on the Image Updater container
 * creates a `<instance-name>-image-updater-webhook` Service on port `8082`
-* creates the `<instance-name>-image-updater-webhook` Route and/or Ingress, exposing only the `/webhook` path
+* creates the `<instance-name>-image-updater-webhook` Route and/or Ingress. A non-passthrough Route and the Ingress expose the webhook under `/webhook` by default; the Ingress path can be changed with `webhookServer.ingress.path`. A `passthrough` Route cannot be restricted to a path, so it forwards every path to the Service.
 
 The Service, Route and Ingress are deleted again when both the Route and the Ingress are disabled.
 
@@ -239,6 +239,7 @@ When the webhook configuration cannot work as intended, the operator sets an `Im
 
 * no registry webhook secret is configured and `WEBHOOK_REQUIRE_SECRET` is not set to `false` in `.spec.imageUpdater.env`
 * the Route TLS termination contradicts the `insecure` setting
+* the Ingress `backend-protocol` annotation contradicts the `insecure` setting
 * a Secret or key referenced under `webhookServer.secrets` does not exist or is empty
 * a Service, Route or Ingress named `<instance-name>-image-updater-webhook` already exists and is controlled by another owner, or is managed by an Argo CD Application; the operator leaves it untouched
 * an environment variable in `.spec.imageUpdater.env` is overridden with a different value by a `webhookServer` setting: `ENABLE_WEBHOOK` (always `true` while the webhook is exposed), `DISABLE_TLS` (follows `insecure`), or a `<REGISTRY>_WEBHOOK_SECRET` that is also declared under `webhookServer.secrets`
