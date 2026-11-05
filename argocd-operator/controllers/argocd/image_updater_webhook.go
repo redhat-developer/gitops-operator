@@ -866,8 +866,10 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterWebhookCondition(cr *argoproj.Arg
 	return nil
 }
 
-// imageUpdaterWebhookSecretMapper maps a watch event on a Secret referenced by
-// .spec.imageUpdater.webhookServer.secrets back to the ArgoCD instances referencing it.
+// imageUpdaterWebhookSecretMapper maps a watch event on a Secret read by the Image Updater webhook server back to
+// the ArgoCD instances using it. Besides the Secrets referenced under .spec.imageUpdater.webhookServer.secrets, this
+// matches the fallback argocd-image-updater-secret and the webhook serving certificate. Those two may have been
+// created outside the operator and therefore carry no owner reference, so the owned-object watch does not see them.
 func (r *ReconcileArgoCD) imageUpdaterWebhookSecretMapper(ctx context.Context, o client.Object) []reconcile.Request {
 	var result []reconcile.Request
 
@@ -877,13 +879,19 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookSecretMapper(ctx context.Context, o
 		return result
 	}
 
-	for _, argocd := range argocds.Items {
+	for i := range argocds.Items {
+		argocd := &argocds.Items[i]
 		if !argocd.Spec.ImageUpdater.IsWebhookEnabled() {
 			continue
 		}
+		if o.GetName() == ArgocdImageUpdaterSecret ||
+			(usesImageUpdaterWebhookTLS(argocd) && o.GetName() == imageUpdaterWebhookTLSSecretName(argocd)) {
+			result = append(result, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(argocd)})
+			continue
+		}
 		for _, reg := range imageUpdaterWebhookRegistries {
-			if ref := reg.declaredRef(&argocd); ref != nil && ref.Name == o.GetName() {
-				result = append(result, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(&argocd)})
+			if ref := reg.declaredRef(argocd); ref != nil && ref.Name == o.GetName() {
+				result = append(result, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(argocd)})
 				break
 			}
 		}

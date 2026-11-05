@@ -149,6 +149,9 @@ https://<webhook-host>/webhook?type=<registry>
 
 Supported types are `docker.io`, `ghcr.io`, `quay.io`, `harbor`, `acr`, `aliyun-acr` and `cloudevents`. Registries that cannot send the secret in a header pass it as a query parameter, for example `https://<webhook-host>/webhook?type=quay.io&secret=<secret>`. Refer to the [upstream documentation](https://argocd-image-updater.readthedocs.io/en/stable/configuration/webhook/) for registry-specific setup.
 
+!!! warning
+    The `secret` query parameter travels in the request URL, so it can be retained by Ingress, proxy, API gateway, access and monitoring logs, and by anything else that stores the URL. When the registry supports sending the secret in a header, prefer that. Docker Hub, Quay and Aliyun ACR only accept the query parameter. If you use it, URL-encode the secret because the webhook server decodes the query value, never reuse a secret configured for another service, and configure your Ingress controller, proxies and monitoring to omit or redact query strings.
+
 The host depends on the exposure type and can be changed with `.spec.imageUpdater.webhookServer.host`:
 
 * **Route**: defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>`, where `<apps-domain>` is the cluster apps domain, for example `oc get ingress.config cluster -o jsonpath='{.spec.domain}'`. The effective host is also shown by `oc get route <instance-name>-image-updater-webhook -o jsonpath='{.spec.host}'`.
