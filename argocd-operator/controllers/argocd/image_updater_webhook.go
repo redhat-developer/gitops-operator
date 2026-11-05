@@ -676,6 +676,19 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookConfigIssues(cr *argoproj.ArgoCD) (
 		}
 	}
 
+	if webhookServer.Ingress.Enabled {
+		want := "HTTPS"
+		serving := "serves TLS"
+		if webhookServer.Insecure {
+			want = "HTTP"
+			serving = "serves plain HTTP"
+		}
+		if got, ok := webhookServer.Ingress.Annotations[common.ArgoCDKeyIngressBackendProtocol]; ok && !strings.EqualFold(got, want) {
+			issues = append(issues, fmt.Sprintf("ingress annotation %s is %q, but the webhook server %s; remove it or set webhookServer.insecure accordingly",
+				common.ArgoCDKeyIngressBackendProtocol, got, serving))
+		}
+	}
+
 	issues = append(issues, overriddenImageUpdaterWebhookEnv(cr)...)
 
 	// Settings below are typically left over from exposing the webhook server by hand in earlier versions.
