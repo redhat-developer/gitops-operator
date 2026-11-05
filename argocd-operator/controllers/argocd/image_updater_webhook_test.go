@@ -623,6 +623,62 @@ func TestImageUpdaterWebhookConfigIssues(t *testing.T) {
 			},
 			wantIssues: 2,
 		},
+		{
+			name: "Ingress backend protocol contradicts secure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Enabled = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+					common.ArgoCDKeyIngressBackendProtocol: "HTTP",
+				}
+			},
+			wantIssues: 1,
+		},
+		{
+			name: "Ingress backend protocol matches secure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Enabled = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+					common.ArgoCDKeyIngressBackendProtocol: "https",
+				}
+			},
+			wantIssues: 0,
+		},
+		{
+			name: "Ingress backend protocol contradicts insecure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Insecure = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Enabled = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+					common.ArgoCDKeyIngressBackendProtocol: "HTTPS",
+				}
+			},
+			wantIssues: 1,
+		},
+		{
+			name: "Ingress backend protocol matches insecure mode",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Insecure = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Enabled = true
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+					common.ArgoCDKeyIngressBackendProtocol: "HTTP",
+				}
+			},
+			wantIssues: 0,
+		},
+		{
+			name: "Ingress backend protocol ignored when the Ingress is disabled",
+			opts: func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Env = []corev1.EnvVar{{Name: "WEBHOOK_REQUIRE_SECRET", Value: "false"}}
+				a.Spec.ImageUpdater.WebhookServer.Ingress.Annotations = map[string]string{
+					common.ArgoCDKeyIngressBackendProtocol: "HTTP",
+				}
+			},
+			wantIssues: 0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
