@@ -2229,6 +2229,11 @@ func (r *ReconcileArgoCD) reconcileDeploymentHelper(cr *argoproj.ArgoCD, desired
 		changes = append(changes, "selector")
 	}
 
+	if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken, desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken) {
+		existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken = desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken
+		changes = append(changes, "autoMountServiceAccountToken")
+	}
+
 	if len(changes) > 0 {
 		argoutil.LogResourceUpdate(log, existingDeployment, "updating", strings.Join(changes, ", "))
 		return r.Update(context.TODO(), existingDeployment)
