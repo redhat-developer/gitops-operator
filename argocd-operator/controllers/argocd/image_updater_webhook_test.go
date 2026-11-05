@@ -650,6 +650,11 @@ func TestReconcileImageUpdaterWebhookCondition(t *testing.T) {
 }
 
 func TestImageUpdaterWebhookSecretMapper(t *testing.T) {
+	request := reconcile.Request{NamespacedName: types.NamespacedName{Name: testArgoCDName, Namespace: testNamespace}}
+	secret := func(name string) *corev1.Secret {
+		return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace}}
+	}
+
 	referencing := makeImageUpdaterWebhookArgoCD(func(a *argoproj.ArgoCD) {
 		a.Spec.ImageUpdater.WebhookServer.Secrets = &argoproj.ImageUpdaterWebhookSecretsSpec{
 			CloudEvents: &argoproj.WebhookSecretKeySelector{Name: "registry-secret", Key: "k"},
@@ -657,15 +662,32 @@ func TestImageUpdaterWebhookSecretMapper(t *testing.T) {
 	})
 	r := makeImageUpdaterWebhookReconciler(t, referencing)
 
-	secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "registry-secret", Namespace: testNamespace}}
-	assert.Equal(t, []reconcile.Request{{NamespacedName: types.NamespacedName{Name: testArgoCDName, Namespace: testNamespace}}},
-		r.imageUpdaterWebhookSecretMapper(context.TODO(), secret))
-
-	other := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "unrelated", Namespace: testNamespace}}
-	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), other))
+	// A Secret referenced under webhookServer.secrets, even without an owner reference.
+	assert.Equal(t, []reconcile.Request{request}, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret("registry-secret")))
+	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret("unrelated")))
 
 	otherNamespace := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "registry-secret", Namespace: "elsewhere"}}
 	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), otherNamespace))
+
+	// The fallback argocd-image-updater-secret may predate the operator, so it has no owner reference.
+	assert.Equal(t, []reconcile.Request{request}, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret(ArgocdImageUpdaterSecret)))
+
+	// A user-provided serving certificate in the documented Secret name.
+	assert.Equal(t, []reconcile.Request{request}, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret(imageUpdaterWebhookTLSSecretName(referencing))))
+
+	// Insecure mode does not mount or read the serving certificate.
+	insecure := referencing.DeepCopy()
+	insecure.Spec.ImageUpdater.WebhookServer.Insecure = true
+	r = makeImageUpdaterWebhookReconciler(t, insecure)
+	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret(imageUpdaterWebhookTLSSecretName(insecure))))
+
+	// The webhook is not exposed, so none of these Secrets are read by the operator.
+	notExposed := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	r = makeImageUpdaterWebhookReconciler(t, notExposed)
+	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret(ArgocdImageUpdaterSecret)))
+	assert.Empty(t, r.imageUpdaterWebhookSecretMapper(context.TODO(), secret(imageUpdaterWebhookTLSSecretName(notExposed))))
 }
 
 func TestImageUpdaterWebhookTLSSecretIsOfInterest(t *testing.T) {
