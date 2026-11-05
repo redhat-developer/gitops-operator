@@ -560,7 +560,7 @@ The following properties are available under `.spec.imageUpdater.webhookServer`.
 | Host     | [Empty] | The hostname to use for the Route or Ingress. For a Route, defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>`. |
 | Ingress  | [Object] | Ingress configuration options. The webhook server is exposed when `ingress.enabled` is `true`. |
 | Route    | [Object] | Route configuration options. The webhook server is exposed when `route.enabled` is `true`. |
-| Insecure | `false` | Disable TLS on the webhook server. When `false`, the server uses an OpenShift service serving certificate and the Route defaults to `reencrypt` termination. When `true`, the Route defaults to `edge` termination. |
+| Insecure | `false` | Disable TLS on the webhook server, which then serves plain HTTP on port `8082`. When `false`, the server uses an OpenShift service serving certificate and the Route defaults to `reencrypt` termination. When `true`, no certificate is requested and the Route defaults to `edge` termination; registries still connect to an `edge` Route over HTTPS, and only the router-to-pod leg is plain HTTP. An Ingress relies on `ingress.tls` for the external connection. |
 | Secrets  | [Empty] | References to Secret keys holding the per-registry webhook secrets: `docker`, `ghcr`, `quay`, `harbor`, `acr`, `aliyunACR`, `cloudEvents`. Each entry has a `name` and a `key`. |
 
 ### Image Updater Controller Example

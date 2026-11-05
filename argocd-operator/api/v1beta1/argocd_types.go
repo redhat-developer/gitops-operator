@@ -397,9 +397,15 @@ type ImageUpdaterWebhookServerSpec struct {
 	// Route defines the desired state for an OpenShift Route for the Image Updater webhook.
 	Route ArgoCDRouteSpec `json:"route,omitempty"`
 
-	// Insecure toggles plain HTTP for the webhook server. When false (the default), the webhook server serves TLS
-	// using an OpenShift service serving certificate, and the Route defaults to reencrypt termination.
-	// When true, TLS is disabled on the webhook server and the Route defaults to edge termination.
+	// Insecure disables TLS on the Image Updater webhook server, which then serves plain HTTP on port 8082.
+	// When false (the default), the server serves TLS using an OpenShift service serving certificate and the
+	// Route defaults to reencrypt termination. When true, no serving certificate is requested and the Route
+	// defaults to edge termination.
+	//
+	// This does not by itself expose the webhook over plain HTTP outside the cluster. With an edge Route,
+	// registries still connect over HTTPS and the router terminates TLS, so only the router-to-pod leg is
+	// plain HTTP inside the cluster. An Ingress relies on .spec.imageUpdater.webhookServer.ingress.tls for
+	// its external TLS; without it, clients reach the Ingress over plain HTTP as well.
 	Insecure bool `json:"insecure,omitempty"`
 
 	// Secrets references the Secrets holding the shared secrets used to validate incoming registry webhooks.
