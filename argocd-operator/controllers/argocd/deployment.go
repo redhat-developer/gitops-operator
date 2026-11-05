@@ -1040,6 +1040,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 		VolumeMounts:    serverVolumeMounts,
 	}}
 	deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDServerComponent)
+	deploy.Spec.Template.Spec.AutomountServiceAccountToken = new(true)
 
 	serverVolumes := []corev1.Volume{
 		{
