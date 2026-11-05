@@ -48,7 +48,9 @@ spec:
       # Defaults to <instance-name>-image-updater-webhook-<namespace>.<apps-domain> when omitted.
       host: image-updater-webhook.apps.example.com
       # false (the default): the webhook server serves TLS with an OpenShift service serving certificate.
-      # Set to true to serve plain HTTP; the Route termination must then be edge.
+      # Set to true to disable TLS on the webhook pod (plain HTTP on port 8082); no serving certificate is
+      # requested and the Route termination defaults to edge. Registries still connect over HTTPS to an edge
+      # Route, so only the router-to-pod leg is plain HTTP; an Ingress relies on ingress.tls for external TLS.
       insecure: false
       route:
         enabled: true

@@ -207,7 +207,10 @@ spec:
 
 By default, the webhook server serves TLS using an OpenShift [service serving certificate](https://docs.openshift.com/container-platform/latest/security/certificates/service-serving-certificate.html) stored in the `<instance-name>-image-updater-webhook-tls` Secret. The Route defaults to `reencrypt` termination with `Redirect` for insecure traffic. The operator rolls the Image Updater pod when the certificate is issued or rotated.
 
-Set `insecure: true` to serve plain HTTP instead. The Route then defaults to `edge` termination:
+Set `insecure: true` to disable TLS on the webhook server, which then serves plain HTTP on port `8082`. No serving certificate is requested and the Route defaults to `edge` termination with `Redirect`:
+
+!!! note
+    `insecure: true` only affects the traffic between the router or Ingress controller and the webhook pod, inside the cluster. With an `edge` Route, image registries still connect over HTTPS and the router terminates TLS; only the router-to-pod leg is plain HTTP. An Ingress uses the TLS configuration under `webhookServer.ingress.tls` for the external connection, so without it clients reach the Ingress over plain HTTP as well. The setting therefore does not expose the webhook unencrypted outside the cluster by itself.
 
 ```yaml
 spec:
