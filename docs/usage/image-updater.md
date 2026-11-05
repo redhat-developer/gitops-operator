@@ -144,12 +144,15 @@ The webhook port is fixed at `8082` because the Image Updater NetworkPolicy only
 All registries use the same endpoint and are told apart by the `type` query parameter:
 
 ```
-https://<route-host>/webhook?type=<registry>
+https://<webhook-host>/webhook?type=<registry>
 ```
 
-Supported types are `docker.io`, `ghcr.io`, `quay.io`, `harbor`, `acr`, `aliyun-acr` and `cloudevents`. Registries that cannot send the secret in a header pass it as a query parameter, for example `https://<route-host>/webhook?type=quay.io&secret=<secret>`. Refer to the [upstream documentation](https://argocd-image-updater.readthedocs.io/en/stable/configuration/webhook/) for registry-specific setup.
+Supported types are `docker.io`, `ghcr.io`, `quay.io`, `harbor`, `acr`, `aliyun-acr` and `cloudevents`. Registries that cannot send the secret in a header pass it as a query parameter, for example `https://<webhook-host>/webhook?type=quay.io&secret=<secret>`. Refer to the [upstream documentation](https://argocd-image-updater.readthedocs.io/en/stable/configuration/webhook/) for registry-specific setup.
 
-The Route host defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>` and can be changed with `.spec.imageUpdater.webhookServer.host`.
+The host depends on the exposure type and can be changed with `.spec.imageUpdater.webhookServer.host`:
+
+* **Route**: defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>`, where `<apps-domain>` is the cluster apps domain, for example `oc get ingress.config cluster -o jsonpath='{.spec.domain}'`. The effective host is also shown by `oc get route <instance-name>-image-updater-webhook -o jsonpath='{.spec.host}'`.
+* **Ingress**: defaults to `<instance-name>`; likewise shown in `oc get ingress <instance-name>-image-updater-webhook -o jsonpath='{.spec.rules[0].host}'`. The host must resolve to the Ingress controller, for example through a DNS record you create.
 
 ### Webhook secrets
 
@@ -215,7 +218,7 @@ spec:
 
 Route TLS settings can be overridden through `.spec.imageUpdater.webhookServer.route.tls`, the same way as for other operator-managed Routes. To present your own certificate to registries, reference a `kubernetes.io/tls` Secret with `route.tls.externalCertificate`; the operator updates the Route when that Secret is renewed. The termination must match the `insecure` setting: `edge` for an insecure webhook server, `reencrypt` or `passthrough` otherwise.
 
-As with the Argo CD server Route, the operator only requests a service serving certificate when the Route uses `reencrypt` termination. With `passthrough`, registries see the webhook server's own certificate, so provide one they trust in a `kubernetes.io/tls` Secret named `<instance-name>-image-updater-webhook-tls`. If you switch an existing Route from `reencrypt` to `passthrough`, the operator stops requesting a certificate, but the Secret still holds the previously issued one: replace its contents with your certificate. If you later switch back to `reencrypt` while the Secret holds your own certificate, the operator does not replace it; either delete the Secret so the service CA issues a new one, or set `destinationCACertificate` in the Route TLS settings so the router trusts your certificate.
+As with the Argo CD server Route, when webhook TLS is in use the operator requests a service serving certificate unless the Route is enabled with `passthrough` termination. This includes a Route whose `tls` block is unset, which defaults to `reencrypt`, and the case where only an Ingress is enabled and no Route exists. With `passthrough`, registries see the webhook server's own certificate, so provide one they trust in a `kubernetes.io/tls` Secret named `<instance-name>-image-updater-webhook-tls`. If you switch an existing Route from `reencrypt` to `passthrough`, the operator stops requesting a certificate, but the Secret still holds the previously issued one: replace its contents with your certificate. If you later switch back to `reencrypt` while the Secret holds your own certificate, the operator does not replace it; either delete the Secret so the service CA issues a new one, or set `destinationCACertificate` in the Route TLS settings so the router trusts your certificate.
 
 The TLS protocol versions and ciphers follow the cluster-wide TLS security profile, like the rest of Image Updater.
 
