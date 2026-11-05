@@ -555,13 +555,13 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterWebhookIngress(cr *argoproj.ArgoC
 	if cr.Spec.ImageUpdater.WebhookServer.Insecure {
 		backendProtocol = "HTTP"
 	}
+	// Start from the annotations the operator needs, then apply the user's on top: replacing the whole map
+	// would drop the backend protocol the webhook server relies on when TLS is enabled.
 	ingress.Annotations = map[string]string{
 		common.ArgoCDKeyIngressSSLRedirect:     "true",
 		common.ArgoCDKeyIngressBackendProtocol: backendProtocol,
 	}
-	if len(ingressSpec.Annotations) > 0 {
-		ingress.Annotations = ingressSpec.Annotations
-	}
+	maps.Copy(ingress.Annotations, ingressSpec.Annotations)
 
 	host := cr.Name
 	if cr.Spec.ImageUpdater.WebhookServer.Host != "" {
