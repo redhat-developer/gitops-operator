@@ -37,30 +37,25 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-087_validate_repo_server_settings", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-
-			fixture.OutputDebugOnFail(ns)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-		})
-
 		It("validates that setting mountSAToken and serviceAccount on .spec.repo will cause the values to be set on Repo Server Deployment", func() {
 
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating simple Argo CD instance in " + ns.Name)
 

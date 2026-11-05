@@ -37,30 +37,26 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-120_validate_banner", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-			fixture.OutputDebugOnFail(ns)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-		})
-
 		It("verifies ArgoCD banner configuration is applied to ArgoCD CR and ConfigMap", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

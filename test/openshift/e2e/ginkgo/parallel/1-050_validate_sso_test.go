@@ -46,26 +46,18 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-050_validate_sso", func() {
 
 		var (
-			ctx         context.Context
-			k8sClient   client.Client
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			ctx       context.Context
+			k8sClient client.Client
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
 
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
-		})
-
-		AfterEach(func() {
-
-			fixture.OutputDebugOnFail(ns)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
 		})
 		It("ensures the conditions in status when external Authentication is enabled on clusters; above 4.20 by default in openshift is enabled", Label("openshift"), func() {
 			By("creating simple namespace-scoped Argo CD instance")
@@ -80,7 +72,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Skip("skipping this test as external authentication type is not OIDC on the cluster")
 				return
 			}
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -124,7 +118,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		// openshiftOAuth is not supported in xKS
 		It("ensures Dex/Keycloak SSO can be enabled and disabled on a namespace-scoped Argo CD instance", func() {
 
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating a new Argo CD instance with dex")
 
