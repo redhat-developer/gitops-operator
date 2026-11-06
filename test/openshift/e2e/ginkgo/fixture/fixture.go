@@ -686,7 +686,11 @@ func waitForAllEnvVarsToBeRemovedFromDeployments(ns string, envVarKeys []string,
 
 func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Client) {
 
+	var missing string
+
 	Eventually(func() bool {
+		missing = ""
+
 		var deplList appsv1.DeploymentList
 
 		if err := k8sClient.List(context.Background(), &deplList, client.InNamespace(ns)); err != nil {
@@ -698,10 +702,12 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 
 			// If at least one of the Deployments has not been observed, wait and try again
 			if depl.Generation != depl.Status.ObservedGeneration {
+				missing = fmt.Sprintf("'%s' observed generation differed: %d %d", depl.Name, depl.Generation, depl.Status.ObservedGeneration)
 				return false
 			}
 
 			if int64(depl.Status.Replicas) != int64(depl.Status.ReadyReplicas) {
+				missing = fmt.Sprintf("'%s' replicas differed: %d %d", depl.Name, depl.Status.Replicas, depl.Status.ReadyReplicas)
 				return false
 			}
 
@@ -710,7 +716,7 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 		// All Deployments in NS are reconciled and ready
 		return true
 
-	}, "5m", "1s").Should(BeTrue())
+	}, "5m", "1s").Should(BeTrue(), missing)
 
 	// The above logic will successfully wait for Deployments to be ready. However, this does not mean that the operator's controller logic has completed it's initial cluster reconciliation logic (starting a watch then reconciling existing resources)
 	// - I'm not aware of a way to detect when this has completed, so instead I am inserting a 15 second pause.
