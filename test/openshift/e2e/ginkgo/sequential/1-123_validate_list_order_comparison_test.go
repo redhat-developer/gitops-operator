@@ -274,12 +274,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("verifying operator corrected the image back to the expected image")
 			Eventually(func() bool {
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(pluginDeployment), pluginDeployment); err != nil {
+					GinkgoWriter.Println("unable to retrieve plugin deployment:", err)
 					return false
 				}
 				c := deploymentFixture.GetTemplateSpecContainerByName(gitopsPluginDeploymentName, *pluginDeployment)
 				if c == nil {
+					GinkgoWriter.Println("Did not retrieve template spec container for deployment")
 					return false
 				}
+
+				GinkgoWriter.Println("container image is", c.Image)
 				runDebug.lastPluginImage = c.Image
 				return c.Image == expectedImage
 			}, "5m", "5s").Should(BeTrue(), "Operator should restore the image of container %q to %q within 5m", gitopsPluginDeploymentName, expectedImage)
