@@ -43,27 +43,26 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-066_validate_redis_secure_comm_no_autotls_no_ha", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-			defer cleanupFunc()
-			fixture.OutputDebugOnFail(ns)
-		})
-
 		It("validates that Argo CD components correctly inherit 'argocd-operator-redis-tls' Secret once it is created", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			expectComponentsAreRunning := func() {
 
@@ -186,7 +185,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verify redis credential distribution", func() {
 
 			By("creating simple Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

@@ -12,7 +12,6 @@ import (
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -22,25 +21,27 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-086_validate_applicationset_extra_command_args", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
-			argoCD      *argov1beta1api.ArgoCD
+			k8sClient client.Client
+			ctx       context.Context
+			argoCD    *argov1beta1api.ArgoCD
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-			defer cleanupFunc()
-			fixture.OutputDebugOnFail(ns)
-		})
-
 		It("validates that extra command arguments are added to the ApplicationSet controller deployment", func() {
+
+			By("creating a simple namespace-scoped Argo CD instance with ApplicationSet enabled")
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			expectAppSetIsReady := func() {
 				Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
@@ -51,9 +52,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				//check for ReadyReplicas to make sure the pod is actually running.
 				Eventually(appSetDepl).Should(deplFixture.HaveReadyReplicas(1))
 			}
-
-			By("creating a simple namespace-scoped Argo CD instance with ApplicationSet enabled")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

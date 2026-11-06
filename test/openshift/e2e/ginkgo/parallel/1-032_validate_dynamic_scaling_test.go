@@ -39,31 +39,27 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-032_validate_dynamic_scaling", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 
 		})
 
-		AfterEach(func() {
-
-			fixture.OutputDebugOnFail(ns)
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-		})
-
 		It("ensures that when dynamic scaling is enabled, that Argo CD application controller StatefulSet will scale up/down based on number of Secrets", func() {
 
 			By("creating namespace-scoped Argo CD instance with dynamic scaling enabled and a min/max number of shards, and 1 shard per cluster")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

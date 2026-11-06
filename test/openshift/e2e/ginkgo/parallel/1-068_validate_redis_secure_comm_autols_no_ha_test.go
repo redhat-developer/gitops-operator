@@ -23,24 +23,26 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-068_validate_redis_secure_comm_autotls_no_ha", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
-		AfterEach(func() {
-			defer cleanupFunc()
-			fixture.OutputDebugOnFail(ns)
-		})
-
 		It("validates that the operator configures Redis using auto-gen TLS certificates when HA is disabled", Label("openshift"), func() {
+
+			By("creating a namespace-scoped Argo CD instance with HA disabled")
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			expectComponentsAreRunning := func() {
 				deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server"}
@@ -54,9 +56,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(statefulSet).Should(k8sFixture.ExistByName())
 				Eventually(statefulSet).Should(statefulsetFixture.HaveReadyReplicas(1))
 			}
-
-			By("creating a namespace-scoped Argo CD instance with HA disabled")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

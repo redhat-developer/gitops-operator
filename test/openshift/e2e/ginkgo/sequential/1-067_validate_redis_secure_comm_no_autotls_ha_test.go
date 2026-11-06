@@ -47,23 +47,20 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-067_validate_redis_secure_comm_no_autotls_ha", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
 		)
 
 		BeforeEach(func() {
+			// Registered first, so it runs last: the operator log is still printed when a
+			// spec fails before its namespace is created
+			DeferCleanup(fixture.OutputDebugOnFail)
+
 			fixture.EnsureSequentialCleanSlate()
 			// - Was previously in parallel, moved to sequential due to it requiring a large resource (memory/cpu) commitment for pods
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
-		})
-
-		AfterEach(func() {
-			defer cleanupFunc()
-			fixture.OutputDebugOnFail(ns)
 		})
 
 		It("ensures that redis HA can be enabled with tls with generated certificate", Label("HA"), func() {
@@ -73,7 +70,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// Note: Redis HA requires a cluster which contains multiple nodes
 
 			By("creating simple namespace-scoped Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -311,7 +310,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			nodeFixture.ExpectHasAtLeastXNodes(3)
 
 			By("creating simple Argo CD instance")
-			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
