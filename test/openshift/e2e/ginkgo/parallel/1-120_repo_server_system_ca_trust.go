@@ -664,7 +664,7 @@ func createCtbFromCerts(bundle ...string) *certificatesv1beta1.ClusterTrustBundl
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "repo-server-system-ca-trust-" + rand.String(5),
 			Labels: map[string]string{
-				"argocd-operator-test": "repo_server_system_ca_trust",
+				"gitops-operator-test": "repo_server_system_ca_trust",
 			},
 		},
 		Spec: certificatesv1beta1.ClusterTrustBundleSpec{
@@ -883,7 +883,7 @@ func verifyCorrectlyConfiguredTrust(ctx context.Context, k8sClient client.Client
 	trustedHelmApp := createHelmApp(ns, trustedHelmAppSource)
 	Expect(k8sClient.Create(ctx, trustedHelmApp)).To(Succeed())
 
-	trustedPluginApp := createPluginApp(ns, "https://github.com/argoproj-labs/argocd-operator.git")
+	trustedPluginApp := createPluginApp(ns, "https://github.com/redhat-developer/gitops-operator.git")
 	Expect(k8sClient.Create(ctx, trustedPluginApp)).To(Succeed())
 
 	Eventually(func(g Gomega) {
