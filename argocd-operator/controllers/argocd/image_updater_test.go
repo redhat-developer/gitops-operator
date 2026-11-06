@@ -1008,11 +1008,12 @@ func TestPruneImageUpdaterNamespaceRBAC(t *testing.T) {
 	})
 }
 
-// TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace is a regression test.
-// two ArgoCD CRs that share the same name but live in different namespaces must
-// not be able to prune each other's Image Updater Roles/RoleBindings. common.ArgoCDKeyName
-// alone (cr.Name) is not a unique instance identifier, so pruning must also be scoped by the
-// owning instance's namespace (imageUpdaterOwnerNamespaceLabel).
+// TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace is a regression test for
+// GITOPS-11825: two ArgoCD CRs that share the same name but live in different namespaces must
+// not be able to prune each other's Image Updater Roles/RoleBindings. common.ArgoCDKeyName alone
+// (cr.Name) is not a unique instance identifier, so pruning must also confirm ownership via the
+// RoleBinding's ServiceAccount subject namespace, which is always set to the owning instance's
+// namespace.
 func TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
 
