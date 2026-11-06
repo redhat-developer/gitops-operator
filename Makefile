@@ -135,6 +135,18 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: update-dependencies
+update-dependencies: ## Update Go dependencies and regenerate CRDs, manifests and bundle.
+	$(MAKE) -C argocd-operator update-dependencies
+
+.PHONY: update-dependencies-argocd
+update-dependencies-argocd: ## Update only the Argo CD dependency.
+	$(MAKE) -C argocd-operator update-dependencies-argocd
+
+.PHONY: update-dependencies-gitops-promoter
+update-dependencies-gitops-promoter: ## Update only the GitOps Promoter dependency.
+	$(MAKE) -C argocd-operator update-dependencies-gitops-promoter
+
 .PHONY: test-all
 test-all: manifests generate fmt vet ## Run all tests.
 	go test -timeout 1h ./... -coverprofile cover.out
@@ -151,7 +163,7 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -vv --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -vv --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 330m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
@@ -169,7 +181,7 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -vv --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -vv --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 330m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo

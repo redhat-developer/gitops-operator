@@ -16,4 +16,13 @@ Then run the script:
 make update-dependencies
 ```
 
-See `hack/update-dependencies-script/main.go` for list of dependencies that are updated.
+See each dependency subdirectory's `main.go` for the list of files it updates.
+
+## Environment overrides
+
+- `GITOPS_PROMOTER_VERSION`: GitOps Promoter release from which CRDs are copied. It must match
+  the version pinned in `argocd-operator/go.mod`; the updater fails otherwise, since the copied
+  CRDs have to match the vendored controller.
+- `REDIS_MIRROR_IMAGE`: image repository used to resolve the Redis digest. Defaults to
+  `quay.io/akuity/redis`. If the digest cannot be resolved (for example, the mirror does not have
+  the tag yet), the Redis digests are left unchanged and the rest of the update continues.

@@ -12,7 +12,19 @@ import (
 	"github.com/argoproj-labs/argocd-operator/dependency-upgrade/utils"
 )
 
-const ArgoCDGitHubRepoURL = "https://github.com/argoproj/argo-cd"
+const (
+	ArgoCDGitHubRepoURL = "https://github.com/argoproj/argo-cd"
+
+	// Argo CD's install manifests reference images on public.ecr.aws, but the operator
+	// deploys mirrored images from quay.io (see common/defaults.go). Resolve the digest
+	// against the mirror so we never write a public.ecr.aws digest for a quay.io image.
+	// This constant should be consistent with ArgoCDDefaultRedisImage in common/defaults.go.
+	redisMirrorImageURL = "quay.io/akuity/redis"
+
+	// redisMirrorImageEnvVar optionally overrides redisMirrorImageURL, for example when the
+	// default mirror has not picked up an upstream redis release yet.
+	redisMirrorImageEnvVar = "REDIS_MIRROR_IMAGE"
+)
 
 func main() {
 	wd, err := os.Getwd()
@@ -26,6 +38,10 @@ func main() {
 		utils.ExitWithError(fmt.Errorf("unable to get absolute dir: %v", err))
 		return
 	}
+
+	// argocd-operator is a Go submodule of the gitops-operator repository. The operator
+	// manifests (config/, bundle/) are maintained by the parent module.
+	gitopsOperatorRoot := filepath.Dir(argocdOperatorRoot)
 
 	// Version variable is in the form of 'v3.1.1', note the 'v' prefix
 	targetArgoCDVersion := readTargetVersionFromMakefile(argocdOperatorRoot)
@@ -49,17 +65,20 @@ func main() {
 		return
 	}
 
+	// Sanity test that the parent gitops-operator module (which owns config/ and bundle/) exists
+	if rootGoModExists, err := utils.FileExists(filepath.Join(gitopsOperatorRoot, "go.mod")); err != nil || !rootGoModExists {
+		utils.ExitWithError(fmt.Errorf("gitops-operator go.mod not found in '%s': %v", gitopsOperatorRoot, err))
+		return
+	}
+
 	// update 'common/defaults.go': container images for dex, redis, redis HA, argo-cd, etc
-	argocdContainerInfo, dexContainerInfo := upgradeCommonDefaultsGo(argoCDRepoRoot, argocdOperatorRoot)
+	_, dexContainerInfo := upgradeCommonDefaultsGo(argoCDRepoRoot, argocdOperatorRoot)
 
 	// update Argo CD crds
-	updateArgoCDCRDs(argoCDRepoRoot, argocdOperatorRoot)
+	updateArgoCDCRDs(argoCDRepoRoot, gitopsOperatorRoot)
 
 	// update go.mod and regenerate the manifests/bundle: acquire target argo cd version, and ensures replace block matches upstream
-	updateGoModAndRegenBundle(targetArgoCDVersion, argocdOperatorRoot, argoCDRepoRoot)
-
-	// update build/util/Dockerfile: update to reference target upstream container image
-	updateBuildUtilDockerfile(argocdOperatorRoot, argocdContainerInfo)
+	updateGoModAndRegenBundle(targetArgoCDVersion, argocdOperatorRoot, gitopsOperatorRoot, argoCDRepoRoot)
 
 	// update controllers/argocd/dex_test.go: test references a dex container image
 	replaceDexImageReferenceInDexTest(argocdOperatorRoot, dexContainerInfo)
@@ -148,45 +167,6 @@ func replaceDexImageReferenceInDexTest(argocdOperatorRoot string, dexContainerIm
 	}
 }
 
-func updateBuildUtilDockerfile(argocdOperatorRoot string, argocdContainerImage *processedContainerImage) {
-	fileToUpdate := filepath.Join(argocdOperatorRoot, "build", "util", "Dockerfile")
-
-	lines := utils.GetFileContentsAsLines(fileToUpdate)
-
-	// Entry to replace in Dockerfile looks like this:
-
-	// # Argo CD v3.1.0-rc2
-	// FROM quay.io/argoproj/argocd@sha256:dc4e00548b9e9fe31b6b2dca99b2278390faabd3610a04f4707dfddf66b5e90d as argocd
-
-	newContent := ""
-
-	match := false
-
-	for idx := 0; idx < len(lines); idx++ {
-		// Replace the argocd image references in the Dockerfile with new version
-		if strings.HasPrefix(lines[idx], "# Argo CD v") && strings.HasPrefix(lines[idx+1], "FROM quay.io/argoproj/argocd@sha256") {
-			newContent += "# Argo CD " + argocdContainerImage.version + "\n"
-			newContent += "FROM quay.io/argoproj/argocd@" + argocdContainerImage.sha256Digest + " AS argocd\n"
-			idx++ // Skip to the line after these 2
-			match = true
-		} else {
-			newContent += lines[idx] + "\n"
-		}
-	}
-
-	if !match {
-		utils.ExitWithError(fmt.Errorf("unable to locate reference to Argo CD container image in build/util/Dockerfile"))
-		return
-	}
-
-	newContent = strings.TrimSpace(newContent) + "\n"
-
-	if err := os.WriteFile(fileToUpdate, []byte(newContent), 0o600); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to update build/util/Dockerfile: %v", err))
-		return
-	}
-}
-
 // upgrade common/defaults.go
 func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (*processedContainerImage, *processedContainerImage) {
 	// Parse install YAML
@@ -214,12 +194,10 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 	}
 	targetRedisImage := utils.StripImagePrefix(targetRedisImageLine[0])
 
-	targetHAProxyImageLine := utils.RemoveDuplicateLines(utils.GrepForString(installYAMLContents, "public.ecr.aws/docker/library/haproxy:"))
-	if len(targetHAProxyImageLine) != 1 {
-		utils.ExitWithError(fmt.Errorf("unexpected target haproxy image value: %v", targetHAProxyImageLine))
-		return nil, nil
-	}
-	targetHAProxyImage := utils.StripImagePrefix(targetHAProxyImageLine[0])
+	// ArgoCDDefaultRedisHAProxyVersion is intentionally not derived from Argo CD's manifests:
+	// the operator deliberately pins a newer haproxy (3.3.17-alpine, built with OpenSSL 3.5)
+	// than the one Argo CD references, so that TLS curve preferences can be configured for the
+	// Redis HA proxy. Update that constant manually when bumping haproxy.
 
 	targetArgoCDImageLine := utils.RemoveDuplicateLines(utils.GrepForString(installYAMLContents, "quay.io/argoproj/argocd:"))
 	if len(targetArgoCDImageLine) != 1 {
@@ -233,12 +211,43 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 	fmt.Println("-", targetArgoCDImage)
 	fmt.Println("-", targetDexImage)
 	fmt.Println("-", targetRedisImage)
-	fmt.Println("-", targetHAProxyImage)
 
-	dexContainerInfo := retrieveSHA256DigestUsingSkopeo(targetDexImage)
-	redisContainerInfo := retrieveSHA256DigestUsingSkopeo(targetRedisImage)
-	haProxyContainerInfo := retrieveSHA256DigestUsingSkopeo(targetHAProxyImage)
-	argoCDContainerInfo := retrieveSHA256DigestUsingSkopeo(targetArgoCDImage)
+	dexContainerInfo, err := retrieveSHA256DigestUsingSkopeo(targetDexImage)
+	if err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to resolve dex image digest: %v", err))
+		return nil, nil
+	}
+
+	argoCDContainerInfo, err := retrieveSHA256DigestUsingSkopeo(targetArgoCDImage)
+	if err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to resolve Argo CD image digest: %v", err))
+		return nil, nil
+	}
+
+	// Argo CD's install manifests reference redis on public.ecr.aws, but the operator deploys the
+	// mirrored image from quay.io (see ArgoCDDefaultRedisImage in common/defaults.go), so resolve
+	// the digest against the mirror.
+	redisTag, err := imageTagFromRef(targetRedisImage)
+	if err != nil {
+		utils.ExitWithError(err)
+		return nil, nil
+	}
+
+	redisMirrorImage := redisMirrorImageURL
+	if override := os.Getenv(redisMirrorImageEnvVar); override != "" {
+		redisMirrorImage = override
+	}
+
+	redisContainerInfo, redisErr := retrieveSHA256DigestUsingSkopeo(redisMirrorImage + ":" + redisTag)
+	if redisErr != nil {
+		// The mirror is a project-specific extra, not something Argo CD ships. Do not abort the
+		// whole dependency update when it lags upstream: keep the currently pinned redis digests
+		// (they still point at the previously shipped image) and let everything else update.
+		fmt.Println()
+		fmt.Printf("WARNING: unable to resolve redis digest for %s:%s: %v\n", redisMirrorImage, redisTag, redisErr)
+		fmt.Printf("WARNING: leaving ArgoCDDefaultRedisVersion and ArgoCDDefaultRedisVersionHA unchanged; re-run once the tag is mirrored, or set %s to an alternative mirror\n", redisMirrorImageEnvVar)
+		fmt.Println()
+	}
 
 	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultArgoVersion", *argoCDContainerInfo); err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to replace dex version: %v", err))
@@ -250,25 +259,24 @@ func upgradeCommonDefaultsGo(argoCDRepoRoot string, argocdOperatorRoot string) (
 		return nil, nil
 	}
 
-	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersionHA", *redisContainerInfo); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to replace redis HA version: %v", err))
-		return nil, nil
-	}
+	if redisContainerInfo != nil {
+		if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersionHA", *redisContainerInfo); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to replace redis HA version: %v", err))
+			return nil, nil
+		}
 
-	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersion", *redisContainerInfo); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to replace redis version: %v", err))
-		return nil, nil
-	}
-
-	if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisHAProxyVersion", *haProxyContainerInfo); err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to replace redis HA proxy version: %v", err))
-		return nil, nil
+		if err := replaceLineInCommonDefaultGo(argocdOperatorRoot, "ArgoCDDefaultRedisVersion", *redisContainerInfo); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to replace redis version: %v", err))
+			return nil, nil
+		}
 	}
 
 	return argoCDContainerInfo, dexContainerInfo
 }
 
-func updateArgoCDCRDs(argoCDRepoRoot string, argocdOperatorRoot string) {
+// updateArgoCDCRDs copies the Argo CD CRDs into the gitops-operator module, which owns
+// the operator manifests (config/crd/bases).
+func updateArgoCDCRDs(argoCDRepoRoot string, gitopsOperatorRoot string) {
 	argoCDCRDSourcePath := filepath.Join(argoCDRepoRoot, "manifests", "crds")
 
 	entries, err := os.ReadDir(argoCDCRDSourcePath)
@@ -304,7 +312,7 @@ func updateArgoCDCRDs(argoCDRepoRoot string, argocdOperatorRoot string) {
 
 	for k, v := range filesToCopy {
 		srcFile := filepath.Join(argoCDCRDSourcePath, k)
-		destFile := filepath.Join(argocdOperatorRoot, "config", "crd", "bases", v)
+		destFile := filepath.Join(gitopsOperatorRoot, "config", "crd", "bases", v)
 
 		if err := utils.CopyFile(srcFile, destFile); err != nil {
 			utils.ExitWithError(fmt.Errorf("unable to copy %s to %s: %v", srcFile, destFile, err))
@@ -450,29 +458,98 @@ func buildGitopsEngineReplaceLine(argoCDRepoRoot string, targetArgoCDVersion str
 	), nil
 }
 
-// updateGoModAndRegenBundle ensures that argocd-operator go.mod is update to date with latest from upstream argocd-operator
-func updateGoModAndRegenBundle(targetArgoCDVersion string, argocdOperatorRoot string, argoCDRepoRoot string) {
-	err := utils.RunCommandListWithWorkDir(argocdOperatorRoot,
-		[][]string{
-			{"go", "get", "github.com/argoproj/argo-cd/v3@" + targetArgoCDVersion},
-		})
-	if err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to update argocd-operator go.mod"))
-		return
+// updateGoModAndRegenBundle ensures that both Go modules are up to date with the target Argo CD
+// version, and regenerates the generated assets. argocd-operator is a submodule that carries the
+// code, while the parent gitops-operator module owns config/, bundle/ and the vendor tree.
+func updateGoModAndRegenBundle(targetArgoCDVersion string, argocdOperatorRoot string, gitopsOperatorRoot string, argoCDRepoRoot string) {
+	// Both modules require argo-cd directly, so bump them in lockstep.
+	for _, moduleRoot := range []string{argocdOperatorRoot, gitopsOperatorRoot} {
+		if err := utils.RunCommandListWithWorkDir(moduleRoot,
+			[][]string{
+				{"go", "get", "github.com/argoproj/argo-cd/v3@" + targetArgoCDVersion},
+			}); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to update go.mod in %s: %v", moduleRoot, err))
+			return
+		}
 	}
 
 	copyGoModReplaceBlockFromArgoCDToArgoCDOperator(argoCDRepoRoot, argocdOperatorRoot, targetArgoCDVersion)
 
-	err = utils.RunCommandListWithWorkDir(argocdOperatorRoot,
+	// The parent module has its own replace block (it imports argo-cd directly too), so keep
+	// its gitops-engine pin in sync without overwriting its additional CVE/k8s replaces.
+	updateGitopsEngineReplaceLineInGoMod(filepath.Join(gitopsOperatorRoot, "go.mod"), argoCDRepoRoot, targetArgoCDVersion)
+
+	for _, moduleRoot := range []string{argocdOperatorRoot, gitopsOperatorRoot} {
+		if err := utils.RunCommandListWithWorkDir(moduleRoot,
+			[][]string{
+				{"go", "mod", "tidy"},
+				{"go", "mod", "vendor"},
+			}); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to tidy/vendor go.mod in %s: %v", moduleRoot, err))
+			return
+		}
+	}
+
+	// config/, bundle/ and the generated code live in the parent gitops-operator module.
+	err := utils.RunCommandListWithWorkDir(gitopsOperatorRoot,
 		[][]string{
-			{"go", "mod", "tidy"},
-			{"rm", "-f", argocdOperatorRoot + "/bin/controller-gen"}, // Erase the controller-gen binary to ensure it is re-downloaded to the correct version
+			{"rm", "-f", filepath.Join(gitopsOperatorRoot, "bin", "controller-gen")}, // Erase the controller-gen binary to ensure it is re-downloaded to the correct version
 			{"make", "generate", "manifests"},
 			{"make", "bundle"},
 			{"make", "fmt"},
 		})
 	if err != nil {
-		utils.ExitWithError(fmt.Errorf("unable to update argocd-operator go.mod"))
+		utils.ExitWithError(fmt.Errorf("unable to regenerate manifests/bundle in %s: %v", gitopsOperatorRoot, err))
+		return
+	}
+
+	if err := utils.RunCommandListWithWorkDir(argocdOperatorRoot, [][]string{{"go", "fmt", "./..."}}); err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to run go fmt in %s: %v", argocdOperatorRoot, err))
+	}
+}
+
+// updateGitopsEngineReplaceLineInGoMod rewrites the gitops-engine replace directive (and the
+// version comments around it) in the given go.mod. argo-cd overrides gitops-engine with a local
+// replace that does not propagate to downstream modules, so every consumer must pin it to the
+// argo-cd release commit.
+func updateGitopsEngineReplaceLineInGoMod(goModPath string, argoCDRepoRoot string, targetArgoCDVersion string) {
+	replaceBlock, err := buildGitopsEngineReplaceLine(argoCDRepoRoot, targetArgoCDVersion)
+	if err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to build gitops-engine replace line: %v", err))
+		return
+	}
+
+	replaceBlockLines := strings.Split(replaceBlock, "\n")
+	directive := replaceBlockLines[len(replaceBlockLines)-1]
+
+	lines := utils.GetFileContentsAsLines(goModPath)
+	newContent := ""
+	matched := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(trimmed, "github.com/argoproj/argo-cd/gitops-engine =>"):
+			newContent += directive + "\n"
+			matched = true
+		case strings.HasPrefix(trimmed, "// This replace block is from Argo CD v"):
+			newContent += "\t// This replace block is from Argo CD " + targetArgoCDVersion + " go.mod\n"
+		case strings.HasPrefix(trimmed, "// v") && strings.Contains(trimmed, "declares gitops-engine at a pseudo-version"):
+			newContent += "\t// " + targetArgoCDVersion + " declares gitops-engine at a pseudo-version where go.mod\n"
+		case strings.HasPrefix(trimmed, "// Downstream consumers must resolve it themselves; pin to the v"):
+			newContent += "\t// Downstream consumers must resolve it themselves; pin to the " + targetArgoCDVersion + " commit.\n"
+		default:
+			newContent += line + "\n"
+		}
+	}
+
+	if !matched {
+		utils.ExitWithError(fmt.Errorf("unable to find gitops-engine replace directive in %s", goModPath))
+		return
+	}
+
+	if err := os.WriteFile(goModPath, []byte(strings.TrimSpace(newContent)+"\n"), 0o600); err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to write to file: %s %v", goModPath, err))
 	}
 }
 
@@ -515,12 +592,29 @@ func replaceLineInCommonDefaultGo(pathToArgoCDGitRepoRoot string, variableToRepl
 	return nil
 }
 
+// imageTagFromRef returns the tag portion of a container image reference, ignoring any digest.
+// A reference without an explicit tag yields an error rather than an implicit "latest", which
+// would resolve a digest from an unrelated image.
+func imageTagFromRef(ref string) (string, error) {
+	if idx := strings.Index(ref, "@"); idx >= 0 {
+		ref = ref[:idx]
+	}
+
+	// Only treat a ':' after the last '/' as a tag separator, so registry ports are ignored.
+	if idx := strings.LastIndex(ref, ":"); idx > strings.LastIndex(ref, "/") {
+		if tag := ref[idx+1:]; tag != "" {
+			return tag, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to determine tag from image reference %q: expected an explicit tag", ref)
+}
+
 // retrieveSHA256DigestUsingSkopeo determines the SHA256 digest value for a given container image
-func retrieveSHA256DigestUsingSkopeo(url string) *processedContainerImage {
+func retrieveSHA256DigestUsingSkopeo(url string) (*processedContainerImage, error) {
 	stdout, _, err := utils.RunCommandWithWorkDir("", "skopeo", "inspect", "--no-tags", "--override-os", "linux", "--override-arch", "amd64", "docker://"+url)
 	if err != nil {
-		utils.ExitWithError(fmt.Errorf("unexpected skopeo error: %v", err))
-		return nil
+		return nil, fmt.Errorf("unexpected skopeo error: %w", err)
 	}
 
 	// Skopeo inspect output looks like this:
@@ -537,26 +631,23 @@ func retrieveSHA256DigestUsingSkopeo(url string) *processedContainerImage {
 	// Extract Digest value from JSON
 	var jsonMap map[string]any
 	if err := json.Unmarshal([]byte(stdout), &jsonMap); err != nil {
-		utils.ExitWithError(fmt.Errorf("unexpected unmarshal error: %v", err))
-		return nil
+		return nil, fmt.Errorf("unexpected unmarshal error: %w", err)
 	}
 
 	digestVal, ok := jsonMap["Digest"]
 	if !ok || digestVal == nil {
-		utils.ExitWithError(fmt.Errorf("unable to extract digest val for %s: key missing or nil", url))
-		return nil
+		return nil, fmt.Errorf("unable to extract digest val for %s: key missing or nil", url)
 	}
 
 	sha256Digest, ok := digestVal.(string)
 	if !ok || sha256Digest == "" {
-		utils.ExitWithError(fmt.Errorf("unable to extract digest val for %s: not a valid string", url))
-		return nil
+		return nil, fmt.Errorf("unable to extract digest val for %s: not a valid string", url)
 	}
 
 	return &processedContainerImage{
 		version:      url[strings.Index(url, ":")+1:],
 		sha256Digest: sha256Digest,
-	}
+	}, nil
 }
 
 // processedContainerImage is the return values for processedContainerImage
