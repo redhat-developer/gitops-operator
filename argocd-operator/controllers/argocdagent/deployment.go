@@ -118,6 +118,7 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 				Labels: buildLabelsForAgentPrincipal(cr.Name, compName),
 			},
 			Spec: corev1.PodSpec{
+				AutomountServiceAccountToken: new(true),
 				Containers: []corev1.Container{
 					{
 						Image:           buildPrincipalImage(cr),
