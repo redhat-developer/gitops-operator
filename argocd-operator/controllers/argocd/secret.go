@@ -1151,7 +1151,7 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	// New secret name argocd-redis - upstream
 
 	new := argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
-	newExists, err := r.checkSecretExistence(cr, new)
+	newExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, new.Name, new)
 	if err != nil {
 		return err
 	}
@@ -1184,7 +1184,7 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 
 	// argocd-redis secret does not exist
 	old := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
-	oldExists, err := r.checkSecretExistence(cr, old)
+	oldExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, old.Name, old)
 	if err != nil {
 		return err
 	}
@@ -1213,18 +1213,6 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	}
 	argoutil.LogResourceCreation(log, new)
 	return r.Create(context.TODO(), new)
-}
-
-func (r *ReconcileArgoCD) checkSecretExistence(cr *argoproj.ArgoCD, s *corev1.Secret) (bool, error) {
-	existed := true
-	err := argoutil.FetchObject(r.Client, cr.Namespace, s.Name, s)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return false, err
-		}
-		existed = false
-	}
-	return existed, nil
 }
 
 // Checks secret usage in: Pod, Deployment or StatefulSet in the namespace
@@ -1298,7 +1286,7 @@ func (r *ReconcileArgoCD) deleteLegacyRedisSecret(cr *argoproj.ArgoCD) error {
 	// Delete [instance]-redis-initial-password
 	legacy := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
 
-	exists, err := r.checkSecretExistence(cr, legacy)
+	exists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, legacy.Name, legacy)
 	if err != nil {
 		return err
 	}
