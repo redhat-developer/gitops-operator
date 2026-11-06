@@ -76,8 +76,9 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 			return err
 		}
 		if len(expandedNamespaces) == 0 {
-			log.Info("IMAGE_UPDATER_WATCH_NAMESPACES matched no existing namespaces; "+
-				"no per-namespace RBAC will be created and the image-updater will have no manager permissions",
+			log.Info("IMAGE_UPDATER_WATCH_NAMESPACES matched no namespaces managed by this Argo CD instance; "+
+				"no per-namespace RBAC will be created and the image-updater will have no manager permissions. "+
+				"Namespaces must carry the \"argocd.argoproj.io/managed-by\" label to be eligible.",
 				"pattern", watchNamespaces)
 		}
 	}
@@ -132,9 +133,13 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 //
 // It handles three modes:
 //   - "*":      cluster-scoped — base Role in cr.Namespace + ClusterRole for manager rules.
+//     Requires cr.Namespace to be a cluster-config namespace.
 //   - "":       namespace-scoped — single Role covering both base and manager rules in cr.Namespace.
 //   - patterns: comma-separated list (glob/regex) — base Role in cr.Namespace + per-namespace
-//     manager Roles in every concrete namespace from expandedNamespaces.
+//     manager Roles in every concrete namespace from expandedNamespaces. Like "*", this is an
+//     apps-in-any-namespace feature and also requires cr.Namespace to be a cluster-config
+//     namespace; expandedNamespaces is further restricted to namespaces that carry the
+//     "argocd.argoproj.io/managed-by" consent label (see expandImageUpdaterWatchNamespaces).
 //
 // In all cases, stale per-namespace Roles/RoleBindings from a previous configuration are pruned.
 func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *corev1.ServiceAccount, watchNamespaces string, expandedNamespaces []string) error {
@@ -154,6 +159,18 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 	switch watchNamespaces {
 	case "*":
 		if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
+			// Revoke any cluster-wide ClusterRole/ClusterRoleBinding and per-namespace manager
+			// Roles/RoleBindings left over from a previous valid configuration (e.g. the
+			// instance lost cluster-config eligibility while "*" was still set) before
+			// surfacing the error, so an invalid config doesn't leave stale grants in place
+			// indefinitely. deleteImageUpdaterClusterRBAC is skipped above for watchNamespaces
+			// == "*", so it must be called here explicitly.
+			if err := r.deleteImageUpdaterClusterRBAC(cr); err != nil {
+				return err
+			}
+			if pruneErr := r.pruneImageUpdaterNamespaceRBAC(cr, map[string]any{}); pruneErr != nil {
+				return pruneErr
+			}
 			return fmt.Errorf("IMAGE_UPDATER_WATCH_NAMESPACES=\"*\" can only be configured in cluster scope")
 		}
 		// Base role (configmaps, secrets, leases, events) in cr.Namespace.
@@ -201,6 +218,21 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 	default:
 		// Comma-separated list (may contain glob/regex patterns): base role in cr.Namespace
 		// + manager Role in each concrete namespace from the pre-computed expandedNamespaces.
+		// Like "*", a per-namespace watch list is an apps-in-any-namespace feature and must
+		// only be usable by a cluster-scoped Argo CD instance; otherwise a namespace-scoped
+		// instance could reach into namespaces outside its own simply by setting this env var.
+		if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
+			// Revoke any per-namespace manager Roles/RoleBindings that may already exist
+			// (e.g. created by an operator version before this scope restriction existed, or
+			// left over from when cr.Namespace was still a cluster-config namespace) before
+			// surfacing the error, so an invalid config doesn't leave stale cross-namespace
+			// grants in place indefinitely.
+			if pruneErr := r.pruneImageUpdaterNamespaceRBAC(cr, map[string]any{}); pruneErr != nil {
+				return pruneErr
+			}
+			return fmt.Errorf("IMAGE_UPDATER_WATCH_NAMESPACES %q can only be configured in cluster scope", watchNamespaces)
+		}
+
 		log.Info("reconciling Image Updater role")
 		role, err := r.reconcileImageUpdaterRole(cr, policyRuleForRoleForImageUpdaterController())
 		if err != nil {
@@ -456,8 +488,10 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 		Kind:     "Role",
 		Name:     role.Name,
 	}
-	// The ServiceAccount lives in cr.Namespace; specify its namespace explicitly
-	// because the RoleBinding is in a different namespace.
+	// The ServiceAccount lives in cr.Namespace; specify its namespace explicitly because the
+	// RoleBinding is in a different namespace. pruneImageUpdaterNamespaceRBAC also relies on
+	// this field being set to cr.Namespace to disambiguate ownership when two Argo CD instances
+	// share a name but live in different namespaces.
 	desiredRoleBinding.Subjects = []rbacv1.Subject{
 		{
 			Kind:      rbacv1.ServiceAccountKind,
@@ -470,51 +504,73 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 
 // pruneImageUpdaterNamespaceRBAC removes per-namespace Image Updater Roles and RoleBindings
 // whose namespace is not present in desiredNamespaces. Pass an empty map to remove all of them
-// (used when Image Updater is disabled). Only objects carrying imageUpdaterManagedNamespaceLabel
-// are considered, so no other operator-managed RBAC is touched.
+// (used when Image Updater is disabled).
+//
+// nameMatch (common.ArgoCDKeyName + imageUpdaterManagedNamespaceLabel) identifies candidates by
+// name alone, which a same-named Argo CD instance in a different namespace would also match.
+// Ownership is disambiguated using the RoleBinding's ServiceAccount subject namespace, which
+// reconcileImageUpdaterRoleBindingForNamespace always sets explicitly to cr.Namespace -- a field
+// that has always been set this way, so this works uniformly for objects from any operator
+// version. A Role carries no such field of its own, so it is only pruned once the RoleBinding
+// that references it has been confirmed to belong to this instance.
 func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, desiredNamespaces map[string]any) error {
-	matchLabels := client.MatchingLabels{
+	nameMatch := client.MatchingLabels{
 		common.ArgoCDKeyName:              cr.Name,
 		imageUpdaterManagedNamespaceLabel: "true",
 	}
 
-	// pruneManaged lists objects of the given type and deletes those whose namespace is not
-	// in desiredNamespaces. getItems is called after List, so it always sees the populated slice.
-	pruneManaged := func(list client.ObjectList, getItems func() []client.Object) error {
-		if err := r.List(context.TODO(), list, matchLabels); err != nil {
-			return fmt.Errorf("failed to list %T: %w", list, err)
+	rbList := &rbacv1.RoleBindingList{}
+	if err := r.List(context.TODO(), rbList, nameMatch); err != nil {
+		return fmt.Errorf("failed to list %T: %w", rbList, err)
+	}
+
+	// ownedRoleNames records, per namespace, the names of Roles referenced by a RoleBinding
+	// confirmed to belong to this instance.
+	ownedRoleNames := map[string]map[string]bool{}
+
+	for i := range rbList.Items {
+		rb := &rbList.Items[i]
+
+		if len(rb.Subjects) == 0 || rb.Subjects[0].Namespace != cr.Namespace {
+			continue // belongs to a different, same-named instance
 		}
-		for _, obj := range getItems() {
-			if _, ok := desiredNamespaces[obj.GetNamespace()]; ok {
-				continue
-			}
-			argoutil.LogResourceDeletion(log, obj, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
-			if err := r.Delete(context.TODO(), obj); err != nil && !errors.IsNotFound(err) {
-				return err
-			}
+
+		if ownedRoleNames[rb.Namespace] == nil {
+			ownedRoleNames[rb.Namespace] = map[string]bool{}
 		}
-		return nil
+		ownedRoleNames[rb.Namespace][rb.RoleRef.Name] = true
+
+		if _, ok := desiredNamespaces[rb.Namespace]; ok {
+			continue
+		}
+		argoutil.LogResourceDeletion(log, rb, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
+		if err := r.Delete(context.TODO(), rb); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	roleList := &rbacv1.RoleList{}
-	if err := pruneManaged(roleList, func() []client.Object {
-		objs := make([]client.Object, len(roleList.Items))
-		for i := range roleList.Items {
-			objs[i] = &roleList.Items[i]
-		}
-		return objs
-	}); err != nil {
-		return err
+	if err := r.List(context.TODO(), roleList, nameMatch); err != nil {
+		return fmt.Errorf("failed to list %T: %w", roleList, err)
 	}
 
-	rbList := &rbacv1.RoleBindingList{}
-	return pruneManaged(rbList, func() []client.Object {
-		objs := make([]client.Object, len(rbList.Items))
-		for i := range rbList.Items {
-			objs[i] = &rbList.Items[i]
+	for i := range roleList.Items {
+		role := &roleList.Items[i]
+
+		if !ownedRoleNames[role.Namespace][role.Name] {
+			continue // not confirmed owned by this instance (or orphaned); leave it alone
 		}
-		return objs
-	})
+
+		if _, ok := desiredNamespaces[role.Namespace]; ok {
+			continue
+		}
+		argoutil.LogResourceDeletion(log, role, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
+		if err := r.Delete(context.TODO(), role); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *ReconcileArgoCD) reconcileImageUpdaterClusterRole(cr *argoproj.ArgoCD) (*rbacv1.ClusterRole, error) {
@@ -837,51 +893,38 @@ func splitAndFilterPatterns(raw string) []string {
 	return patterns
 }
 
-// expandImageUpdaterWatchNamespaces lists all cluster namespaces and returns those that
-// match any pattern in the comma-separated watchNamespaces value. Each pattern may be a
-// glob-style wildcard or a full regular expression (the same semantics used by
-// .spec.applicationSet.sourceNamespaces). The returned slice is sorted for determinism.
-// Namespaces in a Terminating state (DeletionTimestamp != nil) are excluded from both
-// the match result and the total count, as creating content in such namespaces is forbidden.
+// expandImageUpdaterWatchNamespaces matches the comma-separated watchNamespaces patterns
+// against the set of namespaces that have explicitly opted in to being managed by this
+// Argo CD instance (r.ManagedNamespaces, populated from namespaces carrying the
+// "argocd.argoproj.io/managed-by: <cr.Namespace>" label, plus cr.Namespace itself — see
+// setManagedNamespaces and docs/usage/deploy-to-different-namespaces.md).
+//
+// Each pattern may be a glob-style wildcard or a full regular expression (the same semantics
+// used by .spec.applicationSet.sourceNamespaces). The returned slice is sorted for determinism.
+// Namespaces in a Terminating state (DeletionTimestamp != nil) are excluded from both the
+// match result and the total count, as creating content in such namespaces is forbidden.
 func (r *ReconcileArgoCD) expandImageUpdaterWatchNamespaces(watchNamespaces string) ([]string, error) {
 	patterns := splitAndFilterPatterns(watchNamespaces)
 	if len(patterns) == 0 {
 		return nil, nil
 	}
 
-	clusterNamespaces := &corev1.NamespaceList{}
-	if err := r.List(context.TODO(), clusterNamespaces, &client.ListOptions{}); err != nil {
-		return nil, err
+	var candidateNamespaces []corev1.Namespace
+	if r.ManagedNamespaces != nil {
+		candidateNamespaces = r.ManagedNamespaces.Items
 	}
 
 	// Namespaces in Terminating state reject object creation with 403 (not NotFound), which
-	// would abort the entire reconcile. Exclude them from the match set — and from the
-	// all-namespaces comparison below, so a terminating namespace cannot mask a
-	// match-everything pattern.
-	activeCount := 0
+	// would abort the entire reconcile. Exclude them from the match set.
 	var matched []string
-	for _, ns := range clusterNamespaces.Items {
+	for _, ns := range candidateNamespaces {
 		if ns.DeletionTimestamp != nil {
 			log.Info("skipping terminating namespace for Image Updater RBAC", "namespace", ns.Name)
 			continue
 		}
-		activeCount++
 		if glob.MatchStringInList(patterns, ns.Name, glob.REGEXP) {
 			matched = append(matched, ns.Name)
 		}
-	}
-
-	// Guard against patterns that silently expand to every active namespace (e.g. "**", "?*",
-	// "/.*/"). Such a result is semantically identical to cluster-scoped mode ("*") but
-	// bypasses the IsNamespaceClusterConfigNamespace restriction that the "*" sentinel
-	// enforces. Returning an error here prevents unintended privilege escalation and
-	// directs the user to the correct, explicit cluster-scoped configuration.
-	if activeCount > 0 && len(matched) == activeCount {
-		return nil, fmt.Errorf(
-			"IMAGE_UPDATER_WATCH_NAMESPACES %q matches all %d active cluster namespaces; "+
-				"use \"*\" for cluster-scoped mode",
-			watchNamespaces, activeCount,
-		)
 	}
 
 	sort.Strings(matched)
