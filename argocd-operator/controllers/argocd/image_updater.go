@@ -36,6 +36,13 @@ const (
 	// operator creates in a per-namespace watch scope. It allows the operator to list and
 	// prune stale objects when IMAGE_UPDATER_WATCH_NAMESPACES changes between reconciles.
 	imageUpdaterManagedNamespaceLabel = "argocd.argoproj.io/image-updater-managed-namespace"
+
+	// imageUpdaterOwnerNamespaceLabel is applied alongside imageUpdaterManagedNamespaceLabel
+	// and records the namespace of the owning Argo CD instance. common.ArgoCDKeyName alone
+	// (cr.Name) is not a unique instance identifier: two ArgoCD CRs with the same name in
+	// different namespaces would otherwise match each other's label selector, so pruning for
+	// one instance could delete the other's Image Updater Roles/RoleBindings.
+	imageUpdaterOwnerNamespaceLabel = "argocd.argoproj.io/image-updater-owner-namespace"
 )
 
 func (r *ReconcileArgoCD) reconcileImageUpdaterController(cr *argoproj.ArgoCD) error {
@@ -492,6 +499,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBinding(cr *argoproj.ArgoCD, 
 func (r *ReconcileArgoCD) reconcileImageUpdaterRoleForNamespace(namespace string, cr *argoproj.ArgoCD, policyRules []rbacv1.PolicyRule) (*rbacv1.Role, error) {
 	desiredRole := newRoleForApplicationSourceNamespaces(namespace, policyRules, cr)
 	desiredRole.Labels[imageUpdaterManagedNamespaceLabel] = "true"
+	desiredRole.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
 	role, err := r.reconcileRoleHelper(cr, desiredRole)
 	if err != nil {
 		return nil, err
@@ -505,6 +513,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleForNamespace(namespace string
 func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace string, cr *argoproj.ArgoCD, role *rbacv1.Role, sa *corev1.ServiceAccount) error {
 	desiredRoleBinding := newRoleBindingForSupportNamespaces(cr, namespace)
 	desiredRoleBinding.Labels[imageUpdaterManagedNamespaceLabel] = "true"
+	desiredRoleBinding.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
 	desiredRoleBinding.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbacv1.GroupName,
 		Kind:     "Role",
@@ -525,11 +534,14 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 // pruneImageUpdaterNamespaceRBAC removes per-namespace Image Updater Roles and RoleBindings
 // whose namespace is not present in desiredNamespaces. Pass an empty map to remove all of them
 // (used when Image Updater is disabled). Only objects carrying imageUpdaterManagedNamespaceLabel
-// are considered, so no other operator-managed RBAC is touched.
+// and owned by this specific Argo CD instance (matched by both name and namespace, via
+// imageUpdaterOwnerNamespaceLabel) are considered, so neither other operator-managed RBAC nor a
+// same-named Argo CD instance in a different namespace is touched.
 func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, desiredNamespaces map[string]any) error {
 	matchLabels := client.MatchingLabels{
 		common.ArgoCDKeyName:              cr.Name,
 		imageUpdaterManagedNamespaceLabel: "true",
+		imageUpdaterOwnerNamespaceLabel:   cr.Namespace,
 	}
 
 	// pruneManaged lists objects of the given type and deletes those whose namespace is not
