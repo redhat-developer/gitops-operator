@@ -1302,6 +1302,9 @@ type PrincipalSelfRegistrationSpec struct {
 	// ClientCertSecretName is the name of the TLS secret containing shared client cert
 	// for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
 	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
+
+	// ClusterSecretLabels is the set of labels to apply to cluster secrets created for agents. Ex: {"foo": "bar", "bar": "baz"}
+	ClusterSecretLabels map[string]string `json:"clusterSecretLabels,omitempty"`
 }
 
 type PrincipalServerSpec struct {
