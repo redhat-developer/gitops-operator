@@ -176,9 +176,15 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 	switch watchNamespaces {
 	case "*":
 		if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
-			// Revoke any per-namespace manager Roles/RoleBindings left over from a previous
-			// pattern-list configuration before surfacing the error, so an invalid config
-			// doesn't leave stale cross-namespace grants in place indefinitely.
+			// Revoke any cluster-wide ClusterRole/ClusterRoleBinding and per-namespace manager
+			// Roles/RoleBindings left over from a previous valid configuration (e.g. the
+			// instance lost cluster-config eligibility while "*" was still set) before
+			// surfacing the error, so an invalid config doesn't leave stale grants in place
+			// indefinitely. deleteImageUpdaterClusterRBAC is skipped above for watchNamespaces
+			// == "*", so it must be called here explicitly.
+			if err := r.deleteImageUpdaterClusterRBAC(cr); err != nil {
+				return err
+			}
 			if pruneErr := r.pruneImageUpdaterNamespaceRBAC(cr, map[string]any{}); pruneErr != nil {
 				return pruneErr
 			}

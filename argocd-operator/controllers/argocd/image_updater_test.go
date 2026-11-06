@@ -1152,6 +1152,51 @@ func TestReconcileImageUpdaterRBAC_RevokesStaleNamespacesWhenScopeRejected(t *te
 	}
 }
 
+// TestReconcileImageUpdaterRBAC_RevokesClusterRBACWhenScopeRejected is a regression test
+// if a cluster-scoped instance already created a ClusterRole/ClusterRoleBinding
+// for IMAGE_UPDATER_WATCH_NAMESPACES="*", and later loses cluster-config eligibility (e.g.
+// ARGOCD_CLUSTER_CONFIG_NAMESPACES changes) while "*" is still configured, the reconcile that
+// rejects the now-invalid "*" config must still revoke the existing cluster-wide RBAC rather
+// than leaving it in place indefinitely just because the reconcile errored.
+func TestReconcileImageUpdaterRBAC_RevokesClusterRBACWhenScopeRejected(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", testNamespace)
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+		a.Spec.ImageUpdater.Env = []v1.EnvVar{
+			{Name: "IMAGE_UPDATER_WATCH_NAMESPACES", Value: "*"},
+		}
+	})
+
+	resObjs := []client.Object{a}
+	subresObjs := []client.Object{a}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: a.Namespace}}
+	clusterRBACName := GenerateUniqueResourceName(common.ArgoCDImageUpdaterControllerComponent, a)
+
+	// First reconcile while cluster-scoped: ClusterRole/ClusterRoleBinding get created.
+	require.NoError(t, r.reconcileImageUpdaterRBAC(a, sa, "*", nil))
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACName}, &rbacv1.ClusterRole{}))
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACName}, &rbacv1.ClusterRoleBinding{}))
+
+	// The instance stops being cluster-scoped, but "*" is unchanged. The next reconcile must
+	// reject the config...
+	os.Unsetenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+	err := r.reconcileImageUpdaterRBAC(a, sa, "*", nil)
+	require.Error(t, err)
+
+	// ...but must still revoke the previously-granted cluster-wide RBAC.
+	roleErr := r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACName}, &rbacv1.ClusterRole{})
+	assert.True(t, errors.IsNotFound(roleErr), "stale cluster role should have been revoked, got: %v", roleErr)
+
+	rbErr := r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACName}, &rbacv1.ClusterRoleBinding{})
+	assert.True(t, errors.IsNotFound(rbErr), "stale cluster role binding should have been revoked, got: %v", rbErr)
+}
+
 // TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded verifies that glob/regex patterns
 // in IMAGE_UPDATER_WATCH_NAMESPACES are resolved to concrete namespace names before being
 // injected into the pod env, because the image-updater controller itself does not understand patterns.

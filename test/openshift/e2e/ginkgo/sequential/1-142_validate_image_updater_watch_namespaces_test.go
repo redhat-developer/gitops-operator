@@ -85,6 +85,27 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			return argoutil.TruncateWithHash(fmt.Sprintf("%s_%s", argocdName, ns), argoutil.GetMaxLabelLength())
 		}
 
+		// registerClusterConfigNamespace sets ARGOCD_CLUSTER_CONFIG_NAMESPACES to ns and returns
+		// a cleanup func that restores whatever value (or absence) was present beforehand, so
+		// this test doesn't leak a changed cluster-config scope into subsequent sequential tests
+		// (EnsureSequentialCleanSlate does not reset operator env vars, and there is no
+		// after-suite cleanup for this).
+		registerClusterConfigNamespace := func(ns string) func() {
+			GinkgoHelper()
+			previous, err := fixture.GetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+			Expect(err).ToNot(HaveOccurred())
+
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ns)
+
+			return func() {
+				if previous == nil {
+					Expect(fixture.RemoveEnvFromOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES")).To(Succeed())
+				} else {
+					fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", *previous)
+				}
+			}
+		}
+
 		// expectRBACExists asserts that the operator has created a Role and RoleBinding in ns.
 		expectRBACExists := func(ns string) {
 			GinkgoHelper()
@@ -137,7 +158,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// feature: the operator only allows it when the Argo CD instance's namespace is
 			// registered as a cluster-config namespace.
 			By("registering the Argo CD namespace as a cluster-config namespace")
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argoNamespace.Name)
+			cleanupFunctions = append(cleanupFunctions, registerClusterConfigNamespace(argoNamespace.Name))
 
 			By("creating an initial matching namespace app-dyn-1 before ArgoCD is configured")
 			// app-dyn-1 must carry the "argocd.argoproj.io/managed-by" label so it consents to
@@ -217,7 +238,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// feature: the operator only allows it when the Argo CD instance's namespace is
 			// registered as a cluster-config namespace.
 			By("registering the Argo CD namespace as a cluster-config namespace")
-			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argoNamespace.Name)
+			cleanupFunctions = append(cleanupFunctions, registerClusterConfigNamespace(argoNamespace.Name))
 
 			By("creating target namespaces: app-ns-1 and app-ns-2 (match app-ns-*), other-ns (no match)")
 			// app-ns-1 and app-ns-2 must carry the "argocd.argoproj.io/managed-by" label so they
