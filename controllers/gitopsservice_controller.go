@@ -336,6 +336,9 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		log.Printf("Unable to retrieve current OCP version: %v", err)
 		return reconcile.Result{}, nil
 	}
+	// Pre-release/build metadata (e.g. "4.18.0-0.nightly-...") must not make a cluster look older
+	// than its release version when compared against the plugin version gates below.
+	clusterVersion = clusterVersion.Core()
 
 	minVersion, err := version.NewVersion(dynamicPluginStartOCPVersion)
 	if err != nil {

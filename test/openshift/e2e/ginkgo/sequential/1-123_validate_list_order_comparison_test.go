@@ -115,7 +115,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					GinkgoWriter.Println(line)
 				}
 			}
-			fixture.OutputDebugOnFail(openshiftGitopsNamespace)
+			fixture.OutputDebugOnFail(openshiftGitopsNamespace, openshiftGitopsOperatorNamespace)
 		})
 
 		It("Should not trigger updates when only list order differs", Label("openshift"), func() {
