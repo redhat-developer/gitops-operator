@@ -1008,6 +1008,60 @@ func TestPruneImageUpdaterNamespaceRBAC(t *testing.T) {
 	})
 }
 
+// TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace is a regression test.
+// two ArgoCD CRs that share the same name but live in different namespaces must
+// not be able to prune each other's Image Updater Roles/RoleBindings. common.ArgoCDKeyName
+// alone (cr.Name) is not a unique instance identifier, so pruning must also be scoped by the
+// owning instance's namespace (imageUpdaterOwnerNamespaceLabel).
+func TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	// Two distinct ArgoCD instances with the same name, in different namespaces.
+	instanceA := makeTestArgoCDInNamespace("instance-a", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	instanceB := makeTestArgoCDInNamespace("instance-b", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	require.Equal(t, instanceA.Name, instanceB.Name, "test requires both instances to share a name")
+
+	resObjs := []client.Object{instanceA, instanceB}
+	subresObjs := []client.Object{instanceA, instanceB}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	rules := policyRuleForRoleManagerRoleForImageUpdaterController()
+	saA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceA.Namespace}}
+	saB := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceB.Namespace}}
+
+	// Each instance watches its own distinct target namespace.
+	roleA, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-a", instanceA, rules)
+	require.NoError(t, err)
+	require.NotNil(t, roleA)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-a", instanceA, roleA, saA))
+
+	roleB, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-b", instanceB, rules)
+	require.NoError(t, err)
+	require.NotNil(t, roleB)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-b", instanceB, roleB, saB))
+
+	// Pruning for instance A with an empty desired set (e.g. a rejected watch scope) must only
+	// remove instance A's Role/RoleBinding in ns-for-a, leaving instance B's Role/RoleBinding in
+	// ns-for-b untouched, even though both carry the same common.ArgoCDKeyName label value.
+	require.NoError(t, r.pruneImageUpdaterNamespaceRBAC(instanceA, map[string]any{}))
+
+	errA := r.Get(context.TODO(), types.NamespacedName{Name: roleA.Name, Namespace: "ns-for-a"}, &rbacv1.Role{})
+	assert.True(t, errors.IsNotFound(errA), "instance A's role should have been pruned")
+
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleB.Name, Namespace: "ns-for-b"}, &rbacv1.Role{}),
+		"instance B's role must survive pruning triggered by instance A")
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceB.Name, "ns-for-b"),
+		Namespace: "ns-for-b",
+	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive pruning triggered by instance A")
+}
+
 // TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces verifies that when the
 // watch-namespace list shrinks, reconcileImageUpdaterRBAC removes roles and bindings
 // for the dropped namespaces without touching the remaining ones.
