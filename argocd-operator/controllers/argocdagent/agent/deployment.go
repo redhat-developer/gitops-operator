@@ -32,6 +32,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
@@ -300,9 +301,23 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 
 func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 	env := []corev1.EnvVar{
+		// Runtime-switchable settings that are sourced from the params ConfigMap rather than set to a
+		// literal to avoid having to restart the agent when the values change.
 		{
-			Name:  EnvArgoCDAgentLogLevel,
-			Value: getAgentLogLevel(cr),
+			Name:      EnvArgoCDAgentLogLevel,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentLogLevelKey),
+		},
+		{
+			Name:      EnvArgoCDAgentFullDetail,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentFullDetailKey),
+		},
+		{
+			Name:      EnvArgoCDAgentPProfEnabled,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentAgentPProfEnabledKey),
+		},
+		{
+			Name:  EnvArgoCDAgentParamsConfigMap,
+			Value: common.ArgoCDAgentParamsConfigMapName,
 		},
 		{
 			Name:  EnvArgoCDAgentNamespace,
@@ -394,6 +409,9 @@ const (
 	EnvArgoCDAgentServerAddress       = "ARGOCD_AGENT_REMOTE_SERVER"
 	EnvArgoCDAgentServerPort          = "ARGOCD_AGENT_REMOTE_PORT"
 	EnvArgoCDAgentLogLevel            = "ARGOCD_AGENT_LOG_LEVEL"
+	EnvArgoCDAgentFullDetail          = "ARGOCD_AGENT_FULL_DETAIL"
+	EnvArgoCDAgentPProfEnabled        = "ARGOCD_AGENT_PPROF_ENABLED"
+	EnvArgoCDAgentParamsConfigMap     = "ARGOCD_AGENT_PARAMS_CONFIGMAP"
 	EnvArgoCDAgentLogFormat           = "ARGOCD_AGENT_LOG_FORMAT"
 	EnvArgoCDAgentNamespace           = "ARGOCD_AGENT_NAMESPACE"
 	EnvArgoCDAgentTLSSecretName       = "ARGOCD_AGENT_TLS_SECRET_NAME" // #nosec G101
@@ -412,14 +430,6 @@ const (
 	EnvArgoCDAgentAllowedNamespaces   = "ARGOCD_AGENT_ALLOWED_NAMESPACES"
 	EnvArgoCDAgentLabelSelector       = "ARGOCD_AGENT_LABEL_SELECTOR"
 )
-
-// Logging Configuration
-func getAgentLogLevel(cr *argoproj.ArgoCD) string {
-	if hasAgent(cr) && cr.Spec.ArgoCDAgent.Agent.LogLevel != "" {
-		return cr.Spec.ArgoCDAgent.Agent.LogLevel
-	}
-	return "info"
-}
 
 func getAgentDestinationBasedMapping(cr *argoproj.ArgoCD) string {
 	if hasAgent(cr) {
