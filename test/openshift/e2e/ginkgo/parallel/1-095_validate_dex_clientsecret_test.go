@@ -123,7 +123,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("verifies the operator deletes legacy non-expiring Dex kubernetes.io/service-account-token Secrets and drops them from the Dex SA", func() {
+		It("verifies the operator deletes legacy non-expiring Dex kubernetes.io/service-account-token Secrets and drops them from the Dex SA", Label("openshift"), func() {
 
 			By("creating simple Argo CD instance with Dex and Openshift OAuth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
