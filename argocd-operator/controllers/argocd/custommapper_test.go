@@ -992,6 +992,17 @@ func TestReconcileArgoCD_tlsSecretMapperUserManagedSecret(t *testing.T) {
 			expectedReq: reconcileReq,
 		},
 		{
+			name: "tls secret for Image Updater webhook in ArgoCD CR",
+			argocd: makeArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.WebhookServer.Route.TLS = &routev1.TLSConfig{
+					ExternalCertificate: &routev1.LocalObjectReference{
+						Name: "user-tls",
+					},
+				}
+			}),
+			expectedReq: reconcileReq,
+		},
+		{
 			name: "tls secret not referenced in ArgoCD CR",
 			argocd: makeArgoCD(func(a *argoproj.ArgoCD) {
 				a.Spec.Server.Route.Enabled = true

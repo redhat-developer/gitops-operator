@@ -39,6 +39,9 @@ const (
 )
 
 func (r *ReconcileArgoCD) reconcileImageUpdaterController(cr *argoproj.ArgoCD) error {
+	if err := r.reconcileImageUpdaterWebhookCondition(cr); err != nil {
+		return err
+	}
 	if cr.Spec.ImageUpdater.Enabled {
 		return r.reconcileImageUpdaterControllerEnabled(cr)
 	}
@@ -113,11 +116,25 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 		}
 	}
 
+	// The webhook Service is reconciled before the deployment so that, in secure mode, the serving certificate
+	// is requested as early as possible.
+	log.Info("reconciling Image Updater webhook service")
+	if err := r.reconcileImageUpdaterWebhookService(cr); err != nil {
+		return err
+	}
+
 	if sa != nil {
 		log.Info("reconciling Image Updater deployment")
 		if err := r.reconcileImageUpdaterDeployment(cr, sa, watchNamespaces, expandedNamespaces); err != nil {
 			return err
 		}
+	}
+
+	// The Route and Ingress are reconciled after the deployment, so that a mistake in their configuration, such as
+	// an invalid host, cannot keep the Image Updater deployment from being updated.
+	log.Info("reconciling Image Updater webhook route and ingress")
+	if err := r.reconcileImageUpdaterWebhookExposure(cr); err != nil {
+		return err
 	}
 
 	return nil
@@ -275,6 +292,11 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerDisabled(cr *argoproj.A
 
 	log.Info("deleting Image Updater deployment")
 	if err := r.reconcileImageUpdaterDeployment(cr, sa, "", nil); err != nil {
+		return err
+	}
+
+	log.Info("deleting Image Updater webhook service, route and ingress")
+	if err := r.reconcileImageUpdaterWebhookNetworking(cr); err != nil {
 		return err
 	}
 
@@ -608,6 +630,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	imageUpdaterEnv := cr.Spec.ImageUpdater.Env
 	// Let user specify their own environment first
 	imageUpdaterEnv = argoutil.EnvMerge(imageUpdaterEnv, proxyEnvVars(), false)
+	imageUpdaterEnv = imageUpdaterWebhookEnv(cr, imageUpdaterEnv)
 
 	// IMAGE_UPDATER_WATCH_NAMESPACES may contain glob/regex patterns, but the image-updater
 	// controller only understands concrete namespace names. Use the pre-computed
@@ -714,6 +737,48 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 		},
 	}
 
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "tls-certs",
+			MountPath: "/app/config/tls",
+		},
+		{
+			Name:      "image-updater-conf",
+			MountPath: "/app/config",
+		},
+		{
+			Name:      "ssh-known-hosts",
+			MountPath: "/app/config/ssh",
+		},
+		{
+			Name:      "ssh-config",
+			MountPath: "/app/.ssh",
+		},
+		{
+			Name:      "tmp",
+			MountPath: "/tmp",
+		},
+		{
+			Name:      "ssh-signing-key",
+			MountPath: "/app/ssh-keys/id_rsa",
+			ReadOnly:  true,
+			SubPath:   "sshPrivateKey",
+		},
+	}
+
+	if usesImageUpdaterWebhookTLS(cr) {
+		podSpec.Volumes = append(podSpec.Volumes, imageUpdaterWebhookTLSVolume(cr))
+		volumeMounts = append(volumeMounts, imageUpdaterWebhookTLSVolumeMount())
+	}
+
+	if cr.Spec.ImageUpdater.IsWebhookEnabled() {
+		checksum, err := r.imageUpdaterWebhookChecksum(cr, cr.Spec.ImageUpdater.Env)
+		if err != nil {
+			return err
+		}
+		desiredDeployment.Spec.Template.Labels[imageUpdaterWebhookChecksumLabel] = checksum
+	}
+
 	args := []string{"run"}
 	imageUpdaterTLSProfileArguments, err := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-image-updater")
 	if err != nil {
@@ -756,35 +821,15 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 			InitialDelaySeconds: 5,
 			PeriodSeconds:       10,
 		},
-		SecurityContext: argoutil.DefaultSecurityContext(),
-		VolumeMounts: []corev1.VolumeMount{
+		Ports: []corev1.ContainerPort{
 			{
-				Name:      "tls-certs",
-				MountPath: "/app/config/tls",
-			},
-			{
-				Name:      "image-updater-conf",
-				MountPath: "/app/config",
-			},
-			{
-				Name:      "ssh-known-hosts",
-				MountPath: "/app/config/ssh",
-			},
-			{
-				Name:      "ssh-config",
-				MountPath: "/app/.ssh",
-			},
-			{
-				Name:      "tmp",
-				MountPath: "/tmp",
-			},
-			{
-				Name:      "ssh-signing-key",
-				MountPath: "/app/ssh-keys/id_rsa",
-				ReadOnly:  true,
-				SubPath:   "sshPrivateKey",
+				Name:          imageUpdaterWebhookPortName,
+				ContainerPort: imageUpdaterWebhookPort,
+				Protocol:      corev1.ProtocolTCP,
 			},
 		},
+		SecurityContext: argoutil.DefaultSecurityContext(),
+		VolumeMounts:    volumeMounts,
 	}}
 
 	return r.reconcileDeploymentHelper(cr, desiredDeployment, "image updater", cr.Spec.ImageUpdater.Enabled)
