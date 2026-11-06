@@ -47,6 +47,11 @@ func testResolveWatchNamespaces(t *testing.T, r *ReconcileArgoCD, a *argoproj.Ar
 	}
 	var expanded []string
 	if watchNamespaces != "" && watchNamespaces != "*" {
+		// expandImageUpdaterWatchNamespaces only matches against r.ManagedNamespaces
+		// (namespaces that carry the "argocd.argoproj.io/managed-by" consent label),
+		// mirroring production reconcile order where setManagedNamespaces runs before
+		// the Image Updater controller is reconciled.
+		require.NoError(t, r.setManagedNamespaces(a))
 		var err error
 		expanded, err = r.expandImageUpdaterWatchNamespaces(watchNamespaces)
 		require.NoError(t, err)
@@ -679,6 +684,7 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 		{
 			name:                  "exact list: two namespaces",
 			watchNamespacesEnv:    "ns1,ns2",
+			clusterConfigNS:       testNamespace,
 			clusterNamespaces:     []string{"ns1", "ns2", "other"},
 			expectClusterRole:     false,
 			expectManagerRoleInNS: []string{"ns1", "ns2"},
@@ -686,14 +692,25 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 		{
 			name:                  "exact list: single namespace",
 			watchNamespacesEnv:    "ns1",
+			clusterConfigNS:       testNamespace,
 			clusterNamespaces:     []string{"ns1", "other"},
 			expectClusterRole:     false,
 			expectManagerRoleInNS: []string{"ns1"},
 		},
 		{
+			// IMAGE_UPDATER_WATCH_NAMESPACES="ns1,ns2" without the ArgoCD instance being in a
+			// cluster-config namespace must be rejected: like "*", a per-namespace watch list
+			// is an apps-in-any-namespace feature.
+			name:               "exact list: rejected when not a cluster-config namespace",
+			watchNamespacesEnv: "ns1,ns2",
+			clusterNamespaces:  []string{"ns1", "ns2", "other"},
+			expectError:        true,
+		},
+		{
 			// Wildcard suffix — the typical Apps-in-Any-Namespace tenant pattern.
 			name:                  "glob wildcard: suffix pattern matches subset of namespaces",
 			watchNamespacesEnv:    "*-argocd",
+			clusterConfigNS:       testNamespace,
 			clusterNamespaces:     []string{"team-a-argocd", "team-b-argocd", "unrelated"},
 			expectClusterRole:     false,
 			expectManagerRoleInNS: []string{"team-a-argocd", "team-b-argocd"},
@@ -702,6 +719,7 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 			// Multiple patterns — one glob and one exact name.
 			name:                  "glob wildcard: multiple patterns",
 			watchNamespacesEnv:    "*-argocd,staging",
+			clusterConfigNS:       testNamespace,
 			clusterNamespaces:     []string{"team-a-argocd", "staging", "prod"},
 			expectClusterRole:     false,
 			expectManagerRoleInNS: []string{"team-a-argocd", "staging"},
@@ -711,6 +729,7 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 			// not receive any RBAC objects.
 			name:                  "glob wildcard: non-matching namespaces get no RBAC",
 			watchNamespacesEnv:    "team-*",
+			clusterConfigNS:       testNamespace,
 			clusterNamespaces:     []string{"team-a", "other"},
 			expectClusterRole:     false,
 			expectManagerRoleInNS: []string{"team-a"},
@@ -753,7 +772,10 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 
 			resObjs := []client.Object{a}
 			for _, ns := range tt.clusterNamespaces {
-				resObjs = append(resObjs, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+				resObjs = append(resObjs, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Name:   ns,
+					Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+				}})
 			}
 			subresObjs := []client.Object{a}
 			runtimeObjs := []runtime.Object{}
@@ -991,6 +1013,9 @@ func TestPruneImageUpdaterNamespaceRBAC(t *testing.T) {
 // for the dropped namespaces without touching the remaining ones.
 func TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
+	// Per-namespace watch lists are an apps-in-any-namespace feature and require the
+	// instance to live in a cluster-config namespace.
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", testNamespace)
 
 	// Start with ns1 and ns2 in the watch list.
 	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
@@ -1002,9 +1027,9 @@ func TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces(t *testing.T) {
 
 	resObjs := []client.Object{
 		a,
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1"}},
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns2"}},
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other"}}, // decoy: keeps patterns from matching the full cluster
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}},
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns2", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}},
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}}, // decoy: keeps patterns from matching the full cluster
 	}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
@@ -1052,6 +1077,72 @@ func TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces(t *testing.T) {
 		Namespace: "ns2",
 	}, &rbacv1.RoleBinding{})
 	assert.True(t, errors.IsNotFound(err), "stale role binding in ns2 should have been pruned")
+}
+
+// TestReconcileImageUpdaterRBAC_RevokesStaleNamespacesWhenScopeRejected is a regression test
+// if a namespace-scoped instance already has per-namespace manager
+// Roles/RoleBindings from an earlier reconcile (e.g. created before the cluster-scope
+// restriction existed, or because the instance's cluster-config-namespace status changed),
+// a later reconcile that rejects IMAGE_UPDATER_WATCH_NAMESPACES for not being cluster-scoped
+// must still revoke those existing grants rather than returning early and leaving them in
+// place indefinitely.
+func TestReconcileImageUpdaterRBAC_RevokesStaleNamespacesWhenScopeRejected(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", testNamespace)
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+		a.Spec.ImageUpdater.Env = []v1.EnvVar{
+			{Name: "IMAGE_UPDATER_WATCH_NAMESPACES", Value: "ns1,ns2"},
+		}
+	})
+
+	resObjs := []client.Object{
+		a,
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns1", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}},
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns2", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}},
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other", Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace}}}, // decoy: keeps the pattern from matching every managed namespace
+	}
+	subresObjs := []client.Object{a}
+	runtimeObjs := []runtime.Object{}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: a.Namespace}}
+
+	// First reconcile while cluster-scoped: both namespaces get manager Roles/RoleBindings.
+	ws, expanded := testResolveWatchNamespaces(t, r, a)
+	require.NoError(t, r.reconcileImageUpdaterRBAC(a, sa, ws, expanded))
+	for _, ns := range []string{"ns1", "ns2"} {
+		assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+			Name:      getRoleNameForApplicationSourceNamespaces(ns, a),
+			Namespace: ns,
+		}, &rbacv1.Role{}), "expected role in %s after first reconcile", ns)
+	}
+
+	// The instance stops being cluster-scoped (e.g. ARGOCD_CLUSTER_CONFIG_NAMESPACES changes),
+	// but the pattern-list env var is unchanged. The next reconcile must reject the config...
+	os.Unsetenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+	ws, expanded = testResolveWatchNamespaces(t, r, a)
+	err := r.reconcileImageUpdaterRBAC(a, sa, ws, expanded)
+	require.Error(t, err)
+
+	// ...but must still revoke the previously-granted per-namespace RBAC rather than leaving
+	// it in place indefinitely just because the reconcile errored.
+	for _, ns := range []string{"ns1", "ns2"} {
+		roleErr := r.Get(context.TODO(), types.NamespacedName{
+			Name:      getRoleNameForApplicationSourceNamespaces(ns, a),
+			Namespace: ns,
+		}, &rbacv1.Role{})
+		assert.True(t, errors.IsNotFound(roleErr), "stale role in %s should have been revoked, got: %v", ns, roleErr)
+
+		rbErr := r.Get(context.TODO(), types.NamespacedName{
+			Name:      getRoleBindingNameForSourceNamespaces(a.Name, ns),
+			Namespace: ns,
+		}, &rbacv1.RoleBinding{})
+		assert.True(t, errors.IsNotFound(rbErr), "stale role binding in %s should have been revoked, got: %v", ns, rbErr)
+	}
 }
 
 // TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded verifies that glob/regex patterns
@@ -1135,7 +1226,10 @@ func TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded(t *testing.T) {
 
 			resObjs := []client.Object{a}
 			for _, ns := range tt.clusterNS {
-				resObjs = append(resObjs, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+				resObjs = append(resObjs, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Name:   ns,
+					Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+				}})
 			}
 			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
@@ -1318,25 +1412,31 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			watchNamespaces: ",,,",
 			want:            nil,
 		},
-		// Patterns that expand to every namespace must be rejected — they are semantically
-		// equivalent to cluster-scoped mode ("*") but bypass IsNamespaceClusterConfigNamespace.
+		// Patterns that expand to every consented namespace are legitimate: the candidate set
+		// is already restricted to namespaces that opted in via the managed-by label, and
+		// reconcileImageUpdaterRBAC separately requires cr.Namespace to be a cluster-config
+		// namespace before pattern-list mode is allowed at all. Unlike "*", matching everything
+		// here is not a cluster-scope bypass.
 		{
-			name:            "double-star glob matches all namespaces → error",
+			// cr.Namespace (testNamespace, "argocd") is always part of r.ManagedNamespaces
+			// (setManagedNamespaces appends it unconditionally) and is deliberately not
+			// excluded from matching, so a match-everything pattern picks it up too.
+			name:            "double-star glob matches all managed namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2", "ns3"},
 			watchNamespaces: "**",
-			wantErr:         true,
+			want:            []string{testNamespace, "ns1", "ns2", "ns3"},
 		},
 		{
-			name:            "question-star glob matches all namespaces → error",
+			name:            "question-star glob matches all managed namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2"},
 			watchNamespaces: "?*",
-			wantErr:         true,
+			want:            []string{testNamespace, "ns1", "ns2"},
 		},
 		{
-			name:            "match-all regex matches all namespaces → error",
+			name:            "match-all regex matches all managed namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2"},
 			watchNamespaces: "/.*/",
-			wantErr:         true,
+			want:            []string{testNamespace, "ns1", "ns2"},
 		},
 		{
 			name:            "pattern that matches a strict subset is allowed",
@@ -1359,11 +1459,11 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			want:            []string{"app-a", "app-b"},
 		},
 		{
-			name:            "pattern that would match all active namespaces (with terminating ones present) is rejected",
+			name:            "pattern matching all active managed namespaces (with terminating ones present) is allowed",
 			clusterNS:       []string{"ns1", "ns2", "ns-term"},
 			terminatingNS:   []string{"ns-term"},
 			watchNamespaces: "ns*",
-			wantErr:         true,
+			want:            []string{"ns1", "ns2"},
 		},
 	}
 
@@ -1379,7 +1479,10 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 				terminatingSet[ns] = struct{}{}
 			}
 			for _, ns := range tt.clusterNS {
-				nsObj := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}
+				nsObj := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Name:   ns,
+					Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+				}}
 				if _, isTerminating := terminatingSet[ns]; isTerminating {
 					// Mark namespace as terminating by setting DeletionTimestamp and Finalizers
 					// (fake client requires finalizers when DeletionTimestamp is set)
@@ -1393,6 +1496,7 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
+			require.NoError(t, r.setManagedNamespaces(a))
 			got, err := r.expandImageUpdaterWatchNamespaces(tt.watchNamespaces)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1402,6 +1506,129 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestExpandImageUpdaterWatchNamespaces_RequiresConsentLabel is a regression test:
+// a namespace must carry the "argocd.argoproj.io/managed-by" label (consenting
+// to being managed by this Argo CD instance) before IMAGE_UPDATER_WATCH_NAMESPACES can expand
+// a glob/regex pattern to include it. Without this check, a cluster-admin-controlled env var
+// could grant the Image Updater manager Role/RoleBinding in any namespace matching the
+// pattern, regardless of whether that namespace's owner ever opted in.
+func TestExpandImageUpdaterWatchNamespaces_RequiresConsentLabel(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+
+	resObjs := []client.Object{
+		a,
+		// Consented: carries the managed-by label pointing at this ArgoCD instance's namespace.
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   "ns1",
+			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+		}},
+		// Consented but does not match the "ns*" pattern, so the match stays a strict subset
+		// of the consented namespaces and doesn't trip the "matches everything" guard.
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   "unrelated-consented",
+			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+		}},
+		// Not consented: matches the "ns*" pattern but carries no managed-by label at all.
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns2-unconsented"}},
+		// Not consented: carries the label, but pointing at a different Argo CD instance.
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   "ns3-other-instance",
+			Labels: map[string]string{common.ArgoCDManagedByLabel: "some-other-argocd-namespace"},
+		}},
+	}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	require.NoError(t, r.setManagedNamespaces(a))
+	got, err := r.expandImageUpdaterWatchNamespaces("ns*")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"ns1"}, got, "pattern must only expand to namespaces that consented via the managed-by label")
+}
+
+// TestReconcileImageUpdaterRBAC_PreservesCRNamespaceInWatchList is a regression test for
+// GITOPS-11825: when an authorized (cluster-scoped) instance in namespace A explicitly lists
+// its own namespace alongside another ("A,B"), expansion must not silently drop A. Dropping it
+// would make the deployed controller watch only B, while A would receive just the base Role
+// (configmaps/secrets/leases/events) and never the manager Role (applications/imageupdaters),
+// leaving the controller unable to manage Applications in its own namespace despite the admin
+// explicitly asking for it.
+func TestReconcileImageUpdaterRBAC_PreservesCRNamespaceInWatchList(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", testNamespace)
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+		a.Spec.ImageUpdater.Env = []v1.EnvVar{
+			// testNamespace (cr.Namespace) is explicitly listed alongside team-b.
+			{Name: "IMAGE_UPDATER_WATCH_NAMESPACES", Value: testNamespace + ",team-b"},
+		}
+	})
+
+	resObjs := []client.Object{
+		a,
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   "team-b",
+			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
+		}},
+	}
+	subresObjs := []client.Object{a}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	ws, expanded := testResolveWatchNamespaces(t, r, a)
+	assert.Equal(t, []string{testNamespace, "team-b"}, expanded, "cr.Namespace must be preserved when explicitly listed, not silently dropped")
+
+	sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: a.Namespace}}
+	require.NoError(t, r.reconcileImageUpdaterRBAC(a, sa, ws, expanded))
+
+	// cr.Namespace must receive the manager Role/RoleBinding in addition to the base Role,
+	// so the controller can actually manage Applications/ImageUpdaters in its own namespace.
+	managerRole := &rbacv1.Role{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleNameForApplicationSourceNamespaces(testNamespace, a),
+		Namespace: testNamespace,
+	}, managerRole), "expected a manager role for cr.Namespace")
+	assert.Equal(t, policyRuleForRoleManagerRoleForImageUpdaterController(), managerRole.Rules)
+
+	managerRB := &rbacv1.RoleBinding{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(a.Name, testNamespace),
+		Namespace: testNamespace,
+	}, managerRB), "expected a manager role binding for cr.Namespace")
+	assert.Equal(t, managerRole.Name, managerRB.RoleRef.Name)
+
+	// team-b gets the same treatment.
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleNameForApplicationSourceNamespaces("team-b", a),
+		Namespace: "team-b",
+	}, &rbacv1.Role{}))
+
+	// cr.Namespace must still also have the base role, unaffected.
+	baseRole := &rbacv1.Role{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      generateResourceName(common.ArgoCDImageUpdaterControllerComponent, a),
+		Namespace: testNamespace,
+	}, baseRole))
+	assert.Equal(t, policyRuleForRoleForImageUpdaterController(), baseRole.Rules)
+
+	// Deployment env var must preserve cr.Namespace in the watch list too.
+	assert.NoError(t, r.reconcileImageUpdaterDeployment(a, sa, ws, expanded))
+	deployment := &appsv1.Deployment{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      generateResourceName(common.ArgoCDImageUpdaterControllerComponent, a),
+		Namespace: a.Namespace,
+	}, deployment))
+	env := argoutil.EnvGet(deployment.Spec.Template.Spec.Containers[0].Env, "IMAGE_UPDATER_WATCH_NAMESPACES")
+	require.NotNil(t, env)
+	assert.Equal(t, testNamespace+",team-b", env.Value)
 }
 
 func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {

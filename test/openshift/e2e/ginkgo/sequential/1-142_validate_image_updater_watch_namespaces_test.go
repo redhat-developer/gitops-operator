@@ -133,8 +133,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoNamespace, _ = fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-iuw-new-ns")
 			cleanupFunctions = append(cleanupFunctions, func() { fixture.DeleteNamespace(argoNamespace) })
 
+			// A per-namespace IMAGE_UPDATER_WATCH_NAMESPACES list is an apps-in-any-namespace
+			// feature: the operator only allows it when the Argo CD instance's namespace is
+			// registered as a cluster-config namespace.
+			By("registering the Argo CD namespace as a cluster-config namespace")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argoNamespace.Name)
+
 			By("creating an initial matching namespace app-dyn-1 before ArgoCD is configured")
-			appNs1, cleanup := fixture.CreateNamespaceWithCleanupFunc("app-dyn-1")
+			// app-dyn-1 must carry the "argocd.argoproj.io/managed-by" label so it consents to
+			// being managed by this Argo CD instance; otherwise the operator's watch namespace
+			// expansion will not grant it RBAC even though the glob pattern matches.
+			appNs1, cleanup := fixture.CreateManagedNamespaceWithCleanupFunc("app-dyn-1", argoNamespace.Name)
 			cleanupFunctions = append(cleanupFunctions, cleanup)
 
 			By("creating ArgoCD CR with Image Updater enabled and IMAGE_UPDATER_WATCH_NAMESPACES=app-dyn-* (glob)")
@@ -172,7 +181,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			)
 
 			By("creating a new namespace app-dyn-2 AFTER the operator is already running")
-			appNs2, cleanup := fixture.CreateNamespaceWithCleanupFunc("app-dyn-2")
+			// Carries the managed-by label from creation, so the mapper-triggered reconcile has
+			// everything it needs (pattern match + consent) to grant RBAC immediately.
+			appNs2, cleanup := fixture.CreateManagedNamespaceWithCleanupFunc("app-dyn-2", argoNamespace.Name)
 			cleanupFunctions = append(cleanupFunctions, cleanup)
 
 			By("verifying the operator auto-reconciles and creates RBAC in app-dyn-2 (triggered by imageUpdaterWatchNSMapper)")
@@ -202,11 +213,21 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argoNamespace, _ = fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-iuw-ns")
 			cleanupFunctions = append(cleanupFunctions, func() { fixture.DeleteNamespace(argoNamespace) })
 
+			// A per-namespace IMAGE_UPDATER_WATCH_NAMESPACES list is an apps-in-any-namespace
+			// feature: the operator only allows it when the Argo CD instance's namespace is
+			// registered as a cluster-config namespace.
+			By("registering the Argo CD namespace as a cluster-config namespace")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argoNamespace.Name)
+
 			By("creating target namespaces: app-ns-1 and app-ns-2 (match app-ns-*), other-ns (no match)")
-			appNs1, cleanup := fixture.CreateNamespaceWithCleanupFunc("app-ns-1")
+			// app-ns-1 and app-ns-2 must carry the "argocd.argoproj.io/managed-by" label so they
+			// consent to being managed by this Argo CD instance; otherwise watch namespace
+			// expansion will not grant them RBAC even though the glob pattern matches. other-ns
+			// doesn't need it since the pattern never matches it anyway.
+			appNs1, cleanup := fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-1", argoNamespace.Name)
 			cleanupFunctions = append(cleanupFunctions, cleanup)
 
-			appNs2, cleanup := fixture.CreateNamespaceWithCleanupFunc("app-ns-2")
+			appNs2, cleanup := fixture.CreateManagedNamespaceWithCleanupFunc("app-ns-2", argoNamespace.Name)
 			cleanupFunctions = append(cleanupFunctions, cleanup)
 
 			_, cleanup = fixture.CreateNamespaceWithCleanupFunc("other-ns")
