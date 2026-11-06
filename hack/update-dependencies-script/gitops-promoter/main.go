@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/argoproj-labs/argocd-operator/dependency-upgrade/utils"
+	"github.com/redhat-developer/gitops-operator/dependency-upgrade/utils"
 )
 
 const (

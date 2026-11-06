@@ -1,3 +1,3 @@
-module github.com/argoproj-labs/argocd-operator/dependency-upgrade
+module github.com/redhat-developer/gitops-operator/dependency-upgrade
 
 go 1.26
