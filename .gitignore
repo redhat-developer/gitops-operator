@@ -32,5 +32,9 @@ vendor/
 *.swo
 *~
 
+# Generated file-based catalog artifacts
+catalog/
+catalog.Dockerfile
+
 .vscode/
 .DS_Store
