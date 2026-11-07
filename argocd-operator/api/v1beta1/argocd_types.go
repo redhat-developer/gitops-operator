@@ -136,10 +136,52 @@ type ArgoCDApplicationControllerSpec struct {
 
 	// Metrics defines the metrics configuration for the Application Controller ServiceMonitor.
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+
+	// GoRuntime configures automatic Go runtime tuning for the Application Controller.
+	// Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING
+	// (component-specific, takes precedence) or ENABLE_GO_RUNTIME_TUNING (global fallback) to "false"
+	// on the operator to disable it. When both are set, the component-specific setting wins, so a
+	// global "false" does not disable tuning if the component-specific setting is "true".
+	GoRuntime *ArgoCDGoRuntimeSpec `json:"goRuntime,omitempty"`
 }
 
 func (a *ArgoCDApplicationControllerSpec) IsEnabled() bool {
 	return a.Enabled == nil || (a.Enabled != nil && *a.Enabled)
+}
+
+// ArgoCDGoRuntimeSpec defines per-instance options for automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS).
+// Tuning is enabled cluster-wide by default; set ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING
+// (component-specific, takes precedence) or ENABLE_GO_RUNTIME_TUNING (global fallback) to "false"
+// on the operator to disable. This spec allows per-instance opt-out and customization of the
+// GOMEMLIMIT percentage. GOMAXPROCS is always derived at 100% of the CPU limit and is not
+// configurable. Currently used only in ArgoCDApplicationControllerSpec.
+type ArgoCDGoRuntimeSpec struct {
+	// Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
+	// Cannot override operator-level disable (ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING=false,
+	// or ENABLE_GO_RUNTIME_TUNING=false when the component-specific setting is unset).
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Go Runtime Auto-Tuning",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Controller","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 80.
+	// Represents headroom reserved for non-heap memory and GC pauses.
+	//+kubebuilder:validation:Minimum=1
+	//+kubebuilder:validation:Maximum=100
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Memory Limit Percent",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Controller","urn:alm:descriptor:com.tectonic.ui:number"}
+	MemoryLimitPercent *int32 `json:"memoryLimitPercent,omitempty"`
+}
+
+// IsEnabled returns whether Go runtime tuning is enabled for this ArgoCDGoRuntimeSpec.
+// A nil receiver (i.e. .Spec.Controller.GoRuntime is unset) or a nil Enabled field defaults to true.
+func (g *ArgoCDGoRuntimeSpec) IsEnabled() bool {
+	return g == nil || g.Enabled == nil || *g.Enabled
+}
+
+// GetMemoryLimitPercent returns the configured MemoryLimitPercent, or defaultPercent if unset.
+func (g *ArgoCDGoRuntimeSpec) GetMemoryLimitPercent(defaultPercent int32) int32 {
+	if g == nil || g.MemoryLimitPercent == nil {
+		return defaultPercent
+	}
+	return *g.MemoryLimitPercent
 }
 
 // ArgoCDApplicationControllerShardSpec defines the options available for enabling sharding for the Application Controller component.

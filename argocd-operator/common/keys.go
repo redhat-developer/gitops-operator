@@ -294,6 +294,16 @@ const (
 	// the Namespace Management feature is enabled.
 	EnableManagedNamespace = "ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES"
 
+	// EnableApplicationControllerGoRuntimeTuning enables automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS)
+	// for the application controller. Enabled by default; set to "false" to disable cluster-wide.
+	EnableApplicationControllerGoRuntimeTuning = "ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING"
+
+	// EnableGoRuntimeTuning is a global, component-agnostic alias/fallback for EnableApplicationControllerGoRuntimeTuning.
+	// It is intended to gate Go runtime tuning across all GitOps components (not just the application controller) as the
+	// feature expands to other workloads (e.g. repo-server, server). If EnableApplicationControllerGoRuntimeTuning is unset
+	// on the operator, this variable is consulted as a cluster-wide default; if both are unset, tuning defaults to enabled.
+	EnableGoRuntimeTuning = "ENABLE_GO_RUNTIME_TUNING"
+
 	// ArgoCDImageUpdaterImageEnvName is the environment variable used to get the image
 	// to used for the Image Updater container.
 	ArgoCDImageUpdaterImageEnvName = "ARGOCD_IMAGE_UPDATER_IMAGE"
