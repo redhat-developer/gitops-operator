@@ -135,19 +135,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - apps.openshift.io
-  - route.openshift.io
-  resources:
-  - '*'
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - argocd-image-updater.argoproj.io
   resources:
   - imageupdaters
@@ -363,18 +350,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - oauth.openshift.io
-  resources:
-  - oauthclients
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - operators.coreos.com
   resources:
   - clusterserviceversions
@@ -451,6 +426,18 @@ rules:
 - apiGroups:
   - route.openshift.io
   resources:
+  - '*'
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - route.openshift.io
+  resources:
   - routes
   - routes/custom-host
   verbs:
@@ -465,14 +452,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - template.openshift.io
-  resources:
-  - templateconfigs
-  - templateinstances
-  - templates
-  verbs:
-  - '*'
 - apiGroups:
   - traefik.containo.us
   resources:

@@ -476,10 +476,11 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 
 	redisVolume, redisMount := argoutil.MountRedisAuthToRedis(cr)
 
-	if !IsOpenShiftCluster() {
-		deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
-			RunAsUser: new(int64(1000)),
+	if !IsSCCAPIAvailable() {
+		if deploy.Spec.Template.Spec.SecurityContext == nil {
+			deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{}
 		}
+		deploy.Spec.Template.Spec.SecurityContext.RunAsUser = new(int64(1000))
 	}
 	arguments := getArgoRedisArgs(useTLS, r.CentralTLSConfigProfile)
 	deploy.Spec.Template.Spec.Containers = []corev1.Container{{
@@ -807,7 +808,7 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 		redisAuthVolume,
 	}
 
-	if IsOpenShiftCluster() {
+	if IsSCCAPIAvailable() {
 		deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
 			RunAsNonRoot: new(true),
 			SeccompProfile: &corev1.SeccompProfile{
@@ -1473,7 +1474,7 @@ func getRolloutInitContainer() []corev1.Container {
 		},
 	}
 
-	if !IsOpenShiftCluster() {
+	if !IsSCCAPIAvailable() {
 		containers[0].SecurityContext.RunAsUser = ptr.To(int64(1000))
 	}
 
@@ -1509,7 +1510,7 @@ func getPromoterInitContainer() []corev1.Container {
 		},
 	}
 
-	if !IsOpenShiftCluster() {
+	if !IsSCCAPIAvailable() {
 		containers[0].SecurityContext.RunAsUser = ptr.To(int64(1000))
 	}
 

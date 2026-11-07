@@ -404,8 +404,9 @@ func (r *ReconcileArgoCD) reconcileRedisService(cr *argoproj.ArgoCD) error {
 func ensureAutoTLSAnnotation(k8sClient client.Client, svc *corev1.Service, secretName string, enabled bool) (bool, error) {
 	var autoTLSAnnotationName, autoTLSAnnotationValue string
 
-	// We currently only support OpenShift for automatic TLS
-	if argoutil.IsRouteAPIAvailable() {
+	// Automatic TLS relies on the OpenShift Service CA, present on OpenShift and MicroShift.
+	// Route API alone is not enough: it can be installed on clusters without Service CA.
+	if IsOpenShiftCluster() || IsSCCAPIAvailable() {
 		autoTLSAnnotationName = common.AnnotationOpenShiftServiceCA
 		if svc.Annotations == nil {
 			svc.Annotations = make(map[string]string)

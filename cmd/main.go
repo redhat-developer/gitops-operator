@@ -34,12 +34,9 @@ import (
 	rolloutManagerApi "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	rolloutManagerProvisioner "github.com/argoproj-labs/argo-rollouts-manager/controllers"
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
-	appsv1 "github.com/openshift/api/apps/v1"
 	configv1 "github.com/openshift/api/config/v1"
 	console "github.com/openshift/api/console/v1"
-	oauthv1 "github.com/openshift/api/oauth/v1"
 	routev1 "github.com/openshift/api/route/v1"
-	templatev1 "github.com/openshift/api/template/v1"
 	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -285,21 +282,6 @@ func main() {
 	}
 
 	registerComponentOrExit(mgr, rolloutManagerApi.AddToScheme)
-
-	// Setup Scheme for OpenShift Template if available (verified by InspectCluster)
-	if util.IsTemplateAPIFound() {
-		registerComponentOrExit(mgr, templatev1.AddToScheme)
-	}
-
-	// Setup Scheme for OpenShift Apps if available (verified by InspectCluster)
-	if util.IsAppsAPIFound() {
-		registerComponentOrExit(mgr, appsv1.AddToScheme)
-	}
-
-	// Setup Scheme for OpenShift OAuth if available (verified by InspectCluster)
-	if util.IsOAuthAPIFound() {
-		registerComponentOrExit(mgr, oauthv1.AddToScheme)
-	}
 
 	registerComponentOrExit(mgr, crdv1.AddToScheme)
 

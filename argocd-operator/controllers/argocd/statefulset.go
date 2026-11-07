@@ -338,7 +338,7 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 		},
 	}}
 
-	if IsOpenShiftCluster() {
+	if IsSCCAPIAvailable() {
 		var runAsNonRoot = true
 		ss.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
 			RunAsNonRoot: &runAsNonRoot,

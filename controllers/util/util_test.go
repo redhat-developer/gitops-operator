@@ -56,11 +56,13 @@ func TestInspectCluster_RouteDetectedWithoutConfigAPI(t *testing.T) {
 	origConfig := configAPIFound
 	origOLM := olmAPIFound
 	origMonitoring := monitoringAPIFound
+	origConsole := consoleAPIFound
 	t.Cleanup(func() {
 		routeAPIFound = origRoute
 		configAPIFound = origConfig
 		olmAPIFound = origOLM
 		monitoringAPIFound = origMonitoring
+		consoleAPIFound = origConsole
 		verifyAPI = argoutil.VerifyAPI // restore default
 	})
 
