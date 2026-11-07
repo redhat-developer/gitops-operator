@@ -61,7 +61,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
 						SidecarContainers: []corev1.Container{{
 							Name:  "sidecar",
-							Image: "quay.io/fedora/fedora:latest",
+							Image: fixture.SidecarImage,
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("50m"),
@@ -90,7 +90,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(appControllerPod.Spec.Containers[0].Name).To(Equal("argocd-application-controller"))
 
 			Expect(sidecarContainer.Name).To(Equal("sidecar"))
-			Expect(sidecarContainer.Image).To(Equal("quay.io/fedora/fedora:latest"))
+			Expect(sidecarContainer.Image).To(Equal(fixture.SidecarImage))
 			Expect(sidecarContainer.Resources.Limits.Cpu().String()).To(Equal("50m"))
 			Expect(sidecarContainer.Resources.Limits.Memory().String()).To(Equal("64Mi"))
 

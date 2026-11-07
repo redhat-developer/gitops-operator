@@ -76,7 +76,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						SidecarContainers: []corev1.Container{{
 							Name:    "cmp",
 							Command: []string{"/var/run/argocd/argocd-cmp-server"}, // Entrypoint should be Argo CD lightweight CMP server ie. argocd-cmp-server
-							Image:   "quay.io/fedora/fedora:latest",                // This can be off-the-shelf or custom-built image
+							Image:   fixture.SidecarImage,                          // This can be off-the-shelf or custom-built image
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot: new(true),
 							},
