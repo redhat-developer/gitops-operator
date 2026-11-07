@@ -366,7 +366,7 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 	ss.Spec.Template.Spec.TerminationGracePeriodSeconds = &terminationGracePeriodSeconds
 
 	var defaultMode int32 = 493
-	ss.Spec.Template.Spec.Volumes = []corev1.Volume{
+	ss.Spec.Template.Spec.Volumes = mergeOperatorVolumes([]corev1.Volume{
 		{
 			Name: "config",
 			VolumeSource: corev1.VolumeSource{
@@ -404,7 +404,7 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 			},
 		},
 		redisAuthVolume,
-	}
+	}, cr.Spec.Redis.Volumes)
 
 	ss.Spec.UpdateStrategy = appsv1.StatefulSetUpdateStrategy{
 		Type: appsv1.RollingUpdateStatefulSetStrategyType,
@@ -807,9 +807,7 @@ func (r *ReconcileArgoCD) reconcileApplicationControllerStatefulSet(cr *argoproj
 		redisAuthVolume,
 	}
 
-	if cr.Spec.Controller.Volumes != nil {
-		controllerVolumes = append(controllerVolumes, cr.Spec.Controller.Volumes...)
-	}
+	controllerVolumes = mergeOperatorVolumes(controllerVolumes, cr.Spec.Controller.Volumes)
 
 	podSpec.Volumes = controllerVolumes
 

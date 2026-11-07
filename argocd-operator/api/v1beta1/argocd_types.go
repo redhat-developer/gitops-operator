@@ -119,7 +119,10 @@ type ArgoCDApplicationControllerSpec struct {
 	// by the operator.
 	// Please note that the command line arguments provided as part of ExtraCommandArgs will not overwrite the default command line arguments.
 	ExtraCommandArgs []string `json:"extraCommandArgs,omitempty"`
-	// Volumes adds volumes to the Argo CD Controller container.
+	// Volumes adds volumes to the Argo CD Controller container. A volume with the
+	// same name as an operator-managed volume replaces it. Use this to override
+	// internally managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the Argo CD Controller container.
@@ -213,7 +216,10 @@ type ArgoCDApplicationSet struct {
 	// Custom labels to pods deployed by the operator
 	Labels map[string]string `json:"labels,omitempty"`
 
-	// Volumes adds volumes to the Argo CD ApplicationSet Controller container.
+	// Volumes adds volumes to the Argo CD ApplicationSet Controller container. A volume
+	// with the same name as an operator-managed volume replaces it. Use this to override
+	// internally managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the Argo CD ApplicationSet Controller container.
@@ -270,6 +276,12 @@ type ArgoCDCommitServerSpec struct {
 
 	// Custom labels to pods deployed by the operator
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Volumes adds volumes to the commit server deployment. A volume with the same
+	// name as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // ArgoCDDexSpec defines the desired state for the Dex server component.
@@ -300,7 +312,10 @@ type ArgoCDDexSpec struct {
 	// Env lets you specify environment variables for Dex.
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Volumes adds volumes to the dex server container
+	// Volumes adds volumes to the dex server container. A volume with the same name
+	// as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the dex server container
@@ -375,6 +390,12 @@ type ArgoCDImageUpdaterSpec struct {
 
 	// Resources defines the Compute Resources required by the container for Argo CD Image Updater.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Volumes adds volumes to the Image Updater deployment. A volume with the same
+	// name as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // ArgoCDImportSpec defines the desired state for the ArgoCD import/restore process.
@@ -577,6 +598,12 @@ type ArgoCDRedisSpec struct {
 
 	// Custom labels to pods deployed by the operator
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Volumes adds volumes to the Redis workloads. A volume with the same name as
+	// an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 func (a *ArgoCDRedisSpec) IsEnabled() bool {
@@ -633,7 +660,10 @@ type ArgoCDRepoSpec struct {
 	// Env lets you specify environment for repo server pods
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Volumes adds volumes to the repo server deployment
+	// Volumes adds volumes to the repo server deployment. A volume with the same name
+	// as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the repo server container
@@ -787,7 +817,10 @@ type ArgoCDServerSpec struct {
 	// Enabled is the flag to enable ArgoCD Server during ArgoCD installation. (optional, default `true`)
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// Volumes adds volumes to the Argo CD Server container.
+	// Volumes adds volumes to the Argo CD Server container. A volume with the same name
+	// as an operator-managed volume replaces it. Use this to override internally
+	// managed emptyDir volumes with a Generic Ephemeral Volume
+	// (ephemeral.volumeClaimTemplate).
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// VolumeMounts adds volumeMounts to the Argo CD Server container.

@@ -713,6 +713,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 			},
 		},
 	}
+	podSpec.Volumes = mergeOperatorVolumes(podSpec.Volumes, cr.Spec.ImageUpdater.Volumes)
 
 	args := []string{"run"}
 	imageUpdaterTLSProfileArguments, err := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-image-updater")
