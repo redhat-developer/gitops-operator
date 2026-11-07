@@ -1,0 +1,12 @@
+# A customisation of the default instance the operator creates in openshift-gitops.
+# Applied as a patch: only the fields below are set, the rest of the CR is left alone.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
+spec:
+  controller:
+    resources:
+      limits:
+        memory: 3Gi
