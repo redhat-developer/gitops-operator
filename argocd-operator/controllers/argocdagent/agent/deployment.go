@@ -98,6 +98,14 @@ func buildDeployment(compName string, cr *argoproj.ArgoCD) *appsv1.Deployment {
 
 func buildAgentSpec(compName, saName string, cr *argoproj.ArgoCD) appsv1.DeploymentSpec {
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
+
+	volumeMounts := append(buildVolumeMounts(), redisAuthMount)
+	volumes := append(buildVolumes(), redisAuthVolume)
+	if hasAgentSPIFFE(cr) {
+		volumeMounts = append(volumeMounts, buildSpiffeVolumeMount())
+		volumes = append(volumes, buildSpiffeVolume(getAgentSpiffeCSIDriver(cr)))
+	}
+
 	return appsv1.DeploymentSpec{
 		Selector: buildSelector(compName, cr),
 		Template: corev1.PodTemplateSpec{
@@ -114,12 +122,12 @@ func buildAgentSpec(compName, saName string, cr *argoproj.ArgoCD) appsv1.Deploym
 						Args:            buildArgs(compName),
 						SecurityContext: buildSecurityContext(),
 						Ports:           buildPorts(),
-						VolumeMounts:    append(buildVolumeMounts(), redisAuthMount),
+						VolumeMounts:    volumeMounts,
 						Resources:       getAgentResources(cr),
 					},
 				},
 				ServiceAccountName: saName,
-				Volumes:            append(buildVolumes(), redisAuthVolume),
+				Volumes:            volumes,
 				PriorityClassName:  cr.Spec.PriorityClassName,
 			},
 		},
@@ -237,10 +245,11 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.Containers[0].Name = generateAgentResourceName(cr.Name, compName)
 	}
 
-	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, buildAgentContainerEnv(cr)) {
+	desiredEnv := buildAgentContainerEnv(cr)
+	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, desiredEnv) {
 		log.Info("deployment container env is being updated")
 		changed = true
-		deployment.Spec.Template.Spec.Containers[0].Env = buildAgentContainerEnv(cr)
+		deployment.Spec.Template.Spec.Containers[0].Env = desiredEnv
 	}
 
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Args, buildArgs(compName)) {
@@ -252,6 +261,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
 	desiredVolumeMounts := append(buildVolumeMounts(), redisAuthMount)
 	desiredVolumes := append(buildVolumes(), redisAuthVolume)
+	if hasAgentSPIFFE(cr) {
+		desiredVolumeMounts = append(desiredVolumeMounts, buildSpiffeVolumeMount())
+		desiredVolumes = append(desiredVolumes, buildSpiffeVolume(getAgentSpiffeCSIDriver(cr)))
+	}
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, desiredVolumeMounts) {
 		log.Info("deployment container volume mounts are being updated")
 		changed = true
@@ -299,6 +312,24 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 }
 
 func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
+	tlsSecretName := getAgentTLSSecretName(cr)
+	tlsRootCASecretName := getAgentTLSRootCASecretName(cr)
+
+	// If both SPIFFE and legacy TLS configs are present, SPIFFE takes precedence.
+	// SecretName/RootCASecretName are ignored by the agent binary; TLS.Insecure must be
+	// suppressed by the operator because the agent fatals when SPIRE and insecure TLS are both set.
+	if hasAgentSPIFFE(cr) && hasTLS(cr) {
+		if cr.Spec.ArgoCDAgent.Agent.TLS.SecretName != "" {
+			log.Info("Both SPIFFE and legacy TLS configs are provided. SPIFFE will be used and TLS.SecretName configs will be ignored by the agent.")
+		}
+		if cr.Spec.ArgoCDAgent.Agent.TLS.RootCASecretName != "" {
+			log.Info("Both SPIFFE and legacy TLS.RootCASecretName are configured. SPIFFE will be used and TLS.RootCASecretName configs will be ignored by the agent.")
+		}
+		if cr.Spec.ArgoCDAgent.Agent.TLS.Insecure != nil && *cr.Spec.ArgoCDAgent.Agent.TLS.Insecure {
+			log.Info("Both SPIFFE and TLS.Insecure are configured. SPIFFE will be used and TLS.Insecure will be ignored to prevent agent startup failure.")
+		}
+	}
+
 	env := []corev1.EnvVar{
 		{
 			Name:  EnvArgoCDAgentLogLevel,
@@ -322,7 +353,7 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 		},
 		{
 			Name:  EnvArgoCDAgentTLSSecretName,
-			Value: getAgentTLSSecretName(cr),
+			Value: tlsSecretName,
 		},
 		{
 			Name:  EnvArgoCDAgentTLSInsecure,
@@ -330,7 +361,7 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 		},
 		{
 			Name:  EnvArgoCDAgentTLSRootCASecretName,
-			Value: getAgentTLSRootCASecretName(cr),
+			Value: tlsRootCASecretName,
 		},
 		{
 			Name:  EnvArgoCDAgentMode,
@@ -380,6 +411,18 @@ func buildAgentContainerEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 
 	env = append(env, argoutil.GetRedisAuthEnv()...)
 
+	// Add SPIFFE env vars when SPIRE socket is configured
+	if hasAgentSPIFFE(cr) {
+		env = append(env, corev1.EnvVar{
+			Name:  EnvArgoCDAgentSpireAgentSocket,
+			Value: agentSpireSocketURI,
+		})
+		env = append(env, corev1.EnvVar{
+			Name:  EnvArgoCDAgentSpireAuthMethod,
+			Value: getAgentSpireAuthMethod(cr),
+		})
+	}
+
 	// Add custom environment variables if specified in the CR
 	if hasAgent(cr) && cr.Spec.ArgoCDAgent.Agent.Env != nil {
 		env = append(env, cr.Spec.ArgoCDAgent.Agent.Env...)
@@ -411,6 +454,23 @@ const (
 	EnvArgoCDAgentCreateNamespace     = "ARGOCD_AGENT_CREATE_NAMESPACE"
 	EnvArgoCDAgentAllowedNamespaces   = "ARGOCD_AGENT_ALLOWED_NAMESPACES"
 	EnvArgoCDAgentLabelSelector       = "ARGOCD_AGENT_LABEL_SELECTOR"
+	EnvArgoCDAgentSpireAgentSocket    = "ARGOCD_AGENT_SPIRE_AGENT_SOCKET"
+	EnvArgoCDAgentSpireAuthMethod     = "ARGOCD_AGENT_SPIRE_AUTH_METHOD"
+
+	// agentSpireSocketDir is the directory containing the SPIRE Agent socket injected by the CSI driver.
+	agentSpireSocketDir = "/run/spire/sockets"
+
+	// agentSpireSocketFile is the SPIRE Agent socket filename.
+	agentSpireSocketFile = "spire-agent.sock"
+
+	// agentSpireSocketURI is the UNIX socket URI for the SPIRE Agent.
+	agentSpireSocketURI = "unix://" + agentSpireSocketDir + "/" + agentSpireSocketFile
+
+	// defaultAgentSpiffeCSIDriver is the default CSI driver name for SPIFFE workload API.
+	defaultAgentSpiffeCSIDriver = "csi.spiffe.io"
+
+	// agentSpiffeWorkloadAPIVolumeName is the name used for the SPIFFE Workload API CSI volume in agent pods.
+	agentSpiffeWorkloadAPIVolumeName = "spiffe-workload-api"
 )
 
 // Logging Configuration
@@ -484,6 +544,10 @@ func getAgentTLSSecretName(cr *argoproj.ArgoCD) string {
 }
 
 func getAgentTLSInsecure(cr *argoproj.ArgoCD) string {
+	// Agent binary rejects SPIRE + insecure TLS; always emit false when SPIFFE is enabled.
+	if hasAgentSPIFFE(cr) {
+		return "false"
+	}
 	if hasTLS(cr) && cr.Spec.ArgoCDAgent.Agent.TLS.Insecure != nil && *cr.Spec.ArgoCDAgent.Agent.TLS.Insecure {
 		return "true"
 	}
@@ -507,6 +571,13 @@ func getAgentMode(cr *argoproj.ArgoCD) string {
 func getAgentCreds(cr *argoproj.ArgoCD) string {
 	if hasAgent(cr) && cr.Spec.ArgoCDAgent.Agent.Creds != "" {
 		return cr.Spec.ArgoCDAgent.Agent.Creds
+	}
+	// When SPIFFE is enabled,but SPIRE Auth Method is not set, use default value
+	if hasAgentSPIFFE(cr) {
+		if getAgentSpireAuthMethod(cr) == string(argoproj.SpiffeAuthMethodMTLS) {
+			return "mtls:"
+		}
+		return "spiffe-jwt:"
 	}
 	return "mtls:any"
 }
@@ -570,4 +641,49 @@ func hasRedis(cr *argoproj.ArgoCD) bool {
 	return cr.Spec.ArgoCDAgent != nil &&
 		cr.Spec.ArgoCDAgent.Agent != nil &&
 		cr.Spec.ArgoCDAgent.Agent.Redis != nil
+}
+
+// SPIFFE Configuration
+func hasAgentSPIFFE(cr *argoproj.ArgoCD) bool {
+	return cr.Spec.ArgoCDAgent != nil &&
+		cr.Spec.ArgoCDAgent.Agent != nil &&
+		cr.Spec.ArgoCDAgent.Agent.SPIFFE != nil &&
+		cr.Spec.ArgoCDAgent.Agent.SPIFFE.Enabled
+}
+
+func getAgentSpireAuthMethod(cr *argoproj.ArgoCD) string {
+	if hasAgentSPIFFE(cr) && cr.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod != "" {
+		return string(cr.Spec.ArgoCDAgent.Agent.SPIFFE.AuthMethod)
+	}
+	return string(argoproj.SpiffeAuthMethodJWT)
+}
+
+func getAgentSpiffeCSIDriver(cr *argoproj.ArgoCD) string {
+	if hasAgentSPIFFE(cr) && cr.Spec.ArgoCDAgent.Agent.SPIFFE.CSIDriverName != "" {
+		return cr.Spec.ArgoCDAgent.Agent.SPIFFE.CSIDriverName
+	}
+	return defaultAgentSpiffeCSIDriver
+}
+
+// buildSpiffeVolumeMount returns a VolumeMount for the SPIFFE Workload API socket directory.
+func buildSpiffeVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      agentSpiffeWorkloadAPIVolumeName,
+		MountPath: agentSpireSocketDir,
+		ReadOnly:  true,
+	}
+}
+
+// buildSpiffeVolume returns a Volume backed by the SPIFFE CSI driver.
+func buildSpiffeVolume(driverName string) corev1.Volume {
+	readOnly := true
+	return corev1.Volume{
+		Name: agentSpiffeWorkloadAPIVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			CSI: &corev1.CSIVolumeSource{
+				Driver:   driverName,
+				ReadOnly: &readOnly,
+			},
+		},
+	}
 }
