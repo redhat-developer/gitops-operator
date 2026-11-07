@@ -126,7 +126,7 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 						Env:             envParams,
 						Args:            buildArgs(compName),
 						SecurityContext: buildSecurityContext(),
-						Ports:           buildPorts(compName),
+						Ports:           buildPorts(compName, cr),
 						VolumeMounts:    append(buildVolumeMounts(), redisAuthMount),
 						Resources:       getPrincipalResources(cr),
 					},
@@ -161,8 +161,8 @@ func buildSecurityContext() *corev1.SecurityContext {
 	}
 }
 
-func buildPorts(compName string) []corev1.ContainerPort {
-	return []corev1.ContainerPort{
+func buildPorts(compName string, cr *argoproj.ArgoCD) []corev1.ContainerPort {
+	ports := []corev1.ContainerPort{
 		{
 			ContainerPort: 8443,
 			Name:          compName,
@@ -189,6 +189,19 @@ func buildPorts(compName string) []corev1.ContainerPort {
 			Protocol:      corev1.ProtocolTCP,
 		},
 	}
+
+	if isPrincipalHAEnabled(cr) {
+		adminPort := int32(8405)
+		if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
+			adminPort = *cr.Spec.ArgoCDAgent.Principal.HA.AdminPort
+		}
+		ports = append(ports, corev1.ContainerPort{
+			ContainerPort: adminPort,
+			Name:          "ha-admin",
+			Protocol:      corev1.ProtocolTCP,
+		})
+	}
+	return ports
 }
 
 func buildArgs(compName string) []string {
@@ -326,10 +339,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.Containers[0].SecurityContext = buildSecurityContext()
 	}
 
-	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Ports, buildPorts(compName)) {
+	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Ports, buildPorts(compName, cr)) {
 		log.Info("deployment container ports is being updated")
 		changed = true
-		deployment.Spec.Template.Spec.Containers[0].Ports = buildPorts(compName)
+		deployment.Spec.Template.Spec.Containers[0].Ports = buildPorts(compName, cr)
 	}
 
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.ServiceAccountName, saName) {
@@ -449,6 +462,19 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 
 	env = append(env, argoutil.GetRedisAuthEnv()...)
 
+	// Inject HA env vars when HA is enabled
+	if isPrincipalHAEnabled(cr) {
+		env = append(env,
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAEnabled, Value: "true"},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAPreferredRole, Value: getPrincipalHAPreferredRole(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAPeerAddress, Value: getPrincipalHAPeerAddress(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAAllowedReplicationClients, Value: getPrincipalHAAllowedReplicationClients(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAAdminPort, Value: getPrincipalHAAdminPort(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAAdminAuth, Value: getPrincipalHAAdminAuth(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAReplicationInitialAckTimeout, Value: getPrincipalHAReplicationInitialAckTimeout(cr)},
+		)
+	}
+
 	// Add custom environment variables if specified in the CR
 	if hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.Env != nil {
 		env = append(env, cr.Spec.ArgoCDAgent.Principal.Env...)
@@ -489,6 +515,13 @@ const (
 	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
 	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
 	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
+	EnvArgoCDPrincipalHAEnabled                        = "ARGOCD_PRINCIPAL_HA_ENABLED"
+	EnvArgoCDPrincipalHAPreferredRole                  = "ARGOCD_PRINCIPAL_HA_PREFERRED_ROLE"
+	EnvArgoCDPrincipalHAPeerAddress                    = "ARGOCD_PRINCIPAL_HA_PEER_ADDRESS"
+	EnvArgoCDPrincipalHAAllowedReplicationClients      = "ARGOCD_PRINCIPAL_HA_ALLOWED_REPLICATION_CLIENTS"
+	EnvArgoCDPrincipalHAAdminPort                      = "ARGOCD_PRINCIPAL_HA_ADMIN_PORT"
+	EnvArgoCDPrincipalHAAdminAuth                      = "ARGOCD_PRINCIPAL_HA_ADMIN_AUTH"
+	EnvArgoCDPrincipalHAReplicationInitialAckTimeout   = "ARGOCD_PRINCIPAL_HA_REPLICATION_INITIAL_ACK_TIMEOUT"
 )
 
 // getPrincipalTlsConfig maps the cluster TLS security profile into env values for the
@@ -739,6 +772,58 @@ func hasSelfRegistration(cr *argoproj.ArgoCD) bool {
 	return cr.Spec.ArgoCDAgent != nil &&
 		cr.Spec.ArgoCDAgent.Principal != nil &&
 		cr.Spec.ArgoCDAgent.Principal.SelfRegistration != nil
+}
+
+func hasPrincipalHA(cr *argoproj.ArgoCD) bool {
+	return hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.HA != nil
+}
+
+func isPrincipalHAEnabled(cr *argoproj.ArgoCD) bool {
+	return hasPrincipalHA(cr) &&
+		cr.Spec.ArgoCDAgent.Principal.HA.Enabled != nil &&
+		*cr.Spec.ArgoCDAgent.Principal.HA.Enabled
+}
+
+func getPrincipalHAPreferredRole(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.PreferredRole != "" {
+		return cr.Spec.ArgoCDAgent.Principal.HA.PreferredRole
+	}
+	return "primary"
+}
+
+func getPrincipalHAPeerAddress(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) {
+		return cr.Spec.ArgoCDAgent.Principal.HA.PeerAddress
+	}
+	return ""
+}
+
+func getPrincipalHAAllowedReplicationClients(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) && len(cr.Spec.ArgoCDAgent.Principal.HA.AllowedReplicationClients) > 0 {
+		return strings.Join(cr.Spec.ArgoCDAgent.Principal.HA.AllowedReplicationClients, ",")
+	}
+	return ""
+}
+
+func getPrincipalHAAdminPort(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
+		return strconv.Itoa(int(*cr.Spec.ArgoCDAgent.Principal.HA.AdminPort))
+	}
+	return "8405"
+}
+
+func getPrincipalHAAdminAuth(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) {
+		return cr.Spec.ArgoCDAgent.Principal.HA.AdminAuth
+	}
+	return ""
+}
+
+func getPrincipalHAReplicationInitialAckTimeout(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.ReplicationInitialAckTimeout != "" {
+		return cr.Spec.ArgoCDAgent.Principal.HA.ReplicationInitialAckTimeout
+	}
+	return "5m"
 }
 
 func getPrincipalEnableSelfClusterRegistration(cr *argoproj.ArgoCD) string {

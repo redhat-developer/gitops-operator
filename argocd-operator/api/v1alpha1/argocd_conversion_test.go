@@ -866,6 +866,47 @@ func TestAlphaToBetaConversion(t *testing.T) {
 				}
 			}),
 		},
+		{
+			name: "ArgoCD Example - Agent Principal with HA enabled",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				haEnabled := true
+				adminPort := int32(8405)
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						HA: &PrincipalHASpec{
+							Enabled:                      &haEnabled,
+							PreferredRole:                "primary",
+							PeerAddress:                  "argocd-agent-principal-replica:8443",
+							AllowedReplicationClients:    []string{"replica-identity"},
+							AdminPort:                    &adminPort,
+							AdminAuth:                    "mtls:subject:CN=ha-admin",
+							ReplicationInitialAckTimeout: "5m",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				haEnabled := true
+				adminPort := int32(8405)
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						HA: &v1beta1.PrincipalHASpec{
+							Enabled:                      &haEnabled,
+							PreferredRole:                "primary",
+							PeerAddress:                  "argocd-agent-principal-replica:8443",
+							AllowedReplicationClients:    []string{"replica-identity"},
+							AdminPort:                    &adminPort,
+							AdminAuth:                    "mtls:subject:CN=ha-admin",
+							ReplicationInitialAckTimeout: "5m",
+						},
+					},
+				}
+			}),
+		},
 	}
 
 	for _, test := range tests {
@@ -1323,6 +1364,47 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+						},
+					},
+				}
+			}),
+		},
+		{
+			name: "ArgoCD Example - Agent Principal with HA enabled",
+			input: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				enabled := true
+				haEnabled := true
+				adminPort := int32(8405)
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled: &enabled,
+						HA: &v1beta1.PrincipalHASpec{
+							Enabled:                      &haEnabled,
+							PreferredRole:                "primary",
+							PeerAddress:                  "argocd-agent-principal-replica:8443",
+							AllowedReplicationClients:    []string{"replica-identity"},
+							AdminPort:                    &adminPort,
+							AdminAuth:                    "mtls:subject:CN=ha-admin",
+							ReplicationInitialAckTimeout: "5m",
+						},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				enabled := true
+				haEnabled := true
+				adminPort := int32(8405)
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled: &enabled,
+						HA: &PrincipalHASpec{
+							Enabled:                      &haEnabled,
+							PreferredRole:                "primary",
+							PeerAddress:                  "argocd-agent-principal-replica:8443",
+							AllowedReplicationClients:    []string{"replica-identity"},
+							AdminPort:                    &adminPort,
+							AdminAuth:                    "mtls:subject:CN=ha-admin",
+							ReplicationInitialAckTimeout: "5m",
 						},
 					},
 				}
