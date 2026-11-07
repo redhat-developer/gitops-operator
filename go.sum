@@ -382,8 +382,8 @@ github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2
 github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e/go.mod h1:XGabTMnNbz0M5Oa7IbscZp/jmcc7aHobvOCUWwkzKvM=
 github.com/openshift/library-go v0.0.0-20260703081820-c6cd1a243d2d h1:+zQLKCQkJEfObLC0amL+UXr+f+vLHDduFMxH5hrjeFI=
 github.com/openshift/library-go v0.0.0-20260703081820-c6cd1a243d2d/go.mod h1:8d0qQEDq2kpIZmaE1tKpvZ4pLeQZT+mW2JpqAh3iZIc=
-github.com/operator-framework/api v0.17.5 h1:9d0pc6m1Vp4QeS8i5dhl/B0nifhKQdtw+iFsNx0An0Q=
-github.com/operator-framework/api v0.17.5/go.mod h1:l/cuwtPxkVUY7fzYgdust2m9tlmb8I4pOvbsUufRb24=
+github.com/operator-framework/api v0.45.0 h1:hkROwtsLH3oszp4IW+WsXEFSDgveSahHI7DKStOtrUI=
+github.com/operator-framework/api v0.45.0/go.mod h1:IQ4uuISTiIhV09oAurJSGD4KabayhY5nV6k1XmA235M=
 github.com/patrickmn/go-cache v2.1.1-0.20191004192108-46f407853014+incompatible h1:IWzUvJ72xMjmrjR9q3H1PF+jwdN0uNQiR2t1BLNalyo=
 github.com/patrickmn/go-cache v2.1.1-0.20191004192108-46f407853014+incompatible/go.mod h1:3Qf8kWWT7OJRJbdiICTKqZju1ZixQ/KpMGzzAfe6+WQ=
 github.com/peterbourgon/diskv v2.0.1+incompatible h1:UBdAOUP5p4RWqPBg048CAvpKN+vxiaj6gdUUzhl4XmI=
