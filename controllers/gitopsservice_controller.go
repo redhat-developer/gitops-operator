@@ -23,6 +23,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/go-logr/logr"
 	version "github.com/hashicorp/go-version"
@@ -79,6 +80,10 @@ const (
 	PodSecurityLabelSyncLabel      = "security.openshift.io/scc.podSecurityLabelSync"
 	PodSecurityLabelSyncLabelValue = "true"
 	kamResourceName                = "kam"
+	// nodeSelectorRestartedAtAnnotation is bumped on default-instance workloads when
+	// openshift.io/node-selector on the namespace changes, so existing pods are replaced
+	// and pick up the new selector at admission.
+	nodeSelectorRestartedAtAnnotation = "gitops.openshift.io/node-selector-restartedAt"
 )
 
 // SetupWithManager sets up the controller with the Manager.
@@ -276,7 +281,7 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 		if err != nil {
 			if errors.IsNotFound(err) {
 				reqLogger.Info("Creating a new Namespace", "Name", namespace)
-				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra)
+				ensureInfraNodeSelectorAnnotation(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
 				err = r.Client.Create(ctx, namespaceRef)
 				if err != nil {
 					return reconcile.Result{}, err
@@ -285,9 +290,15 @@ func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcil
 				return reconcile.Result{}, err
 			}
 		} else {
-			if ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra) {
+			changed, selectorChanged := ensureNamespaceMetadata(namespaceRef, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
+			if changed {
 				err = r.Client.Update(context.TODO(), namespaceRef)
 				if err != nil {
+					return reconcile.Result{}, err
+				}
+			}
+			if selectorChanged {
+				if err := r.restartWorkloadsForNodeSelector(namespaceRef.Name, reqLogger); err != nil {
 					return reconcile.Result{}, err
 				}
 			}
@@ -492,7 +503,7 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating a new Namespace", "Name", argocdNS.Name)
-			ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra)
+			ensureInfraNodeSelectorAnnotation(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
 			err = r.Client.Create(context.TODO(), argocdNS)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -522,9 +533,15 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			}
 		}
 
-		if ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra) {
+		changed, selectorChanged := ensureNamespaceMetadata(argocdNS, instance.Spec.RunOnInfra, instance.Spec.NodeSelector)
+		if changed {
 			err = r.Client.Update(context.TODO(), argocdNS)
 			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		if selectorChanged {
+			if err := r.restartWorkloadsForNodeSelector(argocdNS.Name, reqLogger); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
@@ -536,15 +553,9 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 		return reconcile.Result{}, err
 	}
 
-	if len(instance.Spec.NodeSelector) > 0 {
-		if defaultArgoCDInstance.Spec.NodePlacement == nil {
-			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
-				NodeSelector: instance.Spec.NodeSelector,
-			}
-		} else {
-			defaultArgoCDInstance.Spec.NodePlacement.NodeSelector = argocdutil.AppendStringMap(defaultArgoCDInstance.Spec.NodePlacement.NodeSelector, instance.Spec.NodeSelector)
-		}
-	}
+	// Node selectors for the default instance are applied on the openshift-gitops
+	// namespace (openshift.io/node-selector), not on ArgoCD spec.nodePlacement.
+	// GitopsService still owns NodePlacement.Tolerations for taints.
 	if len(instance.Spec.Tolerations) > 0 {
 		if defaultArgoCDInstance.Spec.NodePlacement == nil {
 			defaultArgoCDInstance.Spec.NodePlacement = &argoapp.ArgoCDNodePlacementSpec{
@@ -620,13 +631,13 @@ func (r *ReconcileGitopsService) reconcileDefaultArgoCDInstance(instance *pipeli
 			changed = true
 		}
 
-		// if user is patching nodePlacement through GitopsService CR, then existingArgoCD NodePlacement is updated.
+		// GitopsService owns the default ArgoCD instance. Sync NodePlacement from
+		// GitopsService (tolerations only; node selectors use the namespace annotation).
 		if defaultArgoCDInstance.Spec.NodePlacement != nil {
 			if !reflect.DeepEqual(existingArgoCD.Spec.NodePlacement, defaultArgoCDInstance.Spec.NodePlacement) {
 				existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 				changed = true
 			}
-			// Handle the case where NodePlacement should be removed
 		} else if existingArgoCD.Spec.NodePlacement != nil {
 			existingArgoCD.Spec.NodePlacement = defaultArgoCDInstance.Spec.NodePlacement
 			changed = true
@@ -1133,13 +1144,53 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 	}
 }
 
-func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool) bool {
-	changed := false
+func ensureNamespaceMetadata(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) (changed bool, nodeSelectorChanged bool) {
 	labelUpdate, _ := ensurePodSecurityLabels(namespace)
-	changed = changed || labelUpdate
-	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra)
-	changed = changed || annotationUpdate
-	return changed
+	annotationUpdate, _ := ensureInfraNodeSelectorAnnotation(namespace, runOnInfra, nodeSelector)
+	return labelUpdate || annotationUpdate, annotationUpdate
+}
+
+func (r *ReconcileGitopsService) restartWorkloadsForNodeSelector(namespace string, reqLogger logr.Logger) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	reqLogger.Info("Restarting workloads so pods pick up namespace node-selector changes", "Namespace", namespace)
+
+	deploys := &appsv1.DeploymentList{}
+	if err := r.Client.List(context.TODO(), deploys, client.InNamespace(namespace)); err != nil {
+		return err
+	}
+	for i := range deploys.Items {
+		d := &deploys.Items[i]
+		// Backend deployment already rolls via its own pod-template nodeSelector sync.
+		if d.Name == serviceName {
+			continue
+		}
+		if err := r.patchPodTemplateRestartedAt(d, &d.Spec.Template, now); err != nil {
+			return err
+		}
+	}
+
+	statefuls := &appsv1.StatefulSetList{}
+	if err := r.Client.List(context.TODO(), statefuls, client.InNamespace(namespace)); err != nil {
+		return err
+	}
+	for i := range statefuls.Items {
+		ss := &statefuls.Items[i]
+		if err := r.patchPodTemplateRestartedAt(ss, &ss.Spec.Template, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *ReconcileGitopsService) patchPodTemplateRestartedAt(obj client.Object, template *corev1.PodTemplateSpec, now string) error {
+	if template.Annotations == nil {
+		template.Annotations = map[string]string{}
+	}
+	if template.Annotations[nodeSelectorRestartedAtAnnotation] == now {
+		return nil
+	}
+	template.Annotations[nodeSelectorRestartedAtAnnotation] = now
+	return r.Client.Update(context.TODO(), obj)
 }
 
 func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespace) {
@@ -1153,20 +1204,22 @@ func ensurePodSecurityLabels(namespace *corev1.Namespace) (bool, *corev1.Namespa
 	return false, namespace
 }
 
-func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra bool) (bool, *corev1.Namespace) {
+func ensureInfraNodeSelectorAnnotation(namespace *corev1.Namespace, runOnInfra bool, nodeSelector map[string]string) (bool, *corev1.Namespace) {
 	if namespace.Annotations == nil {
 		namespace.Annotations = make(map[string]string)
 	}
-	if runOnInfra {
-		if namespace.Annotations[common.InfraNodeSelectorAnnotation] != common.InfraNodeSelectorAnnotationValue {
-			namespace.Annotations[common.InfraNodeSelectorAnnotation] = common.InfraNodeSelectorAnnotationValue
-			return true, namespace
+	want := common.NamespaceNodeSelectorAnnotation(runOnInfra, nodeSelector)
+	got := namespace.Annotations[common.InfraNodeSelectorAnnotation]
+	if want == "" {
+		if got == "" {
+			return false, namespace
 		}
-	} else {
-		if namespace.Annotations[common.InfraNodeSelectorAnnotation] == common.InfraNodeSelectorAnnotationValue {
-			delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
-			return true, namespace
-		}
+		delete(namespace.Annotations, common.InfraNodeSelectorAnnotation)
+		return true, namespace
 	}
-	return false, namespace
+	if got == want {
+		return false, namespace
+	}
+	namespace.Annotations[common.InfraNodeSelectorAnnotation] = want
+	return true, namespace
 }
