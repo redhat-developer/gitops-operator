@@ -14,20 +14,20 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift/api v0.0.0-20260619095050-5346161d1bf2
 	github.com/operator-framework/api v0.17.5
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.1
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.94.2
 	github.com/prometheus/client_golang v1.25.0
 	github.com/sethvargo/go-password v0.4.0
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0 // indirect
 	golang.org/x/mod v0.42.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.36.2
-	k8s.io/apiextensions-apiserver v0.36.2
-	k8s.io/apimachinery v0.36.2
-	k8s.io/client-go v0.36.2
+	k8s.io/api v0.37.0
+	k8s.io/apiextensions-apiserver v0.37.0
+	k8s.io/apimachinery v0.37.0
+	k8s.io/client-go v0.37.0
 	k8s.io/kube-aggregator v0.36.2
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/controller-runtime v0.25.0
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -69,7 +69,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
-	k8s.io/streaming v0.36.2 // indirect
+	k8s.io/streaming v0.37.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
@@ -193,9 +193,9 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/apiserver v0.36.2 // indirect
+	k8s.io/apiserver v0.37.0 // indirect
 	k8s.io/cli-runtime v0.36.2 // indirect
-	k8s.io/component-base v0.36.2 // indirect
+	k8s.io/component-base v0.37.0 // indirect
 	k8s.io/component-helpers v0.36.2 // indirect
 	k8s.io/controller-manager v0.36.2 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
