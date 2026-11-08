@@ -511,14 +511,45 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleForNamespace(namespace string
 	desiredRole := newRoleForApplicationSourceNamespaces(namespace, policyRules, cr)
 	desiredRole.Labels[imageUpdaterManagedNamespaceLabel] = "true"
 	desiredRole.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
-	role, err := r.reconcileRoleHelper(cr, desiredRole)
+	roleObj, err := r.reconcileRoleHelper(cr, desiredRole)
 	if err != nil {
 		return nil, err
 	}
-	if role == nil {
+	if roleObj == nil {
 		return nil, nil
 	}
-	return role.(*rbacv1.Role), nil
+	role := roleObj.(*rbacv1.Role)
+
+	// reconcileRoleHelper only updates an existing Role when its policy rules differ, so a Role
+	// created before imageUpdaterOwnerNamespaceLabel existed would otherwise never pick it up and
+	// would stay dependent on its RoleBinding for ownership confirmation indefinitely. Backfill it
+	// here on every reconcile of a still-desired namespace. This narrows (but does not eliminate)
+	// pruneImageUpdaterNamespaceRBAC's RoleBinding-derived fallback: a legacy Role whose namespace
+	// is no longer desired never reaches this function, so if its RoleBinding was already deleted
+	// (e.g. by an older operator version) before this label existed, it has no ownership evidence
+	// left and cannot be identified for pruning.
+	//
+	// When the policy rules already matched, reconcileRoleHelper returns the in-memory desiredRole
+	// (which already carries the label) without persisting anything, so role.Labels here cannot be
+	// trusted to reflect what is actually stored. Re-fetch to check the persisted label instead.
+	persistedRole := &rbacv1.Role{}
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: role.Name, Namespace: role.Namespace}, persistedRole); err != nil {
+		return nil, fmt.Errorf("failed to get the role associated with %s : %s", role.Name, err)
+	}
+
+	if persistedRole.Labels[imageUpdaterOwnerNamespaceLabel] != cr.Namespace {
+		if persistedRole.Labels == nil {
+			persistedRole.Labels = map[string]string{}
+		}
+		persistedRole.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
+		argoutil.LogResourceUpdate(log, persistedRole, "backfilling image updater owner-namespace label")
+		if err := r.Update(context.TODO(), persistedRole); err != nil {
+			return nil, err
+		}
+		role = persistedRole
+	}
+
+	return role, nil
 }
 
 func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace string, cr *argoproj.ArgoCD, role *rbacv1.Role, sa *corev1.ServiceAccount) error {
@@ -561,6 +592,14 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 // the RoleBinding were deleted first and the subsequent Role deletion failed, a retry could
 // never again confirm ownership of that orphaned legacy Role and it would never be pruned (its
 // RoleBinding, however, would already be gone, so no further access is granted by it).
+//
+// Known limitation: reconcileImageUpdaterRoleForNamespace backfills the label onto a legacy Role
+// on every reconcile of a still-desired namespace, but a legacy Role whose namespace is no longer
+// desired is never reconciled there. If such a Role's RoleBinding was already deleted (e.g. by an
+// operator version that predates this ownership-preserving delete order), it has no ownership
+// evidence left -- neither the label nor the RoleBinding -- and this function cannot identify it
+// for pruning; it must be removed manually. This can only happen for Roles already in that state
+// before this fix was deployed.
 func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, desiredNamespaces map[string]any) error {
 	nameMatch := client.MatchingLabels{
 		common.ArgoCDKeyName:              cr.Name,

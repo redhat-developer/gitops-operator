@@ -607,6 +607,47 @@ func TestReconcileImageUpdater_RoleForNamespace(t *testing.T) {
 	assert.True(t, errors.IsNotFound(err))
 }
 
+// TestReconcileImageUpdaterRoleForNamespace_BackfillsOwnerNamespaceLabel is a regression test for
+// GITOPS-11825: reconcileRoleHelper only updates an existing Role when its policy rules differ, so
+// a legacy Role (created before imageUpdaterOwnerNamespaceLabel existed) would otherwise never
+// pick up the label and would remain dependent on its RoleBinding for ownership confirmation
+// indefinitely. reconcileImageUpdaterRoleForNamespace must backfill the label on every reconcile
+// of a still-desired namespace, even when the policy rules are already up to date.
+func TestReconcileImageUpdaterRoleForNamespace_BackfillsOwnerNamespaceLabel(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	const targetNS = "target-ns"
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+
+	resObjs := []client.Object{a}
+	subresObjs := []client.Object{a}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	desiredPolicyRules := policyRuleForRoleManagerRoleForImageUpdaterController()
+	role, err := r.reconcileImageUpdaterRoleForNamespace(targetNS, a, desiredPolicyRules)
+	require.NoError(t, err)
+	require.NotNil(t, role)
+
+	// Simulate a legacy Role created before imageUpdaterOwnerNamespaceLabel existed by stripping
+	// the label, while leaving the policy rules unchanged.
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: role.Name, Namespace: targetNS}, role))
+	delete(role.Labels, imageUpdaterOwnerNamespaceLabel)
+	require.NoError(t, r.Update(context.TODO(), role))
+
+	// Reconciling again with identical policy rules must still backfill the label: the rules
+	// being unchanged must not short-circuit the backfill.
+	_, err = r.reconcileImageUpdaterRoleForNamespace(targetNS, a, desiredPolicyRules)
+	require.NoError(t, err)
+
+	backfilled := &rbacv1.Role{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: role.Name, Namespace: targetNS}, backfilled))
+	assert.Equal(t, a.Namespace, backfilled.Labels[imageUpdaterOwnerNamespaceLabel])
+}
+
 func TestReconcileImageUpdater_RoleBindingForNamespace(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
 	const targetNS = "target-ns"
