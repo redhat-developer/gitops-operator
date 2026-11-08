@@ -36,6 +36,15 @@ const (
 	// operator creates in a per-namespace watch scope. It allows the operator to list and
 	// prune stale objects when IMAGE_UPDATER_WATCH_NAMESPACES changes between reconciles.
 	imageUpdaterManagedNamespaceLabel = "argocd.argoproj.io/image-updater-managed-namespace"
+
+	// imageUpdaterOwnerNamespaceLabel records, on the per-namespace Role itself, the
+	// namespace of the owning Argo CD instance. It lets pruneImageUpdaterNamespaceRBAC
+	// confirm ownership of a Role even if the RoleBinding that referenced it was already
+	// deleted in a previous (possibly partially failed) reconcile, so cleanup of a stale
+	// Role remains retryable without risking deletion of a same-named instance's Role in a
+	// different namespace. Roles created before this label existed fall back to
+	// RoleBinding-derived ownership confirmation.
+	imageUpdaterOwnerNamespaceLabel = "argocd.argoproj.io/image-updater-owner-namespace"
 )
 
 func (r *ReconcileArgoCD) reconcileImageUpdaterController(cr *argoproj.ArgoCD) error {
@@ -69,6 +78,15 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 	// cluster-scope restriction in reconcileImageUpdaterRBAC.
 	watchNamespaces, err = normalizeWatchNamespaces(watchNamespaces)
 	if err != nil {
+		// An invalid value (e.g. "*,team-a") must not leave RBAC granted by a previous,
+		// valid configuration in place indefinitely: revoke any cluster-wide and
+		// per-namespace grants owned by this instance before surfacing the error.
+		if cleanupErr := r.deleteImageUpdaterClusterRBAC(cr); cleanupErr != nil {
+			return cleanupErr
+		}
+		if cleanupErr := r.pruneImageUpdaterNamespaceRBAC(cr, map[string]any{}); cleanupErr != nil {
+			return cleanupErr
+		}
 		return err
 	}
 
@@ -492,6 +510,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBinding(cr *argoproj.ArgoCD, 
 func (r *ReconcileArgoCD) reconcileImageUpdaterRoleForNamespace(namespace string, cr *argoproj.ArgoCD, policyRules []rbacv1.PolicyRule) (*rbacv1.Role, error) {
 	desiredRole := newRoleForApplicationSourceNamespaces(namespace, policyRules, cr)
 	desiredRole.Labels[imageUpdaterManagedNamespaceLabel] = "true"
+	desiredRole.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
 	role, err := r.reconcileRoleHelper(cr, desiredRole)
 	if err != nil {
 		return nil, err
@@ -530,11 +549,12 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 //
 // nameMatch (common.ArgoCDKeyName + imageUpdaterManagedNamespaceLabel) identifies candidates by
 // name alone, which a same-named Argo CD instance in a different namespace would also match.
-// Ownership is disambiguated using the RoleBinding's ServiceAccount subject namespace, which
+// RoleBinding ownership is disambiguated using its ServiceAccount subject namespace, which
 // reconcileImageUpdaterRoleBindingForNamespace always sets explicitly to cr.Namespace -- a field
 // that has always been set this way, so this works uniformly for objects from any operator
-// version. A Role carries no such field of its own, so it is only pruned once the RoleBinding
-// that references it has been confirmed to belong to this instance.
+// version. Role ownership is confirmed via imageUpdaterOwnerNamespaceLabel when present (so a
+// stale Role can still be pruned on retry even if its RoleBinding was already deleted), falling
+// back to the RoleBinding-derived confirmation for Roles created before that label existed.
 func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, desiredNamespaces map[string]any) error {
 	nameMatch := client.MatchingLabels{
 		common.ArgoCDKeyName:              cr.Name,
@@ -579,7 +599,18 @@ func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, de
 	for i := range roleList.Items {
 		role := &roleList.Items[i]
 
-		if !ownedRoleNames[role.Namespace][role.Name] {
+		// Prefer the Role's own owner-namespace label: unlike ownedRoleNames (derived from
+		// the RoleBinding list above), it does not depend on that RoleBinding still existing,
+		// so a stale Role can still be confirmed and pruned on retry even if its RoleBinding
+		// was already deleted. Roles created before this label existed fall back to the
+		// RoleBinding-derived confirmation.
+		var owned bool
+		if ownerNS, ok := role.Labels[imageUpdaterOwnerNamespaceLabel]; ok {
+			owned = ownerNS == cr.Namespace
+		} else {
+			owned = ownedRoleNames[role.Namespace][role.Name]
+		}
+		if !owned {
 			continue // not confirmed owned by this instance (or orphaned); leave it alone
 		}
 

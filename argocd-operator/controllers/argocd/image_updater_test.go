@@ -1070,6 +1070,69 @@ func TestPruneImageUpdaterNamespaceRBAC_ScopedByOwnerNamespace(t *testing.T) {
 	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive pruning triggered by instance A")
 }
 
+// TestPruneImageUpdaterNamespaceRBAC_RoleRetryableAfterRoleBindingDeleted is a regression test
+// for GITOPS-11825: ownedRoleNames (derived from the RoleBinding list) is only populated while
+// the matching RoleBinding still exists. If a previous reconcile deleted the RoleBinding but
+// failed before deleting the Role it referenced (or before this call runs again), the stale
+// Role must still be confirmed as owned and pruned via imageUpdaterOwnerNamespaceLabel, which is
+// set on the Role itself and does not depend on the RoleBinding being present. Another
+// same-named instance's Role in a different namespace must remain untouched.
+func TestPruneImageUpdaterNamespaceRBAC_RoleRetryableAfterRoleBindingDeleted(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	instanceA := makeTestArgoCDInNamespace("instance-a", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	instanceB := makeTestArgoCDInNamespace("instance-b", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	require.Equal(t, instanceA.Name, instanceB.Name, "test requires both instances to share a name")
+
+	resObjs := []client.Object{instanceA, instanceB}
+	subresObjs := []client.Object{instanceA, instanceB}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	rules := policyRuleForRoleManagerRoleForImageUpdaterController()
+	saA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceA.Namespace}}
+	saB := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceB.Namespace}}
+
+	roleA, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-a", instanceA, rules)
+	require.NoError(t, err)
+	require.NotNil(t, roleA)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-a", instanceA, roleA, saA))
+
+	roleB, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-b", instanceB, rules)
+	require.NoError(t, err)
+	require.NotNil(t, roleB)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-b", instanceB, roleB, saB))
+
+	// Simulate a previous reconcile that deleted instance A's RoleBinding but failed/stopped
+	// before the Role itself was pruned.
+	rbA := &rbacv1.RoleBinding{}
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceA.Name, "ns-for-a"),
+		Namespace: "ns-for-a",
+	}, rbA))
+	require.NoError(t, r.Delete(context.TODO(), rbA))
+
+	// Retrying the prune with instance A's RoleBinding already gone must still remove the
+	// now-orphaned Role, because it carries imageUpdaterOwnerNamespaceLabel = instanceA.Namespace.
+	require.NoError(t, r.pruneImageUpdaterNamespaceRBAC(instanceA, map[string]any{}))
+
+	errA := r.Get(context.TODO(), types.NamespacedName{Name: roleA.Name, Namespace: "ns-for-a"}, &rbacv1.Role{})
+	assert.True(t, errors.IsNotFound(errA), "instance A's orphaned role should have been pruned on retry")
+
+	// Instance B's Role/RoleBinding, in a different namespace, must survive.
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleB.Name, Namespace: "ns-for-b"}, &rbacv1.Role{}),
+		"instance B's role must survive pruning triggered by instance A")
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceB.Name, "ns-for-b"),
+		Namespace: "ns-for-b",
+	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive pruning triggered by instance A")
+}
+
 // TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces verifies that when the
 // watch-namespace list shrinks, reconcileImageUpdaterRBAC removes roles and bindings
 // for the dropped namespaces without touching the remaining ones.
@@ -1250,6 +1313,67 @@ func TestReconcileImageUpdaterRBAC_RevokesClusterRBACWhenScopeRejected(t *testin
 
 	rbErr := r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACName}, &rbacv1.ClusterRoleBinding{})
 	assert.True(t, errors.IsNotFound(rbErr), "stale cluster role binding should have been revoked, got: %v", rbErr)
+}
+
+// TestReconcileImageUpdaterControllerEnabled_RevokesRBACOnInvalidWatchNamespaces is a regression
+// test for GITOPS-11825: an invalid IMAGE_UPDATER_WATCH_NAMESPACES value (e.g. "*,team-a", which
+// normalizeWatchNamespaces rejects) must not make reconcileImageUpdaterControllerEnabled return
+// before revoking RBAC granted by a previous, valid configuration -- otherwise those grants
+// remain active indefinitely across every subsequent reconcile. A same-named Argo CD instance in
+// a different namespace must keep its own RBAC untouched by this cleanup.
+func TestReconcileImageUpdaterControllerEnabled_RevokesRBACOnInvalidWatchNamespaces(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "instance-a")
+
+	instanceA := makeTestArgoCDInNamespace("instance-a", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	instanceB := makeTestArgoCDInNamespace("instance-b", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	require.Equal(t, instanceA.Name, instanceB.Name, "test requires both instances to share a name")
+
+	resObjs := []client.Object{instanceA, instanceB}
+	subresObjs := []client.Object{instanceA, instanceB}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	saA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceA.Namespace}}
+	saB := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceB.Namespace}}
+	clusterRBACNameA := GenerateUniqueResourceName(common.ArgoCDImageUpdaterControllerComponent, instanceA)
+
+	// Grant instance A cluster-wide RBAC under a previously valid "*" configuration, and grant
+	// instance B its own per-namespace RBAC that must never be touched by instance A's cleanup.
+	require.NoError(t, r.reconcileImageUpdaterRBAC(instanceA, saA, "*", nil))
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACNameA}, &rbacv1.ClusterRole{}))
+
+	rules := policyRuleForRoleManagerRoleForImageUpdaterController()
+	roleB, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-b", instanceB, rules)
+	require.NoError(t, err)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-b", instanceB, roleB, saB))
+
+	// The env var now holds an ambiguous value that normalizeWatchNamespaces rejects.
+	instanceA.Spec.ImageUpdater.Env = []v1.EnvVar{
+		{Name: "IMAGE_UPDATER_WATCH_NAMESPACES", Value: "*,team-a"},
+	}
+
+	err = r.reconcileImageUpdaterControllerEnabled(instanceA)
+	require.Error(t, err)
+
+	// Instance A's previously-granted cluster RBAC must be revoked, not left stale forever.
+	roleErr := r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACNameA}, &rbacv1.ClusterRole{})
+	assert.True(t, errors.IsNotFound(roleErr), "instance A's stale cluster role should have been revoked, got: %v", roleErr)
+	rbErr := r.Get(context.TODO(), types.NamespacedName{Name: clusterRBACNameA}, &rbacv1.ClusterRoleBinding{})
+	assert.True(t, errors.IsNotFound(rbErr), "instance A's stale cluster role binding should have been revoked, got: %v", rbErr)
+
+	// Instance B's RBAC, in a different namespace, must survive instance A's cleanup.
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleB.Name, Namespace: "ns-for-b"}, &rbacv1.Role{}),
+		"instance B's role must survive instance A's cleanup")
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceB.Name, "ns-for-b"),
+		Namespace: "ns-for-b",
+	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive instance A's cleanup")
 }
 
 // TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded verifies that glob/regex patterns
