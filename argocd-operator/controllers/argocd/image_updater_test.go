@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
@@ -1131,6 +1133,95 @@ func TestPruneImageUpdaterNamespaceRBAC_RoleRetryableAfterRoleBindingDeleted(t *
 		Name:      getRoleBindingNameForSourceNamespaces(instanceB.Name, "ns-for-b"),
 		Namespace: "ns-for-b",
 	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive pruning triggered by instance A")
+}
+
+// TestPruneImageUpdaterNamespaceRBAC_LegacyRoleRetryAfterFailedDelete is a regression test for
+// GITOPS-11825: a legacy Role (created before imageUpdaterOwnerNamespaceLabel existed) has no
+// ownership evidence of its own -- it can only be confirmed owned via the RoleBinding that
+// references it. If the Role is deleted before its RoleBinding and that Role deletion fails, the
+// RoleBinding must survive so a retry can re-confirm ownership and try deleting the Role again.
+// (Had the RoleBinding been deleted first, a retry could never again confirm ownership of the
+// orphaned legacy Role, leaving it stuck forever.) Another same-named instance's Role/RoleBinding
+// in a different namespace must remain untouched throughout.
+func TestPruneImageUpdaterNamespaceRBAC_LegacyRoleRetryAfterFailedDelete(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	instanceA := makeTestArgoCDInNamespace("instance-a", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	instanceB := makeTestArgoCDInNamespace("instance-b", func(a *argoproj.ArgoCD) {
+		a.Spec.ImageUpdater.Enabled = true
+	})
+	require.Equal(t, instanceA.Name, instanceB.Name, "test requires both instances to share a name")
+
+	resObjs := []client.Object{instanceA, instanceB}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+
+	deleteRoleErr := fmt.Errorf("simulated API error deleting role")
+	roleDeleteCalls := 0
+	cl := fake.NewClientBuilder().WithScheme(sch).WithObjects(resObjs...).WithStatusSubresource(resObjs...).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+				if _, ok := obj.(*rbacv1.Role); ok {
+					roleDeleteCalls++
+					if roleDeleteCalls == 1 {
+						return deleteRoleErr
+					}
+				}
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).Build()
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	rules := policyRuleForRoleManagerRoleForImageUpdaterController()
+	saA := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceA.Namespace}}
+	saB := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: instanceB.Namespace}}
+
+	roleA, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-a", instanceA, rules)
+	require.NoError(t, err)
+	require.NotNil(t, roleA)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-a", instanceA, roleA, saA))
+
+	// Simulate a legacy Role created before imageUpdaterOwnerNamespaceLabel existed by stripping
+	// the label: its only ownership evidence is now the RoleBinding created above.
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleA.Name, Namespace: "ns-for-a"}, roleA))
+	delete(roleA.Labels, imageUpdaterOwnerNamespaceLabel)
+	require.NoError(t, r.Update(context.TODO(), roleA))
+
+	roleB, err := r.reconcileImageUpdaterRoleForNamespace("ns-for-b", instanceB, rules)
+	require.NoError(t, err)
+	require.NoError(t, r.reconcileImageUpdaterRoleBindingForNamespace("ns-for-b", instanceB, roleB, saB))
+
+	// First attempt: Role deletion fails. The RoleBinding must survive so ownership can be
+	// re-confirmed on retry.
+	err = r.pruneImageUpdaterNamespaceRBAC(instanceA, map[string]any{})
+	require.ErrorIs(t, err, deleteRoleErr)
+
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleA.Name, Namespace: "ns-for-a"}, &rbacv1.Role{}),
+		"legacy role must survive a failed delete attempt")
+	require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceA.Name, "ns-for-a"),
+		Namespace: "ns-for-a",
+	}, &rbacv1.RoleBinding{}), "role binding must survive so it can serve as ownership evidence on retry")
+
+	// Retry: Role deletion now succeeds, so both the Role and its RoleBinding must be pruned.
+	require.NoError(t, r.pruneImageUpdaterNamespaceRBAC(instanceA, map[string]any{}))
+
+	errA := r.Get(context.TODO(), types.NamespacedName{Name: roleA.Name, Namespace: "ns-for-a"}, &rbacv1.Role{})
+	assert.True(t, errors.IsNotFound(errA), "legacy role should have been pruned on retry")
+	rbErrA := r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceA.Name, "ns-for-a"),
+		Namespace: "ns-for-a",
+	}, &rbacv1.RoleBinding{})
+	assert.True(t, errors.IsNotFound(rbErrA), "role binding should have been pruned on retry")
+
+	// Instance B's Role/RoleBinding, in a different namespace, must survive throughout.
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: roleB.Name, Namespace: "ns-for-b"}, &rbacv1.Role{}),
+		"instance B's role must survive instance A's pruning")
+	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+		Name:      getRoleBindingNameForSourceNamespaces(instanceB.Name, "ns-for-b"),
+		Namespace: "ns-for-b",
+	}, &rbacv1.RoleBinding{}), "instance B's role binding must survive instance A's pruning")
 }
 
 // TestReconcileImageUpdaterRBAC_PrunesStaleNamespaces verifies that when the

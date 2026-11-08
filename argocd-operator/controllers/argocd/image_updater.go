@@ -552,9 +552,15 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleBindingForNamespace(namespace
 // RoleBinding ownership is disambiguated using its ServiceAccount subject namespace, which
 // reconcileImageUpdaterRoleBindingForNamespace always sets explicitly to cr.Namespace -- a field
 // that has always been set this way, so this works uniformly for objects from any operator
-// version. Role ownership is confirmed via imageUpdaterOwnerNamespaceLabel when present (so a
-// stale Role can still be pruned on retry even if its RoleBinding was already deleted), falling
+// version. Role ownership is confirmed via imageUpdaterOwnerNamespaceLabel when present, falling
 // back to the RoleBinding-derived confirmation for Roles created before that label existed.
+//
+// For a legacy Role (no label), the RoleBinding is the only ownership evidence, so Roles are
+// always deleted before their RoleBinding: if Role deletion then fails or this call is
+// interrupted, the RoleBinding survives to let a retry re-confirm ownership and try again. If
+// the RoleBinding were deleted first and the subsequent Role deletion failed, a retry could
+// never again confirm ownership of that orphaned legacy Role and it would never be pruned (its
+// RoleBinding, however, would already be gone, so no further access is granted by it).
 func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, desiredNamespaces map[string]any) error {
 	nameMatch := client.MatchingLabels{
 		common.ArgoCDKeyName:              cr.Name,
@@ -567,28 +573,19 @@ func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, de
 	}
 
 	// ownedRoleNames records, per namespace, the names of Roles referenced by a RoleBinding
-	// confirmed to belong to this instance.
+	// confirmed to belong to this instance. Computed up front, before any deletion, so that a
+	// legacy Role can still be confirmed via its RoleBinding on this call even though the Role
+	// is deleted before the RoleBinding below.
 	ownedRoleNames := map[string]map[string]bool{}
-
 	for i := range rbList.Items {
 		rb := &rbList.Items[i]
-
 		if len(rb.Subjects) == 0 || rb.Subjects[0].Namespace != cr.Namespace {
 			continue // belongs to a different, same-named instance
 		}
-
 		if ownedRoleNames[rb.Namespace] == nil {
 			ownedRoleNames[rb.Namespace] = map[string]bool{}
 		}
 		ownedRoleNames[rb.Namespace][rb.RoleRef.Name] = true
-
-		if _, ok := desiredNamespaces[rb.Namespace]; ok {
-			continue
-		}
-		argoutil.LogResourceDeletion(log, rb, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
-		if err := r.Delete(context.TODO(), rb); err != nil && !errors.IsNotFound(err) {
-			return err
-		}
 	}
 
 	roleList := &rbacv1.RoleList{}
@@ -619,6 +616,24 @@ func (r *ReconcileArgoCD) pruneImageUpdaterNamespaceRBAC(cr *argoproj.ArgoCD, de
 		}
 		argoutil.LogResourceDeletion(log, role, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
 		if err := r.Delete(context.TODO(), role); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	// Delete RoleBindings only after their Roles have been removed above: a legacy Role (no
+	// imageUpdaterOwnerNamespaceLabel) relies on this RoleBinding still existing to be
+	// confirmed as owned, so it must outlive the Role deletion attempt.
+	for i := range rbList.Items {
+		rb := &rbList.Items[i]
+
+		if len(rb.Subjects) == 0 || rb.Subjects[0].Namespace != cr.Namespace {
+			continue // belongs to a different, same-named instance
+		}
+		if _, ok := desiredNamespaces[rb.Namespace]; ok {
+			continue
+		}
+		argoutil.LogResourceDeletion(log, rb, "namespace removed from IMAGE_UPDATER_WATCH_NAMESPACES")
+		if err := r.Delete(context.TODO(), rb); err != nil && !errors.IsNotFound(err) {
 			return err
 		}
 	}
