@@ -1496,6 +1496,9 @@ type PrincipalSpec struct {
 
 	// SelfRegistration defines the self-registration options for the Principal component.
 	SelfRegistration *PrincipalSelfRegistrationSpec `json:"selfRegistration,omitempty"`
+
+	// SPIFFE defines the SPIFFE/SPIRE configuration for the Principal component.
+	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
@@ -1507,6 +1510,36 @@ type PrincipalSelfRegistrationSpec struct {
 	// ClientCertSecretName is the name of the TLS secret containing shared client cert
 	// for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
 	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
+}
+
+// SpiffeAuthMethod is the SPIFFE authentication method for SPIRE workload attestation.
+type SpiffeAuthMethod string
+
+// SPIFFE auth methods.
+const (
+	// SpiffeAuthMethodJWT is the SPIFFE auth method for JWT-SVIDs.
+	SpiffeAuthMethodJWT SpiffeAuthMethod = "jwt"
+
+	// SpiffeAuthMethodMTLS is the SPIFFE auth method for X.509-SVIDs (mTLS).
+	SpiffeAuthMethodMTLS SpiffeAuthMethod = "mtls"
+)
+
+// SPIFFESpec defines the SPIFFE/SPIRE configuration for ArgoCD components.
+// +k8s:openapi-gen=true
+type SPIFFESpec struct {
+	// Enabled enables SPIFFE/SPIRE-based authentication for this component.
+	// Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// AuthMethod is the SPIFFE authentication method to use.
+	// Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+	// Default: "jwt"
+	// +kubebuilder:validation:Enum=jwt;mtls
+	AuthMethod SpiffeAuthMethod `json:"authMethod,omitempty"`
+
+	// CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+	// Default: "csi.spiffe.io"
+	CSIDriverName string `json:"csiDriverName,omitempty"`
 }
 
 type PrincipalServerSpec struct {
@@ -1640,6 +1673,9 @@ type AgentSpec struct {
 
 	// Metrics defines the metrics configuration for the Agent ServiceMonitor.
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+
+	// SPIFFE defines the SPIFFE/SPIRE configuration for the Agent component.
+	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
 }
 
 type DestinationBasedMappingSpec struct {
