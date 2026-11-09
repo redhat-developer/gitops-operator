@@ -233,6 +233,8 @@ The TLS protocol versions and ciphers follow the cluster-wide TLS security profi
 
 On non-OpenShift clusters there is no service serving certificate authority. Either set `insecure: true`, or provide your own certificate in a `kubernetes.io/tls` Secret named `<instance-name>-image-updater-webhook-tls` (for example, issued by cert-manager). Without a certificate, the webhook server generates a self-signed certificate at startup. The Ingress defaults the `nginx.ingress.kubernetes.io/backend-protocol` annotation to `HTTPS`, or to `HTTP` in insecure mode.
 
+On OpenShift, an Ingress is turned into a Route by the ingress-to-route controller, which ignores the nginx annotations and creates an `edge` Route by default. The operator therefore also defaults the `route.openshift.io/termination` annotation on the webhook Ingress to `reencrypt`, or to `edge` in insecure mode, so that the generated Route matches what the webhook server serves. This applies when the Ingress has no `ingressClassName` or uses `openshift-default`.
+
 ### Configuration warnings
 
 When the webhook configuration cannot work as intended, the operator sets an `ImageUpdaterWebhookConfigurationError` condition on the ArgoCD CR. This happens when:
@@ -240,6 +242,7 @@ When the webhook configuration cannot work as intended, the operator sets an `Im
 * no registry webhook secret is configured and `WEBHOOK_REQUIRE_SECRET` is not set to `false` in `.spec.imageUpdater.env`
 * the Route TLS termination contradicts the `insecure` setting
 * the Ingress `backend-protocol` annotation contradicts the `insecure` setting
+* on OpenShift, the Ingress `route.openshift.io/termination` annotation is set to anything other than `reencrypt` (or `edge` when `insecure` is `true`). Other values, including `passthrough`, which cannot route the webhook path, produce a generated Route that cannot reach the webhook server
 * a Secret or key referenced under `webhookServer.secrets` does not exist or is empty
 * a Service, Route or Ingress named `<instance-name>-image-updater-webhook` already exists and is controlled by another owner, or is managed by an Argo CD Application; the operator leaves it untouched
 * an environment variable in `.spec.imageUpdater.env` is overridden with a different value by a `webhookServer` setting: `ENABLE_WEBHOOK` (always `true` while the webhook is exposed), `DISABLE_TLS` (follows `insecure`), or a `<REGISTRY>_WEBHOOK_SECRET` that is also declared under `webhookServer.secrets`

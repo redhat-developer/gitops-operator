@@ -2,6 +2,7 @@ package argocd
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"fmt"
 	"maps"
@@ -37,6 +38,10 @@ const (
 	imageUpdaterWebhookPath = "/webhook"
 
 	imageUpdaterWebhookTLSVolumeName = "webhook-tls"
+
+	// openShiftDefaultIngressClass is the IngressClass of the default OpenShift router, served by the
+	// ingress-to-route controller.
+	openShiftDefaultIngressClass = "openshift-default"
 
 	// imageUpdaterWebhookTLSMountPath is the directory the Image Updater webhook server reads tls.crt and tls.key from.
 	imageUpdaterWebhookTLSMountPath = "/app/config/webhook/tls"
@@ -213,6 +218,27 @@ func wantsImageUpdaterWebhookAutoTLS(cr *argoproj.ArgoCD) bool {
 	return !route.Enabled || route.TLS == nil || route.TLS.Termination == "" || route.TLS.Termination == routev1.TLSTerminationReencrypt
 }
 
+// imageUpdaterWebhookDefaultTermination returns the Route TLS termination that matches what the webhook server
+// serves: plain HTTP in insecure mode (edge), TLS with a service CA certificate the router already trusts otherwise
+// (reencrypt).
+func imageUpdaterWebhookDefaultTermination(cr *argoproj.ArgoCD) routev1.TLSTerminationType {
+	if cr.Spec.ImageUpdater.WebhookServer.Insecure {
+		return routev1.TLSTerminationEdge
+	}
+	return routev1.TLSTerminationReencrypt
+}
+
+// imageUpdaterWebhookIngressServedByOpenShiftRouter returns true if the webhook Ingress is turned into a Route by
+// the OpenShift ingress-to-route controller: the Route API is available and the Ingress either has no class or uses
+// the class of the default OpenShift router. An Ingress for another controller, such as nginx, is left alone.
+func imageUpdaterWebhookIngressServedByOpenShiftRouter(cr *argoproj.ArgoCD) bool {
+	if !argoutil.IsRouteAPIAvailable() {
+		return false
+	}
+	class := cr.Spec.ImageUpdater.WebhookServer.Ingress.IngressClassName
+	return class == nil || *class == "" || *class == openShiftDefaultIngressClass
+}
+
 // imageUpdaterWebhookTLSVolume returns the volume holding the webhook serving certificate. The volume is optional
 // because the OpenShift service CA issues the certificate asynchronously after the Service is created. Until it
 // exists, the webhook server falls back to a self-signed certificate, and the pod is rolled once it appears.
@@ -236,13 +262,22 @@ func imageUpdaterWebhookTLSVolumeMount() corev1.VolumeMount {
 	}
 }
 
-// fetchSecretKey returns the value of key in the named Secret, or nil if the Secret or key does not exist.
-func (r *ReconcileArgoCD) fetchSecretKey(namespace, name, key string) ([]byte, error) {
+// fetchSecret returns the named Secret, or nil if it does not exist.
+func (r *ReconcileArgoCD) fetchSecret(namespace, name string) (*corev1.Secret, error) {
 	secret := &corev1.Secret{}
 	if err := argoutil.FetchObject(r.Client, namespace, name, secret); err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
+		return nil, err
+	}
+	return secret, nil
+}
+
+// fetchSecretKey returns the value of key in the named Secret, or nil if the Secret or key does not exist.
+func (r *ReconcileArgoCD) fetchSecretKey(namespace, name, key string) ([]byte, error) {
+	secret, err := r.fetchSecret(namespace, name)
+	if err != nil || secret == nil {
 		return nil, err
 	}
 	return secret.Data[key], nil
@@ -251,38 +286,51 @@ func (r *ReconcileArgoCD) fetchSecretKey(namespace, name, key string) ([]byte, e
 // imageUpdaterWebhookChecksum returns a checksum of everything the Image Updater webhook server reads at startup
 // from Secrets: the serving certificate (in secure mode) and the webhook secrets the operator wires into the pod
 // environment. Webhook secrets supplied through .spec.imageUpdater.env are managed by the user and not included.
+//
+// The checksum is published as a label on the Deployment and its pods, which many more principals can read than
+// the Secrets. Webhook secrets are often short and human-chosen, so a plain hash of them could be reversed offline
+// with a dictionary. Each value is therefore hashed with an HMAC keyed by the UID of the Secret that holds it. The
+// UID is random and is not exposed through the Deployment or pods, so reading the label alone is not enough to
+// test guesses; the UID is visible to principals that can read the Secret (and so the value) and may appear in
+// Events or audit logs about the Secret. Recreating a Secret changes its UID and rolls the pod once, which is
+// harmless.
 func (r *ReconcileArgoCD) imageUpdaterWebhookChecksum(cr *argoproj.ArgoCD, userEnv []corev1.EnvVar) (string, error) {
 	h := sha256.New()
-	write := func(name string, value []byte) {
+	write := func(name string, secret *corev1.Secret, key string) {
 		h.Write([]byte(name))
 		h.Write([]byte{0})
-		h.Write(value)
+		if secret != nil && len(secret.Data[key]) > 0 {
+			mac := hmac.New(sha256.New, []byte(secret.UID))
+			mac.Write(secret.Data[key])
+			h.Write(mac.Sum(nil))
+		}
 		h.Write([]byte{0})
 	}
 
 	if usesImageUpdaterWebhookTLS(cr) {
-		secret := &corev1.Secret{}
-		if err := argoutil.FetchObject(r.Client, cr.Namespace, imageUpdaterWebhookTLSSecretName(cr), secret); err != nil {
-			if !errors.IsNotFound(err) {
-				return "", err
-			}
-		}
-		write(corev1.TLSCertKey, secret.Data[corev1.TLSCertKey])
-		write(corev1.TLSPrivateKeyKey, secret.Data[corev1.TLSPrivateKeyKey])
-	}
-
-	for _, reg := range imageUpdaterWebhookRegistries {
-		var value []byte
-		var err error
-		if ref := reg.declaredRef(cr); ref != nil {
-			value, err = r.fetchSecretKey(cr.Namespace, ref.Name, ref.Key)
-		} else if argoutil.EnvGet(userEnv, reg.envName) == nil {
-			value, err = r.fetchSecretKey(cr.Namespace, ArgocdImageUpdaterSecret, reg.fallbackKey)
-		}
+		secret, err := r.fetchSecret(cr.Namespace, imageUpdaterWebhookTLSSecretName(cr))
 		if err != nil {
 			return "", err
 		}
-		write(reg.envName, value)
+		write(corev1.TLSCertKey, secret, corev1.TLSCertKey)
+		write(corev1.TLSPrivateKeyKey, secret, corev1.TLSPrivateKeyKey)
+	}
+
+	for _, reg := range imageUpdaterWebhookRegistries {
+		name, key := "", ""
+		if ref := reg.declaredRef(cr); ref != nil {
+			name, key = ref.Name, ref.Key
+		} else if argoutil.EnvGet(userEnv, reg.envName) == nil {
+			name, key = ArgocdImageUpdaterSecret, reg.fallbackKey
+		}
+		var secret *corev1.Secret
+		if name != "" {
+			var err error
+			if secret, err = r.fetchSecret(cr.Namespace, name); err != nil {
+				return "", err
+			}
+		}
+		write(reg.envName, secret, key)
 	}
 
 	// Truncated so that it fits in a label value.
@@ -461,12 +509,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterWebhookRoute(cr *argoproj.ArgoCD)
 		TargetPort: intstr.FromString(imageUpdaterWebhookPortName),
 	}
 
-	// The termination defaults follow what the webhook server serves: plain HTTP in insecure mode (edge),
-	// TLS with a service CA certificate the router already trusts otherwise (reencrypt).
-	defaultTermination := routev1.TLSTerminationReencrypt
-	if cr.Spec.ImageUpdater.WebhookServer.Insecure {
-		defaultTermination = routev1.TLSTerminationEdge
-	}
+	defaultTermination := imageUpdaterWebhookDefaultTermination(cr)
 	if routeSpec.TLS != nil {
 		routeCopy := route.DeepCopy()
 		if err := r.overrideRouteTLS(routeSpec.TLS, routeCopy, cr); err != nil {
@@ -560,6 +603,12 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterWebhookIngress(cr *argoproj.ArgoC
 	ingress.Annotations = map[string]string{
 		common.ArgoCDKeyIngressSSLRedirect:     "true",
 		common.ArgoCDKeyIngressBackendProtocol: backendProtocol,
+	}
+	if imageUpdaterWebhookIngressServedByOpenShiftRouter(cr) {
+		// The ingress-to-route controller turns the Ingress into a Route and ignores the nginx annotations.
+		// Without this annotation it creates a Route without TLS, which sends plain HTTP to the webhook server
+		// even when that server only accepts TLS.
+		ingress.Annotations[common.ArgoCDKeyIngressRouteTermination] = string(imageUpdaterWebhookDefaultTermination(cr))
 	}
 	maps.Copy(ingress.Annotations, ingressSpec.Annotations)
 
@@ -686,6 +735,16 @@ func (r *ReconcileArgoCD) imageUpdaterWebhookConfigIssues(cr *argoproj.ArgoCD) (
 		if got, ok := webhookServer.Ingress.Annotations[common.ArgoCDKeyIngressBackendProtocol]; ok && !strings.EqualFold(got, want) {
 			issues = append(issues, fmt.Sprintf("ingress annotation %s is %q, but the webhook server %s; remove it or set webhookServer.insecure accordingly",
 				common.ArgoCDKeyIngressBackendProtocol, got, serving))
+		}
+		// On OpenShift, the Route generated from the Ingress decides how the router talks to the webhook server.
+		// Only the termination matching the webhook server works: the ingress-to-route controller does not
+		// recognise other spellings or an empty value and then creates a Route without TLS, and it cannot create
+		// a passthrough Route because the Ingress always routes a path.
+		if got, ok := webhookServer.Ingress.Annotations[common.ArgoCDKeyIngressRouteTermination]; ok && imageUpdaterWebhookIngressServedByOpenShiftRouter(cr) {
+			if want := string(imageUpdaterWebhookDefaultTermination(cr)); got != want {
+				issues = append(issues, fmt.Sprintf("ingress annotation %s is %q, but the webhook server %s and needs %q; remove the annotation to use the default",
+					common.ArgoCDKeyIngressRouteTermination, got, serving, want))
+			}
 		}
 	}
 
