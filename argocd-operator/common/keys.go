@@ -314,4 +314,7 @@ const (
 	ArgoCDWebTerminalEnabledKey = "exec.enabled"
 	// ArgoCDWebTerminalEnabledDefaultValue is the default value for enabling the web terminal.
 	ArgoCDWebTerminalEnabledDefaultValue = false
+
+	// ArgoCDImpersonationEnabledCMKey is the key used in argocd-cm to enable impersonation.
+	ArgoCDImpersonationEnabledCMKey = "application.sync.impersonation.enabled"
 )
