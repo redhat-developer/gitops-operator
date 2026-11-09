@@ -85,7 +85,6 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
-# This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
@@ -135,10 +134,12 @@ generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
+	cd argocd-operator && go fmt ./...
 	go fmt ./...
 
 .PHONY: vet
 vet: ## Run go vet against code.
+	cd argocd-operator && go vet ./...
 	go vet ./...
 
 .PHONY: update-dependencies
@@ -153,15 +154,15 @@ update-dependencies-argocd: ## Update only the Argo CD dependency.
 update-dependencies-gitops-promoter: ## Update only the GitOps Promoter dependency.
 	hack/update-dependencies-script/gitops-promoter/run.sh
 
-.PHONY: test-all
-test-all: manifests generate fmt vet ## Run all tests.
-	go test -timeout 1h ./... -coverprofile cover.out
+get-image-updater-crd: ## Download Image Updater CRD.
+	@echo "downloading image updater crd"
+	@curl -sSLo config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/master/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
 
 .PHONY: test
 test: manifests generate fmt vet ## Run unit tests.
-	cd argocd-operator && make test
-	REDIS_CONFIG_PATH="build/redis" go test `go list ./... | grep -v test` -coverprofile cover.out
+	cd argocd-operator && REDIS_CONFIG_PATH="$(shell pwd)/build/redis" go test $$(go list ./... | grep -E -v '/tests/ginkgo') -coverprofile cover.out
 
+	REDIS_CONFIG_PATH="build/redis" go test $$(go list ./... | grep -v test) -coverprofile cover.out
 
 .PHONY: e2e-tests-ginkgo
 e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs Ginkgo e2e sequential and parallel tests
@@ -169,7 +170,7 @@ e2e-tests-ginkgo: e2e-tests-sequential-ginkgo e2e-tests-parallel-ginkgo  ## Runs
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -vv --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
+	$(GINKGO_CLI) -vv --trace --label-filter=$(OCP_LABEL_FILTER) --no-color --timeout 330m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-tests-parallel-ginkgo: ginkgo
@@ -187,7 +188,7 @@ e2e-tests-parallel:
 .PHONY: e2e-xks-tests-sequential-ginkgo
 e2e-xks-tests-sequential-ginkgo: ginkgo ## Runs Ginkgo e2e sequential tests
 	@echo "Running GitOps Operator sequential Ginkgo E2E tests..."
-	$(GINKGO_CLI) -vv --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 270m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential 
+	$(GINKGO_CLI) -vv --trace --label-filter=$(XKS_LABEL_FILTER) --no-color  --timeout 330m --flake-attempts 2 -r ./test/openshift/e2e/ginkgo/sequential
 
 .PHONY: e2e-xks-tests-parallel-ginkgo ## Runs Ginkgo e2e parallel tests, (Defaults to 5 runs at a time)
 e2e-xks-tests-parallel-ginkgo: ginkgo

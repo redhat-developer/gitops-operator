@@ -37,7 +37,6 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
-# This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
@@ -58,72 +57,7 @@ SHELL = /usr/bin/env bash -o pipefail
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-##@ Development
-
-fmt: ## Run go fmt against code.
-	go fmt ./...
-
-vet: ## Run go vet against code.
-	go vet ./...
-
-get-image-updater-crd: ## Download Image Updater CRD.
-	@echo "downloading image updater crd"
-	@curl -sSLo ../config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/master/config/crd/bases/argocd-image-updater.argoproj.io_imageupdaters.yaml
-
-
-# Exclude E2E tests from the list of unit test packages
-UNIT_TEST_PACKAGES := $(shell go list ./... | grep -E -v '/tests/ginkgo')
-
-test: fmt vet envtest ## Run tests.
-	REDIS_CONFIG_PATH="$(shell pwd)/../build/redis" go test $(UNIT_TEST_PACKAGES) -coverprofile cover.out
-
-## Location to install dependencies to
-LOCALBIN ?= $(shell pwd)/bin
-$(LOCALBIN):
-	mkdir -p $(LOCALBIN)
-
 ##@ Deployment
-
-list-crds: ## List all CRDs in the cluster
-	@echo "=== Installed CRDs ==="
-	@kubectl get crds --sort-by=.metadata.name
-	@echo ""
-	@echo "=== ArgoCD Operator CRDs ==="
-	@kubectl get crds | grep argoproj.io || echo "None found"
-	@echo ""
-	@echo "=== Prometheus Operator CRDs ==="
-	@kubectl get crds | grep monitoring.coreos.com || echo "None found"
-	@echo ""
-	@echo "=== OpenShift Route CRDs ==="
-	@kubectl get crds | grep route.openshift.io || echo "None found"
-
-PROMETHEUS_OPERATOR_VERSION ?= v0.73.2
-install-prometheus-crds: ## Install Prometheus Operator CRDs if not already installed
-	@echo "Checking for Prometheus Operator CRDs..."
-	@if kubectl get crd prometheuses.monitoring.coreos.com >/dev/null 2>&1 && \
-	   kubectl get crd servicemonitors.monitoring.coreos.com >/dev/null 2>&1 && \
-	   kubectl get crd prometheusrules.monitoring.coreos.com >/dev/null 2>&1; then \
-		echo "All Prometheus Operator CRDs already installed, skipping installation"; \
-	else \
-		echo "Installing Prometheus Operator CRDs $(PROMETHEUS_OPERATOR_VERSION)..."; \
-		kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$(PROMETHEUS_OPERATOR_VERSION)/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml; \
-		kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$(PROMETHEUS_OPERATOR_VERSION)/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml; \
-		kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/$(PROMETHEUS_OPERATOR_VERSION)/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml; \
-		echo "Prometheus Operator CRDs installed successfully"; \
-	fi
-
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.21.0)
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5@v5.8.1)
-
-ENVTEST = $(shell pwd)/bin/setup-envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@release-0.24)
-	$(ENVTEST) use 1.26
 
 # go-install-tool will 'go install' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -138,35 +72,6 @@ GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
-
-# UTIL_IMG defines the image:tag used for the utility image (for backup).
-# You can use it as an arg. (E.g make util-build UTIL_IMG=<some-registry>/<project-name-bundle>:<tag>)
-UTIL_IMG ?= $(IMAGE_TAG_BASE)-util:v$(VERSION)
-
-.PHONY: util-build
-util-build: ## Build the util container image (for backup)
-	$(CONTAINER_RUNTIME) build --no-cache -t $(UTIL_IMG) build/util
-
-.PHONY: util-push
-util-push: ## Push the util container image
-	$(MAKE) docker-push IMG=$(UTIL_IMG)
-
-.PHONY: opm
-OPM = ./bin/opm
-opm: ## Download opm locally if necessary.
-ifeq (,$(wildcard $(OPM)))
-ifeq (,$(shell which opm 2>/dev/null))
-	@{ \
-	set -e ;\
-	mkdir -p $(dir $(OPM)) ;\
-	OS=$(shell go env GOOS) && ARCH=$(shell go env GOARCH) && \
-	curl -sSLo $(OPM) https://github.com/operator-framework/operator-registry/releases/download/v1.23.0/$${OS}-$${ARCH}-opm ;\
-	chmod +x $(OPM) ;\
-	}
-else
-OPM = $(shell which opm)
-endif
-endif
 
 .PHONY: e2e-tests-sequential-ginkgo
 e2e-tests-sequential-ginkgo: ginkgo
