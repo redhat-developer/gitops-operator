@@ -4,10 +4,10 @@ go 1.26.2
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.9
-	github.com/argoproj-labs/argocd-image-updater v1.2.2
+	github.com/argoproj-labs/argocd-image-updater v1.2.3
 	github.com/argoproj-labs/argocd-operator v0.19.0-rc2.0.20260928130249-ebbd281a5634
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
-	github.com/argoproj/argo-cd/v3 v3.4.12
+	github.com/argoproj/argo-cd/v3 v3.4.13
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.1-0.20241114170450-2d3c2a9cc518
@@ -115,7 +115,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
@@ -211,10 +211,10 @@ require (
 )
 
 replace (
-	// v3.4.12 declares gitops-engine at a pseudo-version where go.mod
+	// v3.4.13 declares gitops-engine at a pseudo-version where go.mod
 	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
-	// Downstream consumers must resolve it themselves; pin to the v3.4.12 commit.
-	github.com/argoproj/argo-cd/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261020205826-590e562a5ae6
+	// Downstream consumers must resolve it themselves; pin to the v3.4.13 commit.
+	github.com/argoproj/argo-cd/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261102191809-83ad9cd88fa0
 	// This replace block is from Argo CD v3.4.2 go.mod
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
