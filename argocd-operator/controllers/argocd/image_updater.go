@@ -532,24 +532,19 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRoleForNamespace(namespace string
 	// (e.g. by an older operator version) before this label existed, it has no ownership evidence
 	// left and cannot be identified for pruning.
 	//
-	// When the policy rules already matched, reconcileRoleHelper returns the in-memory desiredRole
-	// (which already carries the label) without persisting anything, so role.Labels here cannot be
-	// trusted to reflect what is actually stored. Re-fetch to check the persisted label instead.
-	persistedRole := &rbacv1.Role{}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: role.Name, Namespace: role.Namespace}, persistedRole); err != nil {
-		return nil, fmt.Errorf("failed to get the role associated with %s : %s", role.Name, err)
-	}
-
-	if persistedRole.Labels[imageUpdaterOwnerNamespaceLabel] != cr.Namespace {
-		if persistedRole.Labels == nil {
-			persistedRole.Labels = map[string]string{}
+	// reconcileRoleHelper returns the actual persisted object on every path (the freshly created
+	// object, the just-updated object, or the object it fetched when no update was needed), so
+	// role.Labels here already reflects what is stored — no extra Get is needed (and a cached
+	// read immediately after Create could race ahead of the informer cache anyway).
+	if role.Labels[imageUpdaterOwnerNamespaceLabel] != cr.Namespace {
+		if role.Labels == nil {
+			role.Labels = map[string]string{}
 		}
-		persistedRole.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
-		argoutil.LogResourceUpdate(log, persistedRole, "backfilling image updater owner-namespace label")
-		if err := r.Update(context.TODO(), persistedRole); err != nil {
+		role.Labels[imageUpdaterOwnerNamespaceLabel] = cr.Namespace
+		argoutil.LogResourceUpdate(log, role, "backfilling image updater owner-namespace label")
+		if err := r.Update(context.TODO(), role); err != nil {
 			return nil, err
 		}
-		role = persistedRole
 	}
 
 	return role, nil
@@ -1138,7 +1133,10 @@ func (r *ReconcileArgoCD) reconcileRoleHelper(cr *argoproj.ArgoCD, desiredRole c
 		return existingRole, r.Update(context.TODO(), existingRole)
 	}
 
-	return desiredRole, nil
+	// Rules already match: return the persisted object (fetched above) rather than the
+	// in-memory desiredRole, so callers that inspect fields other than Rules (e.g. Labels)
+	// see what is actually stored instead of the desired state.
+	return existingRole, nil
 }
 
 func getRulesFromRole(role client.Object) []rbacv1.PolicyRule {
