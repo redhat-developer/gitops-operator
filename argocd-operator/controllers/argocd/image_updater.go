@@ -76,7 +76,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 	// Normalize before branching: canonicalize sole-"*" variants (e.g. "*,") back to the
 	// "*" sentinel and reject ambiguous mixes like "*,team-a" that would bypass the
 	// cluster-scope restriction in reconcileImageUpdaterRBAC.
-	watchNamespaces, err = normalizeWatchNamespaces(watchNamespaces)
+	watchNamespaces, err = normalizeWatchNamespaces(watchNamespaces, cr.Namespace)
 	if err != nil {
 		// An invalid value (e.g. "*,team-a") must not leave RBAC granted by a previous,
 		// valid configuration in place indefinitely: revoke any cluster-wide and
@@ -97,9 +97,8 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 			return err
 		}
 		if len(expandedNamespaces) == 0 {
-			log.Info("IMAGE_UPDATER_WATCH_NAMESPACES matched no namespaces managed by this Argo CD instance; "+
-				"no per-namespace RBAC will be created and the image-updater will have no manager permissions. "+
-				"Namespaces must carry the \"argocd.argoproj.io/managed-by\" label to be eligible.",
+			log.Info("IMAGE_UPDATER_WATCH_NAMESPACES matched no namespaces in the cluster; "+
+				"no per-namespace RBAC will be created and the image-updater will have no manager permissions.",
 				"pattern", watchNamespaces)
 		}
 	}
@@ -160,7 +159,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 }
 
 // reconcileImageUpdaterRBAC reconciles all RBAC for the Image Updater controller.
-// watchNamespaces is the raw IMAGE_UPDATER_WATCH_NAMESPACES value; expandedNamespaces
+// watchNamespaces is the normalized IMAGE_UPDATER_WATCH_NAMESPACES value; expandedNamespaces
 // is the pre-computed concrete list resolved by the caller.
 // Accepting both as parameters ensures RBAC and deployment reconciliation share the same
 // namespace snapshot, preventing a race where a namespace created between independent List
@@ -170,11 +169,15 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 //   - "*":      cluster-scoped — base Role in cr.Namespace + ClusterRole for manager rules.
 //     Requires cr.Namespace to be a cluster-config namespace.
 //   - "":       namespace-scoped — single Role covering both base and manager rules in cr.Namespace.
+//     normalizeWatchNamespaces also maps a pattern list that names only cr.Namespace (e.g.
+//     "B" when the CR lives in namespace "B") onto this mode, since watching only the
+//     instance's own namespace is not a privilege escalation and must not be rejected by
+//     the cluster-config-namespace restriction below.
 //   - patterns: comma-separated list (glob/regex) — base Role in cr.Namespace + per-namespace
 //     manager Roles in every concrete namespace from expandedNamespaces. Like "*", this is an
 //     apps-in-any-namespace feature and also requires cr.Namespace to be a cluster-config
-//     namespace; expandedNamespaces is further restricted to namespaces that carry the
-//     "argocd.argoproj.io/managed-by" consent label (see expandImageUpdaterWatchNamespaces).
+//     namespace; expandedNamespaces is resolved against every namespace in the cluster
+//     (see expandImageUpdaterWatchNamespaces).
 //
 // In all cases, stale per-namespace Roles/RoleBindings from a previous configuration are pruned.
 func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *corev1.ServiceAccount, watchNamespaces string, expandedNamespaces []string) error {
@@ -984,8 +987,10 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 //     so the IsNamespaceClusterConfigNamespace restriction is still enforced.
 //   - "*" appears alongside other patterns (e.g. "*,team-a"): returns an error, because
 //     the combination is ambiguous and would bypass the cluster-scope restriction.
+//   - Every remaining token is an exact, literal match for crNamespace (e.g. "B" when
+//     the CR lives in namespace "B"): returns "" → namespace-scoped mode.
 //   - Any other non-empty pattern list: returns the original value unchanged.
-func normalizeWatchNamespaces(raw string) (string, error) {
+func normalizeWatchNamespaces(raw string, crNamespace string) (string, error) {
 	// Fast path for the two already-canonical sentinels.
 	if raw == "" || raw == "*" {
 		return raw, nil
@@ -997,6 +1002,7 @@ func normalizeWatchNamespaces(raw string) (string, error) {
 	case len(patterns) == 1 && patterns[0] == "*":
 		return "*", nil
 	default:
+		onlyOwnNamespace := true
 		for _, p := range patterns {
 			if p == "*" {
 				return "", fmt.Errorf(
@@ -1004,6 +1010,12 @@ func normalizeWatchNamespaces(raw string) (string, error) {
 					raw,
 				)
 			}
+			if p != crNamespace {
+				onlyOwnNamespace = false
+			}
+		}
+		if onlyOwnNamespace {
+			return "", nil
 		}
 		return raw, nil
 	}
@@ -1024,10 +1036,9 @@ func splitAndFilterPatterns(raw string) []string {
 }
 
 // expandImageUpdaterWatchNamespaces matches the comma-separated watchNamespaces patterns
-// against the set of namespaces that have explicitly opted in to being managed by this
-// Argo CD instance (r.ManagedNamespaces, populated from namespaces carrying the
-// "argocd.argoproj.io/managed-by: <cr.Namespace>" label, plus cr.Namespace itself — see
-// setManagedNamespaces and docs/usage/deploy-to-different-namespaces.md).
+// against every namespace in the cluster. This is gated on the caller side by the
+// IsNamespaceClusterConfigNamespace restriction in reconcileImageUpdaterRBAC, so only a
+// cluster-scoped Argo CD instance can reach this function.
 //
 // Each pattern may be a glob-style wildcard or a full regular expression (the same semantics
 // used by .spec.applicationSet.sourceNamespaces). The returned slice is sorted for determinism.
@@ -1039,15 +1050,15 @@ func (r *ReconcileArgoCD) expandImageUpdaterWatchNamespaces(watchNamespaces stri
 		return nil, nil
 	}
 
-	var candidateNamespaces []corev1.Namespace
-	if r.ManagedNamespaces != nil {
-		candidateNamespaces = r.ManagedNamespaces.Items
+	clusterNamespaces := &corev1.NamespaceList{}
+	if err := r.List(context.TODO(), clusterNamespaces, &client.ListOptions{}); err != nil {
+		return nil, err
 	}
 
 	// Namespaces in Terminating state reject object creation with 403 (not NotFound), which
 	// would abort the entire reconcile. Exclude them from the match set.
 	var matched []string
-	for _, ns := range candidateNamespaces {
+	for _, ns := range clusterNamespaces.Items {
 		if ns.DeletionTimestamp != nil {
 			log.Info("skipping terminating namespace for Image Updater RBAC", "namespace", ns.Name)
 			continue

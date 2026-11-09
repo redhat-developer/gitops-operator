@@ -49,11 +49,8 @@ func testResolveWatchNamespaces(t *testing.T, r *ReconcileArgoCD, a *argoproj.Ar
 	}
 	var expanded []string
 	if watchNamespaces != "" && watchNamespaces != "*" {
-		// expandImageUpdaterWatchNamespaces only matches against r.ManagedNamespaces
-		// (namespaces that carry the "argocd.argoproj.io/managed-by" consent label),
-		// mirroring production reconcile order where setManagedNamespaces runs before
-		// the Image Updater controller is reconciled.
-		require.NoError(t, r.setManagedNamespaces(a))
+		// expandImageUpdaterWatchNamespaces matches directly against real Namespace
+		// objects in the cluster.
 		var err error
 		expanded, err = r.expandImageUpdaterWatchNamespaces(watchNamespaces)
 		require.NoError(t, err)
@@ -1656,11 +1653,18 @@ func TestNormalizeWatchNamespaces(t *testing.T) {
 		{name: "multiple patterns", raw: "app-*,team-b", want: "app-*,team-b"},
 		{name: "regex pattern", raw: "/^app-[a-z]+$/", want: "/^app-[a-z]+$/"},
 		{name: "pattern with trailing comma (raw unchanged)", raw: "app-*,", want: "app-*,"},
+
+		// Patterns naming only the CR's own namespace are not a privilege escalation,
+		// so they collapse to the namespace-scoped sentinel.
+		{name: "exact match of own namespace", raw: testNamespace, want: ""},
+		{name: "own namespace repeated", raw: testNamespace + "," + testNamespace, want: ""},
+		{name: "own namespace with trailing comma", raw: testNamespace + ",", want: ""},
+		{name: "own namespace alongside another namespace is not collapsed", raw: testNamespace + ",team-a", want: testNamespace + ",team-a"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := normalizeWatchNamespaces(tt.raw)
+			got, err := normalizeWatchNamespaces(tt.raw, testNamespace)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -1775,28 +1779,27 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			watchNamespaces: ",,,",
 			want:            nil,
 		},
-		// Patterns that expand to every consented namespace are legitimate: the candidate set
-		// is already restricted to namespaces that opted in via the managed-by label, and
-		// reconcileImageUpdaterRBAC separately requires cr.Namespace to be a cluster-config
-		// namespace before pattern-list mode is allowed at all. Unlike "*", matching everything
-		// here is not a cluster-scope bypass.
+		// Patterns that expand to every active cluster namespace are legitimate: the comma-list
+		// mode is itself gated by reconcileImageUpdaterRBAC requiring cr.Namespace to be a
+		// cluster-config namespace before it is allowed at all. Unlike "*", matching everything
+		// here does not bypass that restriction.
 		{
-			// cr.Namespace (testNamespace, "argocd") is always part of r.ManagedNamespaces
-			// (setManagedNamespaces appends it unconditionally) and is deliberately not
-			// excluded from matching, so a match-everything pattern picks it up too.
-			name:            "double-star glob matches all managed namespaces, including cr.Namespace",
+			// cr.Namespace (testNamespace, "argocd") is a real Namespace object in the fake
+			// client (see the test loop below) and is deliberately not excluded from matching,
+			// so a match-everything pattern picks it up too.
+			name:            "double-star glob matches all cluster namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2", "ns3"},
 			watchNamespaces: "**",
 			want:            []string{testNamespace, "ns1", "ns2", "ns3"},
 		},
 		{
-			name:            "question-star glob matches all managed namespaces, including cr.Namespace",
+			name:            "question-star glob matches all cluster namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2"},
 			watchNamespaces: "?*",
 			want:            []string{testNamespace, "ns1", "ns2"},
 		},
 		{
-			name:            "match-all regex matches all managed namespaces, including cr.Namespace",
+			name:            "match-all regex matches all cluster namespaces, including cr.Namespace",
 			clusterNS:       []string{"ns1", "ns2"},
 			watchNamespaces: "/.*/",
 			want:            []string{testNamespace, "ns1", "ns2"},
@@ -1822,7 +1825,7 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			want:            []string{"app-a", "app-b"},
 		},
 		{
-			name:            "pattern matching all active managed namespaces (with terminating ones present) is allowed",
+			name:            "pattern matching all active cluster namespaces (with terminating ones present) is allowed",
 			clusterNS:       []string{"ns1", "ns2", "ns-term"},
 			terminatingNS:   []string{"ns-term"},
 			watchNamespaces: "ns*",
@@ -1836,16 +1839,16 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 				a.Spec.ImageUpdater.Enabled = true
 			})
 
-			resObjs := []client.Object{a}
+			// cr.Namespace is a real Namespace in any actual cluster, so it must exist as a
+			// real object here too for expandImageUpdaterWatchNamespaces (which now lists
+			// every Namespace in the cluster) to be able to match it.
+			resObjs := []client.Object{a, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.Namespace}}}
 			terminatingSet := make(map[string]struct{})
 			for _, ns := range tt.terminatingNS {
 				terminatingSet[ns] = struct{}{}
 			}
 			for _, ns := range tt.clusterNS {
-				nsObj := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{
-					Name:   ns,
-					Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
-				}}
+				nsObj := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}}
 				if _, isTerminating := terminatingSet[ns]; isTerminating {
 					// Mark namespace as terminating by setting DeletionTimestamp and Finalizers
 					// (fake client requires finalizers when DeletionTimestamp is set)
@@ -1859,7 +1862,6 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
-			require.NoError(t, r.setManagedNamespaces(a))
 			got, err := r.expandImageUpdaterWatchNamespaces(tt.watchNamespaces)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -1869,50 +1871,6 @@ func TestExpandImageUpdaterWatchNamespaces(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestExpandImageUpdaterWatchNamespaces_RequiresConsentLabel is a regression test:
-// a namespace must carry the "argocd.argoproj.io/managed-by" label (consenting
-// to being managed by this Argo CD instance) before IMAGE_UPDATER_WATCH_NAMESPACES can expand
-// a glob/regex pattern to include it. Without this check, a cluster-admin-controlled env var
-// could grant the Image Updater manager Role/RoleBinding in any namespace matching the
-// pattern, regardless of whether that namespace's owner ever opted in.
-func TestExpandImageUpdaterWatchNamespaces_RequiresConsentLabel(t *testing.T) {
-	logf.SetLogger(ZapLogger(true))
-
-	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
-		a.Spec.ImageUpdater.Enabled = true
-	})
-
-	resObjs := []client.Object{
-		a,
-		// Consented: carries the managed-by label pointing at this ArgoCD instance's namespace.
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name:   "ns1",
-			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
-		}},
-		// Consented but does not match the "ns*" pattern, so the match stays a strict subset
-		// of the consented namespaces and doesn't trip the "matches everything" guard.
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name:   "unrelated-consented",
-			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
-		}},
-		// Not consented: matches the "ns*" pattern but carries no managed-by label at all.
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "ns2-unconsented"}},
-		// Not consented: carries the label, but pointing at a different Argo CD instance.
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name:   "ns3-other-instance",
-			Labels: map[string]string{common.ArgoCDManagedByLabel: "some-other-argocd-namespace"},
-		}},
-	}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
-	cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
-	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
-
-	require.NoError(t, r.setManagedNamespaces(a))
-	got, err := r.expandImageUpdaterWatchNamespaces("ns*")
-	require.NoError(t, err)
-	assert.Equal(t, []string{"ns1"}, got, "pattern must only expand to namespaces that consented via the managed-by label")
 }
 
 // TestReconcileImageUpdaterRBAC_PreservesCRNamespaceInWatchList is a regression test for
@@ -1936,10 +1894,10 @@ func TestReconcileImageUpdaterRBAC_PreservesCRNamespaceInWatchList(t *testing.T)
 
 	resObjs := []client.Object{
 		a,
-		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name:   "team-b",
-			Labels: map[string]string{common.ArgoCDManagedByLabel: a.Namespace},
-		}},
+		// cr.Namespace is a real Namespace in any actual cluster, so it must exist as a real
+		// object here too for expandImageUpdaterWatchNamespaces to be able to match it.
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.Namespace}},
+		&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "team-b"}},
 	}
 	subresObjs := []client.Object{a}
 	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
