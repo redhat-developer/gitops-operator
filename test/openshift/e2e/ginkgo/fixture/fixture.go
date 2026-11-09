@@ -698,10 +698,12 @@ func WaitForAllDeploymentsInTheNamespaceToBeReady(ns string, k8sClient client.Cl
 
 			// If at least one of the Deployments has not been observed, wait and try again
 			if depl.Generation != depl.Status.ObservedGeneration {
+				GinkgoWriter.Printf("'%s' observed generation differed: %d %d\n", depl.Name, depl.Generation, depl.Status.ObservedGeneration)
 				return false
 			}
 
 			if int64(depl.Status.Replicas) != int64(depl.Status.ReadyReplicas) {
+				GinkgoWriter.Printf("'%s' replicas differed: %d %d\n", depl.Name, depl.Status.Replicas, depl.Status.ReadyReplicas)
 				return false
 			}
 
