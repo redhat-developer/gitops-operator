@@ -4,9 +4,9 @@ go 1.25.9
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67
-	github.com/argoproj-labs/argocd-image-updater v1.1.3
+	github.com/argoproj-labs/argocd-image-updater v1.1.4
 	github.com/argoproj-labs/argocd-operator v0.18.1-0.20261105092420-e3316d88ac59
-	github.com/argoproj/argo-cd/v3 v3.3.18
+	github.com/argoproj/argo-cd/v3 v3.3.19
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -112,7 +112,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
@@ -199,10 +199,10 @@ require (
 )
 
 replace (
-	// argo-cd v3.3.18 declares gitops-engine at a pseudo-version where go.mod
+	// argo-cd v3.3.19 declares gitops-engine at a pseudo-version where go.mod
 	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
-	// Downstream consumers must resolve it themselves; pin to the v3.3.18 commit.
-	github.com/argoproj/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261022134330-d0b5dfda404d
+	// Downstream consumers must resolve it themselves; pin to the v3.3.19 commit.
+	github.com/argoproj/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261102191642-554529f5d80c
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
