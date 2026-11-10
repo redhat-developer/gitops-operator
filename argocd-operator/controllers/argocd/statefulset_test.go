@@ -988,7 +988,7 @@ func TestReconcileAppController_GoRuntimeEnv(t *testing.T) {
 
 	// Disabling the feature at the operator level should remove both derived vars.
 	a.Spec.Controller.Env = nil
-	os.Setenv(common.EnableApplicationControllerGoRuntimeTuning, "false")
+	os.Setenv(common.DisableGoRuntimeTuning, "true")
 
 	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))
 	for _, e := range getControllerEnv() {
@@ -1005,7 +1005,7 @@ func TestReconcileAppController_GoRuntimeEnv(t *testing.T) {
 		assert.NotEqual(t, "GOMAXPROCS", e.Name, "GOMAXPROCS should not be set when the operator-level kill switch is on, regardless of the per-instance field")
 	}
 
-	os.Unsetenv(common.EnableApplicationControllerGoRuntimeTuning)
+	os.Unsetenv(common.DisableGoRuntimeTuning)
 
 	// With the operator-level kill switch removed again, the per-instance Enabled=true field is a no-op (same as default-on).
 	assert.NoError(t, r.reconcileApplicationControllerStatefulSet(a, false))

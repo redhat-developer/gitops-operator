@@ -711,11 +711,10 @@ func controllerCPULimit(cpuLimit string) argoCDOpt {
 
 func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 	tests := []struct {
-		name              string
-		opts              []argoCDOpt
-		envVarValue       string // value of common.EnableApplicationControllerGoRuntimeTuning to set for the test, "" to unset
-		globalEnvVarValue string // value of common.EnableGoRuntimeTuning (global alias) to set for the test, "" to unset
-		want              []corev1.EnvVar
+		name        string
+		opts        []argoCDOpt
+		envVarValue string // value of common.DisableGoRuntimeTuning to set for the test, "" to unset
+		want        []corev1.EnvVar
 	}{
 		{
 			name: "no memory limit configured: no GOMEMLIMIT is set, even though feature is enabled by default",
@@ -730,48 +729,26 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 			},
 		},
 		{
-			name:        "feature explicitly disabled via operator env var: no GOMEMLIMIT is set, even with a memory limit configured",
+			name:        "feature disabled via operator kill switch (DISABLE_GO_RUNTIME_TUNING=true): no GOMEMLIMIT is set, even with a memory limit configured",
 			opts:        []argoCDOpt{controllerMemLimit()},
-			envVarValue: "false",
+			envVarValue: "true",
 			want:        []corev1.EnvVar{},
 		},
 		{
-			name:        "feature explicitly enabled via operator env var (non-'false' value): behaves the same as default-on",
+			name:        "kill switch explicitly set to false: behaves the same as default-on",
 			opts:        []argoCDOpt{controllerMemLimit()},
-			envVarValue: "true",
+			envVarValue: "false",
 			want: []corev1.EnvVar{
 				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
 		},
 		{
-			name:              "feature explicitly disabled via global alias env var (ENABLE_GO_RUNTIME_TUNING): no GOMEMLIMIT is set",
-			opts:              []argoCDOpt{controllerMemLimit()},
-			globalEnvVarValue: "false",
-			want:              []corev1.EnvVar{},
-		},
-		{
-			name:              "global alias env var enabled (ENABLE_GO_RUNTIME_TUNING=true), component-specific unset: behaves the same as default-on",
-			opts:              []argoCDOpt{controllerMemLimit()},
-			globalEnvVarValue: "true",
+			name:        "kill switch set to a non-'true' value: behaves the same as default-on",
+			opts:        []argoCDOpt{controllerMemLimit()},
+			envVarValue: "yes-but-not-exactly-true",
 			want: []corev1.EnvVar{
 				{Name: "GOMEMLIMIT", Value: "1677721600"},
 			},
-		},
-		{
-			name:              "component-specific env var takes precedence over the global alias when both are set",
-			opts:              []argoCDOpt{controllerMemLimit()},
-			envVarValue:       "true",
-			globalEnvVarValue: "false",
-			want: []corev1.EnvVar{
-				{Name: "GOMEMLIMIT", Value: "1677721600"},
-			},
-		},
-		{
-			name:              "component-specific env var (false) takes precedence over the global alias (true) when both are set",
-			opts:              []argoCDOpt{controllerMemLimit()},
-			envVarValue:       "false",
-			globalEnvVarValue: "true",
-			want:              []corev1.EnvVar{},
 		},
 		{
 			name: "per-instance opt-out via .spec.controller.goRuntime.enabled=false: no GOMEMLIMIT is set, even though the operator-level default is on",
@@ -788,7 +765,7 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 		{
 			name:        "per-instance .spec.controller.goRuntime.enabled=true cannot override the operator-level kill switch",
 			opts:        []argoCDOpt{controllerMemLimit(), controllerGoRuntimeEnabled(true)},
-			envVarValue: "false",
+			envVarValue: "true",
 			want:        []corev1.EnvVar{},
 		},
 		{
@@ -842,12 +819,8 @@ func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.envVarValue != "" {
-				os.Setenv(common.EnableApplicationControllerGoRuntimeTuning, tt.envVarValue)
-				defer os.Unsetenv(common.EnableApplicationControllerGoRuntimeTuning)
-			}
-			if tt.globalEnvVarValue != "" {
-				os.Setenv(common.EnableGoRuntimeTuning, tt.globalEnvVarValue)
-				defer os.Unsetenv(common.EnableGoRuntimeTuning)
+				os.Setenv(common.DisableGoRuntimeTuning, tt.envVarValue)
+				defer os.Unsetenv(common.DisableGoRuntimeTuning)
 			}
 
 			cr := makeTestArgoCD(tt.opts...)

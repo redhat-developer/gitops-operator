@@ -173,16 +173,11 @@ func getArgoApplicationControllerResources(cr *argoproj.ArgoCD) corev1.ResourceR
 }
 
 // isApplicationControllerGoRuntimeTuningEnabledOnOperator reports whether operator-level Go runtime
-// tuning is enabled. ENABLE_APPLICATION_CONTROLLER_GO_RUNTIME_TUNING takes precedence over
-// ENABLE_GO_RUNTIME_TUNING; both default to true.
+// tuning is enabled. Tuning is on by default; setting DISABLE_GO_RUNTIME_TUNING to "true" on the
+// operator disables it cluster-wide, and the per-instance .spec.controller.goRuntime field
+// cannot re-enable it.
 func isApplicationControllerGoRuntimeTuningEnabledOnOperator() bool {
-	if v, ok := os.LookupEnv(common.EnableApplicationControllerGoRuntimeTuning); ok {
-		return v != "false"
-	}
-	if v, ok := os.LookupEnv(common.EnableGoRuntimeTuning); ok {
-		return v != "false"
-	}
-	return true
+	return os.Getenv(common.DisableGoRuntimeTuning) != "true"
 }
 
 // getArgoApplicationControllerGoRuntimeEnv returns GOMEMLIMIT and GOMAXPROCS for the application
@@ -190,8 +185,8 @@ func isApplicationControllerGoRuntimeTuningEnabledOnOperator() bool {
 func getArgoApplicationControllerGoRuntimeEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
 	env := make([]corev1.EnvVar, 0)
 
-	// Default-on: only skip Go runtime tuning if it has been explicitly disabled on the operator, via either
-	// the component-specific gate or the global alias (component-specific takes precedence if both are set).
+	// Default-on: only skip Go runtime tuning if it has been explicitly disabled cluster-wide
+	// on the operator via the global kill switch.
 	if !isApplicationControllerGoRuntimeTuningEnabledOnOperator() {
 		return env
 	}
