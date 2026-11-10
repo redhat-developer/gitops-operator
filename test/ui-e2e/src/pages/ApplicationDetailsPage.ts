@@ -179,16 +179,7 @@ export class ApplicationDetailsPage {
     const historyBtn = this.page.getByRole('button', { name: /history and rollback/i });
     await expect(historyBtn).toBeEnabled({ timeout: 15000 });
     await historyBtn.click();
-
-    try {
-      await expect(this.historyOpened()).toBeVisible({ timeout: 8000 });
-    } catch {
-      //toolbar click is a no-op if ?rollback=0 is dropped; open the previous entry directly
-      const url = new URL(this.page.url());
-      url.searchParams.set('rollback', '1');
-      await this.page.goto(url.toString(), { waitUntil: 'domcontentloaded' });
-      await expect(this.historyOpened()).toBeVisible({ timeout: 15000 });
-    }
+    await expect(this.historyOpened()).toBeVisible({ timeout: 15000 });
   }
 
   async rollbackToPreviousRevision(appName: string, previousRevision: string) {
