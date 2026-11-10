@@ -60,7 +60,7 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
 endif
 
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/nittalaakhil/openshift-gitops-operator:v0.0.4
+IMG ?= $(IMAGE):$(VERSION)
 
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
@@ -200,8 +200,8 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	ARGOCD_OPERATOR_NAMESPACE=openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES=argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops  ARGOCD_CLUSTER_CONFIG_NAMESPACES="openshift-gitops, argocd-e2e-cluster-config, argocd-test-impersonation-1-046, argocd-agent-principal-1-051, argocd-agent-agent-1-052, argocd-spiffe-1-136, appset-argocd, appset-old-ns, appset-new-ns, ns-hosting-principal, ns-hosting-managed-agent, ns-hosting-autonomous-agent, appset-argocd-clusterrole, gitops-promoter-1-134"  REDIS_CONFIG_PATH="build/redis"   go run ./cmd/main.go
 
 .PHONY: docker-build
-docker-build: ## Build container image with the manager.
-	$(CONTAINER_RUNTIME) build --platform linux/amd64 -t ${IMG} .
+docker-build: test ## Build container image with the manager.
+	$(CONTAINER_RUNTIME) build -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.
