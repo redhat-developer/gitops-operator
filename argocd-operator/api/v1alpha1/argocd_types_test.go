@@ -67,7 +67,8 @@ func Test_PrincipalHASpec_Fields(t *testing.T) {
 		Enabled:                      &haEnabled,
 		PreferredRole:                "primary",
 		PeerAddress:                  "argocd-agent-principal-replica:8443",
-		AllowedReplicationClients:    []string{"replica-identity"},
+		PeerTLSSecretName:             "argocd-agent-ha-peer-tls",
+		AllowedReplicationClients:    []string{"argocd-agent-principal-peer"},
 		AdminPort:                    &adminPort,
 		AdminAuth:                    "mtls:subject:CN=ha-admin",
 		ReplicationInitialAckTimeout: "5m",
@@ -76,7 +77,8 @@ func Test_PrincipalHASpec_Fields(t *testing.T) {
 	assert.True(t, *ha.Enabled)
 	assert.Equal(t, "primary", ha.PreferredRole)
 	assert.Equal(t, "argocd-agent-principal-replica:8443", ha.PeerAddress)
-	assert.Equal(t, []string{"replica-identity"}, ha.AllowedReplicationClients)
+	assert.Equal(t, "argocd-agent-ha-peer-tls", ha.PeerTLSSecretName)
+	assert.Equal(t, []string{"argocd-agent-principal-peer"}, ha.AllowedReplicationClients)
 	assert.Equal(t, int32(8405), *ha.AdminPort)
 	assert.Equal(t, "mtls:subject:CN=ha-admin", ha.AdminAuth)
 	assert.Equal(t, "5m", ha.ReplicationInitialAckTimeout)

@@ -66,6 +66,8 @@ const (
 	PrincipalHealthzServicePort = 8003
 	// PrincipalHealthzServiceTargetPort is the target port for the principal healthz service
 	PrincipalHealthzServiceTargetPort = 8003
+	// PrincipalHAAdminPort is the default port for the HA admin gRPC server
+	PrincipalHAAdminPort = 8405
 )
 
 // ReconcilePrincipalService reconciles the principal service for the ArgoCD agent.

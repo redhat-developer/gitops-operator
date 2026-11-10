@@ -74,7 +74,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc(haTestNamespace)
 
-			adminPort := int32(8405)
+			adminPort := int32(argocdagent.PrincipalHAAdminPort)
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argoCDName,
@@ -105,7 +105,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 								Enabled:                      new(true),
 								PreferredRole:                "primary",
 								PeerAddress:                  "peer.example.com:443",
-								AllowedReplicationClients:    []string{"argocd-agent-principal"},
+								AllowedReplicationClients:    []string{"argocd-agent-principal-peer"},
 								AdminPort:                    &adminPort,
 								AdminAuth:                    "mtls:subject:CN=ha-admin",
 								ReplicationInitialAckTimeout: "10m",
@@ -188,9 +188,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			By("Cleanup cluster-scoped resources")
-			_ = k8sClient.Delete(ctx, clusterRole)
-			_ = k8sClient.Delete(ctx, clusterRoleBinding)
+			if k8sClient != nil {
+				By("Cleanup cluster-scoped resources")
+				_ = k8sClient.Delete(ctx, clusterRole)
+				_ = k8sClient.Delete(ctx, clusterRoleBinding)
+			}
 
 			By("Cleanup namespace")
 			if cleanupFunc != nil {
@@ -257,16 +259,22 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAEnabled, Value: "true"}))
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAPreferredRole, Value: "primary"}))
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAPeerAddress, Value: "peer.example.com:443"}))
-			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAAllowedReplicationClients, Value: "argocd-agent-principal"}))
-			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAAdminPort, Value: "8405"}))
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAAllowedReplicationClients, Value: "argocd-agent-principal-peer"}))
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAAdminPort, Value: fmt.Sprintf("%d", argocdagent.PrincipalHAAdminPort)}))
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAAdminAuth, Value: "mtls:subject:CN=ha-admin"}))
 			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAReplicationInitialAckTimeout, Value: "10m"}))
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAPeerTLSCert, Value: "/app/config/ha-peer-tls/tls.crt"}))
+			Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: argocdagent.EnvArgoCDPrincipalHAPeerTLSKey, Value: "/app/config/ha-peer-tls/tls.key"}))
+
+			By("Verify ha-peer-tls secret is mounted")
+			Expect(container.VolumeMounts).To(ContainElement(HaveField("Name", "ha-peer-tls")))
+			Expect(principalDeployment.Spec.Template.Spec.Volumes).To(ContainElement(HaveField("Name", "ha-peer-tls")))
 
 			By("Verify ha-admin container port is exposed")
-			Expect(containerHasHAAdminPort(container, 8405)).To(BeTrue(), "ha-admin port 8405 should be present")
+			Expect(containerHasHAAdminPort(container, argocdagent.PrincipalHAAdminPort)).To(BeTrue(), "ha-admin port should be present")
 
 			By("Verify NetworkPolicy includes HA admin port")
-			Expect(networkPolicyHasPort(8405)).To(BeTrue(), "network policy should include HA admin port 8405")
+			Expect(networkPolicyHasPort(argocdagent.PrincipalHAAdminPort)).To(BeTrue(), "network policy should include HA admin port")
 		})
 
 		It("should update HA configuration and remove HA settings when disabled", func() {
@@ -329,7 +337,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.ArgoCDAgent.Principal.HA.Enabled = new(false)
 			})
 
-			By("Wait for HA env vars and ports to be removed")
+			By("Wait for HA env vars, peer TLS volume, and ports to be removed")
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalDeployment)
 				if err != nil {
@@ -349,19 +357,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						return false
 					}
 				}
+				for _, m := range container.VolumeMounts {
+					if m.Name == "ha-peer-tls" {
+						return false
+					}
+				}
 				return true
-			}, "120s", "5s").Should(BeTrue(), "HA env vars and ha-admin port should be removed when HA is disabled")
+			}, "120s", "5s").Should(BeTrue(), "HA env vars, ha-peer-tls mount, and ha-admin port should be removed when HA is disabled")
 
 			container = getPrincipalContainer()
 			for _, env := range container.Env {
 				Expect(env.Name).ToNot(HavePrefix("ARGOCD_PRINCIPAL_HA_"), "HA env var %s should not be present when HA is disabled", env.Name)
 			}
+			Expect(container.VolumeMounts).ToNot(ContainElement(HaveField("Name", "ha-peer-tls")))
+			Expect(principalDeployment.Spec.Template.Spec.Volumes).ToNot(ContainElement(HaveField("Name", "ha-peer-tls")))
 			Expect(containerHasHAAdminPort(container, 9405)).To(BeFalse())
-			Expect(containerHasHAAdminPort(container, 8405)).To(BeFalse())
+			Expect(containerHasHAAdminPort(container, argocdagent.PrincipalHAAdminPort)).To(BeFalse())
 
 			By("Verify NetworkPolicy no longer includes HA admin ports")
 			Eventually(func() bool {
-				return !networkPolicyHasPort(9405) && !networkPolicyHasPort(8405)
+				return !networkPolicyHasPort(9405) && !networkPolicyHasPort(argocdagent.PrincipalHAAdminPort)
 			}, "60s", "5s").Should(BeTrue(), "network policy should not include HA admin ports when HA is disabled")
 		})
 	})

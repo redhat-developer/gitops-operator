@@ -97,7 +97,7 @@ func TestReconcilePrincipalNetworkPolicy_Exists_PrincipalDisabled_Deletes(t *tes
 }
 
 func TestReconcilePrincipalNetworkPolicy_HA_Enabled_IncludesAdminPort(t *testing.T) {
-	adminPort := int32(8405)
+	adminPort := int32(PrincipalHAAdminPort)
 	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalHA(
 		true,
 		"primary",
@@ -141,6 +141,6 @@ func TestReconcilePrincipalNetworkPolicy_HA_Disabled_ExcludesAdminPort(t *testin
 	assert.Equal(t, 5, len(spec.Ingress[0].Ports))
 
 	for _, p := range spec.Ingress[0].Ports {
-		assert.NotEqual(t, int32(8405), p.Port.IntVal, "ha-admin port should not be present when HA is disabled")
+		assert.NotEqual(t, int32(PrincipalHAAdminPort), p.Port.IntVal, "ha-admin port should not be present when HA is disabled")
 	}
 }

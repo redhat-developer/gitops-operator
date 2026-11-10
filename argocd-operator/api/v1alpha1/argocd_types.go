@@ -1335,8 +1335,14 @@ type PrincipalHASpec struct {
 	// Required when PreferredRole is "replica".
 	PeerAddress string `json:"peerAddress,omitempty"`
 
+	// PeerTLSSecretName is the name of the TLS secret containing the dedicated
+	// replication client certificate (tls.crt, tls.key).
+	// (default: "argocd-agent-ha-peer-tls")
+	PeerTLSSecretName string `json:"peerTLSSecretName,omitempty"`
+
 	// AllowedReplicationClients is the list of mTLS identities permitted to connect for replication.
 	// When empty, any authenticated peer is allowed.
+	// The dedicated peer client certificate uses CN=argocd-agent-principal-peer.
 	AllowedReplicationClients []string `json:"allowedReplicationClients,omitempty"`
 
 	// AdminPort is the port for the HAAdmin gRPC server used by

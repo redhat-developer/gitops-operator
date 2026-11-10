@@ -113,8 +113,8 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 		return appsv1.DeploymentSpec{}, err
 	}
 
-	volumeMounts := append(buildVolumeMounts(), redisAuthMount)
-	volumes := append(buildVolumes(), redisAuthVolume)
+	volumeMounts := append(buildVolumeMounts(cr), redisAuthMount)
+	volumes := append(buildVolumes(cr), redisAuthVolume)
 	if hasPrincipalSPIFFE(cr) {
 		volumeMounts = append(volumeMounts, buildSpiffeVolumeMount())
 		volumes = append(volumes, buildSpiffeVolume(getPrincipalSpiffeCSIDriver(cr)))
@@ -200,8 +200,8 @@ func buildPorts(compName string, cr *argoproj.ArgoCD) []corev1.ContainerPort {
 	}
 
 	if isPrincipalHAEnabled(cr) {
-		adminPort := int32(8405)
-		if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
+		adminPort := int32(PrincipalHAAdminPort)
+		if cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
 			adminPort = *cr.Spec.ArgoCDAgent.Principal.HA.AdminPort
 		}
 		ports = append(ports, corev1.ContainerPort{
@@ -234,8 +234,8 @@ func buildPrincipalImage(cr *argoproj.ArgoCD) string {
 	return common.ArgoCDAgentPrincipalDefaultImageName
 }
 
-func buildVolumeMounts() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func buildVolumeMounts(cr *argoproj.ArgoCD) []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{
 		{
 			Name:      "jwt-secret",
 			MountPath: "/app/config/jwt",
@@ -245,10 +245,17 @@ func buildVolumeMounts() []corev1.VolumeMount {
 			MountPath: "/app/config/userpass",
 		},
 	}
+	if isPrincipalHAEnabled(cr) {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      "ha-peer-tls",
+			MountPath: "/app/config/ha-peer-tls",
+		})
+	}
+	return mounts
 }
 
-func buildVolumes() []corev1.Volume {
-	return []corev1.Volume{
+func buildVolumes(cr *argoproj.ArgoCD) []corev1.Volume {
+	volumes := []corev1.Volume{
 		{
 			Name: "jwt-secret",
 			VolumeSource: corev1.VolumeSource{
@@ -280,6 +287,28 @@ func buildVolumes() []corev1.Volume {
 			},
 		},
 	}
+	if isPrincipalHAEnabled(cr) {
+		volumes = append(volumes, corev1.Volume{
+			Name: "ha-peer-tls",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: getPrincipalHAPeerTLSSecretName(cr),
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "tls.crt",
+							Path: "tls.crt",
+						},
+						{
+							Key:  "tls.key",
+							Path: "tls.key",
+						},
+					},
+					Optional: new(true),
+				},
+			},
+		})
+	}
+	return volumes
 }
 
 // updateDeploymentIfChanged compares the current deployment with the desired state
@@ -328,8 +357,8 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 	}
 
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
-	desiredVolumeMounts := append(buildVolumeMounts(), redisAuthMount)
-	desiredVolumes := append(buildVolumes(), redisAuthVolume)
+	desiredVolumeMounts := append(buildVolumeMounts(cr), redisAuthMount)
+	desiredVolumes := append(buildVolumes(cr), redisAuthVolume)
 	if hasPrincipalSPIFFE(cr) {
 		desiredVolumeMounts = append(desiredVolumeMounts, buildSpiffeVolumeMount())
 		desiredVolumes = append(desiredVolumes, buildSpiffeVolume(getPrincipalSpiffeCSIDriver(cr)))
@@ -508,6 +537,8 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			corev1.EnvVar{Name: EnvArgoCDPrincipalHAAdminPort, Value: getPrincipalHAAdminPort(cr)},
 			corev1.EnvVar{Name: EnvArgoCDPrincipalHAAdminAuth, Value: getPrincipalHAAdminAuth(cr)},
 			corev1.EnvVar{Name: EnvArgoCDPrincipalHAReplicationInitialAckTimeout, Value: getPrincipalHAReplicationInitialAckTimeout(cr)},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAPeerTLSCert, Value: "/app/config/ha-peer-tls/tls.crt"},
+			corev1.EnvVar{Name: EnvArgoCDPrincipalHAPeerTLSKey, Value: "/app/config/ha-peer-tls/tls.key"},
 		)
 	}
 
@@ -563,6 +594,8 @@ const (
 	EnvArgoCDPrincipalHAAdminPort                      = "ARGOCD_PRINCIPAL_HA_ADMIN_PORT"
 	EnvArgoCDPrincipalHAAdminAuth                      = "ARGOCD_PRINCIPAL_HA_ADMIN_AUTH"
 	EnvArgoCDPrincipalHAReplicationInitialAckTimeout   = "ARGOCD_PRINCIPAL_HA_REPLICATION_INITIAL_ACK_TIMEOUT"
+	EnvArgoCDPrincipalHAPeerTLSCert                    = "ARGOCD_PRINCIPAL_HA_PEER_TLS_CERT"
+	EnvArgoCDPrincipalHAPeerTLSKey                     = "ARGOCD_PRINCIPAL_HA_PEER_TLS_KEY"
 
 	// principalSpireSocketDir is the directory containing the SPIRE Agent socket injected by the CSI driver.
 	principalSpireSocketDir = "/run/spire/sockets"
@@ -887,6 +920,13 @@ func getPrincipalHAPeerAddress(cr *argoproj.ArgoCD) string {
 	return ""
 }
 
+func getPrincipalHAPeerTLSSecretName(cr *argoproj.ArgoCD) string {
+	if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.PeerTLSSecretName != "" {
+		return cr.Spec.ArgoCDAgent.Principal.HA.PeerTLSSecretName
+	}
+	return "argocd-agent-ha-peer-tls" // #nosec G101 -- Secret resource name, not a credential
+}
+
 func getPrincipalHAAllowedReplicationClients(cr *argoproj.ArgoCD) string {
 	if hasPrincipalHA(cr) && len(cr.Spec.ArgoCDAgent.Principal.HA.AllowedReplicationClients) > 0 {
 		return strings.Join(cr.Spec.ArgoCDAgent.Principal.HA.AllowedReplicationClients, ",")
@@ -898,7 +938,7 @@ func getPrincipalHAAdminPort(cr *argoproj.ArgoCD) string {
 	if hasPrincipalHA(cr) && cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
 		return strconv.Itoa(int(*cr.Spec.ArgoCDAgent.Principal.HA.AdminPort))
 	}
-	return "8405"
+	return strconv.Itoa(PrincipalHAAdminPort)
 }
 
 func getPrincipalHAAdminAuth(cr *argoproj.ArgoCD) string {

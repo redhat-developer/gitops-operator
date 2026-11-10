@@ -9,6 +9,14 @@ Two principal instances run in separate clusters. One starts as the preferred
 Promotion and demotion are performed with `argocd-agentctl ha`; principals do
 not promote themselves.
 
+A replica authenticates to its peer for replication with a dedicated client
+certificate (issued by `argocd-agentctl pki issue principal-peer`, stored in
+`argocd-agent-ha-peer-tls` by default). This is separate from the principal's
+server certificate. The operator mounts that secret and sets
+`ARGOCD_PRINCIPAL_HA_PEER_TLS_CERT` / `ARGOCD_PRINCIPAL_HA_PEER_TLS_KEY`. The
+connecting identity (`CN=argocd-agent-principal-peer`) must appear in the peer's
+`allowedReplicationClients`.
+
 !!! note
     Principal HA & Replication is currently in Beta upstream. See the
     [argocd-agent HA documentation][argocd_agent_ha] for concepts, DNS/GSLB
@@ -18,6 +26,8 @@ not promote themselves.
 
 - Two clusters, each with the GitOps Operator and an Argo CD instance
 - A shared CA so both principals can verify each other's client certificates
+- A dedicated replication client certificate on each principal
+  (`argocd-agentctl pki issue principal-peer`)
 - A DNS/GSLB endpoint (or manual DNS) for agents to reach the active principal
 
 ## Configure the preferred primary
@@ -38,8 +48,9 @@ spec:
         enabled: true
         preferredRole: primary
         peerAddress: "principal.region-b.example.com:443"
+        peerTLSSecretName: argocd-agent-ha-peer-tls
         allowedReplicationClients:
-          - "argocd-agent-principal"
+          - "argocd-agent-principal-peer"
         adminPort: 8405
         adminAuth: "mtls:subject:CN=ha-admin"
 ```
@@ -62,8 +73,9 @@ spec:
         enabled: true
         preferredRole: replica
         peerAddress: "principal.region-a.example.com:443"
+        peerTLSSecretName: argocd-agent-ha-peer-tls
         allowedReplicationClients:
-          - "argocd-agent-principal"
+          - "argocd-agent-principal-peer"
         adminPort: 8405
         adminAuth: "mtls:subject:CN=ha-admin"
 ```
@@ -73,6 +85,9 @@ spec:
     When TLS is active, set `adminAuth`; otherwise HA admin calls are denied.
     Client certificates for `argocd-agentctl ha` are supplied on the CLI
     (`--tls-cert` / `--tls-key` / `--tls-ca`), not by the operator.
+    Issue the replication client certificate with
+    `argocd-agentctl pki issue principal-peer` before enabling HA, or mount the
+    secret optionally so the pod can start first.
 
 ## Configuration reference
 
@@ -81,13 +96,15 @@ spec:
 | `enabled` | Enable active/passive HA (default: `false`) |
 | `preferredRole` | Startup role: `primary` or `replica` (default: `primary`) |
 | `peerAddress` | Peer gRPC address (`host:port`). Required for `replica` |
-| `allowedReplicationClients` | mTLS identities allowed for replication. Empty allows any authenticated peer |
+| `peerTLSSecretName` | TLS secret with the dedicated replication client cert (`tls.crt`, `tls.key`). Default: `argocd-agent-ha-peer-tls` |
+| `allowedReplicationClients` | mTLS identities allowed for replication. Empty allows any authenticated peer. Use `argocd-agent-principal-peer` for the dedicated client cert |
 | `adminPort` | HAAdmin gRPC port (default: `8405`) |
 | `adminAuth` | Auth policy for the HA admin endpoint (for example `mtls:subject:CN=ha-admin`) |
 | `replicationInitialAckTimeout` | How long the primary waits for the replica's initial snapshot acknowledgement (default: `5m`) |
 
-The operator maps these fields to `ARGOCD_PRINCIPAL_HA_*` environment variables
-and opens the configured `adminPort` (default `8405`) on the principal pod.
+The operator maps these fields to `ARGOCD_PRINCIPAL_HA_*` environment variables,
+mounts the peer TLS secret at `/app/config/ha-peer-tls`, and opens the
+configured `adminPort` (default `8405`) on the principal pod.
 The operator does not create a Service for HA admin. You can create one
 manually; use the same `adminPort` value for the Service `port`/`targetPort`
 and for `argocd-agentctl --address`:
