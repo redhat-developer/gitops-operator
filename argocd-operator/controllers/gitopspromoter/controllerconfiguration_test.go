@@ -77,6 +77,13 @@ func TestReconcilePromoterControllerConfiguration_DoesNotExist_PromoterEnabled(t
 
 	assert.Equal(t, "promoter-controller-configuration", retrievedConConfig.Name)
 	assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrievedConConfig.Labels)
+	assert.Equal(t, 10, retrievedConConfig.Spec.PromotionStrategy.WorkQueue.MaxConcurrentReconciles)
+	assert.Equal(t, 5, retrievedConConfig.Spec.ChangeTransferPolicyHistory.WorkQueue.MaxConcurrentReconciles)
+	assert.Equal(t, 10, retrievedConConfig.Spec.DependentsSuccessfulCommitStatus.WorkQueue.MaxConcurrentReconciles)
+	assert.Equal(t, 10, retrievedConConfig.Spec.RestoreActiveCommit.WorkQueue.MaxConcurrentReconciles)
+	assert.NotEmpty(t, retrievedConConfig.Spec.ChangeTransferPolicyHistory.WorkQueue.RateLimiter.MaxOf)
+	assert.NotEmpty(t, retrievedConConfig.Spec.DependentsSuccessfulCommitStatus.WorkQueue.RateLimiter.MaxOf)
+	assert.NotEmpty(t, retrievedConConfig.Spec.RestoreActiveCommit.WorkQueue.RateLimiter.MaxOf)
 }
 
 func TestReconcilePromoterControllerConfiguration_Exists_PromoterDisabled(t *testing.T) {
