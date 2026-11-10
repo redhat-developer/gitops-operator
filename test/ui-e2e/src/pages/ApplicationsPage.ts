@@ -188,13 +188,99 @@ export class ApplicationsPage {
     await expect(this.page).toHaveURL(/.*\/applications\/.*\/.*/, { timeout: TIMEOUTS.default });
   }
 
-  private appCard(appName: string): Locator {
+  private appTiles(appName: string): Locator {
     return this.page
       .locator(
         '.white-box, .argo-table-list__row, .application-tile, [class*="application-tile"], [class*="applications-list__entry"]'
       )
-      .filter({ hasText: appName })
-      .first();
+      .filter({ hasText: appName });
+  }
+
+  private appCard(appName: string): Locator {
+    return this.appTiles(appName).first();
+  }
+
+  private filterGroup(label: string): Locator {
+    return this.page.locator('.filter').filter({ has: this.page.getByText(label, { exact: true }) });
+  }
+
+  async searchApplications(query: string) {
+    await this.page.getByPlaceholder(/Search applications/i).fill(query);
+  }
+
+  async clearSearch() {
+    const search = this.page.getByPlaceholder(/Search applications/i);
+    await search.fill('');
+    const clear = this.page.locator('.applications-list__search .fa-times');
+    if (await clear.isVisible()) {
+      await clear.click();
+    }
+  }
+
+  async ensureFiltersVisible() {
+    const appFilters = this.page.getByText('Application filters', { exact: true });
+    if (await appFilters.isVisible()) return;
+    //details page also has health status (not treating that as the list)
+    if (/\/applications\/[^/?]+\/[^/?]+/.test(this.page.url())) {
+      await this.navigate();
+    }
+    if (await appFilters.isVisible()) return;
+    await this.page.locator('.sidebar__collapse-button').click();
+    await expect(appFilters).toBeVisible({ timeout: TIMEOUTS.panel });
+  }
+
+  async clearAllFilters() {
+    await this.ensureFiltersVisible();
+    //argo 3.3 names it as "CLEAR" but 3.4+ is "CLEAR ALL"
+    const btn = this.page.getByRole('button', { name: /CLEAR(\s+ALL)?/i }).first();
+    if (await btn.isVisible()) {
+      await btn.click();
+      await expect(btn).toBeHidden({ timeout: TIMEOUTS.panel });
+    }
+  }
+
+  async selectFilterOption(groupLabel: string, option: string) {
+    await this.ensureFiltersVisible();
+    const group = this.filterGroup(groupLabel);
+    const item = group.locator('.filter__item').filter({
+      has: this.page.locator('.filter__item__label', { hasText: new RegExp(`^${option}$`) }),
+    });
+    await expect(item).toBeVisible({ timeout: TIMEOUTS.default });
+    const checkbox = item.getByRole('checkbox');
+    if ((await checkbox.count()) > 0) {
+      await checkbox.click();
+      return;
+    }
+    await item.click();
+  }
+
+  async filterByLabel(selector: string) {
+    await this.ensureFiltersVisible();
+    const group = this.filterGroup('LABELS');
+    const input = group.locator('.autocomplete__input');
+    if (!(await input.isVisible())) {
+      await group.locator('.filter__header__label').click();
+    }
+    await expect(input).toBeVisible({ timeout: TIMEOUTS.default });
+    await input.click();
+    await input.fill(selector);
+    //argo ui v2 sends items to document.body as autocomplete__items__item
+    const suggestion = this.page.locator('.autocomplete__items__item').filter({
+      hasText: new RegExp(`^${selector}$`),
+    });
+    await expect(suggestion).toBeVisible({ timeout: TIMEOUTS.default });
+    await suggestion.click();
+    await expect(
+      group.locator('.filter__item__label', { hasText: new RegExp(`^${selector}$`) })
+    ).toBeVisible({ timeout: TIMEOUTS.default });
+  }
+
+  async assertAppVisible(appName: string) {
+    await expect(this.appTiles(appName).first()).toBeVisible({ timeout: TIMEOUTS.load });
+  }
+
+  async assertAppHidden(appName: string) {
+    await expect(this.appTiles(appName)).toHaveCount(0, { timeout: TIMEOUTS.load });
   }
 
   private syncPanel(): Locator {
