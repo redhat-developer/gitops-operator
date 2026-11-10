@@ -709,6 +709,11 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 		// clusterNamespaces are Namespace objects pre-created in the fake client so that
 		// expandImageUpdaterWatchNamespaces can match patterns against real namespace names.
 		clusterNamespaces []string
+		// managedNamespaces, when non-empty, seeds r.ManagedNamespaces directly (bypassing
+		// setManagedNamespaces, which this test does not exercise) to simulate namespaces
+		// that already consented to being managed by this instance via the
+		// "argocd.argoproj.io/managed-by" label or a NamespaceManagement CR.
+		managedNamespaces []string
 		expectError       bool
 		expectClusterRole bool
 		expectClusterRB   bool
@@ -751,6 +756,27 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 			name:               "exact list: rejected when not a cluster-config namespace",
 			watchNamespacesEnv: "ns1,ns2",
 			clusterNamespaces:  []string{"ns1", "ns2", "other"},
+			expectError:        true,
+		},
+		{
+			// Every matched namespace already consented to being managed by this instance
+			// (e.g. via the "argocd.argoproj.io/managed-by" label or a NamespaceManagement
+			// CR), so the cluster-config-namespace restriction is waived: no new privilege
+			// is being granted beyond what that consent already allows.
+			name:                  "exact list: allowed when all matched namespaces already consent via managed-by",
+			watchNamespacesEnv:    "ns1,ns2",
+			clusterNamespaces:     []string{"ns1", "ns2", "other"},
+			managedNamespaces:     []string{"ns1", "ns2"},
+			expectClusterRole:     false,
+			expectManagerRoleInNS: []string{"ns1", "ns2"},
+		},
+		{
+			// Only one of the two matched namespaces consented; the other would receive
+			// RBAC it never agreed to, so the whole configuration is still rejected.
+			name:               "exact list: rejected when only some matched namespaces consent",
+			watchNamespacesEnv: "ns1,ns2",
+			clusterNamespaces:  []string{"ns1", "ns2", "other"},
+			managedNamespaces:  []string{"ns1"},
 			expectError:        true,
 		},
 		{
@@ -829,6 +855,13 @@ func TestReconcileImageUpdaterRBAC_WatchScope(t *testing.T) {
 			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
 			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			if len(tt.managedNamespaces) > 0 {
+				r.ManagedNamespaces = &v1.NamespaceList{}
+				for _, ns := range tt.managedNamespaces {
+					r.ManagedNamespaces.Items = append(r.ManagedNamespaces.Items, v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+				}
+			}
 
 			sa := &v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: "sa", Namespace: a.Namespace}}
 
@@ -1620,6 +1653,37 @@ func TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded(t *testing.T) {
 			} else {
 				assert.False(t, found, "IMAGE_UPDATER_WATCH_NAMESPACES should not be set")
 			}
+		})
+	}
+}
+
+func TestImageUpdaterWatchNamespacesConsented(t *testing.T) {
+	tests := []struct {
+		name              string
+		managedNamespaces []string // nil means r.ManagedNamespaces stays nil (unpopulated)
+		namespaces        []string
+		want              bool
+	}{
+		{name: "empty namespaces list is vacuously consented, even with nil ManagedNamespaces", namespaces: nil, want: true},
+		{name: "empty namespaces list is vacuously consented, even with populated ManagedNamespaces", managedNamespaces: []string{"ns1"}, namespaces: nil, want: true},
+		{name: "nil ManagedNamespaces rejects a non-empty list", managedNamespaces: nil, namespaces: []string{"ns1"}, want: false},
+		{name: "single namespace present in ManagedNamespaces", managedNamespaces: []string{"ns1", "ns2"}, namespaces: []string{"ns1"}, want: true},
+		{name: "all namespaces present in ManagedNamespaces", managedNamespaces: []string{"ns1", "ns2", "ns3"}, namespaces: []string{"ns1", "ns2"}, want: true},
+		{name: "one namespace missing from ManagedNamespaces", managedNamespaces: []string{"ns1"}, namespaces: []string{"ns1", "ns2"}, want: false},
+		{name: "no namespaces present in ManagedNamespaces", managedNamespaces: []string{"other"}, namespaces: []string{"ns1", "ns2"}, want: false},
+		{name: "empty ManagedNamespaces.Items rejects a non-empty list", managedNamespaces: []string{}, namespaces: []string{"ns1"}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &ReconcileArgoCD{}
+			if tt.managedNamespaces != nil {
+				r.ManagedNamespaces = &v1.NamespaceList{}
+				for _, ns := range tt.managedNamespaces {
+					r.ManagedNamespaces.Items = append(r.ManagedNamespaces.Items, v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}})
+				}
+			}
+			assert.Equal(t, tt.want, r.imageUpdaterWatchNamespacesConsented(tt.namespaces))
 		})
 	}
 }

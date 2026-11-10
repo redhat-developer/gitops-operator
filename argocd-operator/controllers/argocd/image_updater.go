@@ -175,9 +175,14 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 //     the cluster-config-namespace restriction below.
 //   - patterns: comma-separated list (glob/regex) — base Role in cr.Namespace + per-namespace
 //     manager Roles in every concrete namespace from expandedNamespaces. Like "*", this is an
-//     apps-in-any-namespace feature and also requires cr.Namespace to be a cluster-config
+//     apps-in-any-namespace feature and normally requires cr.Namespace to be a cluster-config
 //     namespace; expandedNamespaces is resolved against every namespace in the cluster
-//     (see expandImageUpdaterWatchNamespaces).
+//     (see expandImageUpdaterWatchNamespaces). The cluster-config requirement is waived when
+//     every namespace in expandedNamespaces has already consented to being managed by this
+//     instance (r.ManagedNamespaces, populated from the "argocd.argoproj.io/managed-by" label
+//     or a NamespaceManagement CR — see setManagedNamespaces/reconcileNamespaceManagement):
+//     that consent already grants this instance full application-controller/server RBAC in
+//     those namespaces, so extending image-updater to them is not a privilege escalation.
 //
 // In all cases, stale per-namespace Roles/RoleBindings from a previous configuration are pruned.
 func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *corev1.ServiceAccount, watchNamespaces string, expandedNamespaces []string) error {
@@ -259,7 +264,11 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 		// Like "*", a per-namespace watch list is an apps-in-any-namespace feature and must
 		// only be usable by a cluster-scoped Argo CD instance; otherwise a namespace-scoped
 		// instance could reach into namespaces outside its own simply by setting this env var.
-		if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
+		// Exception: a namespace that already consented to being managed by this instance via
+		// the "argocd.argoproj.io/managed-by" label or a NamespaceManagement CR (tracked in
+		// r.ManagedNamespaces) already grants this instance application-controller/server RBAC
+		// there, so it is not a privilege escalation to also extend image-updater to it.
+		if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) && !r.imageUpdaterWatchNamespacesConsented(expandedNamespaces) {
 			// Revoke any per-namespace manager Roles/RoleBindings that may already exist
 			// (e.g. created by an operator version before this scope restriction existed, or
 			// left over from when cr.Namespace was still a cluster-config namespace) before
@@ -268,7 +277,9 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 			if pruneErr := r.pruneImageUpdaterNamespaceRBAC(cr, map[string]any{}); pruneErr != nil {
 				return pruneErr
 			}
-			return fmt.Errorf("IMAGE_UPDATER_WATCH_NAMESPACES %q can only be configured in cluster scope", watchNamespaces)
+			return fmt.Errorf("IMAGE_UPDATER_WATCH_NAMESPACES %q can only be configured in cluster scope, "+
+				"unless every matched namespace already consents to being managed by this instance "+
+				"(see the \"argocd.argoproj.io/managed-by\" label and the NamespaceManagement CR)", watchNamespaces)
 		}
 
 		log.Info("reconciling Image Updater role")
@@ -1065,6 +1076,30 @@ func (r *ReconcileArgoCD) expandImageUpdaterWatchNamespaces(watchNamespaces stri
 
 	sort.Strings(matched)
 	return matched, nil
+}
+
+// imageUpdaterWatchNamespacesConsented reports whether every namespace in namespaces has
+// already consented to being managed by this Argo CD instance, i.e. appears in
+// r.ManagedNamespaces (populated by setManagedNamespaces from the "argocd.argoproj.io/managed-by"
+// label, and by reconcileNamespaceManagement from NamespaceManagement CRs). An empty namespaces
+// list is vacuously consented: there is nothing to grant RBAC for.
+func (r *ReconcileArgoCD) imageUpdaterWatchNamespacesConsented(namespaces []string) bool {
+	if len(namespaces) == 0 {
+		return true
+	}
+	if r.ManagedNamespaces == nil {
+		return false
+	}
+	managed := make(map[string]bool, len(r.ManagedNamespaces.Items))
+	for _, ns := range r.ManagedNamespaces.Items {
+		managed[ns.Name] = true
+	}
+	for _, ns := range namespaces {
+		if !managed[ns] {
+			return false
+		}
+	}
+	return true
 }
 
 // ========================= Helpers =========================
