@@ -55,6 +55,9 @@ spec:
 The operator resolves the patterns to concrete namespaces at reconcile time and creates a `Role` and `RoleBinding` in each matching namespace. When the namespace list changes (e.g. a new tenant namespace is created that matches the pattern), the operator automatically provisions the required RBAC on the next reconcile.
 
 !!! note
+    Watching namespaces other than the Argo CD instance's own namespace normally requires the instance to be installed in a cluster configuration namespace. This requirement is waived if every matched namespace already consents to being managed by the instance, either via the `argocd.argoproj.io/managed-by` label or a `NamespaceManagement` CR.
+
+!!! note
     Regular expression patterns must be wrapped in forward slashes (`/pattern/`). Patterns without slashes are treated as glob patterns. For example, `team-*` is a glob (matches `team-1`, `team-frontend`, etc.), while `/^team-[0-9]+$/` is a regex (matches `team-1` but not `team-frontend`).
 
 #### Cluster-scoped installation
