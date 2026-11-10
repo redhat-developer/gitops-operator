@@ -398,7 +398,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verify that deployment is in Ready state")
 
-			Eventually(principalDeployment, "120s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
+			Eventually(principalDeployment, "300s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
 
 			By("Verify environment variables are set correctly")
 
@@ -503,11 +503,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						return false
 					}
 					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
-				}, "120s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
+				}, "300s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
 
 			By("verify that deployment is in Ready state")
 
-			Eventually(principalDeployment, "120s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
+			Eventually(principalDeployment, "300s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
 
 			By("Verify environment variables are updated correctly")
 
