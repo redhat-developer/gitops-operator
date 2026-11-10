@@ -31,7 +31,7 @@ test.describe('Application History and Rollback', () => {
     return out.length > 0;
   };
 
-  const applyApp = (targetRevision: string) => {
+  const applyApp = async (targetRevision: string) => {
     const appYaml = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -48,7 +48,30 @@ spec:
     repoURL: https://github.com/argoproj/argocd-example-apps.git
     targetRevision: ${targetRevision}
 `;
-    execFileSync('oc', ['apply', '-f', '-'], { input: appYaml, stdio: 'pipe', timeout: 15000 });
+    const tryApply = () => {
+      try {
+        execFileSync('oc', ['apply', '-f', '-'], { input: appYaml, stdio: 'pipe', timeout: 15000 });
+      } catch (e) {
+        //client gave up but the apply may still have landed so poll spec
+        if ((e as NodeJS.ErrnoException).code !== 'ETIMEDOUT') throw e;
+        console.warn(`[setup] oc apply timed out; checking spec.targetRevision=${targetRevision}`);
+      }
+    };
+
+    tryApply();
+    for (let i = 1; i <= 20; i++) {
+      const got = tryOcGet([
+        'get', 'application', appName, '-n', 'openshift-gitops',
+        '-o', 'jsonpath={.spec.source.targetRevision}',
+      ]);
+      console.log(`[setup] spec revision='${got || '-'}' want='${targetRevision}' (${i}/20)`);
+      if (got === targetRevision) return;
+      if (i === 5 || i === 10) tryApply();
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    throw new Error(
+      `Application '${appName}' spec never reached targetRevision '${targetRevision}'.`
+    );
   };
 
   const triggerSync = () => {
@@ -95,7 +118,7 @@ spec:
       );
     }
 
-    applyApp(previousCommit);
+    await applyApp(previousCommit);
 
     let lastSync = '';
     let lastResource = '';
@@ -146,7 +169,7 @@ spec:
       );
     }
 
-    applyApp(currentCommit);
+    await applyApp(currentCommit);
 
     let drifted = false;
     for (let i = 1; i <= 30; i++) {
