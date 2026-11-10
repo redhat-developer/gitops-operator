@@ -114,12 +114,11 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 	atns[common.ArgoCDKeyIngressSSLRedirect] = "true"
 	// argocd-server serves TLS (and redirects plain HTTP with a 307) unless insecure is set,
 	// so the backend must be HTTPS in that case.
-	backendPort := "http"
-	atns[common.ArgoCDKeyIngressBackendProtocol] = "HTTP"
-	if !cr.Spec.Server.Insecure {
-		backendPort = "https"
-		atns[common.ArgoCDKeyIngressBackendProtocol] = "HTTPS"
+	backendPort, backendProtocol := "https", "HTTPS"
+	if cr.Spec.Server.Insecure {
+		backendPort, backendProtocol = "http", "HTTP"
 	}
+	atns[common.ArgoCDKeyIngressBackendProtocol] = backendProtocol
 
 	// User annotations are merged over the defaults (per key)
 	atns = mergeAnnotations(atns, cr.Spec.Server.Ingress.Annotations)
@@ -169,35 +168,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 		ingress.Spec.TLS = cr.Spec.Server.Ingress.TLS
 	}
 	if objectFound {
-		if !metav1.IsControlledBy(existingIngress, cr) {
-			log.Info("ingress exists but is not owned by this ArgoCD, skipping update", "name", existingIngress.Name, "namespace", existingIngress.Namespace)
-			return nil
-		}
-		var changes []string
-		// If Ingress found and enabled, make sure the ingressClassName is up-to-date
-		if !reflect.DeepEqual(existingIngress.Spec.IngressClassName, cr.Spec.Server.Ingress.IngressClassName) {
-			existingIngress.Spec.IngressClassName = cr.Spec.Server.Ingress.IngressClassName
-			changes = append(changes, "ingress class name")
-		}
-		// Merge instead of replace so annotations added by other controllers survive.
-		// ponytail: annotations removed from the CR are not removed from the Ingress.
-		if merged := mergeAnnotations(existingIngress.Annotations, ingress.Annotations); !reflect.DeepEqual(merged, existingIngress.Annotations) {
-			existingIngress.Annotations = merged
-			changes = append(changes, "annotations")
-		}
-		if !reflect.DeepEqual(ingress.Spec.Rules, existingIngress.Spec.Rules) {
-			existingIngress.Spec.Rules = ingress.Spec.Rules
-			changes = append(changes, "ingress rules")
-		}
-		if !reflect.DeepEqual(ingress.Spec.TLS, existingIngress.Spec.TLS) {
-			existingIngress.Spec.TLS = ingress.Spec.TLS
-			changes = append(changes, "ingress tls")
-		}
-		if len(changes) > 0 {
-			argoutil.LogResourceUpdate(log, existingIngress, "updating", strings.Join(changes, ", "))
-			return r.Update(context.TODO(), existingIngress)
-		}
-		return nil // Ingress with no changes to apply, do nothing
+		return r.updateIngress(cr, existingIngress, ingress)
 	}
 	if err := controllerutil.SetControllerReference(cr, ingress, r.Scheme); err != nil {
 		return err
@@ -278,34 +249,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerGRPCIngress(cr *argoproj.ArgoCD) er
 	}
 
 	if objectFound {
-		if !metav1.IsControlledBy(existingIngress, cr) {
-			log.Info("ingress exists but is not owned by this ArgoCD, skipping update", "name", existingIngress.Name, "namespace", existingIngress.Namespace)
-			return nil
-		}
-		var changes []string
-		if !reflect.DeepEqual(existingIngress.Spec.IngressClassName, ingress.Spec.IngressClassName) {
-			existingIngress.Spec.IngressClassName = ingress.Spec.IngressClassName
-			changes = append(changes, "ingress class name")
-		}
-		// Merge instead of replace so annotations added by other controllers survive.
-		// ponytail: annotations removed from the CR are not removed from the Ingress.
-		if merged := mergeAnnotations(existingIngress.Annotations, ingress.Annotations); !reflect.DeepEqual(merged, existingIngress.Annotations) {
-			existingIngress.Annotations = merged
-			changes = append(changes, "annotations")
-		}
-		if !reflect.DeepEqual(ingress.Spec.Rules, existingIngress.Spec.Rules) {
-			existingIngress.Spec.Rules = ingress.Spec.Rules
-			changes = append(changes, "ingress rules")
-		}
-		if !reflect.DeepEqual(ingress.Spec.TLS, existingIngress.Spec.TLS) {
-			existingIngress.Spec.TLS = ingress.Spec.TLS
-			changes = append(changes, "ingress tls")
-		}
-		if len(changes) > 0 {
-			argoutil.LogResourceUpdate(log, existingIngress, "updating", strings.Join(changes, ", "))
-			return r.Update(context.TODO(), existingIngress)
-		}
-		return nil
+		return r.updateIngress(cr, existingIngress, ingress)
 	}
 
 	if err := controllerutil.SetControllerReference(cr, ingress, r.Scheme); err != nil {
@@ -448,6 +392,39 @@ func (r *ReconcileArgoCD) reconcileApplicationSetControllerIngress(cr *argoproj.
 	}
 	argoutil.LogResourceCreation(log, ingress)
 	return r.Create(context.TODO(), ingress)
+}
+
+// updateIngress applies the desired Ingress spec to an existing one the CR owns.
+// Ingresses not controlled by the CR are left untouched.
+func (r *ReconcileArgoCD) updateIngress(cr *argoproj.ArgoCD, existing, desired *networkingv1.Ingress) error {
+	if !metav1.IsControlledBy(existing, cr) {
+		log.Info("ingress exists but is not owned by this ArgoCD, skipping update", "name", existing.Name, "namespace", existing.Namespace)
+		return nil
+	}
+	var changes []string
+	if !reflect.DeepEqual(existing.Spec.IngressClassName, desired.Spec.IngressClassName) {
+		existing.Spec.IngressClassName = desired.Spec.IngressClassName
+		changes = append(changes, "ingress class name")
+	}
+	// Merge instead of replace so annotations added by other controllers survive.
+	// ponytail: annotations removed from the CR are not removed from the Ingress.
+	if merged := mergeAnnotations(existing.Annotations, desired.Annotations); !reflect.DeepEqual(merged, existing.Annotations) {
+		existing.Annotations = merged
+		changes = append(changes, "annotations")
+	}
+	if !reflect.DeepEqual(desired.Spec.Rules, existing.Spec.Rules) {
+		existing.Spec.Rules = desired.Spec.Rules
+		changes = append(changes, "ingress rules")
+	}
+	if !reflect.DeepEqual(desired.Spec.TLS, existing.Spec.TLS) {
+		existing.Spec.TLS = desired.Spec.TLS
+		changes = append(changes, "ingress tls")
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	argoutil.LogResourceUpdate(log, existing, "updating", strings.Join(changes, ", "))
+	return r.Update(context.TODO(), existing)
 }
 
 // mergeAnnotations returns base overlaid with overrides; neither input is modified.
