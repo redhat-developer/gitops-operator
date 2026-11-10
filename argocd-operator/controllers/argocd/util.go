@@ -2300,7 +2300,7 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 	}
 
 	log.Info("reconciling GitOps Promoter's Controller Deployment")
-	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme); err != nil {
+	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme, r.CentralTLSConfigProfile); err != nil {
 		return err
 	}
 
@@ -2334,6 +2334,11 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 
 	log.Info("reconciling GitOps Promoter's API Server Service")
 	if _, err = gitopspromoter.ReconcilePromoterAPIServerService(r.Client, apiServerCompName, cr); err != nil {
+		return err
+	}
+
+	log.Info("reconciling GitOps Promoter's API Server serving certificate Secret")
+	if _, err = gitopspromoter.ReconcilePromoterAPIServerServingCertSecret(r.Client, cr, r.Scheme); err != nil {
 		return err
 	}
 

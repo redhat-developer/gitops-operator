@@ -82,45 +82,55 @@ func buildControllerConfiguration(compName string, cr *argoproj.ArgoCD) *promote
 		},
 		Spec: promoter.ControllerConfigurationSpec{
 			PromotionStrategy: promoter.PromotionStrategyConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			ChangeTransferPolicyHistory: promoter.ChangeTransferPolicyHistoryConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(5),
 			},
 			ChangeTransferPolicy: promoter.ChangeTransferPolicyConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			PullRequest: promoter.PullRequestConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 				Template: promoter.PullRequestTemplate{
 					Title:       "Promote {{ with .ChangeTransferPolicy.Spec.ActivePath }}`{{ . }}` {{ end }}({{ trunc 5 .ChangeTransferPolicy.Status.Proposed.Dry.Sha }}) to `{{ .ChangeTransferPolicy.Spec.ActiveBranch }}`",
 					Description: "This PR is promoting {{ with .ChangeTransferPolicy.Spec.ActivePath }}`{{ . }}` on {{ end }}the environment branch `{{ .ChangeTransferPolicy.Spec.ActiveBranch }}` from dry sha {{ .ChangeTransferPolicy.Status.Active.Dry.Sha }} to {{ .ChangeTransferPolicy.Status.Proposed.Dry.Sha }}.",
 				},
 			},
 			CommitStatus: promoter.CommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			ArgoCDCommitStatus: promoter.ArgoCDCommitStatusConfiguration{
-				WorkQueue:              buildDefaultWorkQueueSettings(),
+				WorkQueue:              buildDefaultWorkQueueSettings(10),
 				WatchLocalApplications: true,
 			},
 			TimedCommitStatus: promoter.TimedCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			GitCommitStatus: promoter.GitCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			WebRequestCommitStatus: promoter.WebRequestCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			DependentsSuccessfulCommitStatus: promoter.DependentsSuccessfulCommitStatusConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			ScheduledCommitStatus: promoter.ScheduledCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			RestoreActiveCommit: promoter.RestoreActiveCommitConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 		},
 	}
 }
 
-// buildDefaultWorkQueueSettings creates the default settings for a WorkQueue
-func buildDefaultWorkQueueSettings() promoter.WorkQueue {
+// buildDefaultWorkQueueSettings creates the default settings for a WorkQueue,
+// matching upstream gitops-promoter config/config/controllerconfiguration.yaml.
+func buildDefaultWorkQueueSettings(maxConcurrentReconciles int) promoter.WorkQueue {
 	return promoter.WorkQueue{
-		MaxConcurrentReconciles: 10,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 		RequeueDuration: metav1.Duration{
 			Duration: 5 * time.Minute,
 		},
@@ -134,7 +144,7 @@ func buildDefaultWorkQueueSettings() promoter.WorkQueue {
 				{
 					FastSlow: &promoter.FastSlow{
 						FastDelay: metav1.Duration{
-							Duration: 1 * time.Minute,
+							Duration: 1 * time.Second,
 						},
 						SlowDelay: metav1.Duration{
 							Duration: 5 * time.Minute,

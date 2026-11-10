@@ -36,20 +36,20 @@ func ReconcilePromoterControllerClusterRoles(client client.Client, compName stri
 	reconciledClusterRoles := []*rbacv1.ClusterRole{}
 
 	for _, clusterRole := range clusterRolesToReconcile {
-		// If PolicyRule is empty that means user wants a custom already existing ClusterRole so it can be skipped
-		if !reflect.DeepEqual(clusterRole.policyRule, []rbacv1.PolicyRule{}) {
-			resultClusterRole, err := ReconcilePromoterClusterRole(client, compName, clusterRole.name, clusterRole.policyRule, cr, true)
+		if clusterRole.skipCreateWhenEmpty && reflect.DeepEqual(clusterRole.policyRule, []rbacv1.PolicyRule{}) {
+			// User wants a custom already existing ClusterRole: delete the generated default if present.
+			_, err := ReconcilePromoterClusterRole(client, compName, generatePromoterResourceNameWithNamespace(compName, cr), []rbacv1.PolicyRule{}, cr, false)
 			if err != nil {
 				return nil, err
 			}
-			reconciledClusterRoles = append(reconciledClusterRoles, resultClusterRole)
-		} else {
-			// Delete already existing generated cluster role if it exists and a custom cluster role wants to be used
-			_, err := ReconcilePromoterClusterRole(client, compName, generatePromoterResourceName(compName, cr), []rbacv1.PolicyRule{}, cr, false)
-			if err != nil {
-				return nil, err
-			}
+			continue
 		}
+
+		resultClusterRole, err := ReconcilePromoterClusterRole(client, compName, clusterRole.name, clusterRole.policyRule, cr, clusterRole.enabled)
+		if err != nil {
+			return nil, err
+		}
+		reconciledClusterRoles = append(reconciledClusterRoles, resultClusterRole)
 	}
 
 	return reconciledClusterRoles, nil
@@ -62,20 +62,20 @@ func ReconcilePromoterAPIServerClusterRoles(client client.Client, compName strin
 
 	enabled := cr.Spec.Promoter == nil || cr.Spec.Promoter.APIServer.IsEnabled()
 	for _, clusterRole := range clusterRolesToReconcile {
-		// If PolicyRule is empty that means user wants a custom already existing ClusterRole so it can be skipped
-		if !reflect.DeepEqual(clusterRole.policyRule, []rbacv1.PolicyRule{}) {
-			resultClusterRole, err := ReconcilePromoterClusterRole(client, compName, clusterRole.name, clusterRole.policyRule, cr, enabled)
+		if clusterRole.skipCreateWhenEmpty && reflect.DeepEqual(clusterRole.policyRule, []rbacv1.PolicyRule{}) {
+			// User wants a custom already existing ClusterRole: delete the generated default if present.
+			_, err := ReconcilePromoterClusterRole(client, compName, generatePromoterResourceNameWithNamespace(compName, cr), []rbacv1.PolicyRule{}, cr, false)
 			if err != nil {
 				return nil, err
 			}
-			reconciledClusterRoles = append(reconciledClusterRoles, resultClusterRole)
-		} else {
-			// Delete already existing generated cluster role if it exists and a custom cluster role wants to be used
-			_, err := ReconcilePromoterClusterRole(client, compName, generatePromoterResourceName(compName, cr), []rbacv1.PolicyRule{}, cr, false)
-			if err != nil {
-				return nil, err
-			}
+			continue
 		}
+
+		resultClusterRole, err := ReconcilePromoterClusterRole(client, compName, clusterRole.name, clusterRole.policyRule, cr, enabled && clusterRole.enabled)
+		if err != nil {
+			return nil, err
+		}
+		reconciledClusterRoles = append(reconciledClusterRoles, resultClusterRole)
 	}
 
 	return reconciledClusterRoles, nil

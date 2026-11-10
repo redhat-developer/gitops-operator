@@ -82,6 +82,9 @@ func main() {
 
 	copiedCRDFiles := updateGitOpsPromoterCRDs(gitOpsPromoterRepoRoot, gitopsOperatorRoot)
 	updateGitOpsPromoterCRDKustomization(gitopsOperatorRoot, copiedCRDFiles)
+	// operator-sdk generate bundle --overwrite does not delete orphaned CRD files already present
+	// under bundle/manifests, so remove stale promoter CRDs before regenerating the bundle.
+	removeStalePromoterBundleCRDs(gitopsOperatorRoot, copiedCRDFiles)
 
 	// config/manifests includes config/crd, so the bundle must be regenerated after the CRDs are
 	// copied. The aggregate update-dependencies runner processes the Argo CD updater first, whose
@@ -235,5 +238,37 @@ func updateGitOpsPromoterCRDKustomization(gitopsOperatorRoot string, copiedCRDFi
 	if err := os.WriteFile(kustomizationPath, []byte(strings.Join(newLines, "\n")), 0o600); err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to update %s: %v", kustomizationPath, err))
 		return
+	}
+}
+
+// removeStalePromoterBundleCRDs deletes promoter CRD YAMLs under bundle/manifests that are no
+// longer shipped upstream. Leaving them behind makes bundle validation fail with
+// "CRD is present in bundle but not defined in CSV".
+func removeStalePromoterBundleCRDs(gitopsOperatorRoot string, copiedCRDFiles []string) {
+	bundleManifestsDir := filepath.Join(gitopsOperatorRoot, "bundle", "manifests")
+	copied := make(map[string]bool, len(copiedCRDFiles))
+	for _, fname := range copiedCRDFiles {
+		copied[fname] = true
+	}
+
+	entries, err := os.ReadDir(bundleManifestsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		utils.ExitWithError(fmt.Errorf("unable to list bundle manifests in %s: %v", bundleManifestsDir, err))
+		return
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasPrefix(name, promoterCRDFilePrefix) || !strings.HasSuffix(name, ".yaml") || copied[name] {
+			continue
+		}
+		if err := os.Remove(filepath.Join(bundleManifestsDir, name)); err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to remove stale bundle CRD %s: %v", name, err))
+			return
+		}
+		fmt.Println("Removed stale bundle CRD", name)
 	}
 }

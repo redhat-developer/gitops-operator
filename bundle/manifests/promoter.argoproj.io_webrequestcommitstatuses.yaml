@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.21.0
+    controller-gen.kubebuilder.io/version: v0.23.0
   creationTimestamp: null
   name: webrequestcommitstatuses.promoter.argoproj.io
 spec:
@@ -66,6 +66,11 @@ spec:
                   Additional template variables (not in HTTPRequestSpec):
                     - {{ index .TriggerVariables "key" }}: result of trigger.when.variables.expression this reconcile (nil if not configured)
                     - {{ index .SuccessVariables "key" }}: result of success.when.variables.expression this reconcile (nil if not configured)
+
+                  In polling mode with reportOn: proposed, a reconcile for a SHA that already succeeded skips the HTTP request and
+                  evaluates success.when.variables.expression with Response nil. Guard reads of Response with Response != nil and
+                  fall back to SuccessOutput, so .SuccessVariables keeps the values from the request. A fixed fallback value replaces
+                  them, and an expression that fails without a Response leaves .SuccessVariables unset.
 
                   Examples: "External approval for {{ .Branch }}", "{{ .Phase }} - waiting for external approval".
 
@@ -240,8 +245,8 @@ spec:
                     x-kubernetes-validations:
                     - message: at most one of the fields in [basic bearer oauth2 tls
                         scm] may be set
-                      rule: '[has(self.basic),has(self.bearer),has(self.oauth2),has(self.tls),has(self.scm)].filter(x,x==true).size()
-                        <= 1'
+                      rule: (has(self.basic)?1:0)+(has(self.bearer)?1:0)+(has(self.oauth2)?1:0)+(has(self.tls)?1:0)+(has(self.scm)?1:0)
+                        <= 1
                   bodyTemplate:
                     description: |-
                       BodyTemplate is the request body to send.
@@ -254,6 +259,23 @@ spec:
                       HeaderTemplates are additional HTTP headers to include in the request.
                       The map key is the header name and the value is the header value (supports Go templates).
                       See HTTPRequestSpec for available template variables.
+                    type: object
+                  httpRequestVariables:
+                    description: |-
+                      HTTPRequestVariables optionally holds an expr expression that produces a free-form map of
+                      variables made available to URLTemplate, MethodTemplate, HeaderTemplates, and BodyTemplate
+                      as {{ index .HTTPRequestVariables "key" }}.
+                      Evaluated before the HTTP request (same timing as the templates above). Available in both
+                      polling and trigger modes. See HTTPRequestVariablesSpec for details.
+                    properties:
+                      expression:
+                        description: |-
+                          Expression is an expr expression that must return a map/object.
+                          The result is exposed to all httpRequest Go templates as .HTTPRequestVariables.
+                          Available variables match those documented on HTTPRequestSpec.
+                        type: string
+                    required:
+                    - expression
                     type: object
                   method:
                     description: |-
@@ -383,6 +405,7 @@ spec:
                                 - TriggerOutput (map[string]any): custom data from the previous when.output.expression evaluation
                                 - ResponseOutput (map[string]any): response data from the previous HTTP request (if any)
                                 - SuccessOutput (map[string]any): custom data from the previous success.when.output.expression evaluation
+                                - NamespaceMetadata (object): labels and annotations of the WebRequestCommitStatus's namespace (NamespaceMetadata.Labels, NamespaceMetadata.Annotations)
                                 - Variables (map[string]any): when spec.variables is set, the map returned by variables.expression this reconcile; omitted otherwise
 
                               Note: PromotionStrategy.Status.Environments is an ordered array representing the promotion sequence.
@@ -459,8 +482,7 @@ spec:
                 x-kubernetes-validations:
                 - message: exactly one of the fields in [polling trigger] must be
                     set
-                  rule: '[has(self.polling),has(self.trigger)].filter(x,x==true).size()
-                    == 1'
+                  rule: (has(self.polling)?1:0)+(has(self.trigger)?1:0) == 1
               promotionStrategyRef:
                 description: |-
                   PromotionStrategyRef references the PromotionStrategy this applies to.
@@ -480,6 +502,22 @@ spec:
                 required:
                 - name
                 type: object
+              publishTo:
+                default:
+                - scm
+                description: |-
+                  PublishTo is copied to spec.publishTo on each CommitStatus this controller creates.
+                  - "scm": the CommitStatus controller posts them to the SCM provider
+                  The default is ["scm"]. An empty list keeps them in Kubernetes and does not post them to the SCM.
+                  Omitting the field uses the default. Promotion gates use the phase in every case.
+                items:
+                  description: CommitStatusPublishTo is one destination a commit status
+                    can be published to.
+                  enum:
+                  - scm
+                  type: string
+                type: array
+                x-kubernetes-list-type: set
               reportOn:
                 default: proposed
                 description: |-
@@ -501,7 +539,8 @@ spec:
                   Evaluated every reconcile. See SuccessSpec.
                 properties:
                   when:
-                    description: When is evaluated every reconcile. See WhenWithOutputSpec.Expression.
+                    description: When is evaluated every reconcile. See SuccessSpec
+                      for return values and WhenWithOutputSpec.Expression for variables.
                     properties:
                       expression:
                         description: |-
@@ -517,6 +556,7 @@ spec:
                             - TriggerOutput (map[string]any): custom data from the previous when.output.expression evaluation
                             - ResponseOutput (map[string]any): response data from the previous HTTP request (if any)
                             - SuccessOutput (map[string]any): custom data from the previous success.when.output.expression evaluation
+                            - NamespaceMetadata (object): labels and annotations of the WebRequestCommitStatus's namespace (NamespaceMetadata.Labels, NamespaceMetadata.Annotations)
                             - Variables (map[string]any): when spec.variables is set, the map returned by variables.expression this reconcile; omitted otherwise
 
                           Note: PromotionStrategy.Status.Environments is an ordered array representing the promotion sequence.
@@ -704,7 +744,8 @@ spec:
                     phase:
                       description: |-
                         Phase represents the current phase of the validation.
-                        This controller sets only "pending" or "success"; it never sets "failure" (failure is allowed by the enum for API consistency).
+                        A boolean success expression yields only "pending" or "success"; "failure" requires the { phase } object
+                        return form documented on SuccessSpec.
                       enum:
                       - pending
                       - success
