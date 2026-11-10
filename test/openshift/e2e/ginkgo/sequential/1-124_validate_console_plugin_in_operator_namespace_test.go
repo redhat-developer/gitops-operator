@@ -47,9 +47,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// so on older clusters none of the plugin resources asserted below will ever be created.
 			k8sClient, _ := utils.GetE2ETestKubeClient()
 			ocpVersion, _ := util.GetClusterVersion(k8sClient)
+			GinkgoWriter.Println("1-124: OCP cluster version string:", ocpVersion)
 			if ocpVersionLessThanPluginMin(ocpVersion, common.DefaultDynamicPluginStartOCPVersion) {
 				Skip("Plugin reconciliation is disabled when OCP version < " + common.DefaultDynamicPluginStartOCPVersion + "; skipping 1-124 test")
 			}
+		})
+
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(openshiftGitopsOperatorNamespace, openshiftGitopsNamespace)
 		})
 
 		It("verifies that console plugin resources are deployed in the operator namespace, not the default ArgoCD namespace", func() {

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sequential
+package parallel
 
 import (
 	"context"
@@ -53,8 +53,8 @@ import (
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	Context("1-120_repo_server_system_ca_trust", Label("openshift"), func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+	Context("1-120_repo_server_system_ca_trust", func() {
 
 		var (
 			trustedHelmAppSource = &appv1alpha1.ApplicationSource{
@@ -73,8 +73,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			k8sClient    client.Client
 			ctx          context.Context
-			ns           *corev1.Namespace
-			cleanupNs    func()
 			image        string
 			imageVersion string
 
@@ -82,7 +80,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
@@ -93,16 +91,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			image, imageVersion = getArgoCDComponentImageAndVersion(k8sClient, ctx)
 		})
 
-		AfterEach(func() {
-			fixture.OutputDebugOnFail(ns)
-			if cleanupNs != nil {
-				cleanupNs()
-			}
-			purgeCtbs(ctx, k8sClient, clusterSupportsClusterTrustBundles)
-		})
-
-		It("ensures that missing Secret aborts startup", Label("openshift"), func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+		It("ensures that missing Secret aborts startup", func() {
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with missing Secret")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -124,14 +116,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			// Create a bundle with 2 CA certs in it. Ubuntu's update-ca-certificates issues a warning, but apparently it works
 			// It is desirable to test with multiple certs in one bundle because OpenShift permits it
 			combinedCtb := createCtbFromCerts(getCACert("github.com"), getCACert("github.io"))
-			_ = k8sClient.Delete(ctx, combinedCtb) // Exists only in case of previous failures
-			defer func() { _ = k8sClient.Delete(ctx, combinedCtb) }()
 			Expect(k8sClient.Create(ctx, combinedCtb)).To(Succeed())
+			DeferCleanup(func() { Expect(k8sClient.Delete(ctx, combinedCtb)).To(Succeed()) })
 
 			pluginCm, pluginContainer, pluginVolumes := createGitPullingPlugin(ns)
 			Expect(k8sClient.Create(ctx, pluginCm)).To(Succeed())
@@ -163,8 +156,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			)))
 		})
 
-		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("openshift"), func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+		It("ensures that CMs and Secrets are trusted in repo-server and plugins", func() {
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
 			Expect(k8sClient.Create(ctx, cmCert)).To(Succeed())
@@ -211,8 +206,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyCorrectlyConfiguredTrust(ctx, k8sClient, ns, trustedHelmAppSource, untrustedHelmAppSource)
 		})
 
-		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("openshift"), func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", func() {
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -243,8 +240,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(trustedHelmApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeUnknown))
 		})
 
-		It("ensures that empty trust keeps image certs in place", Label("openshift"), func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+		It("ensures that empty trust keeps image certs in place", func() {
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -257,8 +256,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(repoServerSystemCaTrust(k8sClient, ns)).Should(trustCerts(BeNumerically(">", 100), Not(BeEmpty())))
 		})
 
-		It("ensures that Secrets and ConfigMaps get reconciled", Label("openshift"), func() {
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+		It("ensures that Secrets and ConfigMaps get reconciled", func() {
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -349,10 +350,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			combinedCtb := createCtbFromCerts(getCACert("github.com"), getCACert("github.io"))
-			_ = k8sClient.Delete(ctx, combinedCtb) // Exists only in case of previous failures, must be deleted before argo starts!
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
 			argoCD := argoCDSpec(image, imageVersion, ns, argov1beta1api.ArgoCDRepoSpec{
@@ -369,10 +371,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(actualTrust).Should(trustCerts(Equal(0), Not(BeEmpty())), actualTrust.diagnose())
 
 			By("creating ClusterTrustBundle with 2 certs")
-			defer func() { _ = k8sClient.Delete(ctx, combinedCtb) }()
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, combinedCtb)).To(Succeed())
+				DeferCleanup(func() {
+					// Will be absent if successfully deleted later on
+					_ = k8sClient.Delete(ctx, combinedCtb)
+				})
 			})
+
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
 			Eventually(actualTrust, "30s", "5s").Should(trustCerts(Equal(2), Not(BeEmpty())), actualTrust.diagnose())
 
@@ -401,7 +407,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Skip("Cluster does not support ClusterTrustBundles")
 			}
 
-			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			ns, cleanupNs := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNs)
+			DeferCleanup(fixture.OutputDebugOnFail, ns)
 
 			// Use random label value not to collide with leftover CTBs fom other tests
 			labelVal := rand.String(5)
@@ -429,22 +437,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("adding ClusterTrustBundle with 1 cert")
 			oneCtb := createCtbFromCerts(getCACert("github.com"))
 			oneCtb.Labels["test"] = labelVal
-			oneCtb.Name = "acme.com:signer:repo-server-system-ca-trust-test-one"
+			oneCtb.Name = "acme.com:signer:" + oneCtb.Name
 			oneCtb.Spec.SignerName = signerName
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, oneCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, oneCtb)).To(Succeed()) })
 			})
+
 			actualTrust := repoServerSystemCaTrust(k8sClient, ns)
 			Eventually(actualTrust, "30s", "5s").Should(trustCerts(Equal(1), Not(BeEmpty())), actualTrust.diagnose())
 
 			By("adding ClusterTrustBundle with other cert")
 			twoCtb := createCtbFromCerts(getCACert("github.io"))
 			twoCtb.Labels["test"] = labelVal
-			twoCtb.Name = "acme.com:signer:repo-server-system-ca-trust-test-two"
+			twoCtb.Name = "acme.com:signer:" + twoCtb.Name
 			twoCtb.Spec.SignerName = signerName
 			expectReconcile(k8sClient, ns, true, func() {
 				Expect(k8sClient.Create(ctx, twoCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, twoCtb)).To(Succeed()) })
 			})
+
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
 			Eventually(actualTrust, "30s", "5s").Should(trustCerts(Equal(2), Not(BeEmpty())), actualTrust.diagnose())
 
@@ -467,7 +479,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fourCtb := createCtbFromCerts(getCACert("google.com"))
 			expectReconcile(k8sClient, ns, false, func() {
 				Expect(k8sClient.Create(ctx, fourCtb)).To(Succeed())
+				DeferCleanup(func() { Expect(k8sClient.Delete(ctx, fourCtb)).To(Succeed()) })
 			})
+
 			actualTrust = repoServerSystemCaTrust(k8sClient, ns)
 			Consistently(actualTrust, "10s", "5s").Should(trustCerts(Equal(0), Not(BeEmpty())), actualTrust.diagnose())
 		})
@@ -648,9 +662,9 @@ func createCtbFromCerts(bundle ...string) *certificatesv1beta1.ClusterTrustBundl
 			APIVersion: "certificates.k8s.io/v1beta1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "repo-server-system-ca-trust",
+			Name: "repo-server-system-ca-trust-" + rand.String(5),
 			Labels: map[string]string{
-				"argocd-operator-test": "repo_server_system_ca_trust",
+				"gitops-operator-test": "repo_server_system_ca_trust",
 			},
 		},
 		Spec: certificatesv1beta1.ClusterTrustBundleSpec{
@@ -869,7 +883,7 @@ func verifyCorrectlyConfiguredTrust(ctx context.Context, k8sClient client.Client
 	trustedHelmApp := createHelmApp(ns, trustedHelmAppSource)
 	Expect(k8sClient.Create(ctx, trustedHelmApp)).To(Succeed())
 
-	trustedPluginApp := createPluginApp(ns, "https://github.com/argoproj-labs/argocd-operator.git")
+	trustedPluginApp := createPluginApp(ns, "https://github.com/redhat-developer/gitops-operator.git")
 	Expect(k8sClient.Create(ctx, trustedPluginApp)).To(Succeed())
 
 	Eventually(func(g Gomega) {
@@ -888,15 +902,7 @@ func verifyCorrectlyConfiguredTrust(ctx context.Context, k8sClient client.Client
 
 		g.Expect(trustedPluginApp).Should(appFixture.HaveNoConditions())
 		g.Expect(trustedPluginApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
-	}, "20s", "5s").Should(Succeed())
-}
-
-// purgeCtbs deletes all of the cluster-wide resource, that can get leaked on test failure/abort.
-func purgeCtbs(ctx context.Context, k8sClient client.Client, clusterSupportsClusterTrustBundles bool) {
-	if clusterSupportsClusterTrustBundles {
-		expr := client.MatchingLabels{"argocd-operator-test": "repo_server_system_ca_trust"}
-		Expect(k8sClient.DeleteAllOf(ctx, &certificatesv1beta1.ClusterTrustBundle{}, expr)).To(Succeed())
-	}
+	}, "30s", "5s").Should(Succeed())
 }
 
 // getArgoCDComponentImageAndVersion ensures rhel based image is used for testing this.
