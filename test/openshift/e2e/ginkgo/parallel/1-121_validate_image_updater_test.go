@@ -18,6 +18,7 @@ package parallel
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -26,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -114,7 +116,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("waiting for ArgoCD CR to be reconciled and the instance to be ready")
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
-			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying all workloads are started")
 			deploymentsShouldExist := []string{"argocd-redis", "argocd-server", "argocd-repo-server", "argocd-argocd-image-updater-controller"}
@@ -124,6 +125,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Eventually(depl, "2m", "5s").Should(deplFixture.HaveReplicas(1), "Deployment "+deplName+" did not have correct replicas within timeout")
 				Eventually(depl, "3m", "5s").Should(deplFixture.HaveReadyReplicas(1), "Deployment "+deplName+" was not ready within timeout")
 			}
+			// verify network policy is created
+			networkPolicy := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("%s-%s", argoCD.Name, "image-updater-network-policy"), Namespace: ns.Name}}
+			Eventually(networkPolicy, "1m", "5s").Should(k8sFixture.ExistByName())
+			argocdFixture.Update(argoCD, func(argoCD *argov1beta1api.ArgoCD) {
+				argoCD.Spec.NetworkPolicy = argov1beta1api.ArgoCDNetworkPolicySpec{}
+				argoCD.Spec.NetworkPolicy.Enabled = new(false)
+			})
+			Eventually(networkPolicy, "1m", "5s").Should(k8sFixture.NotExistByName())
 
 			statefulSet := &appsv1.StatefulSet{ObjectMeta: metav1.ObjectMeta{Name: "argocd-application-controller", Namespace: ns.Name}}
 			Eventually(statefulSet).Should(k8sFixture.ExistByName())
