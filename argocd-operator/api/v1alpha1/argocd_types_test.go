@@ -67,7 +67,7 @@ func Test_PrincipalHASpec_Fields(t *testing.T) {
 		Enabled:                      &haEnabled,
 		PreferredRole:                "primary",
 		PeerAddress:                  "argocd-agent-principal-replica:8443",
-		PeerTLSSecretName:             "argocd-agent-ha-peer-tls",
+		PeerTLSSecretName:            "argocd-agent-ha-peer-tls",
 		AllowedReplicationClients:    []string{"argocd-agent-principal-peer"},
 		AdminPort:                    &adminPort,
 		AdminAuth:                    "mtls:subject:CN=ha-admin",

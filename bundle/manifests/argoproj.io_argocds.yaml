@@ -1008,9 +1008,7 @@ spec:
                           peerTLSSecretName:
                             description: |-
                               PeerTLSSecretName is the name of the TLS secret containing the dedicated
-                              replication client certificate (tls.crt, tls.key). Issued by
-                              `argocd-agentctl pki issue principal-peer`. The operator mounts this secret
-                              into the principal pod and sets ARGOCD_PRINCIPAL_HA_PEER_TLS_CERT/KEY.
+                              replication client certificate (tls.crt, tls.key).
                               (default: "argocd-agent-ha-peer-tls")
                             type: string
                           preferredRole:
@@ -14289,9 +14287,7 @@ spec:
                           peerTLSSecretName:
                             description: |-
                               PeerTLSSecretName is the name of the TLS secret containing the dedicated
-                              replication client certificate (tls.crt, tls.key). Issued by
-                              `argocd-agentctl pki issue principal-peer`. The operator mounts this secret
-                              into the principal pod and sets ARGOCD_PRINCIPAL_HA_PEER_TLS_CERT/KEY.
+                              replication client certificate (tls.crt, tls.key).
                               (default: "argocd-agent-ha-peer-tls")
                             type: string
                           preferredRole:
