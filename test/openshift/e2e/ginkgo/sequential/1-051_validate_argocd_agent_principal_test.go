@@ -543,7 +543,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("should handle route enabled configuration correctly", func() {
+		It("should handle route enabled configuration correctly", Label("openshift"), func() {
 
 			By("Create ArgoCD instance with route enabled")
 
@@ -919,7 +919,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(principalNetworkPolicy).Should(k8sFixture.NotExistByName())
 		})
 
-		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", func() {
+		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", Label("openshift"), func() {
 
 			By("Create ArgoCD instance with principal enabled and prometheus enabled")
 

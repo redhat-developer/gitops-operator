@@ -12,6 +12,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-040-validate_quoted_RBAC_group_names", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
@@ -30,7 +31,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		})
 
-		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", func() {
+		It("creates a project role 'somerole' and group claim, and verifies group claim contains the expected data", Label("openshift"), func() {
 
 			defaultArgoCD, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
 			Expect(err).ToNot(HaveOccurred())

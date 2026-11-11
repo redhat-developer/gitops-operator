@@ -30,12 +30,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-052_validate_rolebinding_number", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies RoleBindings are added to namespace-scoped Namespace when that Namespace is managed by openshift-gitops", func() {
+		It("verifies RoleBindings are added to namespace-scoped Namespace when that Namespace is managed by openshift-gitops", Label("openshift"), func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()

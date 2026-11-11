@@ -36,12 +36,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-020_validate_redis_ha_nonha", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("validates Redis HA and Non-HA", func() {
+		It("validates Redis HA and Non-HA", Label("openshift"), func() {
 
 			// This test enables HA, so it needs to be running on a cluster with at least 3 nodes
 			node.ExpectHasAtLeastXNodes(3)

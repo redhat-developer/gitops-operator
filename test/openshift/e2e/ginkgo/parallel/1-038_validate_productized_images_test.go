@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
-
+		// TODO: check if this can be ported for xKS testing
 		It("validates that Argo CD components are based on registry.redhat.io images", func() {
 
 			if fixture.EnvNonOLM() {

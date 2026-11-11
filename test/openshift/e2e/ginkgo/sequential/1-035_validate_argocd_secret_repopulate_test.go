@@ -20,6 +20,7 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-035-validate_argocd_secret_repopulate", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -33,7 +34,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies 'argocd-secret' secret is regenerated and we are able to login using that Secret", func() {
+		It("verifies 'argocd-secret' secret is regenerated and we are able to login using that Secret", Label("openshift"), func() {
 
 			By("checking OpenShift GitOps ArgoCD instance is available")
 			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()
