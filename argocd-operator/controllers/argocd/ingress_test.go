@@ -152,7 +152,15 @@ func TestReconcileArgoCD_reconcile_GRPCIngress_updates(t *testing.T) {
 	}
 
 	assert.NoError(t, r.reconcileArgoServerGRPCIngress(a))
+	assert.Equal(t, "GRPCS", get().Annotations[common.ArgoCDKeyIngressBackendProtocol])
+
+	// insecure server serves plaintext, backend must follow
+	a.Spec.Server.Insecure = true
+	assert.NoError(t, r.reconcileArgoServerGRPCIngress(a))
 	assert.Equal(t, "GRPC", get().Annotations[common.ArgoCDKeyIngressBackendProtocol])
+	a.Spec.Server.Insecure = false
+	assert.NoError(t, r.reconcileArgoServerGRPCIngress(a))
+	assert.Equal(t, "GRPCS", get().Annotations[common.ArgoCDKeyIngressBackendProtocol])
 
 	// CR changes must reach the existing ingress
 	nginx := "nginx"
@@ -161,7 +169,7 @@ func TestReconcileArgoCD_reconcile_GRPCIngress_updates(t *testing.T) {
 	a.Spec.Server.GRPC.Ingress.Path = "/grpc"
 	assert.NoError(t, r.reconcileArgoServerGRPCIngress(a))
 	i := get()
-	assert.Equal(t, map[string]string{"foo": "bar", common.ArgoCDKeyIngressBackendProtocol: "GRPC"}, i.Annotations)
+	assert.Equal(t, map[string]string{"foo": "bar", common.ArgoCDKeyIngressBackendProtocol: "GRPCS"}, i.Annotations)
 	assert.Equal(t, "nginx", *i.Spec.IngressClassName)
 	assert.Equal(t, "/grpc", i.Spec.Rules[0].HTTP.Paths[0].Path)
 

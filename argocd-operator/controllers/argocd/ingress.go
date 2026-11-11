@@ -198,7 +198,12 @@ func (r *ReconcileArgoCD) reconcileArgoServerGRPCIngress(cr *argoproj.ArgoCD) er
 
 	// Add default annotations
 	atns := make(map[string]string)
-	atns[common.ArgoCDKeyIngressBackendProtocol] = "GRPC"
+	// argocd-server serves TLS unless insecure is set, so plaintext GRPC would 502.
+	grpcProtocol := "GRPCS"
+	if cr.Spec.Server.Insecure {
+		grpcProtocol = "GRPC"
+	}
+	atns[common.ArgoCDKeyIngressBackendProtocol] = grpcProtocol
 
 	// User annotations are merged over the defaults (per key)
 	atns = mergeAnnotations(atns, cr.Spec.Server.GRPC.Ingress.Annotations)

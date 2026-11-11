@@ -89,7 +89,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				g.Expect(i.Annotations).To(HaveKeyWithValue(backendProtocolKey, "HTTPS"))
 				g.Expect(i.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Name).To(Equal("https"))
 			}, "1m", "2s").Should(Succeed())
-			Expect(getIngress(grpcIngress.Name, ns.Name).Annotations).To(HaveKeyWithValue(backendProtocolKey, "GRPC"))
+			Expect(getIngress(grpcIngress.Name, ns.Name).Annotations).To(HaveKeyWithValue(backendProtocolKey, "GRPCS"))
 
 			By("adding an annotation as another controller would")
 			k8sFixture.Update(serverIngress, func(o client.Object) {
