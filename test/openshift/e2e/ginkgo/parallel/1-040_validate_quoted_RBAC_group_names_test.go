@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"context"
@@ -14,11 +14,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-040-validate_quoted_RBAC_group_names", func() {
 
 		var (
+			cliSession        *argocdFixture.ArgoCDCLISession
 			cancelPortForward func()
 			cleanupNamespace  func()
 			k8sClient         client.Client
@@ -26,18 +27,22 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 			cancelPortForward = nil
 			cleanupNamespace = nil
+
+			var err error
+			cliSession, err = argocdFixture.NewArgoCDCLISession()
+			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
 			// Role deletion must happen while port-forward is still alive (before namespace cleanup kills the pods).
 			if cancelPortForward != nil {
 				By("deleting the role we created during the test")
-				_, err := argocdFixture.RunArgoCDCLI("proj", "role", "delete", "default", "somerole")
+				_, err := cliSession.RunArgoCDCLI("proj", "role", "delete", "default", "somerole")
 				Expect(err).ToNot(HaveOccurred())
 				cancelPortForward()
 				cancelPortForward = nil
@@ -65,18 +70,18 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("logging in to Argo CD instance")
 			var err error
-			cancelPortForward, err = argocdFixture.LogInToArgoCDInstanceWithoutRoute(argocd.Name, namespace.Name)
+			cancelPortForward, err = cliSession.LogInToArgoCDInstanceWithoutRoute(argocd.Name, namespace.Name)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Creating a new 'somerole' role in default project")
-			output, err := argocdFixture.RunArgoCDCLI("proj", "role", "create", "default", "somerole")
+			output, err := cliSession.RunArgoCDCLI("proj", "role", "create", "default", "somerole")
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(output).To(ContainSubstring("Role 'somerole' created"))
 
 			By("waiting for Argo CD to verify the role exists before we add to it (there seems to be some kind of intermittent race condition here in Argo CD itself, where create succeeds in the previous step, but we received 503 in the next step)")
 			Eventually(func() bool {
-				output, err := argocdFixture.RunArgoCDCLI("proj", "role", "get", "default", "somerole")
+				output, err := cliSession.RunArgoCDCLI("proj", "role", "get", "default", "somerole")
 				if err != nil {
 					GinkgoWriter.Println("error:", err)
 					return false
@@ -87,7 +92,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}, "30s", "5s").Should(BeTrue())
 
 			By("adding a group claim to the somerole role")
-			output, err = argocdFixture.RunArgoCDCLI("proj", "role", "add-group", "default", "somerole", "\"CN=foo,OU=bar,O=baz\"")
+			output, err = cliSession.RunArgoCDCLI("proj", "role", "add-group", "default", "somerole", "\"CN=foo,OU=bar,O=baz\"")
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(output).To(ContainSubstring("added to role 'somerole'"))

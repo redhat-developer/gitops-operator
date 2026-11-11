@@ -697,9 +697,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -716,6 +727,17 @@ spec:
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
                         type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
+                        type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
                           component.
@@ -724,6 +746,30 @@ spec:
                             description: ServerAddress is the address of the Redis
                               server to be used by the PrincAgentipal component.
                             type: string
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Agent component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Agent component.
@@ -940,9 +986,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -985,6 +1042,17 @@ spec:
                               to restrict the names of namespaces to be created.
                             type: string
                         type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
+                        type: object
                       redis:
                         description: Redis defines the Redis options for the Principal
                           component.
@@ -1020,6 +1088,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
@@ -1074,6 +1149,30 @@ spec:
                             required:
                             - type
                             type: object
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Principal component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Principal
@@ -13760,9 +13859,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -13778,6 +13888,17 @@ spec:
                               ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
@@ -13847,6 +13968,30 @@ spec:
                               otherwise to an implementation-defined value. Requests cannot exceed Limits.
                               More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                             type: object
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Agent component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Agent component.
@@ -14067,9 +14212,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -14111,6 +14267,17 @@ spec:
                             description: NamespaceCreatePattern is a regexp pattern
                               to restrict the names of namespaces to be created.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Principal
@@ -14207,6 +14374,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
@@ -14261,6 +14435,30 @@ spec:
                             required:
                             - type
                             type: object
+                        type: object
+                      spiffe:
+                        description: SPIFFE defines the SPIFFE/SPIRE configuration
+                          for the Principal component.
+                        properties:
+                          authMethod:
+                            description: |-
+                              AuthMethod is the SPIFFE authentication method to use.
+                              Valid values: "jwt" (JWT-SVIDs, for federated SPIRE) or "mtls" (X.509-SVIDs, for centralized SPIRE).
+                              Default: "jwt"
+                            enum:
+                            - jwt
+                            - mtls
+                            type: string
+                          csiDriverName:
+                            description: |-
+                              CSIDriverName is the name of the CSI driver used to mount the SPIFFE workload API socket.
+                              Default: "csi.spiffe.io"
+                            type: string
+                          enabled:
+                            description: |-
+                              Enabled enables SPIFFE/SPIRE-based authentication for this component.
+                              Must be set to true to activate SPIFFE; all other fields are optional and fall back to defaults.
+                            type: boolean
                         type: object
                       tls:
                         description: TLS defines the TLS options for the Principal
@@ -16290,6 +16488,27 @@ spec:
                     items:
                       type: string
                     type: array
+                  goRuntime:
+                    description: |-
+                      GoRuntime configures automatic Go runtime tuning for the Application Controller.
+                      Tuning is enabled cluster-wide by default; set DISABLE_GO_RUNTIME_TUNING to "true"
+                      on the operator to disable it across all instances. This field cannot re-enable
+                      tuning when the operator-level kill switch is set.
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
+                          Cannot re-enable tuning when the operator-level kill switch (DISABLE_GO_RUNTIME_TUNING=true) is set.
+                        type: boolean
+                      memoryLimitPercent:
+                        description: |-
+                          MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 80.
+                          Represents headroom reserved for non-heap memory and GC pauses.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                    type: object
                   initContainers:
                     description: InitContainers defines the list of initialization
                       containers for the Application Controller component.
