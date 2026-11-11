@@ -121,6 +121,10 @@ func verifyVersionAPI() error {
 func verifySCCAPI() error {
 	found, err := argoutil.VerifyAPI(securityv1.GroupName, securityv1.GroupVersion.Version)
 	if err != nil {
+		// Probe failure is not confirmed absence: fall back to OpenShift detection so we
+		// don't set fixed UIDs that SCC admission would reject. Relies on verifyVersionAPI
+		// running first in InspectCluster.
+		sccAPIFound = IsOpenShiftCluster()
 		return err
 	}
 	sccAPIFound = found
