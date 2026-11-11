@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
@@ -61,7 +63,10 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 			return nil
 		}
 
-		deployment, changed := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		deployment, changed, err := updateDeploymentIfChanged(compName, saName, cr, deployment, centralTLSProfile)
+		if err != nil {
+			return err
+		}
 		if changed {
 			argoutil.LogResourceUpdate(log, deployment, "principal deployment is being updated")
 			if err := client.Update(context.TODO(), deployment); err != nil {
@@ -81,7 +86,11 @@ func ReconcilePrincipalDeployment(client client.Client, compName, saName string,
 	}
 
 	argoutil.LogResourceCreation(log, deployment)
-	deployment.Spec = buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	spec, err := buildPrincipalSpec(compName, saName, cr, centralTLSProfile)
+	if err != nil {
+		return err
+	}
+	deployment.Spec = spec
 	if err := client.Create(context.TODO(), deployment); err != nil {
 		return fmt.Errorf("failed to create principal deployment %s in namespace %s: %v", deployment.Name, cr.Namespace, err)
 	}
@@ -98,9 +107,20 @@ func buildDeployment(compName string, cr *argoproj.ArgoCD) *appsv1.Deployment {
 	}
 }
 
-func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) appsv1.DeploymentSpec {
+func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) (appsv1.DeploymentSpec, error) {
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return appsv1.DeploymentSpec{}, err
+	}
+
+	volumeMounts := append(buildVolumeMounts(), redisAuthMount)
+	volumes := append(buildVolumes(), redisAuthVolume)
+	if hasPrincipalSPIFFE(cr) {
+		volumeMounts = append(volumeMounts, buildSpiffeVolumeMount())
+		volumes = append(volumes, buildSpiffeVolume(getPrincipalSpiffeCSIDriver(cr)))
+	}
+
 	return appsv1.DeploymentSpec{
 		Selector: buildSelector(compName, cr),
 		Template: corev1.PodTemplateSpec{
@@ -117,16 +137,16 @@ func buildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, centralTLS
 						Args:            buildArgs(compName),
 						SecurityContext: buildSecurityContext(),
 						Ports:           buildPorts(compName),
-						VolumeMounts:    append(buildVolumeMounts(), redisAuthMount),
+						VolumeMounts:    volumeMounts,
 						Resources:       getPrincipalResources(cr),
 					},
 				},
 				ServiceAccountName: saName,
-				Volumes:            append(buildVolumes(), redisAuthVolume),
+				Volumes:            volumes,
 				PriorityClassName:  cr.Spec.PriorityClassName,
 			},
 		},
-	}
+	}, nil
 }
 
 func buildSelector(compName string, cr *argoproj.ArgoCD) *metav1.LabelSelector {
@@ -251,9 +271,9 @@ func buildVolumes() []corev1.Volume {
 }
 
 // updateDeploymentIfChanged compares the current deployment with the desired state
-// and updates it if any changes are detected. Returns the updated deployment and a boolean
-// indicating whether any changes were made.
-func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool) {
+// and updates it if any changes are detected. Returns the updated deployment, a boolean
+// indicating whether any changes were made, and an error if desired state cannot be built.
+func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, deployment *appsv1.Deployment, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, bool, error) {
 	changed := false
 
 	if !reflect.DeepEqual(deployment.Spec.Selector, buildSelector(compName, cr)) {
@@ -279,7 +299,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		changed = true
 		deployment.Spec.Template.Spec.Containers[0].Name = generateAgentResourceName(cr.Name, compName)
 	}
-	envParams := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	envParams, err := buildPrincipalContainerEnv(cr, centralTLSProfile)
+	if err != nil {
+		return nil, false, err
+	}
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Env, envParams) {
 		log.Info("deployment container env is being updated")
 		changed = true
@@ -295,6 +318,10 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 	redisAuthVolume, redisAuthMount := argoutil.MountRedisAuthToArgo(cr)
 	desiredVolumeMounts := append(buildVolumeMounts(), redisAuthMount)
 	desiredVolumes := append(buildVolumes(), redisAuthVolume)
+	if hasPrincipalSPIFFE(cr) {
+		desiredVolumeMounts = append(desiredVolumeMounts, buildSpiffeVolumeMount())
+		desiredVolumes = append(desiredVolumes, buildSpiffeVolume(getPrincipalSpiffeCSIDriver(cr)))
+	}
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].VolumeMounts, desiredVolumeMounts) {
 		log.Info("deployment container volume mounts are being updated")
 		changed = true
@@ -338,15 +365,30 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		deployment.Spec.Template.Spec.PriorityClassName = cr.Spec.PriorityClassName
 	}
 
-	return deployment, changed
+	return deployment, changed, nil
 }
 
-func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) []corev1.EnvVar {
-	arguments := getPrincipalTlsConfig(centralTLSProfile)
+func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) ([]corev1.EnvVar, error) {
+	arguments, err := getPrincipalTlsConfig(centralTLSProfile)
+	if err != nil {
+		return nil, err
+	}
 	env := []corev1.EnvVar{
+		// Runtime-switchable settings that are sourced from the params ConfigMap to avoid having
+		// to restart the principal when the values change.
 		{
-			Name:  EnvArgoCDPrincipalLogLevel,
-			Value: getPrincipalLogLevel(cr),
+			Name:      EnvArgoCDPrincipalLogLevel,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalLogLevelKey),
+		}, {
+			Name:      EnvArgoCDPrincipalFullDetail,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalFullDetailKey),
+		}, {
+			Name:      EnvArgoCDPrincipalPProfEnabled,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalPProfEnabledKey),
+		},
+		{
+			Name:  EnvArgoCDPrincipalParamsConfigMap,
+			Value: common.ArgoCDAgentParamsConfigMapName,
 		}, {
 			Name:  EnvArgoCDPrincipalNamespace,
 			Value: cr.Namespace,
@@ -408,6 +450,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalCipherSuites,
 			Value: arguments["--tlsciphers"],
 		}, {
+			Name:  EnvArgoCDPrincipalTLSCurvePreferences,
+			Value: arguments["--tlsCurvePreferences"],
+		}, {
 			Name:  EnvArgoCDPrincipalJwtSecretName,
 			Value: getPrincipalJWTSecretName(cr),
 		}, {
@@ -423,9 +468,23 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalSelfRegistrationClientCertSecret,
 			Value: getPrincipalSelfRegistrationClientCertSecret(cr),
 		}, {
+			Name:  EnvArgoCDPrincipalSelfRegistrationSecretLabels,
+			Value: getPrincipalSelfRegistrationSecretLabels(cr),
+		}, {
 			Name:  EnvArgoCDPrincipalResourceProxyAddress,
 			Value: getPrincipalResourceProxyAddress(cr),
 		},
+	}
+
+	if hasPrincipalSPIFFE(cr) {
+		env = append(env, corev1.EnvVar{
+			Name:  EnvArgoCDPrincipalSpireAgentSocket,
+			Value: principalSpireSocketURI,
+		})
+		env = append(env, corev1.EnvVar{
+			Name:  EnvArgoCDPrincipalSpireAuthMethod,
+			Value: getPrincipalSpireAuthMethod(cr),
+		})
 	}
 
 	env = append(env, argoutil.GetRedisAuthEnv()...)
@@ -435,13 +494,16 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		env = append(env, cr.Spec.ArgoCDAgent.Principal.Env...)
 	}
 
-	return env
+	return env, nil
 }
 
 // These constants are environment variables that correspond to the environment variables
 // used to configure Argo CD agent, and should match the names exactly from the agent
 const (
 	EnvArgoCDPrincipalLogLevel                         = "ARGOCD_PRINCIPAL_LOG_LEVEL"
+	EnvArgoCDPrincipalFullDetail                       = "ARGOCD_PRINCIPAL_FULL_DETAIL"
+	EnvArgoCDPrincipalPProfEnabled                     = "ARGOCD_PRINCIPAL_PPROF_ENABLED"
+	EnvArgoCDPrincipalParamsConfigMap                  = "ARGOCD_PRINCIPAL_PARAMS_CONFIGMAP"
 	EnvArgoCDPrincipalLogFormat                        = "ARGOCD_PRINCIPAL_LOG_FORMAT"
 	EnvArgoCDPrincipalNamespace                        = "ARGOCD_PRINCIPAL_NAMESPACE"
 	EnvArgoCDPrincipalAllowedNamespaces                = "ARGOCD_PRINCIPAL_ALLOWED_NAMESPACES"
@@ -468,12 +530,45 @@ const (
 	EnvArgoCDPrincipalCipherSuites                     = "ARGOCD_PRINCIPAL_TLS_CIPHERSUITES"
 	EnvArgoCDPrincipalEnableSelfClusterRegistration    = "ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION"
 	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
+	EnvArgoCDPrincipalSelfRegistrationSecretLabels     = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_SECRET_LABELS"
 	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
+	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
+	EnvArgoCDPrincipalSpireAgentSocket                 = "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET"
+	EnvArgoCDPrincipalSpireAuthMethod                  = "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD"
+
+	// principalSpireSocketDir is the directory containing the SPIRE Agent socket injected by the CSI driver.
+	principalSpireSocketDir = "/run/spire/sockets"
+
+	// principalSpireSocketFile is the SPIRE Agent socket filename.
+	principalSpireSocketFile = "spire-agent.sock"
+
+	// principalSpireSocketURI is the UNIX socket URI for the SPIRE Agent.
+	principalSpireSocketURI = "unix://" + principalSpireSocketDir + "/" + principalSpireSocketFile
+
+	// defaultSpiffeCSIDriver is the default CSI driver name for SPIFFE workload API.
+	defaultSpiffeCSIDriver = "csi.spiffe.io"
+
+	// spiffeWorkloadAPIVolumeName is the name used for the SPIFFE Workload API CSI volume.
+	spiffeWorkloadAPIVolumeName = "spiffe-workload-api"
+
+	// defaultPrincipalSPIFFEJWTAuth is the default principal auth pattern when SPIFFE JWT-SVIDs are used.
+	// Pattern: spiffe://<trust-domain>/ns/<namespace>/argocd/agent/<agent-name>
+	defaultPrincipalSPIFFEJWTAuth = "spiffe-jwt:spiffe://[^/]+/ns/[^/]+/argocd/agent/(.+)"
+
+	// defaultPrincipalSPIFFEMTLSAuth is the default principal auth pattern when SPIFFE X.509-SVIDs are used.
+	// Pattern: spiffe://<trust-domain>/ns/<namespace>/argocd/agent/<agent-name>
+	defaultPrincipalSPIFFEMTLSAuth = "mtls:uri:spiffe://[^/]+/ns/[^/]+/argocd/agent/(.+)"
 )
 
-func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[string]string {
+// getPrincipalTlsConfig maps the cluster TLS security profile into env values for the
+// argocd-agent principal process (ARGOCD_PRINCIPAL_TLS_*). Curve preferences are converted
+// from OpenShift TLSGroup names to Go crypto/tls CurveID names and joined with commas, as
+// expected by ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES. Empty curve preferences mean the
+// principal keeps its default behavior; a non-empty profile with no Go-supported groups
+// is an error so an incompatible profile is not silently ignored.
+func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) (map[string]string, error) {
 	if centralTLSProfile.DisableClusterTLSProfile {
-		return nil
+		return nil, nil
 	}
 	arguments := make(map[string]string)
 	if v := argoutil.AgentTLSProtocolVersionString(centralTLSProfile.MinVersion); v != "" {
@@ -500,15 +595,17 @@ func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) map[st
 			arguments["--tlsciphers"] = strings.Join(ciphers, ",")
 		}
 	}
-	return arguments
-}
-
-// Logging Configuration
-func getPrincipalLogLevel(cr *argoproj.ArgoCD) string {
-	if hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.LogLevel != "" {
-		return cr.Spec.ArgoCDAgent.Principal.LogLevel
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurves(centralTLSProfile.CurvePreferences, "argocd-agent principal")
+	if err != nil {
+		return nil, err
 	}
-	return "info"
+	if curves != "" {
+		// MapOpenShiftTLSGroupsToGoCurves joins with ":" for components that expect that
+		// separator; the agent principal expects a comma-separated list.
+		arguments["--tlsCurvePreferences"] = strings.ReplaceAll(curves, ":", ",")
+	}
+
+	return arguments, nil
 }
 
 func getPrincipalLogFormat(cr *argoproj.ArgoCD) string {
@@ -577,11 +674,44 @@ func getPrincipalJWTAllowGenerate(cr *argoproj.ArgoCD) string {
 	return "false"
 }
 
-// Authentication Configuration
-func getPrincipalAuth(cr *argoproj.ArgoCD) string {
-	if hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.Auth != "" {
-		return cr.Spec.ArgoCDAgent.Principal.Auth
+// getEffectivePrincipalAuth returns the auth configuration for the principal.
+// If auth is explicitly set, it returns that value.
+// If auth is empty but SPIFFE is configured, it returns the default SPIFFE JWT auth pattern
+func getEffectivePrincipalAuth(cr *argoproj.ArgoCD) string {
+	if cr.Spec.ArgoCDAgent == nil || cr.Spec.ArgoCDAgent.Principal == nil {
+		return ""
 	}
+
+	principal := cr.Spec.ArgoCDAgent.Principal
+
+	// If auth is explicitly set, use it
+	if principal.Auth != "" {
+		return principal.Auth
+	}
+
+	// If SPIFFE is enabled but auth is not set, infer the default pattern
+	if principal.SPIFFE != nil && principal.SPIFFE.Enabled {
+		authMethod := argoproj.SpiffeAuthMethodJWT
+		if principal.SPIFFE.AuthMethod != "" {
+			authMethod = principal.SPIFFE.AuthMethod
+		}
+
+		switch authMethod {
+		case argoproj.SpiffeAuthMethodJWT:
+			return defaultPrincipalSPIFFEJWTAuth
+		case argoproj.SpiffeAuthMethodMTLS:
+			return defaultPrincipalSPIFFEMTLSAuth
+		}
+	}
+	return ""
+}
+
+func getPrincipalAuth(cr *argoproj.ArgoCD) string {
+	auth := getEffectivePrincipalAuth(cr)
+	if auth != "" {
+		return auth
+	}
+	// Default fallback for non-SPIFFE configurations
 	return "mtls:CN=([^,]+)"
 }
 
@@ -719,8 +849,70 @@ func getPrincipalSelfRegistrationClientCertSecret(cr *argoproj.ArgoCD) string {
 	return ""
 }
 
+func getPrincipalSelfRegistrationSecretLabels(cr *argoproj.ArgoCD) string {
+	if !hasSelfRegistration(cr) || len(cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels) == 0 {
+		return ""
+	}
+	labels := cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	pairs := make([]string, 0, len(labels))
+	for _, k := range keys {
+		pairs = append(pairs, k+"="+labels[k])
+	}
+	return strings.Join(pairs, ",")
+}
+
 func getPrincipalResourceProxyAddress(cr *argoproj.ArgoCD) string {
 	return fmt.Sprintf("%s:%d",
 		generateAgentResourceName(cr.Name, string(argoproj.AgentComponentTypePrincipal)+"-resource-proxy"),
 		PrincipalResourceProxyServicePort)
+}
+
+// SPIFFE Configuration
+func hasPrincipalSPIFFE(cr *argoproj.ArgoCD) bool {
+	return cr.Spec.ArgoCDAgent != nil &&
+		cr.Spec.ArgoCDAgent.Principal != nil &&
+		cr.Spec.ArgoCDAgent.Principal.SPIFFE != nil &&
+		cr.Spec.ArgoCDAgent.Principal.SPIFFE.Enabled
+}
+
+func getPrincipalSpireAuthMethod(cr *argoproj.ArgoCD) string {
+	if hasPrincipalSPIFFE(cr) && cr.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod != "" {
+		return string(cr.Spec.ArgoCDAgent.Principal.SPIFFE.AuthMethod)
+	}
+	return string(argoproj.SpiffeAuthMethodJWT)
+}
+
+func getPrincipalSpiffeCSIDriver(cr *argoproj.ArgoCD) string {
+	if hasPrincipalSPIFFE(cr) && cr.Spec.ArgoCDAgent.Principal.SPIFFE.CSIDriverName != "" {
+		return cr.Spec.ArgoCDAgent.Principal.SPIFFE.CSIDriverName
+	}
+	return defaultSpiffeCSIDriver
+}
+
+// buildSpiffeVolumeMount returns a VolumeMount for the SPIFFE Workload API socket directory.
+func buildSpiffeVolumeMount() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      spiffeWorkloadAPIVolumeName,
+		MountPath: principalSpireSocketDir,
+		ReadOnly:  true,
+	}
+}
+
+// buildSpiffeVolume returns a Volume backed by the SPIFFE CSI driver.
+func buildSpiffeVolume(driverName string) corev1.Volume {
+	readOnly := true
+	return corev1.Volume{
+		Name: spiffeWorkloadAPIVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			CSI: &corev1.CSIVolumeSource{
+				Driver:   driverName,
+				ReadOnly: &readOnly,
+			},
+		},
+	}
 }

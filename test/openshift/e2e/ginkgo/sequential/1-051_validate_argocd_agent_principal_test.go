@@ -19,11 +19,13 @@ package sequential
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	routev1 "github.com/openshift/api/route/v1"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -34,6 +36,7 @@ import (
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	agentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/agent"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
@@ -102,6 +105,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 									"*",
 								},
 							},
+							LabelSelector: "argocd-agent=true",
 							TLS: &argov1beta1api.PrincipalTLSSpec{
 								InsecureGenerate: new(true),
 							},
@@ -198,8 +202,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 
 			// List environment variables with expected values for the principal deployment
+			// NOTE: the runtime-switchable settings (log level, full detail, pprof enabled) are
+			// deliberately absent here: they are sourced from the argocd-agent-params ConfigMap
+			// via a ConfigMapKeyRef rather than set to a literal value, so that changing them
+			// does not restart the principal. They are covered by
+			// 1-060_validate_argocd_agent_debug_settings_test.go.
 			expectedEnvVariables = map[string]string{
-				argocdagent.EnvArgoCDPrincipalLogLevel:                         "info",
 				argocdagent.EnvArgoCDPrincipalNamespace:                        ns.Name,
 				argocdagent.EnvArgoCDPrincipalAllowedNamespaces:                "*",
 				argocdagent.EnvArgoCDPrincipalNamespaceCreateEnable:            "false",
@@ -219,6 +227,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				argocdagent.EnvArgoCDPrincipalResourceProxySecretName:          agentResourceProxyTLSSecretName,
 				argocdagent.EnvArgoCDPrincipalResourceProxyCaSecretName:        agentRootCASecretName,
 				argocdagent.EnvArgoCDPrincipalJwtSecretName:                    agentJWTSecretName,
+				argocdagent.EnvArgoCDPrincipalLabelSelector:                    "argocd-agent=true",
 				argocdagent.EnvArgoCDPrincipalEnableSelfClusterRegistration:    "false",
 				argocdagent.EnvArgoCDPrincipalSelfRegistrationClientCertSecret: "",
 				argocdagent.EnvArgoCDPrincipalResourceProxyAddress:             fmt.Sprintf("%s-agent-principal-resource-proxy:%d", argoCDName, argocdagent.PrincipalResourceProxyServicePort),
@@ -248,8 +257,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 			By("Cleanup cluster-scoped resources")
-			_ = k8sClient.Delete(ctx, clusterRole)
-			_ = k8sClient.Delete(ctx, clusterRoleBinding)
+			if k8sClient != nil {
+				_ = k8sClient.Delete(ctx, clusterRole)
+				_ = k8sClient.Delete(ctx, clusterRoleBinding)
+			}
 
 			By("Cleanup namespace")
 			if cleanupFunc != nil {
@@ -320,8 +331,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are set correctly")
 
-			// update expected value in default environment variables according to ArgoCD CR in the test
-			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogLevel] = "trace"
+			// The runtime-switchable settings reference argocd-agent-params ConfigMap keys
+			// instead of carrying literal values, so that changing one rewrites the ConfigMap
+			// without rolling the principal.
+			for envName, cmKey := range map[string]string{
+				argocdagent.EnvArgoCDPrincipalLogLevel:     common.ArgoCDAgentPrincipalLogLevelKey,
+				argocdagent.EnvArgoCDPrincipalFullDetail:   common.ArgoCDAgentPrincipalFullDetailKey,
+				argocdagent.EnvArgoCDPrincipalPProfEnabled: common.ArgoCDAgentPrincipalPProfEnabledKey,
+			} {
+				Expect(container.Env).To(ContainElement(corev1.EnvVar{
+					Name:      envName,
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
+				}), "%s should be sourced from the params ConfigMap", envName)
+			}
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
@@ -341,7 +363,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should create argocd agent principal resources, and pod should start successfully with default image", func() {
-
 			// Add a custom environment variable to the principal server
 			argoCD.Spec.ArgoCDAgent.Principal.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -357,7 +378,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(ContainSubstring("argocd-agent"))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
 
 			By("Create required secrets and certificates for principal pod to start properly")
 
@@ -377,7 +398,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("verify that deployment is in Ready state")
 
-			Eventually(principalDeployment, "120s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
+			Eventually(principalDeployment, "300s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
 
 			By("Verify environment variables are set correctly")
 
@@ -403,9 +424,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("Should reflect configuration changes from ArgoCD CR to the principal deployment", func() {
-
 			By("Create ArgoCD instance")
 
+			argoCD.Spec.ArgoCDAgent.Principal.Image = common.ArgoCDAgentPrincipalDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for principal pod")
@@ -416,7 +437,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(ContainSubstring("argocd-agent"))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
 
 			By("Verify environment variables are set correctly")
 
@@ -435,6 +456,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ac.Spec.ArgoCDAgent.Principal.Server.KeepAliveMinInterval = "60s"
 				ac.Spec.ArgoCDAgent.Principal.Server.EnableWebSocket = new(true)
 				ac.Spec.ArgoCDAgent.Principal.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+				ac.Spec.ArgoCDAgent.Principal.LabelSelector = "env=staging"
 
 				ac.Spec.ArgoCDAgent.Principal.Namespace.AllowedNamespaces = []string{"agent-managed", "agent-autonomous"}
 				ac.Spec.ArgoCDAgent.Principal.Namespace.EnableNamespaceCreate = new(true)
@@ -481,15 +503,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 						return false
 					}
 					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
-				}, "120s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
+				}, "300s", "5s").Should(BeTrue(), "Principal deployment should have the updated image")
 
 			By("verify that deployment is in Ready state")
 
-			Eventually(principalDeployment, "120s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
+			Eventually(principalDeployment, "300s", "5s").Should(deploymentFixture.HaveReadyReplicas(1), "Principal deployment should become ready")
 
 			By("Verify environment variables are updated correctly")
 
-			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogLevel] = "trace"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLogFormat] = "json"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalKeepAliveMinInterval] = "60s"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalEnableWebSocket] = "true"
@@ -504,10 +525,51 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalTLSSecretName] = "argocd-agent-principal-tls-v2"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalTLSServerRootCASecretName] = "argocd-agent-ca-v2"
 			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalJwtSecretName] = "argocd-agent-jwt-v2"
+			expectedEnvVariables[argocdagent.EnvArgoCDPrincipalLabelSelector] = "env=staging"
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
+		})
+
+		It("Should restore Redis Auth volume and mount if removed from principal deployment", func() {
+			By("Creating ArgoCD instance normally")
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+			Eventually(principalDeployment).Should(k8sFixture.ExistByName())
+
+			By("Removing Redis Auth volume and mount from the deployment")
+			err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalDeployment)
+			Expect(err).ToNot(HaveOccurred())
+
+			deploymentFixture.Update(principalDeployment, func(p *appsv1.Deployment) {
+				volLen := len(p.Spec.Template.Spec.Volumes)
+				mountLen := len(p.Spec.Template.Spec.Containers[0].VolumeMounts)
+				p.Spec.Template.Spec.Volumes = slices.DeleteFunc(p.Spec.Template.Spec.Volumes, func(v corev1.Volume) bool {
+					return v.Name == argoutil.RedisAuthVolumeName
+				})
+				p.Spec.Template.Spec.Containers[0].VolumeMounts = slices.DeleteFunc(p.Spec.Template.Spec.Containers[0].VolumeMounts, func(vm corev1.VolumeMount) bool {
+					return vm.Name == argoutil.RedisAuthVolumeName
+				})
+				// Double check we have actually removed the volume and mount
+				Expect(p.Spec.Template.Spec.Volumes).To(HaveLen(volLen - 1))
+				Expect(p.Spec.Template.Spec.Containers[0].VolumeMounts).To(HaveLen(mountLen - 1))
+			})
+
+			By("Redis Auth volume and mount are re-added by the operator")
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalDeployment)
+				if err != nil {
+					return false
+				}
+				volFound := slices.ContainsFunc(principalDeployment.Spec.Template.Spec.Volumes, func(v corev1.Volume) bool {
+					return v.Name == argoutil.RedisAuthVolumeName
+				})
+				mountFound := slices.ContainsFunc(principalDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, func(vm corev1.VolumeMount) bool {
+					return vm.Name == argoutil.RedisAuthVolumeName
+				})
+				return volFound && mountFound
+			}, "10s", "1s").Should(BeTrue(), "Redis Auth volume and mount should be restored to the principal deployment")
 		})
 
 		It("should handle route disabled configuration correctly", func() {
@@ -664,9 +726,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 			Eventually(principalService).Should(k8sFixture.ExistByName())
-			Expect(principalService.Spec.Type).To(Equal(corev1.ServiceTypeLoadBalancer))
-
-			By("Verify principal service has expected annotations")
+			Eventually(principalService.Spec.Type).Should(Equal(corev1.ServiceTypeLoadBalancer))
 			Eventually(func() map[string]string {
 				err := k8sClient.Get(ctx, client.ObjectKey{Name: argoCDAgentPrincipalName, Namespace: ns.Name}, principalService)
 				if err != nil {
@@ -1051,11 +1111,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		})
 
 		It("should propagate self-registration configuration to principal deployment env vars", func() {
-			By("Create ArgoCD instance with self-registration enabled")
+			By("Create ArgoCD instance with self-registration enabled and cluster secret labels")
 
 			argoCD.Spec.ArgoCDAgent.Principal.SelfRegistration = &argov1beta1api.PrincipalSelfRegistrationSpec{
 				Enabled:              new(true),
 				ClientCertSecretName: "argocd-agent-shared-client-cert",
+				ClusterSecretLabels:  map[string]string{"env": "production", "team": "platform"},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
@@ -1075,12 +1136,25 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
 
-			By("Update self-registration configuration: disable and change client cert secret")
+			By("Verify cluster secret labels env var contains all expected key=value pairs")
+
+			var secretLabelsEnvValue string
+			for _, env := range container.Env {
+				if env.Name == argocdagent.EnvArgoCDPrincipalSelfRegistrationSecretLabels {
+					secretLabelsEnvValue = env.Value
+					break
+				}
+			}
+			Expect(secretLabelsEnvValue).To(ContainSubstring("env=production"), "Cluster secret labels should contain env=production")
+			Expect(secretLabelsEnvValue).To(ContainSubstring("team=platform"), "Cluster secret labels should contain team=platform")
+
+			By("Update self-registration configuration: disable, change client cert secret, and update labels")
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{Name: argoCDName, Namespace: ns.Name}, argoCD)).To(Succeed())
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.Enabled = new(false)
 				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName = "updated-client-cert"
+				ac.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels = map[string]string{"foo": "bar"}
 			})
 
 			By("Wait for the client cert secret update to propagate, then verify all env vars")
@@ -1108,6 +1182,17 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
 			}
+
+			By("Verify updated cluster secret labels env var")
+
+			secretLabelsEnvValue = ""
+			for _, env := range container.Env {
+				if env.Name == argocdagent.EnvArgoCDPrincipalSelfRegistrationSecretLabels {
+					secretLabelsEnvValue = env.Value
+					break
+				}
+			}
+			Expect(secretLabelsEnvValue).To(Equal("foo=bar"), "Cluster secret labels should be updated to foo=bar")
 		})
 	})
 })

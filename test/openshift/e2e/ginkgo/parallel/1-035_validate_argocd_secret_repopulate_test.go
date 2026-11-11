@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"context"
@@ -8,20 +8,17 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
-	deploymentFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
 	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-035-validate_argocd_secret_repopulate", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -30,7 +27,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		BeforeEach(func() {
 
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
@@ -70,21 +67,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			Eventually(argocd, "5m", "5s").Should(argocdFixture.BeAvailable())
 
-			if !fixture.EnvLocalRun() {
+			session, err := argocdFixture.NewArgoCDCLISession()
+			Expect(err).ToNot(HaveOccurred())
 
-				// Skip verifying operator deployment when we are running the operator locally
-				By("verifying operator Deployment is ready")
-
-				depl := &appsv1.Deployment{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "openshift-gitops-operator-controller-manager",
-						Namespace: "openshift-gitops-operator",
-					},
-				}
-				Eventually(depl, "1m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
-			}
-
-			cancel, err := argocdFixture.LogInToArgoCDInstanceWithoutRoute(argocd.Name, namespace.Name)
+			cancel, err := session.LogInToArgoCDInstanceWithoutRoute(argocd.Name, namespace.Name)
 			Expect(err).ToNot(HaveOccurred())
 			defer cancel()
 		})

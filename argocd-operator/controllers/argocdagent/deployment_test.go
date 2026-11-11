@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,8 +44,16 @@ func makeTestDeployment(cr *argoproj.ArgoCD) *appsv1.Deployment {
 			Namespace: cr.Namespace,
 			Labels:    buildLabelsForAgentPrincipal(cr.Name, testCompName),
 		},
-		Spec: buildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
+		Spec: mustBuildPrincipalSpec(testCompName, generateAgentResourceName(cr.Name, testCompName), cr, tlsprofile.TLSConfigProfile{}),
 	}
+}
+
+func mustBuildPrincipalSpec(compName, saName string, cr *argoproj.ArgoCD, profile tlsprofile.TLSConfigProfile) appsv1.DeploymentSpec {
+	spec, err := buildPrincipalSpec(compName, saName, cr, profile)
+	if err != nil {
+		panic(err)
+	}
+	return spec
 }
 
 // Helper function to create a test deployment with custom image
@@ -132,7 +141,7 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, buildLabelsForAgentPrincipal(cr.Name, testCompName), deployment.Labels)
 
 	// Verify Deployment has expected spec
-	expectedSpec := buildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
+	expectedSpec := mustBuildPrincipalSpec(testCompName, saName, cr, tlsprofile.TLSConfigProfile{})
 	assert.Equal(t, expectedSpec.Selector, deployment.Spec.Selector)
 	assert.Equal(t, expectedSpec.Template.Labels, deployment.Spec.Template.Labels)
 	assert.Equal(t, expectedSpec.Template.Spec.ServiceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
@@ -143,7 +152,9 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.Equal(t, generateAgentResourceName(cr.Name, testCompName), container.Name)
 	assert.Equal(t, buildPrincipalImage(cr), container.Image)
 	assert.Equal(t, buildArgs(testCompName), container.Args)
-	assert.Equal(t, buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{}), container.Env)
+	env, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+	assert.Equal(t, env, container.Env)
 	assert.Equal(t, buildSecurityContext(), container.SecurityContext)
 	assert.Equal(t, buildPorts(testCompName), container.Ports)
 
@@ -397,14 +408,34 @@ func TestReconcilePrincipalDeployment_VerifyDeploymentSpec(t *testing.T) {
 	// Verify environment variables are set
 	assert.True(t, len(container.Env) > 0)
 	// Verify some expected environment variables are present
+	// The runtime-switchable settings are sourced from the params ConfigMap rather than set to
+	// a literal, so that changing one rewrites the ConfigMap without touching the pod spec.
+	runtimeSwitchable := map[string]string{
+		EnvArgoCDPrincipalLogLevel:     common.ArgoCDAgentPrincipalLogLevelKey,
+		EnvArgoCDPrincipalFullDetail:   common.ArgoCDAgentPrincipalFullDetailKey,
+		EnvArgoCDPrincipalPProfEnabled: common.ArgoCDAgentPrincipalPProfEnabledKey,
+	}
 	envNames := make(map[string]bool)
 	for _, env := range container.Env {
 		envNames[env.Name] = true
-		// All environment variables should have direct values, not references
+		if key, ok := runtimeSwitchable[env.Name]; ok {
+			require.NotNil(t, env.ValueFrom, "%s should be sourced from the params ConfigMap", env.Name)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef, "%s should use a ConfigMapKeyRef", env.Name)
+			assert.Equal(t, common.ArgoCDAgentParamsConfigMapName, env.ValueFrom.ConfigMapKeyRef.Name)
+			assert.Equal(t, key, env.ValueFrom.ConfigMapKeyRef.Key)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef.Optional)
+			assert.True(t, *env.ValueFrom.ConfigMapKeyRef.Optional, "a pod must be able to start before the ConfigMap exists")
+			assert.Empty(t, env.Value, "%s must not carry a literal value as well", env.Name)
+			continue
+		}
+		// Every other environment variable should have a direct value, not a reference
 		assert.Nil(t, env.ValueFrom, "Environment variable %s should have direct value, not reference", env.Name)
 	}
 	// Check for some environment variables
 	assert.True(t, envNames["ARGOCD_PRINCIPAL_NAMESPACE"], "ARGOCD_PRINCIPAL_NAMESPACE should be set")
+	for name := range runtimeSwitchable {
+		assert.True(t, envNames[name], "%s should be set", name)
+	}
 	assert.False(t, envNames["REDIS_PASSWORD"], "REDIS_PASSWORD should not be set")
 
 	// Verify volume mounts
@@ -771,18 +802,95 @@ func TestGetPrincipalTlsConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "curve preferences mapped to comma-separated Go curve names",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+					configv1.TLSGroupSecP384r1,
+				},
+			},
+			expected: map[string]string{
+				"--tlsminversion":       "tls1.2",
+				"--tlsCurvePreferences": "X25519,CurveP256,CurveP384",
+			},
+			wantErr: false,
+		},
+		{
+			name: "unsupported curve groups skipped when others remain",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: map[string]string{
+				"--tlsCurvePreferences": "X25519",
+			},
+			wantErr: false,
+		},
+		{
+			name: "all unsupported curve groups returns error",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+				},
+			},
+			expected: nil,
+			wantErr:  true,
+		},
+		{
+			name: "empty curve preferences omit env value",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				MinVersion:       configv1.VersionTLS12,
+				CurvePreferences: nil,
+			},
+			expected: map[string]string{
+				"--tlsminversion": "tls1.2",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getPrincipalTlsConfig(
-				tt.tlsProfile,
-			)
+			got, err := getPrincipalTlsConfig(tt.tlsProfile)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.expected) {
 				t.Fatalf("expected %#v got %#v", tt.expected, got)
 			}
 		})
 	}
+}
+
+func TestBuildPrincipalContainerEnv_TLSCurvePreferences(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+	envVars, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
+	})
+	assert.NoError(t, err)
+
+	envMap := make(map[string]string)
+	for _, e := range envVars {
+		envMap[e.Name] = e.Value
+	}
+	assert.Equal(t, "X25519,CurveP256", envMap[EnvArgoCDPrincipalTLSCurvePreferences])
+
+	_, err = buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupSecP256r1MLKEM768,
+		},
+	})
+	assert.Error(t, err)
 }
 
 func withPrincipalLabelSelector(selector string) argoCDOpt {
@@ -852,7 +960,8 @@ func TestBuildPrincipalContainerEnv_LabelSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			for _, e := range envVars {
 				envMap[e.Name] = e.Value
@@ -875,6 +984,21 @@ func withSelfRegistration(enabled bool, clientCertSecretName string) argoCDOpt {
 			Enabled:              &enabled,
 			ClientCertSecretName: clientCertSecretName,
 		}
+	}
+}
+
+func withSelfRegistrationClusterSecretLabels(labels map[string]string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal.SelfRegistration == nil {
+			a.Spec.ArgoCDAgent.Principal.SelfRegistration = &argoproj.PrincipalSelfRegistrationSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels = labels
 	}
 }
 
@@ -954,6 +1078,7 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 		cr                        *argoproj.ArgoCD
 		expectedEnabled           string
 		expectedClientCertSecret  string
+		expectedSecretLabels      string
 		expectedResourceProxyAddr string
 	}{
 		{
@@ -961,6 +1086,7 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 			cr:                        makeTestArgoCD(withPrincipalEnabled(true)),
 			expectedEnabled:           "false",
 			expectedClientCertSecret:  "",
+			expectedSecretLabels:      "",
 			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
 		},
 		{
@@ -968,13 +1094,25 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 			cr:                        makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "argocd-agent-shared-client-cert")),
 			expectedEnabled:           "true",
 			expectedClientCertSecret:  "argocd-agent-shared-client-cert",
+			expectedSecretLabels:      "",
+			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
+		},
+		{
+			name: "self-registration enabled with cluster secret labels",
+			cr: makeTestArgoCD(withPrincipalEnabled(true),
+				withSelfRegistration(true, "argocd-agent-shared-client-cert"),
+				withSelfRegistrationClusterSecretLabels(map[string]string{"foo": "bar"})),
+			expectedEnabled:           "true",
+			expectedClientCertSecret:  "argocd-agent-shared-client-cert",
+			expectedSecretLabels:      "foo=bar",
 			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envVars := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
 			envMap := make(map[string]string)
 			for _, e := range envVars {
 				envMap[e.Name] = e.Value
@@ -983,8 +1121,399 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 				"ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION mismatch")
 			assert.Equal(t, tt.expectedClientCertSecret, envMap[EnvArgoCDPrincipalSelfRegistrationClientCertSecret],
 				"ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET mismatch")
+			assert.Equal(t, tt.expectedSecretLabels, envMap[EnvArgoCDPrincipalSelfRegistrationSecretLabels],
+				"ARGOCD_PRINCIPAL_SELF_REGISTRATION_SECRET_LABELS mismatch")
 			assert.Equal(t, tt.expectedResourceProxyAddr, envMap[EnvArgoCDPrincipalResourceProxyAddress],
 				"ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS mismatch")
 		})
 	}
+}
+
+func TestGetPrincipalSelfRegistrationSecretLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "no self-registration configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "",
+		},
+		{
+			name:     "self-registration set but no cluster secret labels",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "")),
+			expected: "",
+		},
+		{
+			name: "single label",
+			cr: makeTestArgoCD(withPrincipalEnabled(true),
+				withSelfRegistrationClusterSecretLabels(map[string]string{"foo": "bar"})),
+			expected: "foo=bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSelfRegistrationSecretLabels(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSelfRegistrationSecretLabels_MultipleLabels(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true),
+		withSelfRegistrationClusterSecretLabels(map[string]string{
+			"env":  "production",
+			"app":  "argocd",
+			"team": "platform",
+		}))
+	result := getPrincipalSelfRegistrationSecretLabels(cr)
+	// Map iteration order is non-deterministic; verify each pair is present individually.
+	assert.Contains(t, result, "env=production")
+	assert.Contains(t, result, "app=argocd")
+	assert.Contains(t, result, "team=platform")
+}
+
+func withPrincipalSPIFFE(authMethod argoproj.SpiffeAuthMethod, csiDriverName string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{
+			Enabled:       true,
+			AuthMethod:    authMethod,
+			CSIDriverName: csiDriverName,
+		}
+	}
+}
+
+func TestHasPrincipalSPIFFE(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected bool
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: false,
+		},
+		{
+			name:     "principal enabled without SPIFFE",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: false,
+		},
+		{
+			name: "SPIFFE block present but enabled=false",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{Enabled: false}
+			}),
+			expected: false,
+		},
+		{
+			name:     "SPIFFE configured with enabled=true",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, hasPrincipalSPIFFE(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSpireAuthMethod(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to jwt",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: string(argoproj.SpiffeAuthMethodJWT),
+		},
+		{
+			name:     "SPIFFE configured without authMethod defaults to jwt",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: string(argoproj.SpiffeAuthMethodJWT),
+		},
+		{
+			name:     "SPIFFE configured with mtls authMethod",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodMTLS, "")),
+			expected: string(argoproj.SpiffeAuthMethodMTLS),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSpireAuthMethod(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSpiffeCSIDriver(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "SPIFFE not configured defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured without csiDriverName defaults to csi.spiffe.io",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "")),
+			expected: "csi.spiffe.io",
+		},
+		{
+			name:     "SPIFFE configured with custom csiDriverName",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "custom.csi.driver.io")),
+			expected: "custom.csi.driver.io",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSpiffeCSIDriver(tt.cr))
+		})
+	}
+}
+
+func TestGetEffectivePrincipalAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured",
+			cr:       makeTestArgoCD(),
+			expected: "",
+		},
+		{
+			name: "explicit auth takes precedence over SPIFFE",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, ""), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.Auth = "mtls:CN=([^,]+)"
+			}),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name:     "SPIFFE configured without explicit auth infers jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE configured with default (empty) authMethod infers jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE("", "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE configured with mtls authMethod infers mtls:uri pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodMTLS, "")),
+			expected: defaultPrincipalSPIFFEMTLSAuth,
+		},
+		{
+			name:     "neither auth nor SPIFFE configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getEffectivePrincipalAuth(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "principal not configured falls back to default mtls pattern",
+			cr:       makeTestArgoCD(),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name: "explicit auth is used as-is",
+			cr: makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+				a.Spec.ArgoCDAgent.Principal.Auth = "mtls:CN=([^,]+)"
+			}),
+			expected: "mtls:CN=([^,]+)",
+		},
+		{
+			name:     "SPIFFE jwt auth method infers spiffe-jwt pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "")),
+			expected: defaultPrincipalSPIFFEJWTAuth,
+		},
+		{
+			name:     "SPIFFE mtls auth method infers mtls:uri spiffe pattern",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodMTLS, "")),
+			expected: defaultPrincipalSPIFFEMTLSAuth,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalAuth(tt.cr))
+		})
+	}
+}
+
+func TestBuildSpiffeVolumeMount_Principal(t *testing.T) {
+	mount := buildSpiffeVolumeMount()
+	assert.Equal(t, "spiffe-workload-api", mount.Name)
+	assert.Equal(t, "/run/spire/sockets", mount.MountPath)
+	assert.True(t, mount.ReadOnly)
+}
+
+func TestBuildSpiffeVolume_Principal(t *testing.T) {
+	volume := buildSpiffeVolume("custom.csi.driver.io")
+	assert.Equal(t, "spiffe-workload-api", volume.Name)
+	assert.NotNil(t, volume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", volume.CSI.Driver)
+	assert.NotNil(t, volume.CSI.ReadOnly)
+	assert.True(t, *volume.CSI.ReadOnly)
+}
+
+func TestBuildPrincipalContainerEnv_SPIFFE(t *testing.T) {
+	tests := []struct {
+		name               string
+		cr                 *argoproj.ArgoCD
+		expectSocketSet    bool
+		expectedSocket     string
+		expectedAuthMethod string
+	}{
+		{
+			name:            "SPIFFE not configured, env vars absent",
+			cr:              makeTestArgoCD(withPrincipalEnabled(true)),
+			expectSocketSet: false,
+		},
+		{
+			name:               "SPIFFE configured with jwt auth method",
+			cr:                 makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: string(argoproj.SpiffeAuthMethodJWT),
+		},
+		{
+			name:               "SPIFFE configured with mtls auth method",
+			cr:                 makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodMTLS, "")),
+			expectSocketSet:    true,
+			expectedSocket:     "unix:///run/spire/sockets/spire-agent.sock",
+			expectedAuthMethod: string(argoproj.SpiffeAuthMethodMTLS),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			envVars, err := buildPrincipalContainerEnv(tt.cr, tlsprofile.TLSConfigProfile{})
+			assert.NoError(t, err)
+			envMap := make(map[string]string)
+			envNames := make(map[string]bool)
+			for _, e := range envVars {
+				envMap[e.Name] = e.Value
+				envNames[e.Name] = true
+			}
+
+			if !tt.expectSocketSet {
+				assert.False(t, envNames[EnvArgoCDPrincipalSpireAgentSocket], "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET should not be set")
+				assert.False(t, envNames[EnvArgoCDPrincipalSpireAuthMethod], "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD should not be set")
+				return
+			}
+
+			assert.Equal(t, tt.expectedSocket, envMap[EnvArgoCDPrincipalSpireAgentSocket],
+				"ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET mismatch")
+			assert.Equal(t, tt.expectedAuthMethod, envMap[EnvArgoCDPrincipalSpireAuthMethod],
+				"ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD mismatch")
+		})
+	}
+}
+
+func TestReconcilePrincipalDeployment_SPIFFE_VolumeMountsAndVolumes(t *testing.T) {
+	// Test case: Verify SPIFFE CSI volume and mount are added when SPIFFE is configured
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalSPIFFE(argoproj.SpiffeAuthMethodJWT, "custom.csi.driver.io"))
+	saName := generateAgentResourceName(cr.Name, testCompName)
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, saName, cr, sch, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+
+	// jwt-secret, userpass-passwd, redis-initial-pass, spiffe-workload-api
+	assert.Len(t, container.VolumeMounts, 4)
+	spiffeMount := container.VolumeMounts[3]
+	assert.Equal(t, "spiffe-workload-api", spiffeMount.Name)
+	assert.Equal(t, "/run/spire/sockets", spiffeMount.MountPath)
+	assert.True(t, spiffeMount.ReadOnly)
+
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 4)
+	spiffeVolume := deployment.Spec.Template.Spec.Volumes[3]
+	assert.Equal(t, "spiffe-workload-api", spiffeVolume.Name)
+	assert.NotNil(t, spiffeVolume.CSI)
+	assert.Equal(t, "custom.csi.driver.io", spiffeVolume.CSI.Driver)
+}
+
+func TestReconcilePrincipalDeployment_SPIFFE_AddedOnUpdate(t *testing.T) {
+	// Test case: SPIFFE is added to an existing CR after the deployment was created without it
+	// Expected behavior: Deployment should be updated to add the SPIFFE volume and mount
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+	saName := generateAgentResourceName(cr.Name, testCompName)
+
+	existingDeployment := makeTestDeployment(cr)
+
+	resObjs := []client.Object{cr, existingDeployment}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	// Sanity check: no SPIFFE volume mount before SPIFFE is configured
+	assert.Len(t, existingDeployment.Spec.Template.Spec.Containers[0].VolumeMounts, 3)
+
+	cr.Spec.ArgoCDAgent.Principal.SPIFFE = &argoproj.SPIFFESpec{Enabled: true, AuthMethod: argoproj.SpiffeAuthMethodJWT}
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, saName, cr, sch, tlsprofile.TLSConfigProfile{})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	assert.Len(t, container.VolumeMounts, 4)
+	assert.Equal(t, "spiffe-workload-api", container.VolumeMounts[3].Name)
+	assert.Len(t, deployment.Spec.Template.Spec.Volumes, 4)
+	assert.Equal(t, "spiffe-workload-api", deployment.Spec.Template.Spec.Volumes[3].Name)
+
+	// Verify env vars were updated too
+	envNames := make(map[string]bool)
+	for _, e := range container.Env {
+		envNames[e.Name] = true
+	}
+	assert.True(t, envNames[EnvArgoCDPrincipalSpireAgentSocket], "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET should be set")
+	assert.True(t, envNames[EnvArgoCDPrincipalSpireAuthMethod], "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD should be set")
 }

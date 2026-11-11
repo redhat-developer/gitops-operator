@@ -715,7 +715,10 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	}
 
 	args := []string{"run"}
-	imageUpdaterTLSProfileArguments := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile)
+	imageUpdaterTLSProfileArguments, err := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-image-updater")
+	if err != nil {
+		return err
+	}
 	args = append(args, imageUpdaterTLSProfileArguments...)
 
 	// Command is intentionally not set so that the image's own ENTRYPOINT applies.
