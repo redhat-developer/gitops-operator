@@ -148,5 +148,28 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
+		It("verifies that an ArgoCD instance becomes available after modifying .spec.controller.processors.operation", Label("openshift"), func() {
+			By("creating a test-owned namespace-scoped Argo CD instance")
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			defer cleanupFunc()
+
+			argoCD := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
+				Spec:       argov1beta1api.ArgoCDSpec{},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			By("verifying the Argo CD instance is available")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+
+			By("modifying Argo CD application controller operation processors to 20")
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.Processors.Operation = 20
+			})
+
+			By("verifying the Argo CD instance becomes available after the update")
+			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
+		})
+
 	})
 })
