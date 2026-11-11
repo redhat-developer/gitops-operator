@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -153,6 +154,18 @@ func TestReconcilePromoterAPIServerServingCertSecret_BYO_PreservesReferencedSecr
 	}, retrieved)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("byo"), retrieved.Data["tls.crt"])
+	assert.Len(t, retrieved.GetOwnerReferences(), 0)
+
+	cr.Spec.Promoter.Enabled = ptr.To(false)
+
+	_, err = ReconcilePromoterAPIServerServingCertSecret(cl, cr, sch)
+	assert.NoError(t, err)
+
+	err = cl.Get(context.Background(), types.NamespacedName{
+		Name:      DefaultAPIServerServingCertSecretName,
+		Namespace: cr.Namespace,
+	}, retrieved)
+	assert.NoError(t, err)
 }
 
 func TestReconcilePromoterControllerDeployment_BYO_SkipsCertRotationArgs(t *testing.T) {

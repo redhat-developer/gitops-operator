@@ -88,6 +88,21 @@ func ReconcilePromoterAPIServerServingCertSecret(client client.Client, cr *argop
 	}
 
 	if exists {
+		// Remove the owner reference when the API Server cert is set to the same name as
+		// the default name to prevent the secret from being deleted when the Argo CD CR is.
+		if getUserAPIServerCertSecretName(cr) == DefaultAPIServerServingCertSecretName && metav1.IsControlledBy(secret, cr) {
+			if err := controllerutil.RemoveControllerReference(cr, secret, scheme); err != nil {
+				return nil, fmt.Errorf("failed to remove owner reference from the promoter apiserver serving cert secret %s: %v", secret.Name, err)
+			}
+
+			argoutil.LogResourceUpdate(log, secret, "removing owner reference as TLS cert is set to default serving cert name")
+			if err := client.Update(context.Background(), secret); err != nil {
+				return nil, fmt.Errorf("failed to update api server serving cert secret %s: %v", secret.Name, err)
+			}
+
+			return secret, nil
+		}
+
 		if !enabled {
 			// Only delete secrets this reconciler created. Preserve user-provided or
 			// unrelated Secrets with the same name, including when Promoter is disabled
