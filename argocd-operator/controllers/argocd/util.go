@@ -172,6 +172,65 @@ func getArgoApplicationControllerResources(cr *argoproj.ArgoCD) corev1.ResourceR
 	return resources
 }
 
+// isApplicationControllerGoRuntimeTuningEnabledOnOperator reports whether operator-level Go runtime
+// tuning is enabled. Tuning is on by default; setting DISABLE_GO_RUNTIME_TUNING to "true" on the
+// operator disables it cluster-wide, and the per-instance .spec.controller.goRuntime field
+// cannot re-enable it.
+func isApplicationControllerGoRuntimeTuningEnabledOnOperator() bool {
+	return os.Getenv(common.DisableGoRuntimeTuning) != "true"
+}
+
+// getArgoApplicationControllerGoRuntimeEnv returns GOMEMLIMIT and GOMAXPROCS for the application
+// controller, derived as a percentage of its memory and CPU limits respectively.
+func getArgoApplicationControllerGoRuntimeEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
+	env := make([]corev1.EnvVar, 0)
+
+	// Default-on: only skip Go runtime tuning if it has been explicitly disabled cluster-wide
+	// on the operator via the global kill switch.
+	if !isApplicationControllerGoRuntimeTuningEnabledOnOperator() {
+		return env
+	}
+
+	// Per-instance opt-out. Note that GoRuntime.IsEnabled() defaults to true when GoRuntime (or GoRuntime.Enabled)
+	// is unset, so this only short-circuits when the CR author has explicitly set enabled: false.
+	if !cr.Spec.Controller.GoRuntime.IsEnabled() {
+		return env
+	}
+
+	resources := getArgoApplicationControllerResources(cr)
+
+	// Compute GOMEMLIMIT from memory limit if configured
+	memLimit := resources.Limits.Memory()
+	if memLimit != nil && !memLimit.IsZero() {
+		memLimitPercent := cr.Spec.Controller.GoRuntime.GetMemoryLimitPercent(common.ArgoCDDefaultControllerMemLimitPercent)
+		goMemLimitBytes := memLimit.Value() * int64(memLimitPercent) / 100
+		if goMemLimitBytes > 0 {
+			env = append(env, corev1.EnvVar{
+				Name:  "GOMEMLIMIT",
+				Value: fmt.Sprintf("%d", goMemLimitBytes),
+			})
+		}
+	}
+
+	// Compute GOMAXPROCS from CPU limit if configured. GOMAXPROCS is intentionally not
+	// configurable per-instance; only the GOMEMLIMIT percentage has a knob. GOMAXPROCS is
+	// always 100% of the CPU limit, i.e. floor(millicores / 1000) whole cores,
+	// floored to 1 because GOMAXPROCS=0 is invalid.
+	cpuLimit := resources.Limits.Cpu()
+	if cpuLimit != nil && !cpuLimit.IsZero() {
+		gomaxprocsValue := cpuLimit.MilliValue() / 1000
+		if gomaxprocsValue < 1 {
+			gomaxprocsValue = 1
+		}
+		env = append(env, corev1.EnvVar{
+			Name:  "GOMAXPROCS",
+			Value: fmt.Sprintf("%d", gomaxprocsValue),
+		})
+	}
+
+	return env
+}
+
 // getArgoApplicationControllerCommand will return the command for the ArgoCD Application Controller component.
 func getArgoApplicationControllerCommand(cr *argoproj.ArgoCD, useTLSForRedis bool) []string {
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
