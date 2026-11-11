@@ -126,6 +126,67 @@ spec:
     argoCDUIExtensionEnabled: true
 ```
 
+### Migrating `orderCommitStatusRef`
+
+gitops-promoter **v0.39+** (OpenShift GitOps builds that ship promoter **v0.49+**) requires every `PromotionStrategy` to set `spec.orderCommitStatusRef` to a matching ordering gate. Existing strategies created before that change lack the field: cluster updates that omit it fail CRD validation, and Promoter cannot reconcile those strategies until the gate and reference exist.
+
+#### What to add
+
+For each `PromotionStrategy`:
+
+1. Create a `DependentsSuccessfulCommitStatus` in the same namespace (commonly the same name as the strategy).
+2. Set `spec.orderCommitStatusRef` on the strategy to that gate.
+3. Remove legacy ordering keys from `proposedCommitStatuses` if present (`promoter-previous-environment`, or a manually listed `dependents-successful`). The PromotionStrategy controller injects the gate key from `orderCommitStatusRef`.
+4. **Update the GitOps source manifests** the same way. Live-cluster patches alone are reverted on the next sync if the strategy is managed from Git.
+
+Linear pipelines omit `dependsOn`; order is inferred from `spec.environments` list order. Custom DAGs set `dependsOn` on `PromotionStrategy.spec.environments[]` (not on the gate CR).
+
+Example (also at [`examples/gitops-promoter-order-commit-status.yaml`](../../examples/gitops-promoter-order-commit-status.yaml)):
+
+```yaml
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: demo
+spec:
+  orderCommitStatusRef:
+    group: promoter.argoproj.io
+    kind: DependentsSuccessfulCommitStatus
+    name: demo
+  environments:
+    - branch: environment/dev
+    - branch: environment/staging
+    - branch: environment/prod
+---
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: demo
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: demo
+```
+
+#### Cluster migration script
+
+To patch live strategies and create missing gates:
+
+```bash
+# Preview
+./hack/migrate-promoter-order-commit-status.sh --dry-run
+
+# Apply cluster-wide
+./hack/migrate-promoter-order-commit-status.sh --all-namespaces
+
+# Or a single namespace
+./hack/migrate-promoter-order-commit-status.sh -n some-ns
+```
+
+Then commit the same `DependentsSuccessfulCommitStatus` + `orderCommitStatusRef` changes to the GitOps repo that owns each strategy and sync.
+
+Upstream background: [gitops-promoter upgrading — 0.39](https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy).
+
 ## Uninstallation
 
 The GitOps Promoter can be disabled by setting the `.spec.promoter.enabled` to `false`. When moving to false all resources created to run the Promoter will be deleted.

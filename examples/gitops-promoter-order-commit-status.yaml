@@ -1,0 +1,40 @@
+# Example: PromotionStrategy with required orderCommitStatusRef and matching
+# DependentsSuccessfulCommitStatus (gitops-promoter v0.39+ / OpenShift GitOps
+# promoter v0.49+).
+#
+# After upgrading, every PromotionStrategy must declare orderCommitStatusRef.
+# Apply the same change in your GitOps source repo so Argo CD does not revert
+# live-cluster migrations.
+#
+# Linear pipelines omit dependsOn; the DependentsSuccessfulCommitStatus controller
+# infers order from PromotionStrategy.spec.environments list order.
+#
+# Docs: docs/usage/gitops-promoter.md#migrating-ordercommitstatusref
+# Script: hack/migrate-promoter-order-commit-status.sh
+---
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: demo
+  namespace: some-ns
+spec:
+  orderCommitStatusRef:
+    group: promoter.argoproj.io
+    kind: DependentsSuccessfulCommitStatus
+    name: demo
+  gitRepositoryRef:
+    name: demo
+  environments:
+    - branch: environment/dev
+    - branch: environment/staging
+    - branch: environment/prod
+---
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: demo
+  namespace: some-ns
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: demo
