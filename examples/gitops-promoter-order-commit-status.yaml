@@ -10,7 +10,7 @@
 # infers order from PromotionStrategy.spec.environments list order.
 #
 # Docs: docs/usage/gitops-promoter.md#migrating-ordercommitstatusref
-# Script: hack/migrate-promoter-order-commit-status.sh
+# Upstream: https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy
 ---
 apiVersion: promoter.argoproj.io/v1alpha1
 kind: PromotionStrategy

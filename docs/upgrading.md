@@ -298,10 +298,8 @@ For migration from manual edits, verification, integrations (External Secrets, S
 
 When upgrading to an OpenShift GitOps / Argo CD Operator release that ships **gitops-promoter v0.49+**, every `PromotionStrategy` must declare `spec.orderCommitStatusRef` pointing at a `DependentsSuccessfulCommitStatus`. Strategies created before that release lack the field; updates that omit it fail CRD validation and Promoter cannot reconcile them.
 
-Create a matching `DependentsSuccessfulCommitStatus` for each strategy, set `orderCommitStatusRef`, and **update the GitOps source manifests** so sync does not revert the change.
-
-Full steps, example manifests, and a cluster migration script:
+Update the GitOps source manifests for each strategy (and sync), or follow upstream’s upgrade guide. Operator-facing summary and example:
 
 - [Migrating orderCommitStatusRef](./usage/gitops-promoter.md#migrating-ordercommitstatusref)
 - [`examples/gitops-promoter-order-commit-status.yaml`](../examples/gitops-promoter-order-commit-status.yaml)
-- [`hack/migrate-promoter-order-commit-status.sh`](../hack/migrate-promoter-order-commit-status.sh)
+- [Upstream upgrading — 0.39](https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy)
