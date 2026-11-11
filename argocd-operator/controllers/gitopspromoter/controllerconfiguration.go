@@ -56,6 +56,16 @@ func ReconcilePromoterControllerConfiguration(client client.Client, compName str
 			}
 			return controllerConfiguration, nil
 		}
+
+		// Upgrade path: older ControllerConfigurations lack work-queue sections that the
+		// current CRD marks required. Merge defaults for unset sections only; never overwrite
+		// user-tuned values.
+		if mergeMissingControllerConfigurationDefaults(controllerConfiguration) {
+			argoutil.LogResourceUpdate(log, controllerConfiguration, "merging missing controller configuration work-queue defaults")
+			if err := client.Update(context.Background(), controllerConfiguration); err != nil {
+				return nil, fmt.Errorf("failed to update controller configuration %s: %v", controllerConfiguration.Name, err)
+			}
+		}
 		return controllerConfiguration, nil
 	}
 
@@ -155,6 +165,43 @@ func buildDefaultWorkQueueSettings(maxConcurrentReconciles int) promoter.WorkQue
 			},
 		},
 	}
+}
+
+// mergeMissingControllerConfigurationDefaults fills required work-queue sections that are
+// unset on an existing ControllerConfiguration (typical after upgrading to a CRD that added
+// new required controllers). Returns true when the object was mutated.
+func mergeMissingControllerConfigurationDefaults(existing *promoter.ControllerConfiguration) bool {
+	changed := false
+
+	if isWorkQueueUnset(existing.Spec.ChangeTransferPolicyHistory.WorkQueue) {
+		existing.Spec.ChangeTransferPolicyHistory.WorkQueue = buildDefaultWorkQueueSettings(5)
+		changed = true
+	}
+	if isWorkQueueUnset(existing.Spec.DependentsSuccessfulCommitStatus.WorkQueue) {
+		existing.Spec.DependentsSuccessfulCommitStatus.WorkQueue = buildDefaultWorkQueueSettings(10)
+		changed = true
+	}
+	if isWorkQueueUnset(existing.Spec.RestoreActiveCommit.WorkQueue) {
+		existing.Spec.RestoreActiveCommit.WorkQueue = buildDefaultWorkQueueSettings(10)
+		changed = true
+	}
+
+	return changed
+}
+
+// isWorkQueueUnset reports whether a WorkQueue is the zero value left behind when a required
+// section was absent from stored JSON (or never configured).
+func isWorkQueueUnset(wq promoter.WorkQueue) bool {
+	return wq.MaxConcurrentReconciles == 0 &&
+		wq.RequeueDuration.Duration == 0 &&
+		isRateLimiterUnset(wq.RateLimiter)
+}
+
+func isRateLimiterUnset(rl promoter.RateLimiter) bool {
+	return rl.FastSlow == nil &&
+		rl.ExponentialFailure == nil &&
+		rl.Bucket == nil &&
+		len(rl.MaxOf) == 0
 }
 
 // DeleteControllerConfigurations deletes a list of ControllerConfigurations
