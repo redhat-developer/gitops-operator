@@ -307,9 +307,18 @@ func getArgoContainerImage(cr *argoproj.ArgoCD) string {
 	return argoutil.CombineImageTag(img, tag)
 }
 
-// getArgoServerInsecure returns the insecure value for the ArgoCD Server component.
+// getArgoServerInsecure returns the effective insecure value for the ArgoCD Server component,
+// including --insecure passed through server.extraCommandArgs.
 func getArgoServerInsecure(cr *argoproj.ArgoCD) bool {
-	return cr.Spec.Server.Insecure
+	if cr.Spec.Server.Insecure {
+		return true
+	}
+	for _, a := range cr.Spec.Server.ExtraCommandArgs {
+		if a == "--insecure" || a == "--insecure=true" {
+			return true
+		}
+	}
+	return false
 }
 
 func isRedisTLSVerificationDisabled(cr *argoproj.ArgoCD) bool {

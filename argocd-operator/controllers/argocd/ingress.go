@@ -115,7 +115,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 	// argocd-server serves TLS (and redirects plain HTTP with a 307) unless insecure is set,
 	// so the backend must be HTTPS in that case.
 	backendPort, backendProtocol := "https", "HTTPS"
-	if cr.Spec.Server.Insecure {
+	if getArgoServerInsecure(cr) {
 		backendPort, backendProtocol = "http", "HTTP"
 	}
 	atns[common.ArgoCDKeyIngressBackendProtocol] = backendProtocol
@@ -200,7 +200,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerGRPCIngress(cr *argoproj.ArgoCD) er
 	atns := make(map[string]string)
 	// argocd-server serves TLS unless insecure is set, so plaintext GRPC would 502.
 	grpcProtocol := "GRPCS"
-	if cr.Spec.Server.Insecure {
+	if getArgoServerInsecure(cr) {
 		grpcProtocol = "GRPC"
 	}
 	atns[common.ArgoCDKeyIngressBackendProtocol] = grpcProtocol
