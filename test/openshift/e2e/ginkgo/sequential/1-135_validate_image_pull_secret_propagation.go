@@ -111,6 +111,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns},
 			}
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+			defer func() {
+				Expect(k8sClient.Delete(ctx, argoCD)).To(Succeed())
+			}()
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("verifying server and application-controller ServiceAccounts carry the pull secret")

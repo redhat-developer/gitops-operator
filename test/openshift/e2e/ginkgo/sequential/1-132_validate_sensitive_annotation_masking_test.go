@@ -18,9 +18,6 @@ package sequential
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -32,7 +29,6 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
-	portforwardFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/portforward"
 	secretFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/secret"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -108,40 +104,22 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("creating a managed namespace for app deployment")
 			appNS, cleanupAppNS = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-132-apps", argoCDNS.Name)
 
-			By("creating a per-test ArgoCD CLI config file to prevent parallel-test login context conflicts")
-			cliConfigFile, err := os.CreateTemp("", "argocd-e2e-1-132-*.yaml")
+			By("creating an isolated Argo CD CLI session to prevent parallel-test login context conflicts")
+			cliSession, err := argocdFixture.NewArgoCDCLISession()
 			Expect(err).ToNot(HaveOccurred())
-			cliConfigFile.Close()
-			defer os.Remove(cliConfigFile.Name())
 
-			By("port-forwarding to the ArgoCD server Service")
-			localPort := portforwardFixture.ReserveLocalPort()
-			stopPortForward := portforwardFixture.StartPortForward(argoCDNS.Name, "svc/argocd-server", fmt.Sprintf("%d:https", localPort))
-			defer stopPortForward()
-			server := fmt.Sprintf("localhost:%d", localPort)
-
-			By("reading the admin password from the ArgoCD cluster secret")
-			adminSecret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cluster", Namespace: argoCDNS.Name}}
-			Eventually(adminSecret).Should(k8sFixture.ExistByName())
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(adminSecret), adminSecret)).To(Succeed())
-			adminPassword := string(adminSecret.Data["admin.password"])
-
-			By("logging in to the namespace-scoped ArgoCD instance via CLI with a per-test config file")
+			By("logging in to the namespace-scoped ArgoCD instance via CLI with an isolated CLI session")
+			var cancelPortForward func()
 			Eventually(func() bool {
-				output, loginErr := argocdFixture.RunArgoCDCLI(
-					"login", server,
-					"--config", cliConfigFile.Name(),
-					"--username", "admin",
-					"--password", adminPassword,
-					"--insecure",
-					"--skip-test-tls",
-				)
+				cancel, loginErr := cliSession.LogInToArgoCDInstanceWithoutRoute(argoCD.Name, argoCDNS.Name)
 				if loginErr != nil {
-					GinkgoWriter.Println("CLI login error:", loginErr, "output:", output)
+					GinkgoWriter.Println("CLI login error:", loginErr)
 					return false
 				}
-				return strings.Contains(output, "logged in successfully")
+				cancelPortForward = cancel
+				return true
 			}, "3m", "10s").Should(BeTrue())
+			defer cancelPortForward()
 
 			By("creating an ArgoCD Application that deploys a kubernetes.io/dockercfg secret (the git source does NOT include the sensitive annotation)")
 			app := &argocdv1alpha1.Application{
@@ -185,8 +163,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("forcing a single ArgoCD refresh so the live state is re-evaluated")
 			// --grpc-web suppresses the gRPC-over-HTTP2 warning emitted by newer ArgoCD CLIs
-			_, refreshErr := argocdFixture.RunArgoCDCLI(
-				"--config", cliConfigFile.Name(),
+			_, refreshErr := cliSession.RunArgoCDCLI(
 				"app", "get", "dockercfg-test-app",
 				"--refresh", "--insecure", "--grpc-web",
 			)
@@ -202,8 +179,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			// argocd app diff exits 0 when there are no differences and 1 when differences exist.
 			// Asserting no error therefore also proves ArgoCD computed an empty diff, which
 			// is the expected outcome when the annotation is properly masked.
-			diffOutput, diffErr := argocdFixture.RunArgoCDCLI(
-				"--config", cliConfigFile.Name(),
+			diffOutput, diffErr := cliSession.RunArgoCDCLI(
 				"app", "diff", "dockercfg-test-app",
 				"--insecure", "--grpc-web",
 			)

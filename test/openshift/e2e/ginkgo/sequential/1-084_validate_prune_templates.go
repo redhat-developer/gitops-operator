@@ -149,7 +149,9 @@ labels:
 			Eventually(defaultArgoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 
 			By("logging into the Argo CD CLI")
-			err = argocdFixture.LogInToDefaultArgoCDInstance()
+			cliSession, err := argocdFixture.NewArgoCDCLISession()
+			Expect(err).ToNot(HaveOccurred())
+			err = cliSession.LogInToDefaultArgoCDInstance()
 			Expect(err).ToNot(HaveOccurred(), "Failed to login to Argo CD")
 
 			By("Creating ArgoCD Application CR using the typed schema")
@@ -184,7 +186,7 @@ labels:
 			})
 
 			By("syncing the application using the local dir")
-			out, err := argocdFixture.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--timeout", "100")
+			out, err := cliSession.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--timeout", "100")
 			Expect(err).ToNot(HaveOccurred(), "Failed to sync app with local flag: %s", out)
 
 			By("verifying both templates were created")
@@ -204,7 +206,7 @@ labels:
 			Expect(err).ToNot(HaveOccurred())
 
 			By("syncing the application again this time with the prune flag enabled")
-			out, err = argocdFixture.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--prune", "--timeout", "100")
+			out, err = cliSession.RunArgoCDCLI("app", "sync", appName, "--local", workDir, "--prune", "--timeout", "100")
 			Expect(err).ToNot(HaveOccurred(), "Failed to sync and prune app: %s", out)
 
 			By("verifying the deleted template was pruned from the cluster")

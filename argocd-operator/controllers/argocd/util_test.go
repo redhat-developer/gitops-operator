@@ -3,6 +3,7 @@ package argocd
 import (
 	"context"
 	b64 "encoding/base64"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	testclient "k8s.io/client-go/kubernetes/fake"
@@ -662,6 +664,172 @@ func TestGetArgoApplicationContainerEnv(t *testing.T) {
 		if !reflect.DeepEqual(env, tt.want) {
 			t.Fatalf("got %#v, want %#v", env, tt.want)
 		}
+	}
+}
+
+func controllerMemLimit() argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.Controller.Resources == nil {
+			a.Spec.Controller.Resources = &corev1.ResourceRequirements{}
+		}
+		if a.Spec.Controller.Resources.Limits == nil {
+			a.Spec.Controller.Resources.Limits = corev1.ResourceList{}
+		}
+		a.Spec.Controller.Resources.Limits[corev1.ResourceMemory] = resource.MustParse("2000Mi")
+	}
+}
+
+func controllerGoRuntimeEnabled(enabled bool) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.Controller.GoRuntime == nil {
+			a.Spec.Controller.GoRuntime = &argoproj.ArgoCDGoRuntimeSpec{}
+		}
+		a.Spec.Controller.GoRuntime.Enabled = &enabled
+	}
+}
+
+func controllerGoRuntimeMemLimitPercent(percent int32) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.Controller.GoRuntime == nil {
+			a.Spec.Controller.GoRuntime = &argoproj.ArgoCDGoRuntimeSpec{}
+		}
+		a.Spec.Controller.GoRuntime.MemoryLimitPercent = &percent
+	}
+}
+
+func controllerCPULimit(cpuLimit string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.Controller.Resources == nil {
+			a.Spec.Controller.Resources = &corev1.ResourceRequirements{}
+		}
+		if a.Spec.Controller.Resources.Limits == nil {
+			a.Spec.Controller.Resources.Limits = corev1.ResourceList{}
+		}
+		a.Spec.Controller.Resources.Limits[corev1.ResourceCPU] = resource.MustParse(cpuLimit)
+	}
+}
+
+func TestGetArgoApplicationControllerGoRuntimeEnv(t *testing.T) {
+	tests := []struct {
+		name        string
+		opts        []argoCDOpt
+		envVarValue string // value of common.DisableGoRuntimeTuning to set for the test, "" to unset
+		want        []corev1.EnvVar
+	}{
+		{
+			name: "no memory limit configured: no GOMEMLIMIT is set, even though feature is enabled by default",
+			opts: nil,
+			want: []corev1.EnvVar{},
+		},
+		{
+			name: "memory limit configured: GOMEMLIMIT is derived as a percentage of the memory limit",
+			opts: []argoCDOpt{controllerMemLimit()},
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1677721600"}, // 2000Mi * 80 / 100, in bytes
+			},
+		},
+		{
+			name:        "feature disabled via operator kill switch (DISABLE_GO_RUNTIME_TUNING=true): no GOMEMLIMIT is set, even with a memory limit configured",
+			opts:        []argoCDOpt{controllerMemLimit()},
+			envVarValue: "true",
+			want:        []corev1.EnvVar{},
+		},
+		{
+			name:        "kill switch explicitly set to false: behaves the same as default-on",
+			opts:        []argoCDOpt{controllerMemLimit()},
+			envVarValue: "false",
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
+			},
+		},
+		{
+			name:        "kill switch set to a non-'true' value: behaves the same as default-on",
+			opts:        []argoCDOpt{controllerMemLimit()},
+			envVarValue: "yes-but-not-exactly-true",
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
+			},
+		},
+		{
+			name: "per-instance opt-out via .spec.controller.goRuntime.enabled=false: no GOMEMLIMIT is set, even though the operator-level default is on",
+			opts: []argoCDOpt{controllerMemLimit(), controllerGoRuntimeEnabled(false)},
+			want: []corev1.EnvVar{},
+		},
+		{
+			name: "per-instance .spec.controller.goRuntime.enabled=true is a no-op when the operator-level default is already on",
+			opts: []argoCDOpt{controllerMemLimit(), controllerGoRuntimeEnabled(true)},
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1677721600"},
+			},
+		},
+		{
+			name:        "per-instance .spec.controller.goRuntime.enabled=true cannot override the operator-level kill switch",
+			opts:        []argoCDOpt{controllerMemLimit(), controllerGoRuntimeEnabled(true)},
+			envVarValue: "true",
+			want:        []corev1.EnvVar{},
+		},
+		{
+			name: "per-instance .spec.controller.goRuntime.memoryLimitPercent overrides the default 80% headroom",
+			opts: []argoCDOpt{controllerMemLimit(), controllerGoRuntimeMemLimitPercent(50)},
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1048576000"}, // 2000Mi * 50 / 100, in bytes
+			},
+		},
+		{
+			name: "no CPU limit configured: no GOMAXPROCS is set, even though feature is enabled by default",
+			opts: nil,
+			want: []corev1.EnvVar{},
+		},
+		{
+			name: "CPU limit configured: GOMAXPROCS is derived from the CPU limit (full cores)",
+			opts: []argoCDOpt{controllerCPULimit("2000m")},
+			want: []corev1.EnvVar{
+				{Name: "GOMAXPROCS", Value: "2"}, // 2000m = 2 cores, 100% of 2 = 2
+			},
+		},
+		{
+			name: "sub-core CPU limit: GOMAXPROCS floors at 1, never 0",
+			opts: []argoCDOpt{controllerCPULimit("250m")},
+			want: []corev1.EnvVar{
+				{Name: "GOMAXPROCS", Value: "1"}, // 250m = 0.25 cores, floor(0.25) = 0, raised to the minimum of 1
+			},
+		},
+		{
+			name: "fractional CPU limit: GOMAXPROCS correctly computed",
+			opts: []argoCDOpt{controllerCPULimit("1500m")},
+			want: []corev1.EnvVar{
+				{Name: "GOMAXPROCS", Value: "1"}, // 1500m / 1000 = 1.5, truncated to 1
+			},
+		},
+		{
+			name: "both memory and CPU limits configured: both GOMEMLIMIT and GOMAXPROCS are set",
+			opts: []argoCDOpt{controllerMemLimit(), controllerCPULimit("2000m")},
+			want: []corev1.EnvVar{
+				{Name: "GOMEMLIMIT", Value: "1677721600"}, // 2000Mi * 80 / 100
+				{Name: "GOMAXPROCS", Value: "2"},          // 2000m / 1000 = 2.0
+			},
+		},
+		{
+			name: "both memory and CPU limits, but GoRuntime disabled: no env vars are set",
+			opts: []argoCDOpt{controllerMemLimit(), controllerCPULimit("2000m"), controllerGoRuntimeEnabled(false)},
+			want: []corev1.EnvVar{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envVarValue != "" {
+				os.Setenv(common.DisableGoRuntimeTuning, tt.envVarValue)
+				defer os.Unsetenv(common.DisableGoRuntimeTuning)
+			}
+
+			cr := makeTestArgoCD(tt.opts...)
+			env := getArgoApplicationControllerGoRuntimeEnv(cr)
+
+			if !reflect.DeepEqual(env, tt.want) {
+				t.Fatalf("got %#v, want %#v", env, tt.want)
+			}
+		})
 	}
 }
 

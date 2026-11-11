@@ -1320,6 +1320,12 @@ func TestReconcile_PluginVersionSelection(t *testing.T) {
 			expectedImage:  common.DefaultConsoleImagePF5 + ":" + common.DefaultConsoleVersionPF5,
 		},
 		{
+			name:           "OCP 4.18 nightly build installs PF5 plugin",
+			clusterVersion: "4.18.0-0.nightly-2026-01-01-000000",
+			expectPlugin:   true,
+			expectedImage:  common.DefaultConsoleImagePF5 + ":" + common.DefaultConsoleVersionPF5,
+		},
+		{
 			name:           "OCP 4.19 installs PF6 plugin",
 			clusterVersion: "4.19.0",
 			expectPlugin:   true,

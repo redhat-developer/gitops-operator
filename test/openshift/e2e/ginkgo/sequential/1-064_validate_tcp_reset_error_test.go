@@ -29,7 +29,6 @@ import (
 	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
 	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
 	namespaceFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/namespace"
-	osFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/os"
 	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,11 +160,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(guestbookApp, "4m", "5s").Should(appFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced))
 
 			By("verifying we can log in to Argo CD via CLI, via the Route (this test specifically validates behavior of Argo CD CLI when going through the OpenShift Router)")
-			Expect(argocdFixture.LogInToArgoCDInstanceViaRoute(ArgoCD)).To(Succeed())
+			cliSession, err := argocdFixture.NewArgoCDCLISession()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(cliSession.LogInToArgoCDInstanceViaRoute(ArgoCD)).To(Succeed())
 
 			By("retrieving the Argo CD app manifests via CLI, and verifying the command succeeds and that there is no 'TCP reset error' error")
 
-			output, err := osFixture.ExecCommand("argocd", "app", "manifests", "1-27-argocd", "--source", "git", "--revision", "HEAD")
+			output, err := cliSession.RunArgoCDCLI("app", "manifests", "1-27-argocd", "--source", "git", "--revision", "HEAD")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(output).ToNot(ContainSubstring("Original error: read tcp"), "ERROR: TCP reset error is present in this code")
 		})

@@ -1147,3 +1147,13 @@ func isWebTerminalEnabled(cr *argoproj.ArgoCD) bool {
 	}
 	return *cr.Spec.WebTerminalEnabled
 }
+
+// isImpersonationEnabled will return whether impersonation is enabled in the Argo CD CR.
+func isImpersonationEnabled(cr *argoproj.ArgoCD) bool {
+	for key, val := range cr.Spec.ExtraConfig {
+		if key == common.ArgoCDImpersonationEnabledCMKey && val == "true" {
+			return true
+		}
+	}
+	return false
+}
