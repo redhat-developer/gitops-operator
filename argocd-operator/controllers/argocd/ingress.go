@@ -28,7 +28,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
-// getArgoServerPath will return the Ingress Path for the Argo CD component.
+// getPathOrDefault returns the given Ingress path, or the default path if it is empty.
 func getPathOrDefault(path string) string {
 	result := common.ArgoCDDefaultIngressPath
 	if len(path) > 0 {
