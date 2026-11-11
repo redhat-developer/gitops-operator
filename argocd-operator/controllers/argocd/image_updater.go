@@ -286,6 +286,17 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 		// consenting are skipped rather than failing the whole reconciliation, so a single
 		// misconfigured or non-consenting entry doesn't disrupt the namespaces that remain valid.
 		consentedNamespaces := r.filterImageUpdaterConsentedNamespaces(cr, expandedNamespaces)
+		for _, ns := range consentedNamespaces {
+			desiredNamespaces[ns] = nil
+		}
+
+		// Prune excluded/stale per-namespace Roles/RoleBindings before creating RBAC for the
+		// retained namespaces below: if a namespace lost consent and must be revoked, that
+		// revocation must not be blocked by an unrelated, persistent create/update failure in
+		// one of the namespaces that remain authorized.
+		if err := r.pruneImageUpdaterNamespaceRBAC(cr, desiredNamespaces); err != nil {
+			return nil, err
+		}
 
 		log.Info("reconciling Image Updater role")
 		role, err := r.reconcileImageUpdaterRole(cr, policyRuleForRoleForImageUpdaterController())
@@ -300,7 +311,6 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 		}
 
 		for _, ns := range consentedNamespaces {
-			desiredNamespaces[ns] = nil
 			log.Info("reconciling Image Updater manager role", "namespace", ns)
 			nsRole, err := r.reconcileImageUpdaterRoleForNamespace(ns, cr, policyRuleForRoleManagerRoleForImageUpdaterController())
 			if err != nil {
@@ -313,12 +323,11 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 				}
 			}
 		}
-		expandedNamespaces = consentedNamespaces
+		return consentedNamespaces, nil
 	}
 
-	// Prune per-namespace Roles/RoleBindings whose namespace is no longer in the watch list.
-	// For "*" and "" desiredNamespaces is empty, removing any stale objects left from a previous
-	// pattern-list configuration.
+	// Prune any stale per-namespace Roles/RoleBindings left over from a previous pattern-list
+	// configuration. desiredNamespaces is empty here since "*" and "" never populate it.
 	if err := r.pruneImageUpdaterNamespaceRBAC(cr, desiredNamespaces); err != nil {
 		return nil, err
 	}
