@@ -2,6 +2,9 @@ module github.com/redhat-developer/gitops-operator
 
 go 1.27.0
 
+// Internalized from a separate repo
+require github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
+
 replace github.com/redhat-developer/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
@@ -22,8 +25,6 @@ require (
 	github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e
 	github.com/operator-framework/api v0.17.5
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.1
-	// Internalized from a separate repo
-	github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.58.0
