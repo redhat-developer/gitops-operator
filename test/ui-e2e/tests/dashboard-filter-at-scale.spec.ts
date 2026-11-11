@@ -218,37 +218,47 @@ spec:
     await appsPage.assertAppVisible(devHealthy);
     await appsPage.assertAppHidden(prodOutOfSync);
 
-    await appsPage.clearAllFilters();
-    await appsPage.selectFilterOption('HEALTH STATUS', 'Degraded');
-    await appsPage.assertAppHidden(prodHealthy);
-    await appsPage.assertAppHidden(devHealthy);
-    await appsPage.assertAppHidden(prodOutOfSync);
-
-    await appsPage.clearAllFilters();
+    const seededApps = [prodHealthy, devHealthy, prodOutOfSync];
     const healthOf = (name: string) =>
       tryOcGet([
         'get', 'application', name, '-n', 'openshift-gitops',
         '-o', 'jsonpath={.status.health.status}',
       ]);
+    const assertTilesMatchHealth = async (status: string) => {
+      await appsPage.selectFilterOption('HEALTH STATUS', status);
+      for (const name of seededApps) {
+        if (healthOf(name) === status) {
+          await appsPage.assertAppVisible(name);
+        } else {
+          await appsPage.assertAppHidden(name);
+        }
+      }
+    };
+
+    await appsPage.clearAllFilters();
+    //synced apps can still be degraded/progressing — don't assume healthy
+    try {
+      await assertTilesMatchHealth('Degraded');
+    } catch {
+      await appsPage.clearAllFilters();
+      await assertTilesMatchHealth('Degraded');
+    }
+
+    await appsPage.clearAllFilters();
     const applyProdHealth = async () => {
       const health = healthOf(prodHealthy);
       if (!health) {
         throw new Error(`Application '${prodHealthy}' has no health status`);
       }
-      await appsPage.selectFilterOption('HEALTH STATUS', health);
+      await assertTilesMatchHealth(health);
       return health;
     };
     //guestbook can flip progressing/healthy between the oc read and the tiles
-    let prodHealth = await applyProdHealth();
     try {
-      await appsPage.assertAppVisible(prodHealthy);
+      await applyProdHealth();
     } catch {
       await appsPage.clearAllFilters();
-      prodHealth = await applyProdHealth();
-      await appsPage.assertAppVisible(prodHealthy);
-    }
-    if (healthOf(prodOutOfSync) !== prodHealth) {
-      await appsPage.assertAppHidden(prodOutOfSync);
+      await applyProdHealth();
     }
 
     await appsPage.clearAllFilters();
