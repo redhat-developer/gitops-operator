@@ -89,6 +89,12 @@ func ReconcilePromoterAPIServerServingCertSecret(client client.Client, cr *argop
 
 	if exists {
 		if !enabled {
+			// Only delete secrets this reconciler created. Preserve user-provided or
+			// unrelated Secrets with the same name, including when Promoter is disabled
+			// or when the user references this Secret via certSecretName.
+			if !metav1.IsControlledBy(secret, cr) || getUserAPIServerCertSecretName(cr) == secret.Name {
+				return secret, nil
+			}
 			argoutil.LogResourceDeletion(log, secret, "promoter apiserver serving cert secret is being deleted due to being disabled")
 			if err := client.Delete(context.Background(), secret); err != nil {
 				return nil, fmt.Errorf("failed to delete promoter apiserver serving cert secret %s: %v", secret.Name, err)

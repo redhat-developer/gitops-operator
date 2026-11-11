@@ -23,8 +23,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
@@ -90,9 +92,29 @@ func TestReconcilePromoterAPIServerServingCertSecret_BYO_DoesNotCreate(t *testin
 	assert.True(t, errors.IsNotFound(err))
 }
 
-func TestReconcilePromoterAPIServerServingCertSecret_Disabled_Deletes(t *testing.T) {
+func TestReconcilePromoterAPIServerServingCertSecret_Disabled_DeletesOwnedSecret(t *testing.T) {
 	cr := makeTestArgoCD(withPromoterEnabled(false))
 	existing := buildAPIServerServingCertSecret(cr)
+	sch := makeTestReconcilerScheme()
+	require.NoError(t, controllerutil.SetControllerReference(cr, existing, sch))
+
+	cl := makeTestReconcilerClient(sch, []client.Object{cr, existing})
+
+	_, err := ReconcilePromoterAPIServerServingCertSecret(cl, cr, sch)
+	assert.NoError(t, err)
+
+	retrieved := &corev1.Secret{}
+	err = cl.Get(context.Background(), types.NamespacedName{
+		Name:      DefaultAPIServerServingCertSecretName,
+		Namespace: cr.Namespace,
+	}, retrieved)
+	assert.True(t, errors.IsNotFound(err))
+}
+
+func TestReconcilePromoterAPIServerServingCertSecret_Disabled_PreservesUnownedSecret(t *testing.T) {
+	cr := makeTestArgoCD(withPromoterEnabled(false))
+	existing := buildAPIServerServingCertSecret(cr)
+	existing.Data = map[string][]byte{"tls.crt": []byte("user-cert")}
 
 	sch := makeTestReconcilerScheme()
 	cl := makeTestReconcilerClient(sch, []client.Object{cr, existing})
@@ -105,7 +127,32 @@ func TestReconcilePromoterAPIServerServingCertSecret_Disabled_Deletes(t *testing
 		Name:      DefaultAPIServerServingCertSecretName,
 		Namespace: cr.Namespace,
 	}, retrieved)
-	assert.True(t, errors.IsNotFound(err))
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("user-cert"), retrieved.Data["tls.crt"])
+}
+
+func TestReconcilePromoterAPIServerServingCertSecret_BYO_PreservesReferencedSecret(t *testing.T) {
+	// User brings their own cert using the default secret name; must not be deleted.
+	cr := makeTestArgoCD(withPromoterEnabled(true), withPromoterAPIServerTLS(""))
+	cr.Spec.Promoter.APIServer.TLS.CertSecretName = DefaultAPIServerServingCertSecretName
+
+	existing := buildAPIServerServingCertSecret(cr)
+	existing.Data = map[string][]byte{"tls.crt": []byte("byo")}
+	sch := makeTestReconcilerScheme()
+	require.NoError(t, controllerutil.SetControllerReference(cr, existing, sch))
+
+	cl := makeTestReconcilerClient(sch, []client.Object{cr, existing})
+
+	_, err := ReconcilePromoterAPIServerServingCertSecret(cl, cr, sch)
+	assert.NoError(t, err)
+
+	retrieved := &corev1.Secret{}
+	err = cl.Get(context.Background(), types.NamespacedName{
+		Name:      DefaultAPIServerServingCertSecretName,
+		Namespace: cr.Namespace,
+	}, retrieved)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("byo"), retrieved.Data["tls.crt"])
 }
 
 func TestReconcilePromoterControllerDeployment_BYO_SkipsCertRotationArgs(t *testing.T) {
