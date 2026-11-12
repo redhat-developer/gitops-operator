@@ -31,11 +31,11 @@ import (
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	argoutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	deplFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {

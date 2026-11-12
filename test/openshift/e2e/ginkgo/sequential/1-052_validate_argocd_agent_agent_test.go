@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -87,10 +88,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					ArgoCDAgent: &argov1beta1api.ArgoCDAgentSpec{
 						Agent: &argov1beta1api.AgentSpec{
-							Enabled:   new(true),
-							Creds:     "mtls:any",
-							LogLevel:  "info",
-							LogFormat: "text",
+							Enabled:       new(true),
+							Creds:         "mtls:any",
+							LogLevel:      "info",
+							LogFormat:     "text",
+							LabelSelector: "argocd-agent=true",
 							Client: &argov1beta1api.AgentClientSpec{
 								PrincipalServerAddress: "argocd-agent-principal.example.com",
 								PrincipalServerPort:    "443",
@@ -167,9 +169,13 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				},
 			}
 
-			// List environment variables with expected values for the agent deployment
+			// List environment variables with expected values for the agent deployment.
+			// NOTE: the runtime-switchable settings (log level, full detail, pprof enabled) are
+			// deliberately absent: they are sourced from the argocd-agent-params ConfigMap via a
+			// ConfigMapKeyRef rather than set to a literal value, so that changing them does not
+			// restart the agent. They are covered by
+			// 1-060_validate_argocd_agent_debug_settings_test.go.
 			expectedEnvVariables = map[string]string{
-				agent.EnvArgoCDAgentLogLevel:            "info",
 				agent.EnvArgoCDAgentNamespace:           ns.Name,
 				agent.EnvArgoCDAgentServerAddress:       "argocd-agent-principal.example.com",
 				agent.EnvArgoCDAgentServerPort:          "443",
@@ -184,6 +190,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				agent.EnvArgoCDAgentKeepAliveInterval:   "30s",
 				agent.EnvArgoCDAgentRedisAddress:        fmt.Sprintf("%s-%s:%d", argoCDName, "redis", common.ArgoCDDefaultRedisPort),
 				agent.EnvArgoCDAgentEnableResourceProxy: "true",
+				agent.EnvArgoCDAgentLabelSelector:       "argocd-agent=true",
 			}
 		})
 
@@ -298,8 +305,19 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Verify environment variables are set correctly")
 
-			// update expected value in default environment variables according to ArgoCD CR in the test
-			expectedEnvVariables[agent.EnvArgoCDAgentLogLevel] = "trace"
+			// The runtime-switchable settings reference argocd-agent-params ConfigMap keys
+			// instead of carrying literal values, so that changing one rewrites the ConfigMap
+			// without rolling the agent.
+			for envName, cmKey := range map[string]string{
+				agent.EnvArgoCDAgentLogLevel:     common.ArgoCDAgentAgentLogLevelKey,
+				agent.EnvArgoCDAgentFullDetail:   common.ArgoCDAgentAgentFullDetailKey,
+				agent.EnvArgoCDAgentPProfEnabled: common.ArgoCDAgentAgentPProfEnabledKey,
+			} {
+				Expect(container.Env).To(ContainElement(corev1.EnvVar{
+					Name:      envName,
+					ValueFrom: agentutil.AgentParamsEnvVarSource(cmKey),
+				}), "%s should be sourced from the params ConfigMap", envName)
+			}
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)
@@ -318,7 +336,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyResourcesDeleted()
 		})
 
-		It("should create argocd agent agent resources, but pod will not start without principal", func() {
+		It("should create argocd agent agent resources with default image, but pod will not start without principal", func() {
 			// Add a custom environment variable to the agent client
 			argoCD.Spec.ArgoCDAgent.Agent.Env = []corev1.EnvVar{{Name: "TEST_ENV", Value: "test_value"}}
 
@@ -334,7 +352,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(ContainSubstring("argocd-agent"))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
 
 			By("Verify environment variables are set correctly")
 
@@ -366,6 +384,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("Should reflect configuration changes from ArgoCD CR to the agent deployment", func() {
 
 			By("Create ArgoCD instance")
+
+			argoCD.Spec.ArgoCDAgent.Agent.Image = common.ArgoCDAgentAgentDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for agent pod")
@@ -376,7 +396,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentAgentName, *agentDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(ContainSubstring("argocd-agent"))
+			Expect(container.Image).To(Equal(common.ArgoCDAgentAgentDefaultImageName))
 
 			By("Verify environment variables are set correctly")
 
@@ -392,7 +412,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ArgoCDAgent.Agent.LogLevel = "trace"
 				ac.Spec.ArgoCDAgent.Agent.LogFormat = "json"
-				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+				ac.Spec.ArgoCDAgent.Agent.Image = "quay.io/argoprojlabs/argocd-agent:v0.5.1"
+				ac.Spec.ArgoCDAgent.Agent.LabelSelector = "env=staging"
 
 				ac.Spec.ArgoCDAgent.Agent.Client.KeepAliveInterval = "60s"
 				ac.Spec.ArgoCDAgent.Agent.Client.EnableWebSocket = new(true)
@@ -421,12 +442,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					if container == nil {
 						return false
 					}
-					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.8.1"
+					return container.Image == "quay.io/argoprojlabs/argocd-agent:v0.5.1"
 				}, "120s", "5s").Should(BeTrue(), "Agent deployment should have the updated image")
 
 			By("Verify environment variables are updated correctly")
 
-			expectedEnvVariables[agent.EnvArgoCDAgentLogLevel] = "trace"
 			expectedEnvVariables[agent.EnvArgoCDAgentLogFormat] = "json"
 			expectedEnvVariables[agent.EnvArgoCDAgentKeepAliveInterval] = "60s"
 			expectedEnvVariables[agent.EnvArgoCDAgentEnableWebSocket] = "true"
@@ -437,6 +457,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			expectedEnvVariables[agent.EnvArgoCDAgentTLSInsecure] = "true"
 			expectedEnvVariables[agent.EnvArgoCDAgentTLSSecretName] = "argocd-agent-client-tls-v2"
 			expectedEnvVariables[agent.EnvArgoCDAgentTLSRootCASecretName] = "argocd-agent-ca-v2"
+			expectedEnvVariables[agent.EnvArgoCDAgentLabelSelector] = "env=staging"
 
 			for key, value := range expectedEnvVariables {
 				Expect(container.Env).To(ContainElement(corev1.EnvVar{Name: key, Value: value}), "Environment variable %s should be set to %s", key, value)

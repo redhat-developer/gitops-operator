@@ -25,10 +25,10 @@ Prefer test implemented as parallel, if they can be written as such.
 - Tests that run within this folder run in parallel against a single K8s cluster. Thus, these tests cannot step on each others toes by, for example, modifying cluster resources that are shared by other parallel tests. (It is fine to READ from shared resources, but NOT to write to them).
   - A non-exhaustive list of tests that should remain in sequential:
     - Tests that rely on managed-by label.
-    - Tests that log in to an Argo CD instance via argocd cli.
     - Tests that use ArgoCD CR `.spec.sourceNamespaces`.
-    - Tests that modify environment variables of `openshift-gitops-operator-controller-manager`.
-    - Thats that explicitly verifies behavior of the default instance in `openshift-gitops` namespace
+    - Tests that modify operator Subscription (including env vars).
+    - Thats that explicitly verifies behavior of the default instance in `openshift-gitops` namespace.
+    - Tests that test features which require a cluster-scoped Argo CD instance (often requiring Subscription modification).
 - Use `Describe("GitOps Operator Parallel E2E Tests", func() { ... })` as the top-level describe block
 - Call `fixture.EnsureParallelCleanSlate()` in the `BeforeEach` function. (not `EnsureSequentialCleanSlate`)
 

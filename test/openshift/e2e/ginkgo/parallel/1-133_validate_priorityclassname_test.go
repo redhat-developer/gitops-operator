@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sequential
+package parallel
 
 import (
 	"context"
@@ -31,23 +31,22 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-133_validate_priorityclassname", func() {
 
-		const (
-			testPriorityClassName        = "e2e-test-high-priority"
-			testPriorityClassNameUpdated = "e2e-test-medium-priority"
-		)
-
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient                    client.Client
+			ctx                          context.Context
+			ns                           *corev1.Namespace
+			cleanupFunc                  func()
+			testPriorityClassName        string
+			testPriorityClassNameUpdated string
+			createdPriorityClassNames    []string
 		)
 
 		// allDeploymentPriorityClasses returns the sorted, deduplicated set of
@@ -89,27 +88,33 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			return result
 		}
 
-		// ensureTestPriorityClass deletes a leftover e2e PriorityClass with the
-		// same name (if any), then creates it. Same pattern as cluster-scoped
-		// setup in 1-053.
+		// ensureTestPriorityClass creates a uniquely named PriorityClass owned by
+		// this spec. The Never preemption policy prevents the test's elevated
+		// priority workloads from preempting workloads created by parallel tests.
 		var ensureTestPriorityClass = func(name string, value int32) {
+			preemptionPolicy := corev1.PreemptNever
 			pc := &schedulingv1.PriorityClass{
-				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Value:      value,
-			}
-			existing := pc.DeepCopy()
-			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(existing), existing); err == nil {
-				Expect(k8sClient.Delete(ctx, existing)).To(Succeed())
-			} else if !apierrors.IsNotFound(err) {
-				Expect(err).ToNot(HaveOccurred())
+				ObjectMeta:       metav1.ObjectMeta{Name: name},
+				Value:            value,
+				PreemptionPolicy: &preemptionPolicy,
 			}
 			Expect(k8sClient.Create(ctx, pc)).To(Succeed())
+			createdPriorityClassNames = append(createdPriorityClassNames, name)
 		}
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			ns = nil
+			cleanupFunc = nil
+			createdPriorityClassNames = nil
+
+			// PriorityClasses are cluster-scoped, so give each spec run unique
+			// names to avoid collisions with other parallel workers.
+			runID := utilrand.String(8)
+			testPriorityClassName = "e2e-test-high-priority-" + runID
+			testPriorityClassNameUpdated = "e2e-test-medium-priority-" + runID
 		})
 
 		AfterEach(func() {
@@ -120,13 +125,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				cleanupFunc()
 			}
 
-			// Clean up PriorityClass resources created for this test
-			for _, pcName := range []string{testPriorityClassName, testPriorityClassNameUpdated} {
+			// Delete only PriorityClasses created by this spec; never sweep fixed
+			// cluster-scoped names that another parallel test might own.
+			for _, pcName := range createdPriorityClassNames {
 				pc := &schedulingv1.PriorityClass{ObjectMeta: metav1.ObjectMeta{Name: pcName}}
 				if err := k8sClient.Delete(ctx, pc); err != nil && !apierrors.IsNotFound(err) {
 					GinkgoWriter.Printf("Failed to delete PriorityClass %s: %v\n", pcName, err)
 				}
 			}
+			createdPriorityClassNames = nil
 		})
 
 		It("verifies spec.priorityClassName is applied to all operator-managed workloads", func() {

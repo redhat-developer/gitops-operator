@@ -27,6 +27,9 @@ const (
 	// ArgoCDApplicationControllerDefaultShardReplicas is the default number of replicas that the ArgoCD Application Controller Should Use
 	ArgocdApplicationControllerDefaultReplicas = 1
 
+	// ArgoCDDefaultControllerMemLimitPercent is the default percentage of the controller's memory limit used to derive GOMEMLIMIT when Go runtime tuning is enabled.
+	ArgoCDDefaultControllerMemLimitPercent = 80
+
 	// ArgoCDDefaultLogLevel is the default log level to be used by all ArgoCD components.
 	ArgoCDDefaultLogLevel = "info"
 
@@ -310,6 +313,13 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 	// ArgoCDCmdParamsConfigMapName is the upstream hard-coded ArgoCD command params ConfigMap name.
 	ArgoCDCmdParamsConfigMapName = "argocd-cmd-params-cm"
+
+	// ArgoCDAgentParamsConfigMapName is the name of the ConfigMap holding the configuration
+	// parameters for the Argo CD Agent principal and agent components.
+	ArgoCDAgentParamsConfigMapName = "argocd-agent-params"
+
+	// ArgoCDAgentDefaultLogLevel is the default log level for the ArgoCD agent/principal components.
+	ArgoCDAgentDefaultLogLevel = "info"
 
 	// ArgoCDAgentPrincipalDefaultImageName is the default image name for the ArgoCD agent's principal component.
 	ArgoCDAgentPrincipalDefaultImageName = "ghcr.io/argoproj-labs/argocd-agent/argocd-agent:3588f4ca"
