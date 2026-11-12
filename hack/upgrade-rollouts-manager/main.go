@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	"os/exec"
 
 	"github.com/google/go-github/v58/github"
+	"gopkg.in/yaml.v3"
 )
 
 // These can be set while debugging
@@ -219,27 +219,80 @@ func copyCRDsFromRolloutsManagerRepo(pathToRolloutsManagerGitRepo string, pathTo
 	for _, crdYAML := range crdYAMLs {
 
 		// #nosec G304
-		destFile, err := os.Create(filepath.Join(destinationPath, crdYAML))
+		srcBytes, err := os.ReadFile(filepath.Join(rolloutManagerCRDPath, crdYAML))
 		if err != nil {
-			return fmt.Errorf("unable to create file for '%s': %w", crdYAML, err)
+			return fmt.Errorf("unable to read source file for '%s': %w", crdYAML, err)
 		}
-		defer destFile.Close()
 
-		// #nosec G304
-		srcFile, err := os.Open(filepath.Join(rolloutManagerCRDPath, crdYAML))
-		if err != nil {
-			return fmt.Errorf("unable to open source file for '%s': %w", crdYAML, err)
+		// The Rollouts CRDs are large enough that keeping their '.description' fields
+		// pushes the bundle over OLM's compressed size limit, so strip them.
+		if crdYAML != "argoproj.io_rolloutmanagers.yaml" {
+			srcBytes, err = stripDescriptionFields(srcBytes)
+			if err != nil {
+				return fmt.Errorf("unable to strip descriptions from '%s': %w", crdYAML, err)
+			}
 		}
-		defer srcFile.Close()
 
-		_, err = io.Copy(destFile, srcFile)
-		if err != nil {
-			return fmt.Errorf("unable to copy file for '%s': %w", crdYAML, err)
+		if err := os.WriteFile(filepath.Join(destinationPath, crdYAML), srcBytes, 0600); err != nil {
+			return fmt.Errorf("unable to write file for '%s': %w", crdYAML, err)
 		}
 
 	}
 
 	return nil
+}
+
+// stripDescriptionFields removes every '.description' field found anywhere within the given
+// YAML document (at any nesting level), equivalent to the yq expression:
+// 'del(.. | select(has("description")) | .description)'
+func stripDescriptionFields(yamlBytes []byte) ([]byte, error) {
+
+	var doc yaml.Node
+	if err := yaml.Unmarshal(yamlBytes, &doc); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal yaml: %w", err)
+	}
+
+	removeDescriptionFieldsFromNode(&doc)
+
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&doc); err != nil {
+		return nil, fmt.Errorf("unable to marshal yaml: %w", err)
+	}
+	if err := enc.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func removeDescriptionFieldsFromNode(node *yaml.Node) {
+
+	if node.Kind == yaml.MappingNode {
+
+		filteredContent := make([]*yaml.Node, 0, len(node.Content))
+
+		// Mapping node Content is a flat list of alternating key, value nodes
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+
+			if keyNode.Value == "description" {
+				continue
+			}
+
+			removeDescriptionFieldsFromNode(valueNode)
+			filteredContent = append(filteredContent, keyNode, valueNode)
+		}
+
+		node.Content = filteredContent
+
+	} else {
+		for _, child := range node.Content {
+			removeDescriptionFieldsFromNode(child)
+		}
+	}
 }
 
 func regenerateE2ETestScript(commitID string, pathToGitRepo string) error {
