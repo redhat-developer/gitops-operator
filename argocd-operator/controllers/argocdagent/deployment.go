@@ -352,7 +352,11 @@ func updateDeploymentIfChanged(compName, saName string, cr *argoproj.ArgoCD, dep
 		changed = true
 		deployment.Spec.Template.Spec.ServiceAccountName = saName
 	}
-
+	if deployment.Spec.Template.Spec.AutomountServiceAccountToken == nil || !*deployment.Spec.Template.Spec.AutomountServiceAccountToken {
+		log.Info("deployment automount service account token is being updated")
+		changed = true
+		deployment.Spec.Template.Spec.AutomountServiceAccountToken = new(true)
+	}
 	principalResources := getPrincipalResources(cr)
 	if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Resources, principalResources) {
 		log.Info("deployment resource requirements is being updated")
