@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that specifying a ConfigMap to ArgoCD CR .spec.applicationSet.SCMRootCAConfigMap will cause that ConfigMap to be mounted into applicationset controller Deployment, and that applicationset controller has expected volumes and mounts", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a certificate in a ConfigMap that we expect to be mounted into applicationset controller Deployment")
 			configMap := &corev1.ConfigMap{

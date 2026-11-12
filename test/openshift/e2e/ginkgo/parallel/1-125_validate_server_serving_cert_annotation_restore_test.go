@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("restores service.beta.openshift.io/serving-cert-secret-name when Route TLS returns from passthrough to default reencrypt", Label("openshift"), func() {
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			DeferCleanup(nsCleanup)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
@@ -129,7 +129,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			DeferCleanup(nsCleanup)
 
 			By("pre-creating argocd-server-tls without OpenShift Service CA annotations or ownerReferences")
 

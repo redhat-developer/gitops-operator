@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating basic Argo CD instance and waiting for it to be available")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 			Eventually(ns).Should(namespaceFixture.HavePhase(corev1.NamespaceActive))
 
 			argoCD := &argov1beta1api.ArgoCD{

@@ -76,7 +76,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating simple Argo CD instance with Dex and Openshift OAuth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := newArgoCDForDexOpenShiftOAuthE2E(ns.Name)
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
@@ -178,7 +178,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating simple Argo CD instance with Dex and Openshift OAuth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := newArgoCDForDexOpenShiftOAuthE2E(ns.Name)
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())

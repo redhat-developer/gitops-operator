@@ -52,7 +52,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensures extra arguments are deduplicated, replaced, or preserved as expected in application-controller", func() {
 			By("creating a simple ArgoCD CR and waiting for it to become available")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},

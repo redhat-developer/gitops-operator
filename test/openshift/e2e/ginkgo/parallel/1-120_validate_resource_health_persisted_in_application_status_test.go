@@ -56,7 +56,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-120_validate_resource_health_persisted_in_application_status", func() {
 		It("should persist resource health in Application CR status when configured", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			Expect(k8sClient.Get(ctx, client.ObjectKey{
 				Name:      ns.Name,
@@ -138,7 +138,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should not persist resource health and use resourceHealthSource when controller.resource.health.persist=false", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("Creating ArgoCD CR with controller.resource.health.persist=false")
 			argoCD := &argov1beta1api.ArgoCD{
