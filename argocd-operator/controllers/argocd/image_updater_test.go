@@ -277,6 +277,13 @@ func TestReconcileImageUpdater_CreateDeployments(t *testing.T) {
 		Image:           argoutil.CombineImageTag(DefaultImageUpdaterImage, DefaultImageUpdaterTag),
 		ImagePullPolicy: v1.PullIfNotPresent,
 		Name:            common.ArgoCDImageUpdaterControllerComponent,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "webhook",
+				ContainerPort: 8082,
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
 		SecurityContext: argoutil.DefaultSecurityContext(),
 		VolumeMounts: []v1.VolumeMount{
 			{

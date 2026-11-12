@@ -1,3 +1,28 @@
+# Example: Argo CD Image Updater, with its webhook server exposed through an OpenShift Route.
+#
+# Replace the placeholder webhook secrets and the Route host, adjust metadata as needed, then apply:
+#   oc apply -n argocd -f examples/argocd-image-updater.yaml
+#
+# Registries call the webhook at https://<route-host>/webhook?type=<registry>, for example
+#   https://image-updater-webhook.apps.example.com/webhook?type=quay.io&secret=<quay-secret>
+#
+# Image Updater guide, including the webhook URL format for each registry:
+#   https://argocd-operator.readthedocs.io/en/latest/usage/image-updater/
+# (or docs/usage/image-updater.md in this repository)
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: image-updater-webhook-secrets
+  labels:
+    example: image-updater
+type: Opaque
+stringData:
+  docker: "replace-with-your-docker-hub-webhook-secret"
+  ghcr: "replace-with-your-ghcr-webhook-secret"
+  quay: "replace-with-your-quay-webhook-secret"
+  harbor: "replace-with-your-harbor-webhook-secret"
+---
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
@@ -19,4 +44,48 @@ spec:
       requests:
         cpu: 250m
         memory: 128Mi
-
+    webhookServer:
+      # Defaults to <instance-name>-image-updater-webhook-<namespace>.<apps-domain> when omitted.
+      host: image-updater-webhook.apps.example.com
+      # false (the default): the webhook server serves TLS with an OpenShift service serving certificate.
+      # Set to true to disable TLS on the webhook pod (plain HTTP on port 8082); no serving certificate is
+      # requested and the Route termination defaults to edge. Registries still connect over HTTPS to an edge
+      # Route, so only the router-to-pod leg is plain HTTP; an Ingress relies on ingress.tls for external TLS.
+      insecure: false
+      route:
+        enabled: true
+        annotations:
+          haproxy.router.openshift.io/timeout: 30s
+        labels:
+          app.kubernetes.io/part-of: image-updater-webhook
+        # Optional. Without tls, the Route defaults to reencrypt (or edge when insecure is true) with Redirect.
+        tls:
+          termination: reencrypt
+          insecureEdgeTerminationPolicy: Redirect
+      # For clusters without OpenShift Routes. Without a service CA there, either set insecure to true
+      # or provide a certificate in a kubernetes.io/tls Secret named <instance-name>-image-updater-webhook-tls.
+      ingress:
+        enabled: false
+        ingressClassName: nginx
+        annotations:
+          nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+          # When webhookServer.insecure is true, set this to HTTP (or remove it so nginx defaults to HTTP).
+          nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+        tls:
+          - hosts:
+              - image-updater-webhook.apps.example.com
+            secretName: image-updater-webhook-ingress-tls
+      # One entry per registry that sends webhooks. Also supported: acr, aliyunACR, cloudEvents.
+      secrets:
+        docker:
+          name: image-updater-webhook-secrets
+          key: docker
+        ghcr:
+          name: image-updater-webhook-secrets
+          key: ghcr
+        quay:
+          name: image-updater-webhook-secrets
+          key: quay
+        harbor:
+          name: image-updater-webhook-secrets
+          key: harbor
