@@ -60,7 +60,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a new ArgoCD instance")
 			argocdInstance, argocdNS, cleanupArgoCD := fixture.CreateNamespaceWithArgoCDInstance(argocdName)
-			defer cleanupArgoCD()
+			DeferCleanup(cleanupArgoCD)
 
 			// sourceNamespaces reconciliation is gated on ARGOCD_CLUSTER_CONFIG_NAMESPACES in argocd-operator
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, "+argocdNS.Name)
@@ -74,7 +74,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("1) create test-1-24-custom namespace managed by argocd-083 instance")
 
 			test_1_24_customNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("test-1-24-custom", argocdNS.Name)
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("verifying argocd-083 workloads exist and are running")
 

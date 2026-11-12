@@ -36,7 +36,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("creates a cluster-scopes Argo Rollouts instance and verifies the expected K8s resources are created", func() {
 
 			namespace, cleanupNamespace := fixture.CreateNamespaceWithCleanupFunc("xks")
-			defer cleanupNamespace()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
 			By("creating simple cluster-scoped Argo Rollouts instance via RolloutManager in xks namespace")
 

@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a test namespace for ArgoCD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating an ArgoCD instance with imagePullPolicy set to Always")
 			policy := corev1.PullAlways
@@ -147,7 +147,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a namespace and argocd instance for the test")
 			argocdInstance, ArgocdNamespace, cleanupNamespace := fixture.CreateNamespaceWithArgoCDInstance("test-1-114-1")
-			defer cleanupNamespace()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
@@ -209,7 +209,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verifies default imagePullPolicy is applied to all ArgoCD workload resources when not specified in either CR spec or subscription", func() {
 
 			argocdInstance, ArgocdNamespace, cleanupNamespace := fixture.CreateNamespaceWithArgoCDInstance("test-1-114")
-			defer cleanupNamespace()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", ArgocdNamespace.Name)
 			argocdFixture.Update(argocdInstance, func(ac *argov1beta1api.ArgoCD) {
 				ac.Spec.ApplicationSet = &argov1beta1api.ArgoCDApplicationSet{
@@ -265,7 +265,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a test namespace for first ArgoCD instance without imagePullPolicy set")
 			ns1, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating an ArgoCD instance without explicitly setting imagePullPolicy")
 			argoCD1 := &argov1beta1api.ArgoCD{
@@ -331,7 +331,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a second test namespace for ArgoCD instance that should inherit operator-level default")
 			ns2, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a second ArgoCD instance without explicitly setting imagePullPolicy")
 			argoCD2 := &argov1beta1api.ArgoCD{
@@ -371,7 +371,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a third test namespace for ArgoCD instance with explicit imagePullPolicy override")
 			ns3, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a third ArgoCD instance with explicit imagePullPolicy set to IfNotPresent (overriding operator default)")
 			policy := corev1.PullIfNotPresent
