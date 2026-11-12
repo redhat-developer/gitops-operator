@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -1589,13 +1590,13 @@ func TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded(t *testing.T) {
 			wantEnvSet:      false,
 		},
 		{
-			// When the pattern matches no existing namespaces the env var must NOT be
-			// replaced with "". Overwriting with "" would silently put the pod into
-			// namespace-scoped mode while the RBAC for that mode was never created.
-			name:            "no-match pattern is left unchanged in the pod",
+			// When the pattern matches no existing namespaces (or nothing consented), the raw
+			// pattern must never be passed through: no RBAC was granted for it, so the pod
+			// would end up watching a scope it has no permissions for.
+			name:            "no-match pattern is set to empty in the pod",
 			clusterNS:       []string{"unrelated"},
 			watchNamespaces: "app-*",
-			wantEnvValue:    "app-*",
+			wantEnvValue:    "",
 			wantEnvSet:      true,
 		},
 		{
@@ -1664,6 +1665,137 @@ func TestReconcileImageUpdaterDeployment_WatchNamespacesExpanded(t *testing.T) {
 				assert.Equal(t, tt.wantEnvValue, gotValue)
 			} else {
 				assert.False(t, found, "IMAGE_UPDATER_WATCH_NAMESPACES should not be set")
+			}
+		})
+	}
+}
+
+// TestReconcileImageUpdaterControllerEnabled_DeploymentEnvMatchesGrantedRBAC verifies that the
+// namespaces the image-updater pod actually watches (per IMAGE_UPDATER_WATCH_NAMESPACES in the
+// Deployment, as interpreted by the image-updater binary) always have the manager RBAC it needs:
+//   - env set to a list: every listed namespace has a manager Role + RoleBinding. In particular,
+//     when every matched namespace is filtered out, the raw pattern must not be passed through.
+//   - env unset: the binary watches only its own namespace, so the Role in cr.Namespace must
+//     carry the manager rules too (base rules alone are not enough).
+//
+// It also verifies that namespaces that did not consent never receive RBAC.
+func TestReconcileImageUpdaterControllerEnabled_DeploymentEnvMatchesGrantedRBAC(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	tests := []struct {
+		name            string
+		clusterConfig   bool // cr.Namespace is in ARGOCD_CLUSTER_CONFIG_NAMESPACES
+		watchNamespaces string
+		consented       []string // namespaces labelled managed-by=<cr.Namespace>
+		wantNoRBACIn    []string // namespaces that must not receive a manager Role/RoleBinding
+	}{
+		{
+			name:            "namespace-scoped: no matched namespace consented",
+			watchNamespaces: "team-b",
+			wantNoRBACIn:    []string{"team-b"},
+		},
+		{
+			name:            "namespace-scoped: only some matched namespaces consented",
+			watchNamespaces: "team-a,team-b",
+			consented:       []string{"team-a"},
+			wantNoRBACIn:    []string{"team-b"},
+		},
+		{
+			name:            "namespace-scoped: glob, no matched namespace consented",
+			watchNamespaces: "team-*",
+			wantNoRBACIn:    []string{"team-a", "team-b"},
+		},
+		{
+			name:            "namespace-scoped: own namespace listed alongside a non-consented one",
+			watchNamespaces: testNamespace + ",team-b",
+			wantNoRBACIn:    []string{"team-b"},
+		},
+		{
+			// Pattern matches no existing namespace (e.g. tenants not created yet).
+			name:            "cluster-scoped: pattern matches no namespace",
+			clusterConfig:   true,
+			watchNamespaces: "future-*",
+		},
+		{
+			name:            "cluster-scoped: pattern matches without consent",
+			clusterConfig:   true,
+			watchNamespaces: "team-*",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.clusterConfig {
+				t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", testNamespace)
+			} else {
+				t.Setenv("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "")
+			}
+			a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ImageUpdater.Enabled = true
+				a.Spec.ImageUpdater.Env = []v1.EnvVar{{Name: "IMAGE_UPDATER_WATCH_NAMESPACES", Value: tt.watchNamespaces}}
+			})
+			resObjs := []client.Object{a, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: a.Namespace}}}
+			for _, ns := range []string{"team-a", "team-b"} {
+				nsObj := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns, Labels: map[string]string{}}}
+				if slices.Contains(tt.consented, ns) {
+					nsObj.Labels[common.ArgoCDManagedByLabel] = a.Namespace
+				}
+				resObjs = append(resObjs, nsObj)
+			}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, []client.Object{a}, []runtime.Object{})
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+			require.NoError(t, r.setManagedNamespaces(a))
+
+			require.NoError(t, r.reconcileImageUpdaterControllerEnabled(a))
+
+			deployment := &appsv1.Deployment{}
+			require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+				Name:      generateResourceName(common.ArgoCDImageUpdaterControllerComponent, a),
+				Namespace: a.Namespace,
+			}, deployment))
+			managerRules := policyRuleForRoleManagerRoleForImageUpdaterController()
+			env := argoutil.EnvGet(deployment.Spec.Template.Spec.Containers[0].Env, "IMAGE_UPDATER_WATCH_NAMESPACES")
+			if env == nil {
+				// Unset => the binary watches only its own namespace, so the Role in cr.Namespace
+				// must grant the manager rules (namespace-scoped "" mode), not just the base rules.
+				role := &rbacv1.Role{}
+				require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+					Name:      generateResourceName(common.ArgoCDImageUpdaterControllerComponent, a),
+					Namespace: a.Namespace,
+				}, role))
+				assert.Subset(t, role.Rules, managerRules,
+					"IMAGE_UPDATER_WATCH_NAMESPACES is unset, so the pod watches %q, but its Role there lacks the manager rules", a.Namespace)
+			} else {
+				for _, ns := range splitAndFilterPatterns(env.Value) {
+					role := &rbacv1.Role{}
+					err := r.Get(context.TODO(), types.NamespacedName{
+						Name:      getRoleNameForApplicationSourceNamespaces(ns, a),
+						Namespace: ns,
+					}, role)
+					if !assert.NoError(t, err, "pod env IMAGE_UPDATER_WATCH_NAMESPACES=%q names namespace %q, which has no image-updater manager Role", env.Value, ns) {
+						continue
+					}
+					assert.Equal(t, managerRules, role.Rules, "manager Role in %q has unexpected rules", ns)
+					assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{
+						Name:      getRoleBindingNameForSourceNamespaces(a.Name, ns),
+						Namespace: ns,
+					}, &rbacv1.RoleBinding{}), "pod env names namespace %q, which has no image-updater manager RoleBinding", ns)
+				}
+			}
+
+			// Namespaces that did not consent must never receive RBAC, whatever the env fallback is.
+			for _, ns := range tt.wantNoRBACIn {
+				err := r.Get(context.TODO(), types.NamespacedName{
+					Name:      getRoleNameForApplicationSourceNamespaces(ns, a),
+					Namespace: ns,
+				}, &rbacv1.Role{})
+				assert.True(t, errors.IsNotFound(err), "non-consenting namespace %q must not get a manager Role, got: %v", ns, err)
+				err = r.Get(context.TODO(), types.NamespacedName{
+					Name:      getRoleBindingNameForSourceNamespaces(a.Name, ns),
+					Namespace: ns,
+				}, &rbacv1.RoleBinding{})
+				assert.True(t, errors.IsNotFound(err), "non-consenting namespace %q must not get a manager RoleBinding, got: %v", ns, err)
 			}
 		})
 	}
