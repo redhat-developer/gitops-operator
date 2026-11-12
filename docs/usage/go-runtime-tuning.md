@@ -39,13 +39,13 @@ spec:
 For example, to disable tuning for an instance:
 
 ```sh
-kubectl -n argocd patch argocd example --type='json' -p='[{"op": "add", "path": "/spec/controller/goRuntime", "value": {"enabled": false}}]'
+kubectl -n argocd patch argocd example --type='merge' -p='{"spec": {"controller": {"goRuntime": {"enabled": false}}}}'
 ```
 
 For example, to set the memory limit percentage to 75 for an instance:
 
 ```sh
-kubectl -n argocd patch argocd example --type='json' -p='[{"op": "add", "path": "/spec/controller/goRuntime", "value": {"memoryLimitPercent": 75}}]'
+kubectl -n argocd patch argocd example --type='merge' -p='{"spec": {"controller": {"goRuntime": {"memoryLimitPercent": 75}}}}'
 ```
 
 ## Disabling tuning cluster-wide
