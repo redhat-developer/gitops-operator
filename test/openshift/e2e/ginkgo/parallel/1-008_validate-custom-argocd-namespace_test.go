@@ -42,7 +42,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx              context.Context
 			k8sClient        client.Client
 			test1_8_customNS *corev1.Namespace
-			cleanupFunc      func()
 		)
 
 		BeforeEach(func() {
@@ -55,17 +54,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		AfterEach(func() {
 
 			fixture.OutputDebugOnFail("test-1-8-custom")
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-
 		})
 
 		It("creates a custom namespace-scoped Argo CD namespace and verifies the Argo CD instance is able to deploy to that NS", func() {
 
 			By("creating ArgoCD in a custom namespace")
+			var cleanupFunc func()
 			test1_8_customNS, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("test-1-8-custom")
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: test1_8_customNS.Name},

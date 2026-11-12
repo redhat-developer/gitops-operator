@@ -37,10 +37,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-021_validate_rolebindings", func() {
 
 		var (
-			ctx         context.Context
-			k8sClient   client.Client
-			randomNS    *corev1.Namespace
-			cleanupFunc func()
+			ctx       context.Context
+			k8sClient client.Client
+			randomNS  *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -51,15 +50,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		AfterEach(func() {
 			fixture.OutputDebugOnFail(randomNS)
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
 		})
 
 		It("verifies a namespace-scoped Argo CD instance has the expected RoleBindings", func() {
 
 			By("creating new namespace-scoped Argo CD instance and verifying it becomes available")
+			var cleanupFunc func()
 			randomNS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
