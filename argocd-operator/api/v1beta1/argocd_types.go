@@ -136,10 +136,49 @@ type ArgoCDApplicationControllerSpec struct {
 
 	// Metrics defines the metrics configuration for the Application Controller ServiceMonitor.
 	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+
+	// GoRuntime configures automatic Go runtime tuning for the Application Controller.
+	// Tuning is enabled cluster-wide by default; set DISABLE_GO_RUNTIME_TUNING to "true"
+	// on the operator to disable it across all instances. This field cannot re-enable
+	// tuning when the operator-level kill switch is set.
+	GoRuntime *ArgoCDGoRuntimeSpec `json:"goRuntime,omitempty"`
 }
 
 func (a *ArgoCDApplicationControllerSpec) IsEnabled() bool {
 	return a.Enabled == nil || (a.Enabled != nil && *a.Enabled)
+}
+
+// ArgoCDGoRuntimeSpec defines per-instance options for automatic Go runtime tuning (GOMEMLIMIT, GOMAXPROCS).
+// Tuning is enabled cluster-wide by default; set DISABLE_GO_RUNTIME_TUNING to "true" on the operator
+// to disable it across all instances. This spec allows per-instance opt-out and customization of the
+// GOMEMLIMIT percentage. GOMAXPROCS is always derived at 100% of the CPU limit and is not
+// configurable. Currently used only in ArgoCDApplicationControllerSpec.
+type ArgoCDGoRuntimeSpec struct {
+	// Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
+	// Cannot re-enable tuning when the operator-level kill switch (DISABLE_GO_RUNTIME_TUNING=true) is set.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable Go Runtime Auto-Tuning",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Controller","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 80.
+	// Represents headroom reserved for non-heap memory and GC pauses.
+	//+kubebuilder:validation:Minimum=1
+	//+kubebuilder:validation:Maximum=100
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Memory Limit Percent",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Controller","urn:alm:descriptor:com.tectonic.ui:number"}
+	MemoryLimitPercent *int32 `json:"memoryLimitPercent,omitempty"`
+}
+
+// IsEnabled returns whether Go runtime tuning is enabled for this ArgoCDGoRuntimeSpec.
+// A nil receiver (i.e. .Spec.Controller.GoRuntime is unset) or a nil Enabled field defaults to true.
+func (g *ArgoCDGoRuntimeSpec) IsEnabled() bool {
+	return g == nil || g.Enabled == nil || *g.Enabled
+}
+
+// GetMemoryLimitPercent returns the configured MemoryLimitPercent, or defaultPercent if unset.
+func (g *ArgoCDGoRuntimeSpec) GetMemoryLimitPercent(defaultPercent int32) int32 {
+	if g == nil || g.MemoryLimitPercent == nil {
+		return defaultPercent
+	}
+	return *g.MemoryLimitPercent
 }
 
 // ArgoCDApplicationControllerShardSpec defines the options available for enabling sharding for the Application Controller component.
@@ -375,6 +414,60 @@ type ArgoCDImageUpdaterSpec struct {
 
 	// Resources defines the Compute Resources required by the container for Argo CD Image Updater.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// WebhookServer defines the options for exposing the Image Updater webhook server, which image registries
+	// can call to trigger an immediate image update check.
+	WebhookServer ImageUpdaterWebhookServerSpec `json:"webhookServer,omitempty"`
+}
+
+// IsWebhookEnabled returns true if Image Updater is enabled and its webhook server is exposed through a Route or an Ingress.
+func (s *ArgoCDImageUpdaterSpec) IsWebhookEnabled() bool {
+	return s.Enabled && (s.WebhookServer.Route.Enabled || s.WebhookServer.Ingress.Enabled)
+}
+
+// ImageUpdaterWebhookServerSpec defines the options for the Image Updater webhook server.
+type ImageUpdaterWebhookServerSpec struct {
+	// Host is the hostname to use for Ingress/Route resources.
+	Host string `json:"host,omitempty"`
+
+	// Ingress defines the desired state for an Ingress for the Image Updater webhook.
+	Ingress ArgoCDIngressSpec `json:"ingress,omitempty"`
+
+	// Route defines the desired state for an OpenShift Route for the Image Updater webhook.
+	Route ArgoCDRouteSpec `json:"route,omitempty"`
+
+	// Insecure disables TLS on the Image Updater webhook server, which then serves plain HTTP on port 8082.
+	// When false (the default), the server serves TLS using an OpenShift service serving certificate and the
+	// Route defaults to reencrypt termination. When true, no serving certificate is requested and the Route
+	// defaults to edge termination.
+	//
+	// This does not by itself expose the webhook over plain HTTP outside the cluster. With an edge Route,
+	// registries still connect over HTTPS and the router terminates TLS, so only the router-to-pod leg is
+	// plain HTTP inside the cluster. An Ingress relies on .spec.imageUpdater.webhookServer.ingress.tls for
+	// its external TLS; without it, clients reach the Ingress over plain HTTP as well.
+	Insecure bool `json:"insecure,omitempty"`
+
+	// Secrets references the Secrets holding the shared secrets used to validate incoming registry webhooks.
+	Secrets *ImageUpdaterWebhookSecretsSpec `json:"secrets,omitempty"`
+}
+
+// ImageUpdaterWebhookSecretsSpec holds references to Secret keys containing per-registry webhook secrets.
+// The referenced Secrets must be in the same namespace as the Argo CD instance.
+type ImageUpdaterWebhookSecretsSpec struct {
+	// Docker references the Docker Hub webhook secret.
+	Docker *WebhookSecretKeySelector `json:"docker,omitempty"`
+	// GHCR references the GitHub Container Registry webhook secret.
+	GHCR *WebhookSecretKeySelector `json:"ghcr,omitempty"`
+	// Quay references the Quay webhook secret.
+	Quay *WebhookSecretKeySelector `json:"quay,omitempty"`
+	// Harbor references the Harbor webhook secret.
+	Harbor *WebhookSecretKeySelector `json:"harbor,omitempty"`
+	// ACR references the Azure Container Registry webhook secret.
+	ACR *WebhookSecretKeySelector `json:"acr,omitempty"`
+	// AliyunACR references the Aliyun Container Registry webhook secret.
+	AliyunACR *WebhookSecretKeySelector `json:"aliyunACR,omitempty"`
+	// CloudEvents references the CloudEvents webhook secret.
+	CloudEvents *WebhookSecretKeySelector `json:"cloudEvents,omitempty"`
 }
 
 // ArgoCDImportSpec defines the desired state for the ArgoCD import/restore process.
@@ -1252,12 +1345,17 @@ const OpenShiftOAuthErrorMessage = "OpenShiftOAuth is not supported when externa
 const (
 	ArgoCDConditionType               = "Reconciled"
 	ArgoCDConditionConfigurationError = "UnsupportedConfiguration"
+
+	// ArgoCDConditionImageUpdaterWebhookConfigurationError is set when the Image Updater webhook configuration
+	// is unlikely to work as intended.
+	ArgoCDConditionImageUpdaterWebhookConfigurationError = "ImageUpdaterWebhookConfigurationError"
 )
 
 const (
-	ArgoCDConditionReasonSuccess       = "Success"
-	ArgoCDConditionReasonSSOError      = "UnsupportedSSOConfiguration"
-	ArgoCDConditionReasonErrorOccurred = "ErrorOccurred"
+	ArgoCDConditionReasonSuccess                      = "Success"
+	ArgoCDConditionReasonSSOError                     = "UnsupportedSSOConfiguration"
+	ArgoCDConditionReasonErrorOccurred                = "ErrorOccurred"
+	ArgoCDConditionReasonImageUpdaterWebhookMisconfig = "InvalidImageUpdaterWebhookConfiguration"
 )
 
 // ArgoCDStatus defines the observed state of ArgoCD
@@ -1451,6 +1549,8 @@ type PrincipalSpec struct {
 	Auth string `json:"auth,omitempty"`
 
 	// LogLevel refers to the log level used by the Principal component.
+	// Applied at runtime: changing this does not restart the Principal.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Principal component.
@@ -1499,6 +1599,23 @@ type PrincipalSpec struct {
 
 	// SPIFFE defines the SPIFFE/SPIRE configuration for the Principal component.
 	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
+
+	// LogFullDetail is the list of categories the Principal component logs in full detail.
+	//
+	// Applied at runtime: changing this does not restart the Principal.
+	// Default: []
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Principal component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
+}
+
+// ArgoCDAgentPProfSpec defines the profiling options of an Argo CD Agent component.
+type ArgoCDAgentPProfSpec struct {
+	// Enabled toggles whether the pprof endpoint answers requests.
+	// Applied at runtime: changing this does not restart the component.
+	// Default: false when enabled is nil.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
@@ -1510,6 +1627,9 @@ type PrincipalSelfRegistrationSpec struct {
 	// ClientCertSecretName is the name of the TLS secret containing shared client cert
 	// for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
 	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
+
+	// ClusterSecretLabels is the set of labels to apply to cluster secrets created for agents. Ex: {"foo": "bar", "bar": "baz"}
+	ClusterSecretLabels map[string]string `json:"clusterSecretLabels,omitempty"`
 }
 
 // SpiffeAuthMethod is the SPIFFE authentication method for SPIRE workload attestation.
@@ -1640,6 +1760,8 @@ type AgentSpec struct {
 	Creds string `json:"creds,omitempty"`
 
 	// LogLevel refers to the log level used by the Agent component.
+	// Applied at runtime: changing this does not restart the Agent.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Agent component.
@@ -1676,6 +1798,15 @@ type AgentSpec struct {
 
 	// SPIFFE defines the SPIFFE/SPIRE configuration for the Agent component.
 	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
+
+	// LogFullDetail is the list of categories the Agent component logs in full detail.
+	//
+	// Applied at runtime: changing this does not restart the Agent.
+	// Default: []
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Agent component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
 }
 
 type DestinationBasedMappingSpec struct {

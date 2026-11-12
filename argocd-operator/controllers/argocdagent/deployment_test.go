@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -407,14 +408,34 @@ func TestReconcilePrincipalDeployment_VerifyDeploymentSpec(t *testing.T) {
 	// Verify environment variables are set
 	assert.True(t, len(container.Env) > 0)
 	// Verify some expected environment variables are present
+	// The runtime-switchable settings are sourced from the params ConfigMap rather than set to
+	// a literal, so that changing one rewrites the ConfigMap without touching the pod spec.
+	runtimeSwitchable := map[string]string{
+		EnvArgoCDPrincipalLogLevel:     common.ArgoCDAgentPrincipalLogLevelKey,
+		EnvArgoCDPrincipalFullDetail:   common.ArgoCDAgentPrincipalFullDetailKey,
+		EnvArgoCDPrincipalPProfEnabled: common.ArgoCDAgentPrincipalPProfEnabledKey,
+	}
 	envNames := make(map[string]bool)
 	for _, env := range container.Env {
 		envNames[env.Name] = true
-		// All environment variables should have direct values, not references
+		if key, ok := runtimeSwitchable[env.Name]; ok {
+			require.NotNil(t, env.ValueFrom, "%s should be sourced from the params ConfigMap", env.Name)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef, "%s should use a ConfigMapKeyRef", env.Name)
+			assert.Equal(t, common.ArgoCDAgentParamsConfigMapName, env.ValueFrom.ConfigMapKeyRef.Name)
+			assert.Equal(t, key, env.ValueFrom.ConfigMapKeyRef.Key)
+			require.NotNil(t, env.ValueFrom.ConfigMapKeyRef.Optional)
+			assert.True(t, *env.ValueFrom.ConfigMapKeyRef.Optional, "a pod must be able to start before the ConfigMap exists")
+			assert.Empty(t, env.Value, "%s must not carry a literal value as well", env.Name)
+			continue
+		}
+		// Every other environment variable should have a direct value, not a reference
 		assert.Nil(t, env.ValueFrom, "Environment variable %s should have direct value, not reference", env.Name)
 	}
 	// Check for some environment variables
 	assert.True(t, envNames["ARGOCD_PRINCIPAL_NAMESPACE"], "ARGOCD_PRINCIPAL_NAMESPACE should be set")
+	for name := range runtimeSwitchable {
+		assert.True(t, envNames[name], "%s should be set", name)
+	}
 	assert.False(t, envNames["REDIS_PASSWORD"], "REDIS_PASSWORD should not be set")
 
 	// Verify volume mounts
@@ -966,6 +987,21 @@ func withSelfRegistration(enabled bool, clientCertSecretName string) argoCDOpt {
 	}
 }
 
+func withSelfRegistrationClusterSecretLabels(labels map[string]string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal.SelfRegistration == nil {
+			a.Spec.ArgoCDAgent.Principal.SelfRegistration = &argoproj.PrincipalSelfRegistrationSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels = labels
+	}
+}
+
 func TestGetPrincipalEnableSelfClusterRegistration(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1042,6 +1078,7 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 		cr                        *argoproj.ArgoCD
 		expectedEnabled           string
 		expectedClientCertSecret  string
+		expectedSecretLabels      string
 		expectedResourceProxyAddr string
 	}{
 		{
@@ -1049,6 +1086,7 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 			cr:                        makeTestArgoCD(withPrincipalEnabled(true)),
 			expectedEnabled:           "false",
 			expectedClientCertSecret:  "",
+			expectedSecretLabels:      "",
 			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
 		},
 		{
@@ -1056,6 +1094,17 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 			cr:                        makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "argocd-agent-shared-client-cert")),
 			expectedEnabled:           "true",
 			expectedClientCertSecret:  "argocd-agent-shared-client-cert",
+			expectedSecretLabels:      "",
+			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
+		},
+		{
+			name: "self-registration enabled with cluster secret labels",
+			cr: makeTestArgoCD(withPrincipalEnabled(true),
+				withSelfRegistration(true, "argocd-agent-shared-client-cert"),
+				withSelfRegistrationClusterSecretLabels(map[string]string{"foo": "bar"})),
+			expectedEnabled:           "true",
+			expectedClientCertSecret:  "argocd-agent-shared-client-cert",
+			expectedSecretLabels:      "foo=bar",
 			expectedResourceProxyAddr: generateAgentResourceName(testArgoCDName, testCompName+"-resource-proxy") + ":9090",
 		},
 	}
@@ -1072,10 +1121,57 @@ func TestBuildPrincipalContainerEnv_SelfRegistration(t *testing.T) {
 				"ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION mismatch")
 			assert.Equal(t, tt.expectedClientCertSecret, envMap[EnvArgoCDPrincipalSelfRegistrationClientCertSecret],
 				"ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET mismatch")
+			assert.Equal(t, tt.expectedSecretLabels, envMap[EnvArgoCDPrincipalSelfRegistrationSecretLabels],
+				"ARGOCD_PRINCIPAL_SELF_REGISTRATION_SECRET_LABELS mismatch")
 			assert.Equal(t, tt.expectedResourceProxyAddr, envMap[EnvArgoCDPrincipalResourceProxyAddress],
 				"ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS mismatch")
 		})
 	}
+}
+
+func TestGetPrincipalSelfRegistrationSecretLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		cr       *argoproj.ArgoCD
+		expected string
+	}{
+		{
+			name:     "no self-registration configured",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true)),
+			expected: "",
+		},
+		{
+			name:     "self-registration set but no cluster secret labels",
+			cr:       makeTestArgoCD(withPrincipalEnabled(true), withSelfRegistration(true, "")),
+			expected: "",
+		},
+		{
+			name: "single label",
+			cr: makeTestArgoCD(withPrincipalEnabled(true),
+				withSelfRegistrationClusterSecretLabels(map[string]string{"foo": "bar"})),
+			expected: "foo=bar",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, getPrincipalSelfRegistrationSecretLabels(tt.cr))
+		})
+	}
+}
+
+func TestGetPrincipalSelfRegistrationSecretLabels_MultipleLabels(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true),
+		withSelfRegistrationClusterSecretLabels(map[string]string{
+			"env":  "production",
+			"app":  "argocd",
+			"team": "platform",
+		}))
+	result := getPrincipalSelfRegistrationSecretLabels(cr)
+	// Map iteration order is non-deterministic; verify each pair is present individually.
+	assert.Contains(t, result, "env=production")
+	assert.Contains(t, result, "app=argocd")
+	assert.Contains(t, result, "team=platform")
 }
 
 func withPrincipalSPIFFE(authMethod argoproj.SpiffeAuthMethod, csiDriverName string) argoCDOpt {

@@ -172,6 +172,65 @@ func getArgoApplicationControllerResources(cr *argoproj.ArgoCD) corev1.ResourceR
 	return resources
 }
 
+// isApplicationControllerGoRuntimeTuningEnabledOnOperator reports whether operator-level Go runtime
+// tuning is enabled. Tuning is on by default; setting DISABLE_GO_RUNTIME_TUNING to "true" on the
+// operator disables it cluster-wide, and the per-instance .spec.controller.goRuntime field
+// cannot re-enable it.
+func isApplicationControllerGoRuntimeTuningEnabledOnOperator() bool {
+	return os.Getenv(common.DisableGoRuntimeTuning) != "true"
+}
+
+// getArgoApplicationControllerGoRuntimeEnv returns GOMEMLIMIT and GOMAXPROCS for the application
+// controller, derived as a percentage of its memory and CPU limits respectively.
+func getArgoApplicationControllerGoRuntimeEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
+	env := make([]corev1.EnvVar, 0)
+
+	// Default-on: only skip Go runtime tuning if it has been explicitly disabled cluster-wide
+	// on the operator via the global kill switch.
+	if !isApplicationControllerGoRuntimeTuningEnabledOnOperator() {
+		return env
+	}
+
+	// Per-instance opt-out. Note that GoRuntime.IsEnabled() defaults to true when GoRuntime (or GoRuntime.Enabled)
+	// is unset, so this only short-circuits when the CR author has explicitly set enabled: false.
+	if !cr.Spec.Controller.GoRuntime.IsEnabled() {
+		return env
+	}
+
+	resources := getArgoApplicationControllerResources(cr)
+
+	// Compute GOMEMLIMIT from memory limit if configured
+	memLimit := resources.Limits.Memory()
+	if memLimit != nil && !memLimit.IsZero() {
+		memLimitPercent := cr.Spec.Controller.GoRuntime.GetMemoryLimitPercent(common.ArgoCDDefaultControllerMemLimitPercent)
+		goMemLimitBytes := memLimit.Value() * int64(memLimitPercent) / 100
+		if goMemLimitBytes > 0 {
+			env = append(env, corev1.EnvVar{
+				Name:  "GOMEMLIMIT",
+				Value: fmt.Sprintf("%d", goMemLimitBytes),
+			})
+		}
+	}
+
+	// Compute GOMAXPROCS from CPU limit if configured. GOMAXPROCS is intentionally not
+	// configurable per-instance; only the GOMEMLIMIT percentage has a knob. GOMAXPROCS is
+	// always 100% of the CPU limit, i.e. floor(millicores / 1000) whole cores,
+	// floored to 1 because GOMAXPROCS=0 is invalid.
+	cpuLimit := resources.Limits.Cpu()
+	if cpuLimit != nil && !cpuLimit.IsZero() {
+		gomaxprocsValue := cpuLimit.MilliValue() / 1000
+		if gomaxprocsValue < 1 {
+			gomaxprocsValue = 1
+		}
+		env = append(env, corev1.EnvVar{
+			Name:  "GOMAXPROCS",
+			Value: fmt.Sprintf("%d", gomaxprocsValue),
+		})
+	}
+
+	return env
+}
+
 // getArgoApplicationControllerCommand will return the command for the ArgoCD Application Controller component.
 func getArgoApplicationControllerCommand(cr *argoproj.ArgoCD, useTLSForRedis bool) []string {
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
@@ -886,6 +945,10 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 	// Watch for secrets of type TLS that might be created by external processes
 	bldr.Watches(&corev1.Secret{Type: corev1.SecretTypeTLS}, handler.EnqueueRequestsFromMapFunc(tlsSecretMapper))
 
+	// Watch for user secrets referenced as Image Updater webhook secrets, so that the Image Updater pod is rolled
+	// when one of them changes.
+	bldr.Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.imageUpdaterWebhookSecretMapper))
+
 	// Watch for cluster secrets added to the argocd instance
 	bldr.Watches(&corev1.Secret{ObjectMeta: metav1.ObjectMeta{
 		Labels: map[string]string{
@@ -1513,6 +1576,11 @@ func updateStatusAndConditionsOfArgoCD(ctx context.Context, condition metav1.Con
 		changed = true
 	}
 
+	// Conditions other than the one passed in may have been set or removed on the in-memory CR during reconciliation.
+	if !conditionsEquivalent(cr.Status.Conditions, newConditions) {
+		changed = true
+	}
+
 	if changed {
 		cr.Status = *argocdStatus
 		cr.Status.Conditions = newConditions
@@ -1555,6 +1623,19 @@ func insertOrUpdateConditionsInSlice(newCondition metav1.Condition, existingCond
 	}
 
 	return changed, existingConditions
+}
+
+// conditionsEquivalent returns true if a and b contain the same conditions, ignoring LastTransitionTime and ObservedGeneration.
+func conditionsEquivalent(a, b []metav1.Condition) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Type != b[i].Type || a[i].Status != b[i].Status || a[i].Reason != b[i].Reason || a[i].Message != b[i].Message {
+			return false
+		}
+	}
+	return true
 }
 
 func removeCondition(conditions *[]metav1.Condition, conditionType string) {
@@ -1780,6 +1861,11 @@ func (r *ReconcileArgoCD) reconcileArgoCDAgent(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
+	log.Info("reconciling ArgoCD Agent's Principal params configmap")
+	if err := argocdagent.ReconcilePrincipalParamsConfigMap(r.Client, compName, cr, r.Scheme); err != nil {
+		return err
+	}
+
 	log.Info("reconciling ArgoCD Agent's Principal deployment")
 	if err := argocdagent.ReconcilePrincipalDeployment(r.Client, compName, sa.Name, cr, r.Scheme, r.CentralTLSConfigProfile); err != nil {
 		return err
@@ -1835,6 +1921,11 @@ func (r *ReconcileArgoCD) reconcileArgoCDAgent(cr *argoproj.ArgoCD) error {
 
 	log.Info("reconciling ArgoCD Agent's Agent healthz service")
 	if err := agent.ReconcileAgentHealthzService(r.Client, agentCompName, cr, r.Scheme); err != nil {
+		return err
+	}
+
+	log.Info("reconciling ArgoCD Agent's Agent params configmap")
+	if err := agent.ReconcileAgentParamsConfigMap(r.Client, agentCompName, cr, r.Scheme); err != nil {
 		return err
 	}
 

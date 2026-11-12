@@ -833,6 +833,8 @@ func ConvertAlphaToBetaPrincipal(src *PrincipalSpec) *v1beta1.PrincipalSpec {
 			Metrics:          ConvertAlphaToBetaMetrics(src.Metrics),
 			SelfRegistration: ConvertAlphaToBetaPrincipalSelfRegistration(src.SelfRegistration),
 			SPIFFE:           ConvertAlphaToBetaSPIFFE(src.SPIFFE),
+			LogFullDetail:    src.LogFullDetail,
+			PProf:            ConvertAlphaToBetaAgentPProf(src.PProf),
 		}
 	}
 	return dst
@@ -869,6 +871,8 @@ func ConvertBetaToAlphaPrincipal(src *v1beta1.PrincipalSpec) *PrincipalSpec {
 			Metrics:          ConvertBetaToAlphaMetrics(src.Metrics),
 			SelfRegistration: ConvertBetaToAlphaPrincipalSelfRegistration(src.SelfRegistration),
 			SPIFFE:           ConvertBetaToAlphaSPIFFE(src.SPIFFE),
+			LogFullDetail:    src.LogFullDetail,
+			PProf:            ConvertBetaToAlphaAgentPProf(src.PProf),
 		}
 	}
 	return dst
@@ -1032,6 +1036,8 @@ func ConvertAlphaToBetaAgent(src *AgentSpec) *v1beta1.AgentSpec {
 			TLS:           ConvertAlphaToBetaAgentTLS(src.TLS),
 			Metrics:       ConvertAlphaToBetaMetrics(src.Metrics),
 			SPIFFE:        ConvertAlphaToBetaSPIFFE(src.SPIFFE),
+			LogFullDetail: src.LogFullDetail,
+			PProf:         ConvertAlphaToBetaAgentPProf(src.PProf),
 		}
 	}
 	return dst
@@ -1053,6 +1059,28 @@ func ConvertBetaToAlphaAgent(src *v1beta1.AgentSpec) *AgentSpec {
 			TLS:           ConvertBetaToAlphaAgentTLS(src.TLS),
 			Metrics:       ConvertBetaToAlphaMetrics(src.Metrics),
 			SPIFFE:        ConvertBetaToAlphaSPIFFE(src.SPIFFE),
+			LogFullDetail: src.LogFullDetail,
+			PProf:         ConvertBetaToAlphaAgentPProf(src.PProf),
+		}
+	}
+	return dst
+}
+
+func ConvertAlphaToBetaAgentPProf(src *ArgoCDAgentPProfSpec) *v1beta1.ArgoCDAgentPProfSpec {
+	var dst *v1beta1.ArgoCDAgentPProfSpec
+	if src != nil {
+		dst = &v1beta1.ArgoCDAgentPProfSpec{
+			Enabled: src.Enabled,
+		}
+	}
+	return dst
+}
+
+func ConvertBetaToAlphaAgentPProf(src *v1beta1.ArgoCDAgentPProfSpec) *ArgoCDAgentPProfSpec {
+	var dst *ArgoCDAgentPProfSpec
+	if src != nil {
+		dst = &ArgoCDAgentPProfSpec{
+			Enabled: src.Enabled,
 		}
 	}
 	return dst
@@ -1248,6 +1276,7 @@ func ConvertAlphaToBetaPrincipalSelfRegistration(src *PrincipalSelfRegistrationS
 		dst = &v1beta1.PrincipalSelfRegistrationSpec{
 			Enabled:              src.Enabled,
 			ClientCertSecretName: src.ClientCertSecretName,
+			ClusterSecretLabels:  src.ClusterSecretLabels,
 		}
 	}
 	return dst
@@ -1259,6 +1288,7 @@ func ConvertBetaToAlphaPrincipalSelfRegistration(src *v1beta1.PrincipalSelfRegis
 		dst = &PrincipalSelfRegistrationSpec{
 			Enabled:              src.Enabled,
 			ClientCertSecretName: src.ClientCertSecretName,
+			ClusterSecretLabels:  src.ClusterSecretLabels,
 		}
 	}
 	return dst

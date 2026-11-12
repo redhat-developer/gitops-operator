@@ -1253,6 +1253,8 @@ type PrincipalSpec struct {
 	Auth string `json:"auth,omitempty"`
 
 	// LogLevel refers to the log level used by the Principal component.
+	// Applied at runtime: changing this does not restart the Principal.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Principal component.
@@ -1294,6 +1296,23 @@ type PrincipalSpec struct {
 
 	// SPIFFE defines the SPIFFE/SPIRE configuration for the Principal component.
 	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
+
+	// LogFullDetail is the list of categories the Principal component logs in full detail.
+	// Known categories are: all, actions, events, informers.
+	// Applied at runtime: changing this does not restart the Principal.
+	// Default: []
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Principal component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
+}
+
+// ArgoCDAgentPProfSpec defines the profiling options of an Argo CD Agent component.
+type ArgoCDAgentPProfSpec struct {
+	// Enabled toggles whether the pprof endpoint answers requests.
+	// Applied at runtime: changing this does not restart the component.
+	// Default: false when enabled is nil.
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"
@@ -1305,6 +1324,9 @@ type PrincipalSelfRegistrationSpec struct {
 	// ClientCertSecretName is the name of the TLS secret containing shared client cert
 	// for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
 	ClientCertSecretName string `json:"clientCertSecretName,omitempty"`
+
+	// ClusterSecretLabels is the set of labels to apply to cluster secrets created for agents. Ex: {"foo": "bar", "bar": "baz"}
+	ClusterSecretLabels map[string]string `json:"clusterSecretLabels,omitempty"`
 }
 
 // SpiffeAuthMethod is the SPIFFE authentication method for SPIRE workload attestation.
@@ -1437,6 +1459,8 @@ type AgentSpec struct {
 	Creds string `json:"creds,omitempty"`
 
 	// LogLevel refers to the log level used by the Agent component.
+	// Applied at runtime: changing this does not restart the Agent.
+	// Default: "info"
 	LogLevel string `json:"logLevel,omitempty"`
 
 	// LogFormat refers to the log format used by the Agent component.
@@ -1466,6 +1490,15 @@ type AgentSpec struct {
 
 	// SPIFFE defines the SPIFFE/SPIRE configuration for the Agent component.
 	SPIFFE *SPIFFESpec `json:"spiffe,omitempty"`
+
+	// LogFullDetail is the list of categories the Agent component logs in full detail.
+	// Known categories are: all, actions, events, informers.
+	// Applied at runtime: changing this does not restart the Agent.
+	// Default: []
+	LogFullDetail []string `json:"logFullDetail,omitempty"`
+
+	// PProf defines the profiling options for the Agent component.
+	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
 }
 
 type AgentClientSpec struct {

@@ -164,4 +164,89 @@ export class ApplicationDetailsPage {
       this.syncPolicyRow(/SELF HEAL/i).getByRole('button', { name: /^Disable$/i })
     ).toBeVisible();
   }
+
+  private historyPanel(): Locator {
+    return this.page.locator('.application-deployment-history');
+  }
+
+  private historyOpened(): Locator {
+    return this.page.locator('.sliding-panel--opened').filter({ hasText: /Deployed At/i });
+  }
+
+  async openHistoryAndRollback() {
+    await expect(this.resourceTreeContainer).toBeVisible({ timeout: 20000 });
+
+    const historyBtn = this.page.getByRole('button', { name: /history and rollback/i });
+    await expect(historyBtn).toBeEnabled({ timeout: 15000 });
+    await historyBtn.click();
+    await expect(this.historyOpened()).toBeVisible({ timeout: 15000 });
+  }
+
+  async rollbackToPreviousRevision(appName: string, previousRevision: string) {
+    const items = this.historyPanel().locator('.application-deployment-history__item');
+    await expect
+      .poll(async () => items.count(), {
+        timeout: 15000,
+        message: 'waiting for at least two history entries',
+      })
+      .toBeGreaterThanOrEqual(2);
+
+    const shortRev = previousRevision.slice(0, 7);
+    const byRevision = items.filter({ hasText: new RegExp(shortRev, 'i') });
+    const previousItem = (await byRevision.count()) > 0 ? byRevision.first() : items.nth(1);
+    await previousItem.scrollIntoViewIfNeeded();
+
+    //need a new op, not the last cli sync still on the app
+    const previousOp = await this.applicationOperation(appName);
+    const previousId = operationId(previousOp);
+
+    const kebab = previousItem.locator('.application-deployment-history__item-menu button').first();
+    await expect(kebab).toBeVisible({ timeout: 10000 });
+    await kebab.click();
+
+    const rollbackItem = this.page
+      .getByRole('listitem', { name: /^Rollback$/ })
+      .or(this.page.getByText('Rollback', { exact: true }));
+    await expect(rollbackItem.first()).toBeVisible({ timeout: 10000 });
+    await rollbackItem.first().click();
+
+    await this.confirmArgoPopup();
+
+    await expect
+      .poll(
+        async () => {
+          const op = await this.applicationOperation(appName);
+          const rolledBack =
+            operationId(op) !== previousId &&
+            String(op?.operation?.sync?.revision || '').startsWith(shortRev);
+          return rolledBack ? String(op?.phase || '') : '';
+        },
+        { timeout: 120000, message: `waiting for rollback to ${shortRev} to succeed` }
+      )
+      .toMatch(/Succeeded/i);
+  }
+
+  async assertOutOfSyncHealthy() {
+    const panel = this.page.locator('.application-status-panel');
+    await expect(panel.getByText(/OutOfSync|Out of Sync/i).first()).toBeVisible({ timeout: 30000 });
+    await expect(panel.getByText('Healthy', { exact: true }).first()).toBeVisible({ timeout: 30000 });
+  }
+
+  private async applicationOperation(appName: string) {
+    try {
+      const res = await this.page.request.get(
+        `/api/v1/applications/${encodeURIComponent(appName)}`
+      );
+      if (!res.ok()) return undefined;
+      const app = await res.json();
+      return app?.status?.operationState;
+    } catch {
+      //keep polling on a transient api blip
+      return undefined;
+    }
+  }
+}
+
+function operationId(op: { startedAt?: string; finishedAt?: string } | undefined) {
+  return `${op?.startedAt ?? ''}|${op?.finishedAt ?? ''}`;
 }

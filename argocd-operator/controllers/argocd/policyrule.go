@@ -13,7 +13,6 @@ import (
 )
 
 func policyRuleForApplicationController() []v1.PolicyRule {
-
 	return []v1.PolicyRule{
 		{
 			APIGroups: []string{
@@ -41,7 +40,6 @@ func policyRuleForApplicationController() []v1.PolicyRule {
 }
 
 func policyRuleForApplicationControllerView() []v1.PolicyRule {
-
 	return []v1.PolicyRule{
 		{
 			APIGroups: []string{
@@ -95,7 +93,6 @@ func policyRuleForRedis(client client.Client) []v1.PolicyRule {
 }
 
 func policyRuleForRedisHa(client client.Client) []v1.PolicyRule {
-
 	rules := []v1.PolicyRule{
 		{
 			APIGroups: []string{
@@ -130,7 +127,6 @@ func policyRuleForRedisHa(client client.Client) []v1.PolicyRule {
 }
 
 func policyRuleForDexServer() []v1.PolicyRule {
-
 	return []v1.PolicyRule{
 		{
 			APIGroups: []string{
@@ -181,7 +177,8 @@ func policyRuleForServer(cr *argoproj.ArgoCD) []v1.PolicyRule {
 				"patch",
 				"delete",
 			},
-		}, {
+		},
+		{
 			APIGroups: []string{
 				"argoproj.io",
 			},
@@ -240,12 +237,27 @@ func policyRuleForServer(cr *argoproj.ArgoCD) []v1.PolicyRule {
 			},
 		})
 	}
+
+	if isImpersonationEnabled(cr) {
+		policyRules = append(policyRules, v1.PolicyRule{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"serviceaccounts",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"impersonate",
+			},
+		})
+	}
 	return policyRules
 }
 
 func policyRuleForNotificationsController() []v1.PolicyRule {
 	return []v1.PolicyRule{
-
 		{
 			APIGroups: []string{
 				"argoproj.io",
@@ -358,8 +370,8 @@ func policyRuleForServerApplicationSourceNamespaces() []v1.PolicyRule {
 	}
 }
 
-func policyRuleForServerClusterRole() []v1.PolicyRule {
-	return []v1.PolicyRule{
+func policyRuleForServerClusterRole(cr *argoproj.ArgoCD) []v1.PolicyRule {
+	policyRules := []v1.PolicyRule{
 		{
 			APIGroups: []string{
 				"*",
@@ -412,6 +424,24 @@ func policyRuleForServerClusterRole() []v1.PolicyRule {
 			},
 		},
 	}
+
+	if isImpersonationEnabled(cr) {
+		policyRules = append(policyRules, v1.PolicyRule{
+			APIGroups: []string{
+				"",
+			},
+			Resources: []string{
+				"serviceaccounts",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"impersonate",
+			},
+		})
+	}
+
+	return policyRules
 }
 
 func getPolicyRuleList(client client.Client, cr *argoproj.ArgoCD) []struct {
@@ -444,7 +474,7 @@ func getPolicyRuleList(client client.Client, cr *argoproj.ArgoCD) []struct {
 	}
 }
 
-func getPolicyRuleClusterRoleList() []struct {
+func getPolicyRuleClusterRoleList(cr *argoproj.ArgoCD) []struct {
 	name       string
 	policyRule []v1.PolicyRule
 } {
@@ -457,7 +487,7 @@ func getPolicyRuleClusterRoleList() []struct {
 			policyRule: policyRuleForApplicationController(),
 		}, {
 			name:       common.ArgoCDServerComponent,
-			policyRule: policyRuleForServerClusterRole(),
+			policyRule: policyRuleForServerClusterRole(cr),
 		}, {
 			name:       common.ArgoCDApplicationControllerComponentView,
 			policyRule: policyRuleForApplicationControllerView(),

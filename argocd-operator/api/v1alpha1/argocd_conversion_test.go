@@ -564,6 +564,39 @@ func TestAlphaToBetaConversion(t *testing.T) {
 			}),
 		},
 		{
+			name: "ArgoCD Example - Agent Debug Settings",
+			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
+				cr.Spec.ArgoCDAgent = &ArgoCDAgentSpec{
+					Principal: &PrincipalSpec{
+						Enabled:       new(true),
+						LogLevel:      "debug",
+						LogFullDetail: []string{"events", "informers"},
+						PProf:         &ArgoCDAgentPProfSpec{Enabled: new(true)},
+					},
+					Agent: &AgentSpec{
+						Enabled:       new(false),
+						LogFullDetail: []string{"all"},
+						PProf:         &ArgoCDAgentPProfSpec{Enabled: new(false)},
+					},
+				}
+			}),
+			expectedOutput: makeTestArgoCDBeta(func(cr *v1beta1.ArgoCD) {
+				cr.Spec.ArgoCDAgent = &v1beta1.ArgoCDAgentSpec{
+					Principal: &v1beta1.PrincipalSpec{
+						Enabled:       new(true),
+						LogLevel:      "debug",
+						LogFullDetail: []string{"events", "informers"},
+						PProf:         &v1beta1.ArgoCDAgentPProfSpec{Enabled: new(true)},
+					},
+					Agent: &v1beta1.AgentSpec{
+						Enabled:       new(false),
+						LogFullDetail: []string{"all"},
+						PProf:         &v1beta1.ArgoCDAgentPProfSpec{Enabled: new(false)},
+					},
+				}
+			}),
+		},
+		{
 			name: "ArgoCD Example - Agent Principal Full Configuration",
 			input: makeTestArgoCDAlpha(func(cr *ArgoCD) {
 				enabled := true
@@ -848,6 +881,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -861,6 +895,7 @@ func TestAlphaToBetaConversion(t *testing.T) {
 						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -1368,6 +1403,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &v1beta1.PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}
@@ -1381,6 +1417,7 @@ func TestBetaToAlphaConversion(t *testing.T) {
 						SelfRegistration: &PrincipalSelfRegistrationSpec{
 							Enabled:              &selfRegEnabled,
 							ClientCertSecretName: "argocd-agent-shared-client-cert",
+							ClusterSecretLabels:  map[string]string{"foo": "bar"},
 						},
 					},
 				}

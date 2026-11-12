@@ -708,9 +708,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -726,6 +737,17 @@ spec:
                               ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
@@ -975,9 +997,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+                          Known categories are: all, actions, events, informers.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -1020,6 +1053,17 @@ spec:
                               to restrict the names of namespaces to be created.
                             type: string
                         type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
+                        type: object
                       redis:
                         description: Redis defines the Redis options for the Principal
                           component.
@@ -1055,6 +1099,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
@@ -13819,9 +13870,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Agent component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Agent component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Agent component.
+                        description: |-
+                          LogLevel refers to the log level used by the Agent component.
+                          Applied at runtime: changing this does not restart the Agent.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -13837,6 +13899,17 @@ spec:
                               ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
                               If empty, Prometheus uses the global scrape timeout.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Agent
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Agent
@@ -14150,9 +14223,20 @@ spec:
                         description: LogFormat refers to the log format used by the
                           Principal component.
                         type: string
+                      logFullDetail:
+                        description: |-
+                          LogFullDetail is the list of categories the Principal component logs in full detail.
+
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: []
+                        items:
+                          type: string
+                        type: array
                       logLevel:
-                        description: LogLevel refers to the log level used by the
-                          Principal component.
+                        description: |-
+                          LogLevel refers to the log level used by the Principal component.
+                          Applied at runtime: changing this does not restart the Principal.
+                          Default: "info"
                         type: string
                       metrics:
                         description: Metrics defines the metrics configuration for
@@ -14194,6 +14278,17 @@ spec:
                             description: NamespaceCreatePattern is a regexp pattern
                               to restrict the names of namespaces to be created.
                             type: string
+                        type: object
+                      pprof:
+                        description: PProf defines the profiling options for the Principal
+                          component.
+                        properties:
+                          enabled:
+                            description: |-
+                              Enabled toggles whether the pprof endpoint answers requests.
+                              Applied at runtime: changing this does not restart the component.
+                              Default: false when enabled is nil.
+                            type: boolean
                         type: object
                       redis:
                         description: Redis defines the Redis options for the Principal
@@ -14290,6 +14385,13 @@ spec:
                               ClientCertSecretName is the name of the TLS secret containing shared client cert
                               for self-registered cluster secrets (must have tls.crt, tls.key, ca.crt).
                             type: string
+                          clusterSecretLabels:
+                            additionalProperties:
+                              type: string
+                            description: 'ClusterSecretLabels is the set of labels
+                              to apply to cluster secrets created for agents. Ex:
+                              {"foo": "bar", "bar": "baz"}'
+                            type: object
                           enabled:
                             description: |-
                               Enabled is the flag to enable self-registration of agents.
@@ -16397,6 +16499,27 @@ spec:
                     items:
                       type: string
                     type: array
+                  goRuntime:
+                    description: |-
+                      GoRuntime configures automatic Go runtime tuning for the Application Controller.
+                      Tuning is enabled cluster-wide by default; set DISABLE_GO_RUNTIME_TUNING to "true"
+                      on the operator to disable it across all instances. This field cannot re-enable
+                      tuning when the operator-level kill switch is set.
+                    properties:
+                      enabled:
+                        description: |-
+                          Enabled toggles automatic Go runtime tuning for this instance. Defaults to true.
+                          Cannot re-enable tuning when the operator-level kill switch (DISABLE_GO_RUNTIME_TUNING=true) is set.
+                        type: boolean
+                      memoryLimitPercent:
+                        description: |-
+                          MemoryLimitPercent is the percentage (1-100) of the memory limit used for GOMEMLIMIT. Defaults to 80.
+                          Represents headroom reserved for non-heap memory and GC pauses.
+                        format: int32
+                        maximum: 100
+                        minimum: 1
+                        type: integer
+                    type: object
                   initContainers:
                     description: InitContainers defines the list of initialization
                       containers for the Application Controller component.
@@ -22198,6 +22321,304 @@ spec:
                           If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
                           otherwise to an implementation-defined value. Requests cannot exceed Limits.
                           More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                    type: object
+                  webhookServer:
+                    description: |-
+                      WebhookServer defines the options for exposing the Image Updater webhook server, which image registries
+                      can call to trigger an immediate image update check.
+                    properties:
+                      host:
+                        description: Host is the hostname to use for Ingress/Route
+                          resources.
+                        type: string
+                      ingress:
+                        description: Ingress defines the desired state for an Ingress
+                          for the Image Updater webhook.
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations is the map of annotations to
+                              apply to the Ingress.
+                            type: object
+                          enabled:
+                            description: Enabled will toggle the creation of the Ingress.
+                            type: boolean
+                          ingressClassName:
+                            description: IngressClassName for the Ingress resource.
+                            type: string
+                          path:
+                            description: Path used for the Ingress resource.
+                            type: string
+                          tls:
+                            description: |-
+                              TLS configuration. Currently the Ingress only supports a single TLS
+                              port, 443. If multiple members of this list specify different hosts, they
+                              will be multiplexed on the same port according to the hostname specified
+                              through the SNI TLS extension, if the ingress controller fulfilling the
+                              ingress supports SNI.
+                            items:
+                              description: IngressTLS describes the transport layer
+                                security associated with an ingress.
+                              properties:
+                                hosts:
+                                  description: |-
+                                    hosts is a list of hosts included in the TLS certificate. The values in
+                                    this list must match the name/s used in the tlsSecret. Defaults to the
+                                    wildcard host setting for the loadbalancer controller fulfilling this
+                                    Ingress, if left unspecified.
+                                  items:
+                                    type: string
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                secretName:
+                                  description: |-
+                                    secretName is the name of the secret used to terminate TLS traffic on
+                                    port 443. Field is left optional to allow TLS routing based on SNI
+                                    hostname alone. If the SNI host in a listener conflicts with the "Host"
+                                    header field used by an IngressRule, the SNI host is used for termination
+                                    and value of the "Host" header is used for routing.
+                                  type: string
+                              type: object
+                            type: array
+                        required:
+                        - enabled
+                        type: object
+                      insecure:
+                        description: |-
+                          Insecure disables TLS on the Image Updater webhook server, which then serves plain HTTP on port 8082.
+                          When false (the default), the server serves TLS using an OpenShift service serving certificate and the
+                          Route defaults to reencrypt termination. When true, no serving certificate is requested and the Route
+                          defaults to edge termination.
+
+                          This does not by itself expose the webhook over plain HTTP outside the cluster. With an edge Route,
+                          registries still connect over HTTPS and the router terminates TLS, so only the router-to-pod leg is
+                          plain HTTP inside the cluster. An Ingress relies on .spec.imageUpdater.webhookServer.ingress.tls for
+                          its external TLS; without it, clients reach the Ingress over plain HTTP as well.
+                        type: boolean
+                      route:
+                        description: Route defines the desired state for an OpenShift
+                          Route for the Image Updater webhook.
+                        properties:
+                          annotations:
+                            additionalProperties:
+                              type: string
+                            description: Annotations is the map of annotations to
+                              use for the Route resource.
+                            type: object
+                          enabled:
+                            description: Enabled will toggle the creation of the OpenShift
+                              Route.
+                            type: boolean
+                          labels:
+                            additionalProperties:
+                              type: string
+                            description: Labels is the map of labels to use for the
+                              Route resource
+                            type: object
+                          path:
+                            description: Path the router watches for, to route traffic
+                              for to the service.
+                            type: string
+                          tls:
+                            description: TLS provides the ability to configure certificates
+                              and termination for the Route.
+                            properties:
+                              caCertificate:
+                                description: caCertificate provides the cert authority
+                                  certificate contents
+                                type: string
+                              certificate:
+                                description: |-
+                                  certificate provides certificate contents. This should be a single serving certificate, not a certificate
+                                  chain. Do not include a CA certificate.
+                                type: string
+                              destinationCACertificate:
+                                description: |-
+                                  destinationCACertificate provides the contents of the ca certificate of the final destination.  When using reencrypt
+                                  termination this file should be provided in order to have routers use it for health checks on the secure connection.
+                                  If this field is not specified, the router may provide its own destination CA and perform hostname validation using
+                                  the short service name (service.namespace.svc), which allows infrastructure generated certificates to automatically
+                                  verify.
+                                type: string
+                              externalCertificate:
+                                description: |-
+                                  externalCertificate provides certificate contents as a secret reference.
+                                  This should be a single serving certificate, not a certificate
+                                  chain. Do not include a CA certificate. The secret referenced should
+                                  be present in the same namespace as that of the Route.
+                                  Forbidden when `certificate` is set.
+                                  The router service account needs to be granted with read-only access to this secret,
+                                  please refer to openshift docs for additional details.
+                                properties:
+                                  name:
+                                    description: |-
+                                      name of the referent.
+                                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                    type: string
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              insecureEdgeTerminationPolicy:
+                                description: |-
+                                  insecureEdgeTerminationPolicy indicates the desired behavior for insecure connections to a route. While
+                                  each router may make its own decisions on which ports to expose, this is normally port 80.
+
+                                  If a route does not specify insecureEdgeTerminationPolicy, then the default behavior is "None".
+
+                                  * Allow - traffic is sent to the server on the insecure port (edge/reencrypt terminations only).
+
+                                  * None - no traffic is allowed on the insecure port (default).
+
+                                  * Redirect - clients are redirected to the secure port.
+                                enum:
+                                - Allow
+                                - None
+                                - Redirect
+                                - ""
+                                type: string
+                              key:
+                                description: key provides key file contents
+                                type: string
+                              termination:
+                                description: |-
+                                  termination indicates the TLS termination type.
+
+                                  * edge - TLS termination is done by the router and http is used to communicate with the backend (default)
+
+                                  * passthrough - Traffic is sent straight to the destination without the router providing TLS termination
+
+                                  * reencrypt - TLS termination is done by the router and https is used to communicate with the backend
+
+                                  Note: passthrough termination is incompatible with httpHeader actions
+                                enum:
+                                - edge
+                                - reencrypt
+                                - passthrough
+                                type: string
+                            required:
+                            - termination
+                            type: object
+                            x-kubernetes-validations:
+                            - message: 'cannot have both spec.tls.termination: passthrough
+                                and spec.tls.insecureEdgeTerminationPolicy: Allow'
+                              rule: 'has(self.termination) && has(self.insecureEdgeTerminationPolicy)
+                                ? !((self.termination==''passthrough'') && (self.insecureEdgeTerminationPolicy==''Allow''))
+                                : true'
+                          wildcardPolicy:
+                            description: WildcardPolicy if any for the route. Currently
+                              only 'Subdomain' or 'None' is allowed.
+                            type: string
+                        required:
+                        - enabled
+                        type: object
+                      secrets:
+                        description: Secrets references the Secrets holding the shared
+                          secrets used to validate incoming registry webhooks.
+                        properties:
+                          acr:
+                            description: ACR references the Azure Container Registry
+                              webhook secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          aliyunACR:
+                            description: AliyunACR references the Aliyun Container
+                              Registry webhook secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          cloudEvents:
+                            description: CloudEvents references the CloudEvents webhook
+                              secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          docker:
+                            description: Docker references the Docker Hub webhook
+                              secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          ghcr:
+                            description: GHCR references the GitHub Container Registry
+                              webhook secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          harbor:
+                            description: Harbor references the Harbor webhook secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
+                          quay:
+                            description: Quay references the Quay webhook secret.
+                            properties:
+                              key:
+                                description: Key in the Secret whose value should
+                                  be used.
+                                type: string
+                              name:
+                                description: Name of the Secret.
+                                type: string
+                            required:
+                            - key
+                            - name
+                            type: object
                         type: object
                     type: object
                 required:

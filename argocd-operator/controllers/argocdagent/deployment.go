@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,7 @@ import (
 
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
+	agentutil "github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argocdagent/util"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
@@ -372,9 +374,21 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 		return nil, err
 	}
 	env := []corev1.EnvVar{
+		// Runtime-switchable settings that are sourced from the params ConfigMap to avoid having
+		// to restart the principal when the values change.
 		{
-			Name:  EnvArgoCDPrincipalLogLevel,
-			Value: getPrincipalLogLevel(cr),
+			Name:      EnvArgoCDPrincipalLogLevel,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalLogLevelKey),
+		}, {
+			Name:      EnvArgoCDPrincipalFullDetail,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalFullDetailKey),
+		}, {
+			Name:      EnvArgoCDPrincipalPProfEnabled,
+			ValueFrom: agentutil.AgentParamsEnvVarSource(common.ArgoCDAgentPrincipalPProfEnabledKey),
+		},
+		{
+			Name:  EnvArgoCDPrincipalParamsConfigMap,
+			Value: common.ArgoCDAgentParamsConfigMapName,
 		}, {
 			Name:  EnvArgoCDPrincipalNamespace,
 			Value: cr.Namespace,
@@ -454,6 +468,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 			Name:  EnvArgoCDPrincipalSelfRegistrationClientCertSecret,
 			Value: getPrincipalSelfRegistrationClientCertSecret(cr),
 		}, {
+			Name:  EnvArgoCDPrincipalSelfRegistrationSecretLabels,
+			Value: getPrincipalSelfRegistrationSecretLabels(cr),
+		}, {
 			Name:  EnvArgoCDPrincipalResourceProxyAddress,
 			Value: getPrincipalResourceProxyAddress(cr),
 		},
@@ -484,6 +501,9 @@ func buildPrincipalContainerEnv(cr *argoproj.ArgoCD, centralTLSProfile tlsProfil
 // used to configure Argo CD agent, and should match the names exactly from the agent
 const (
 	EnvArgoCDPrincipalLogLevel                         = "ARGOCD_PRINCIPAL_LOG_LEVEL"
+	EnvArgoCDPrincipalFullDetail                       = "ARGOCD_PRINCIPAL_FULL_DETAIL"
+	EnvArgoCDPrincipalPProfEnabled                     = "ARGOCD_PRINCIPAL_PPROF_ENABLED"
+	EnvArgoCDPrincipalParamsConfigMap                  = "ARGOCD_PRINCIPAL_PARAMS_CONFIGMAP"
 	EnvArgoCDPrincipalLogFormat                        = "ARGOCD_PRINCIPAL_LOG_FORMAT"
 	EnvArgoCDPrincipalNamespace                        = "ARGOCD_PRINCIPAL_NAMESPACE"
 	EnvArgoCDPrincipalAllowedNamespaces                = "ARGOCD_PRINCIPAL_ALLOWED_NAMESPACES"
@@ -510,6 +530,7 @@ const (
 	EnvArgoCDPrincipalCipherSuites                     = "ARGOCD_PRINCIPAL_TLS_CIPHERSUITES"
 	EnvArgoCDPrincipalEnableSelfClusterRegistration    = "ARGOCD_PRINCIPAL_ENABLE_SELF_CLUSTER_REGISTRATION"
 	EnvArgoCDPrincipalSelfRegistrationClientCertSecret = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_CLIENT_CERT_SECRET"
+	EnvArgoCDPrincipalSelfRegistrationSecretLabels     = "ARGOCD_PRINCIPAL_SELF_REGISTRATION_SECRET_LABELS"
 	EnvArgoCDPrincipalResourceProxyAddress             = "ARGOCD_PRINCIPAL_RESOURCE_PROXY_ADDRESS"
 	EnvArgoCDPrincipalTLSCurvePreferences              = "ARGOCD_PRINCIPAL_TLS_CURVE_PREFERENCES"
 	EnvArgoCDPrincipalSpireAgentSocket                 = "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET"
@@ -585,14 +606,6 @@ func getPrincipalTlsConfig(centralTLSProfile tlsProfile.TLSConfigProfile) (map[s
 	}
 
 	return arguments, nil
-}
-
-// Logging Configuration
-func getPrincipalLogLevel(cr *argoproj.ArgoCD) string {
-	if hasPrincipal(cr) && cr.Spec.ArgoCDAgent.Principal.LogLevel != "" {
-		return cr.Spec.ArgoCDAgent.Principal.LogLevel
-	}
-	return "info"
 }
 
 func getPrincipalLogFormat(cr *argoproj.ArgoCD) string {
@@ -834,6 +847,23 @@ func getPrincipalSelfRegistrationClientCertSecret(cr *argoproj.ArgoCD) string {
 		return cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClientCertSecretName
 	}
 	return ""
+}
+
+func getPrincipalSelfRegistrationSecretLabels(cr *argoproj.ArgoCD) string {
+	if !hasSelfRegistration(cr) || len(cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels) == 0 {
+		return ""
+	}
+	labels := cr.Spec.ArgoCDAgent.Principal.SelfRegistration.ClusterSecretLabels
+	keys := make([]string, 0, len(labels))
+	for k := range labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	pairs := make([]string, 0, len(labels))
+	for _, k := range keys {
+		pairs = append(pairs, k+"="+labels[k])
+	}
+	return strings.Join(pairs, ",")
 }
 
 func getPrincipalResourceProxyAddress(cr *argoproj.ArgoCD) string {

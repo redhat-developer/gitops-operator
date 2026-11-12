@@ -66,7 +66,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("verifies that openshift-gitops Argo CD instance is able to manage/unmanage other namespaces via managed-by label", Label("openshift"), func() {
+		It("verifies Argo CD RoleBindings for managed namespaces and openshift-gitops management", Label("openshift"), func() {
 
 			By("creating a new namespace that is managed by openshift-gitops Argo CD instance")
 			nsTest_1_10_custom, nsCleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("test-1-10-custom", "openshift-gitops")
@@ -103,6 +103,15 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				Name:      "openshift-gitops-argocd-server",
 				Namespace: "openshift-gitops",
 			}}))
+
+			argoCDAppControllerRB := &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops-argocd-application-controller", Namespace: nsTest_1_10_custom.Name},
+			}
+			Eventually(argoCDAppControllerRB).Should(k8sFixture.ExistByName())
+
+			By("verifying both expected RoleBindings remain present")
+			Consistently(argoCDServerRB, "20s", "4s").Should(k8sFixture.ExistByName())
+			Consistently(argoCDAppControllerRB, "20s", "4s").Should(k8sFixture.ExistByName())
 
 			By("creating a new Argo CD application in openshift-gitops ns, targeting the new namespace")
 			app = &argocdv1alpha1.Application{
@@ -149,6 +158,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			rbToCheck := &rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-server", Namespace: nsTest_1_10_custom.Name}}
 			Eventually(rbToCheck).Should(k8sFixture.NotExistByName())
 			Consistently(rbToCheck).Should(k8sFixture.NotExistByName())
+
 		})
 
 	})
