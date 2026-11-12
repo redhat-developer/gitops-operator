@@ -175,6 +175,7 @@ func (r *ReconcileArgoCD) reconcileCommitServerDeployment(cr *argoproj.ArgoCD) e
 			},
 		},
 	}
+	deploy.Spec.Template.Spec.Volumes = mergeOperatorVolumes(deploy.Spec.Template.Spec.Volumes, cr.Spec.CommitServer.Volumes)
 
 	if cr.Spec.CommitServer.InitContainers != nil {
 		deploy.Spec.Template.Spec.InitContainers = append(deploy.Spec.Template.Spec.InitContainers, cr.Spec.CommitServer.InitContainers...)

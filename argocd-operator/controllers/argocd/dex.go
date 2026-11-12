@@ -404,9 +404,7 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 	if cr.Spec.SSO != nil && cr.Spec.SSO.Dex != nil {
 		dexEnv = append(dexEnv, cr.Spec.SSO.Dex.Env...)
 
-		if cr.Spec.SSO.Dex.Volumes != nil {
-			dexVolumes = append(dexVolumes, cr.Spec.SSO.Dex.Volumes...)
-		}
+		dexVolumes = mergeOperatorVolumes(dexVolumes, cr.Spec.SSO.Dex.Volumes)
 
 		if cr.Spec.SSO.Dex.VolumeMounts != nil {
 			dexVolumeMounts = append(dexVolumeMounts, cr.Spec.SSO.Dex.VolumeMounts...)

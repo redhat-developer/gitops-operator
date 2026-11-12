@@ -296,6 +296,64 @@ func TestReconcileArgoCD_reconcileRepoDeployment_volumes(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, deployment.Spec.Template.Spec.Volumes, customVolume)
 	})
+
+	t.Run("replace operator emptyDir with a generic ephemeral volume", func(t *testing.T) {
+		storageClass := "managed-csi"
+		ephemeralVolume := corev1.Volume{
+			Name: "var-files",
+			VolumeSource: corev1.VolumeSource{
+				Ephemeral: &corev1.EphemeralVolumeSource{
+					VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
+						Spec: corev1.PersistentVolumeClaimSpec{
+							AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+							StorageClassName: &storageClass,
+							Resources: corev1.VolumeResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceStorage: resourcev1.MustParse("20Gi"),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		logf.SetLogger(ZapLogger(true))
+		a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+			a.Spec.Repo.Volumes = []corev1.Volume{ephemeralVolume}
+		})
+
+		resObjs := []client.Object{a}
+		subresObjs := []client.Object{a}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err := r.reconcileRepoDeployment(a, false)
+		assert.NoError(t, err)
+		deployment := &appsv1.Deployment{}
+		err = r.Get(context.TODO(), types.NamespacedName{
+			Name:      "argocd-repo-server",
+			Namespace: testNamespace,
+		}, deployment)
+		assert.NoError(t, err)
+
+		var found *corev1.Volume
+		count := 0
+		for i := range deployment.Spec.Template.Spec.Volumes {
+			volume := &deployment.Spec.Template.Spec.Volumes[i]
+			if volume.Name != "var-files" {
+				continue
+			}
+			count++
+			found = volume
+		}
+		require.Equal(t, 1, count)
+		require.NotNil(t, found)
+		assert.Nil(t, found.EmptyDir)
+		assert.Equal(t, ephemeralVolume.Ephemeral, found.Ephemeral)
+	})
 }
 
 func TestReconcileArgoCD_reconcile_ServerDeployment_env(t *testing.T) {
