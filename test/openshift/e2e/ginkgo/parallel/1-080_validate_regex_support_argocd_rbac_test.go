@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating a basic Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
