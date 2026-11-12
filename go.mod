@@ -4,9 +4,9 @@ go 1.25.9
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67
-	github.com/argoproj-labs/argocd-image-updater v1.1.3
+	github.com/argoproj-labs/argocd-image-updater v1.1.4
 	github.com/argoproj-labs/argocd-operator v0.18.1-0.20261105092420-e3316d88ac59
-	github.com/argoproj/argo-cd/v3 v3.3.18
+	github.com/argoproj/argo-cd/v3 v3.3.19
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -112,7 +112,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
