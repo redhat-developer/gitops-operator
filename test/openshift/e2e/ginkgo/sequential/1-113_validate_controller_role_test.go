@@ -61,12 +61,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-113_validate_controller_role", func() {
 
 		var (
-			ctx              context.Context
-			k8sClient        client.Client
-			testNS           *corev1.Namespace
-			ArgocdNamespace  *corev1.Namespace
-			cleanupNamespace func()
-			argocdInstance   *argov1beta1api.ArgoCD
+			ctx             context.Context
+			k8sClient       client.Client
+			testNS          *corev1.Namespace
+			ArgocdNamespace *corev1.Namespace
+			argocdInstance  *argov1beta1api.ArgoCD
 		)
 
 		BeforeEach(func() {
@@ -77,15 +76,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 		AfterEach(func() {
 			fixture.OutputDebugOnFail(testNS, ArgocdNamespace.Name)
-			if cleanupNamespace != nil {
-				cleanupNamespace()
-			}
 		})
 
 		It("validates openshift-gitops application-controller Role aggregates admin ClusterRole rules and removes them on delete", func() {
 
 			By("creating a namespace and argocd instance for the test")
+			var cleanupNamespace func()
 			argocdInstance, ArgocdNamespace, cleanupNamespace = fixture.CreateNamespaceWithArgoCDInstance("test-1-113")
+			DeferCleanup(cleanupNamespace)
 
 			By("setting the ARGOCD_CLUSTER_CONFIG_NAMESPACES environment variable to the namespace")
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", argocdInstance.Namespace)

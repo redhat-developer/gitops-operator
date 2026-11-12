@@ -37,10 +37,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	Context("1-103_validate_rollouts_imagepullpolicy", func() {
 
 		var (
-			ctx              context.Context
-			k8sClient        client.Client
-			namespace        *corev1.Namespace
-			cleanupNamespace func()
+			ctx       context.Context
+			k8sClient client.Client
+			namespace *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -48,14 +47,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.EnsureSequentialCleanSlate()
 			k8sClient, _ = utils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			var cleanupNamespace func()
 			namespace, cleanupNamespace = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
-		})
-
-		AfterEach(func() {
-			if cleanupNamespace != nil {
-				cleanupNamespace()
-			}
 		})
 
 		It("creates a cluster-scopes Argo Rollouts instance and verifies the default image pull policy", func() {
