@@ -122,7 +122,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}()
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating simple namespace-scoped Argo CD instance")
 			argoCD := &argov1beta1api.ArgoCD{
