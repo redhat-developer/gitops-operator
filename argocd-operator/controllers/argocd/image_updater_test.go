@@ -1756,16 +1756,17 @@ func TestReconcileImageUpdaterControllerEnabled_DeploymentEnvMatchesGrantedRBAC(
 			}, deployment))
 			managerRules := policyRuleForRoleManagerRoleForImageUpdaterController()
 			env := argoutil.EnvGet(deployment.Spec.Template.Spec.Containers[0].Env, "IMAGE_UPDATER_WATCH_NAMESPACES")
-			if env == nil {
-				// Unset => the binary watches only its own namespace, so the Role in cr.Namespace
-				// must grant the manager rules (namespace-scoped "" mode), not just the base rules.
+			if env == nil || env.Value == "" {
+				// Unset or explicitly empty => the binary falls back to watching only its own
+				// namespace, so the Role in cr.Namespace must grant the manager rules
+				// (namespace-scoped "" mode), not just the base rules.
 				role := &rbacv1.Role{}
 				require.NoError(t, r.Get(context.TODO(), types.NamespacedName{
 					Name:      generateResourceName(common.ArgoCDImageUpdaterControllerComponent, a),
 					Namespace: a.Namespace,
 				}, role))
 				assert.Subset(t, role.Rules, managerRules,
-					"IMAGE_UPDATER_WATCH_NAMESPACES is unset, so the pod watches %q, but its Role there lacks the manager rules", a.Namespace)
+					"IMAGE_UPDATER_WATCH_NAMESPACES is unset/empty, so the pod watches %q, but its Role there lacks the manager rules", a.Namespace)
 			} else {
 				for _, ns := range splitAndFilterPatterns(env.Value) {
 					role := &rbacv1.Role{}

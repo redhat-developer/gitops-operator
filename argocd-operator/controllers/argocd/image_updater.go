@@ -98,7 +98,8 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterControllerEnabled(cr *argoproj.Ar
 		}
 		if len(expandedNamespaces) == 0 {
 			log.Info("IMAGE_UPDATER_WATCH_NAMESPACES matched no namespaces in the cluster; "+
-				"no per-namespace RBAC will be created and the image-updater will have no manager permissions.",
+				"no per-namespace RBAC will be created and the image-updater will fall back to "+
+				"watching its own namespace.",
 				"pattern", watchNamespaces)
 		}
 	}
@@ -298,8 +299,18 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterRBAC(cr *argoproj.ArgoCD, sa *cor
 			return nil, err
 		}
 
+		// image-updater (v1.4.0) has no "watch nothing" mode: an empty IMAGE_UPDATER_WATCH_NAMESPACES
+		// value falls back to watching cr.Namespace itself, same as the "" case above. If
+		// consentedNamespaces ends up empty, the deployment's env var will be set to "" (see
+		// reconcileImageUpdaterDeployment), so cr.Namespace must carry the manager rules too -
+		// otherwise the pod starts, silently watches its own namespace by default, and fails
+		// there for lack of RBAC instead of just "having no manager permissions" as intended.
+		baseRules := policyRuleForRoleForImageUpdaterController()
+		if len(consentedNamespaces) == 0 {
+			baseRules = append(baseRules, policyRuleForRoleManagerRoleForImageUpdaterController()...)
+		}
 		log.Info("reconciling Image Updater role")
-		role, err := r.reconcileImageUpdaterRole(cr, policyRuleForRoleForImageUpdaterController())
+		role, err := r.reconcileImageUpdaterRole(cr, baseRules)
 		if err != nil {
 			return nil, err
 		}
@@ -804,8 +815,10 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	// controller only understands concrete namespace names. Use the pre-computed
 	// expandedNamespaces (resolved once by the caller alongside RBAC) to set the env var.
 	// expandedNamespaces is empty either because the pattern matched no namespace, or because
-	// every matched namespace was filtered out for lack of consent; either way, no RBAC was
-	// granted anywhere, so the raw pattern must never be passed through here.
+	// every matched namespace was filtered out for lack of consent; either way the raw pattern
+	// must never be passed through here. image-updater has no "watch nothing" mode, so an empty
+	// value here falls back to watching cr.Namespace - reconcileImageUpdaterRBAC grants
+	// cr.Namespace the manager rules too in that case, so the fallback is still backed by RBAC.
 	switch watchNamespaces {
 	case "*":
 		// Cluster-scoped: explicitly set IMAGE_UPDATER_WATCH_NAMESPACES="*"
