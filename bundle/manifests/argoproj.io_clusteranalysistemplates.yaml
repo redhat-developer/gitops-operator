@@ -17,8 +17,7 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - description: Time since resource was created
-      jsonPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
     name: v1alpha1
@@ -207,6 +206,9 @@ spec:
                                 type: string
                               type: object
                             query:
+                              type: string
+                            requestTimeout:
+                              default: 10s
                               type: string
                             secretRef:
                               properties:

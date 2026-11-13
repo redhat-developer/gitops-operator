@@ -17,26 +17,19 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Number of desired pods
-      jsonPath: .spec.replicas
+    - jsonPath: .spec.replicas
       name: Desired
       type: integer
-    - description: Total number of non-terminated pods targeted by this rollout
-      jsonPath: .status.replicas
+    - jsonPath: .status.replicas
       name: Current
       type: integer
-    - description: Total number of non-terminated pods targeted by this rollout that
-        have the desired template spec
-      jsonPath: .status.updatedReplicas
+    - jsonPath: .status.updatedReplicas
       name: Up-to-date
       type: integer
-    - description: Total number of available pods (ready for at least minReadySeconds)
-        targeted by this rollout
-      jsonPath: .status.availableReplicas
+    - jsonPath: .status.availableReplicas
       name: Available
       type: integer
-    - description: Time since resource was created
-      jsonPath: .metadata.creationTimestamp
+    - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
     name: v1alpha1
