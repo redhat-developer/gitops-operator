@@ -282,16 +282,8 @@ func TestReconcileApplicationSetProxyConfiguration(t *testing.T) {
 
 	want := []v1.EnvVar{
 		{
-			Name: common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
-			ValueFrom: &v1.EnvVarSource{
-				ConfigMapKeyRef: &v1.ConfigMapKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: common.ArgoCDCmdParamsConfigMapName,
-					},
-					Key:      common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey,
-					Optional: new(true),
-				},
-			},
+			Name:  common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
+			Value: "false",
 		},
 		{
 			Name:  "HTTPS_PROXY",
@@ -1258,16 +1250,8 @@ func TestArgoCDApplicationSetEnv(t *testing.T) {
 
 	defaultEnv := []v1.EnvVar{
 		{
-			Name: common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
-			ValueFrom: &v1.EnvVarSource{
-				ConfigMapKeyRef: &v1.ConfigMapKeySelector{
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: common.ArgoCDCmdParamsConfigMapName,
-					},
-					Key:      common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey,
-					Optional: new(true),
-				},
-			},
+			Name:  common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
+			Value: "false",
 		},
 		{
 			Name: "NAMESPACE",
@@ -1316,6 +1300,141 @@ func TestArgoCDApplicationSetEnv(t *testing.T) {
 		deployment))
 
 	assert.Equal(t, defaultEnv, deployment.Spec.Template.Spec.Containers[0].Env)
+}
+
+// appSetTokenRefStrictModeEnv returns the tokenRef strict mode env vars of the applicationset-controller container.
+func appSetTokenRefStrictModeEnv(t *testing.T, r *ReconcileArgoCD, a *argoproj.ArgoCD) []v1.EnvVar {
+	t.Helper()
+
+	deployment := &appsv1.Deployment{}
+	assert.NoError(t, r.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Name:      "argocd-applicationset-controller",
+			Namespace: a.Namespace,
+		},
+		deployment))
+
+	found := []v1.EnvVar{}
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		for _, env := range container.Env {
+			if env.Name == "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE" {
+				found = append(found, env)
+			}
+		}
+	}
+	return found
+}
+
+// The applicationset-controller reads tokenRef strict mode from its environment when it starts, so the value has to
+// be set on the container, where a change rolls out the Deployment, and has to match argocd-cmd-params-cm.
+func TestArgoCDApplicationSetEnv_tokenRefStrictMode(t *testing.T) {
+	const key = "applicationsetcontroller.enable.tokenref.strict.mode"
+
+	tests := []struct {
+		name             string
+		sourceNamespaces []string
+		cmdParams        map[string]string
+		want             string
+	}{
+		{
+			name: "false without source namespaces",
+			want: "false",
+		},
+		{
+			name:             "true when a source namespace matches a cluster namespace",
+			sourceNamespaces: []string{"foo"},
+			want:             "true",
+		},
+		{
+			name:             "false when no source namespace matches a cluster namespace",
+			sourceNamespaces: []string{"bar"},
+			want:             "false",
+		},
+		{
+			name:             "cmdParams false opts out when source namespaces would default to true",
+			sourceNamespaces: []string{"foo"},
+			cmdParams:        map[string]string{key: "false"},
+			want:             "false",
+		},
+		{
+			name:      "cmdParams true overrides without source namespaces",
+			cmdParams: map[string]string{key: "true"},
+			want:      "true",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := makeTestArgoCD(func(ac *argoproj.ArgoCD) {
+				ac.Spec.ApplicationSet = &argoproj.ArgoCDApplicationSet{SourceNamespaces: tt.sourceNamespaces}
+				ac.Spec.CmdParams = tt.cmdParams
+			})
+
+			resObjs := []client.Object{a, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}}
+			subresObjs := []client.Object{a}
+			runtimeObjs := []runtime.Object{}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			assert.NoError(t, r.reconcileApplicationSetDeployment(a, &v1.ServiceAccount{}))
+			assert.NoError(t, r.reconcileArgoCmdParamsConfigMap(a))
+
+			assert.Equal(t,
+				[]v1.EnvVar{{Name: "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", Value: tt.want}},
+				appSetTokenRefStrictModeEnv(t, r, a))
+
+			cm := &v1.ConfigMap{}
+			assert.NoError(t, r.Get(
+				context.TODO(),
+				types.NamespacedName{
+					Name:      "argocd-cmd-params-cm",
+					Namespace: a.Namespace,
+				},
+				cm))
+			assert.Equal(t, tt.want, cm.Data[key], "argocd-cmd-params-cm and the Deployment have to agree")
+		})
+	}
+}
+
+// Changing tokenRef strict mode on an existing instance has to change the Deployment, otherwise the
+// applicationset-controller is not restarted and keeps running with the previous mode.
+func TestArgoCDApplicationSetEnv_tokenRefStrictModeChanged(t *testing.T) {
+	const key = "applicationsetcontroller.enable.tokenref.strict.mode"
+
+	strictMode := func(value string) []v1.EnvVar {
+		return []v1.EnvVar{{Name: "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", Value: value}}
+	}
+
+	a := makeTestArgoCD(func(ac *argoproj.ArgoCD) {
+		ac.Spec.ApplicationSet = &argoproj.ArgoCDApplicationSet{SourceNamespaces: []string{"foo"}}
+	})
+
+	resObjs := []client.Object{a, &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}}
+	subresObjs := []client.Object{a}
+	runtimeObjs := []runtime.Object{}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &v1.ServiceAccount{}))
+	assert.Equal(t, strictMode("true"), appSetTokenRefStrictModeEnv(t, r, a))
+
+	// opt out
+	a.Spec.CmdParams = map[string]string{key: "false"}
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &v1.ServiceAccount{}))
+	assert.Equal(t, strictMode("false"), appSetTokenRefStrictModeEnv(t, r, a))
+
+	// remove the opt-out
+	a.Spec.CmdParams = nil
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &v1.ServiceAccount{}))
+	assert.Equal(t, strictMode("true"), appSetTokenRefStrictModeEnv(t, r, a))
+
+	// the default follows the source namespaces
+	a.Spec.ApplicationSet.SourceNamespaces = nil
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &v1.ServiceAccount{}))
+	assert.Equal(t, strictMode("false"), appSetTokenRefStrictModeEnv(t, r, a))
 }
 
 func TestArgoCDApplicationSet_getApplicationSetSourceNamespaces(t *testing.T) {
