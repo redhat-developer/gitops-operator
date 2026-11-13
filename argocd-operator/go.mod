@@ -8,7 +8,7 @@ require (
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.1
 	// Update in Makefile and run `make update-dependencies`
 	github.com/argoproj/argo-cd/v3 v3.6.1
-	github.com/cert-manager/cert-manager v1.20.3
+	github.com/cert-manager/cert-manager v1.21.3
 	github.com/distribution/reference v0.6.0
 	github.com/go-logr/logr v1.4.4
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -192,7 +192,7 @@ require (
 	k8s.io/kubernetes v1.37.0 // indirect
 	k8s.io/streaming v0.37.0 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
-	sigs.k8s.io/gateway-api v1.5.0 // indirect
+	sigs.k8s.io/gateway-api v1.6.0 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
