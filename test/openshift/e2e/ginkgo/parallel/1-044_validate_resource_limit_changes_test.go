@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating simple namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},
@@ -151,7 +151,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that an ArgoCD instance becomes available after modifying .spec.controller.processors.operation", Label("openshift"), func() {
 			By("creating a test-owned namespace-scoped Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

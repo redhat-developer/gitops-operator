@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating simple namespace-scoped Argo CD instance with notification controller disabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argocd := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
@@ -176,11 +176,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating test namespaces")
 			fooNs, fooNsCleanupFunc := fixture.CreateNamespaceWithCleanupFunc("foo-src-ns")
-			defer fooNsCleanupFunc()
+			DeferCleanup(fooNsCleanupFunc)
 
 			By("creating namespace-scoped Argo CD instance with sourceNamespaces")
 			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("1-055-src-ns-test")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argocd := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
