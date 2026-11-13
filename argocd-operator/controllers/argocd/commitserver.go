@@ -309,7 +309,7 @@ func (r *ReconcileArgoCD) reconcileArgoCDCommitServerNetworkPolicy(cr *argoproj.
 			{
 				From: []networkingv1.NetworkPolicyPeer{
 					{
-						NamespaceSelector: &metav1.LabelSelector{},
+						NamespaceSelector: getMonitoringNamespaceLabelSelector(),
 					},
 				},
 				Ports: []networkingv1.NetworkPolicyPort{

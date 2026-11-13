@@ -53,7 +53,6 @@ func GenerateUniqueResourceName(argoComponentName string, cr *argoproj.ArgoCD) s
 }
 
 func newClusterRole(name string, rules []v1.PolicyRule, cr *argoproj.ArgoCD) *v1.ClusterRole {
-
 	return &v1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        GenerateUniqueResourceName(name, cr),
@@ -74,7 +73,7 @@ func (r *ReconcileArgoCD) reconcileRoles(cr *argoproj.ArgoCD) error {
 		}
 	}
 
-	clusterParams := getPolicyRuleClusterRoleList()
+	clusterParams := getPolicyRuleClusterRoleList(cr)
 
 	for _, clusterParam := range clusterParams {
 		if _, err := r.reconcileClusterRole(clusterParam.name, clusterParam.policyRule, cr); err != nil {
@@ -220,7 +219,6 @@ func (r *ReconcileArgoCD) reconcileRole(name string, policyRules []v1.PolicyRule
 }
 
 func (r *ReconcileArgoCD) reconcileRoleForApplicationSourceNamespaces(name string, policyRules []v1.PolicyRule, cr *argoproj.ArgoCD) error {
-
 	if !argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace) {
 		return nil
 	}
@@ -328,7 +326,6 @@ func (r *ReconcileArgoCD) reconcileRoleForApplicationSourceNamespaces(name strin
 }
 
 func (r *ReconcileArgoCD) reconcileClusterRole(componentName string, policyRules []v1.PolicyRule, cr *argoproj.ArgoCD) (*v1.ClusterRole, error) {
-
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
 
 	if err := verifyInstallationMode(cr, allowed); err != nil {
@@ -463,7 +460,6 @@ func checkCustomClusterRoleMode(r *ReconcileArgoCD, cr *argoproj.ArgoCD, compone
 
 // configureAggregatedClusterRole updates the ClusterRole and adds required fields for aggregated ClusterRole mode
 func configureAggregatedClusterRole(cr *argoproj.ArgoCD, clusterRole *v1.ClusterRole, componentName string) {
-
 	// if it is base ClusterRole then add AggregationRule, Annotations fields and remove default Rules
 	if componentName == common.ArgoCDApplicationControllerComponent {
 		clusterRole.AggregationRule = &v1.AggregationRule{
