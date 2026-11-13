@@ -58,3 +58,44 @@ func Test_ArgoCDNotifications_SourceNamespaces(t *testing.T) {
 	emptyNotifications := ArgoCDNotifications{}
 	assert.Nil(t, emptyNotifications.SourceNamespaces)
 }
+
+func Test_PrincipalHASpec_Fields(t *testing.T) {
+	haEnabled := true
+	adminPort := int32(8405)
+
+	ha := PrincipalHASpec{
+		Enabled:                      &haEnabled,
+		PreferredRole:                "primary",
+		PeerAddress:                  "argocd-agent-principal-replica:8443",
+		PeerTLSSecretName:            "argocd-agent-ha-peer-tls",
+		AllowedReplicationClients:    []string{"argocd-agent-principal-peer"},
+		AdminPort:                    &adminPort,
+		AdminAuth:                    "mtls:subject:CN=ha-admin",
+		ReplicationInitialAckTimeout: "5m",
+	}
+
+	assert.True(t, *ha.Enabled)
+	assert.Equal(t, "primary", ha.PreferredRole)
+	assert.Equal(t, "argocd-agent-principal-replica:8443", ha.PeerAddress)
+	assert.Equal(t, "argocd-agent-ha-peer-tls", ha.PeerTLSSecretName)
+	assert.Equal(t, []string{"argocd-agent-principal-peer"}, ha.AllowedReplicationClients)
+	assert.Equal(t, int32(8405), *ha.AdminPort)
+	assert.Equal(t, "mtls:subject:CN=ha-admin", ha.AdminAuth)
+	assert.Equal(t, "5m", ha.ReplicationInitialAckTimeout)
+}
+
+func Test_PrincipalSpec_HA_OmitEmpty(t *testing.T) {
+	// When HA is not set, the field should be nil
+	principal := PrincipalSpec{}
+	assert.Nil(t, principal.HA)
+
+	// When HA is set, it should be accessible
+	haEnabled := false
+	principal.HA = &PrincipalHASpec{
+		Enabled:       &haEnabled,
+		PreferredRole: "replica",
+	}
+	assert.NotNil(t, principal.HA)
+	assert.False(t, *principal.HA.Enabled)
+	assert.Equal(t, "replica", principal.HA.PreferredRole)
+}

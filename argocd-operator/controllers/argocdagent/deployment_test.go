@@ -17,6 +17,7 @@ package argocdagent
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -156,7 +157,7 @@ func TestReconcilePrincipalDeployment_DeploymentDoesNotExist_PrincipalEnabled(t 
 	assert.NoError(t, err)
 	assert.Equal(t, env, container.Env)
 	assert.Equal(t, buildSecurityContext(), container.SecurityContext)
-	assert.Equal(t, buildPorts(testCompName), container.Ports)
+	assert.Equal(t, buildPorts(testCompName, cr), container.Ports)
 
 	// Verify owner reference is set
 	assert.Len(t, deployment.OwnerReferences, 1)
@@ -1516,4 +1517,408 @@ func TestReconcilePrincipalDeployment_SPIFFE_AddedOnUpdate(t *testing.T) {
 	}
 	assert.True(t, envNames[EnvArgoCDPrincipalSpireAgentSocket], "ARGOCD_PRINCIPAL_SPIRE_AGENT_SOCKET should be set")
 	assert.True(t, envNames[EnvArgoCDPrincipalSpireAuthMethod], "ARGOCD_PRINCIPAL_SPIRE_AUTH_METHOD should be set")
+}
+
+func withPrincipalHA(enabled bool, preferredRole, peerAddress string, allowedClients []string, adminPort *int32, adminAuth, replicationTimeout string) argoCDOpt {
+	return withPrincipalHAFull(enabled, preferredRole, peerAddress, "", allowedClients, adminPort, adminAuth, replicationTimeout)
+}
+
+func withPrincipalHAFull(enabled bool, preferredRole, peerAddress, peerTLSSecretName string, allowedClients []string, adminPort *int32, adminAuth, replicationTimeout string) argoCDOpt {
+	return func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+			Enabled:                      &enabled,
+			PreferredRole:                preferredRole,
+			PeerAddress:                  peerAddress,
+			PeerTLSSecretName:            peerTLSSecretName,
+			AllowedReplicationClients:    allowedClients,
+			AdminPort:                    adminPort,
+			AdminAuth:                    adminAuth,
+			ReplicationInitialAckTimeout: replicationTimeout,
+		}
+	}
+}
+
+func TestBuildPrincipalContainerEnv_HA_Enabled(t *testing.T) {
+	adminPort := int32(PrincipalHAAdminPort)
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalHA(
+		true,
+		"replica",
+		"principal-primary.example.com:443",
+		[]string{"primary"},
+		&adminPort,
+		"mtls:subject:CN=ha-admin",
+		"10m",
+	))
+
+	env, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{DisableClusterTLSProfile: true})
+	assert.NoError(t, err)
+
+	envMap := make(map[string]string)
+	for _, e := range env {
+		envMap[e.Name] = e.Value
+	}
+
+	assert.Equal(t, "true", envMap[EnvArgoCDPrincipalHAEnabled])
+	assert.Equal(t, "replica", envMap[EnvArgoCDPrincipalHAPreferredRole])
+	assert.Equal(t, "principal-primary.example.com:443", envMap[EnvArgoCDPrincipalHAPeerAddress])
+	assert.Equal(t, "primary", envMap[EnvArgoCDPrincipalHAAllowedReplicationClients])
+	assert.Equal(t, strconv.Itoa(PrincipalHAAdminPort), envMap[EnvArgoCDPrincipalHAAdminPort])
+	assert.Equal(t, "mtls:subject:CN=ha-admin", envMap[EnvArgoCDPrincipalHAAdminAuth])
+	assert.Equal(t, "10m", envMap[EnvArgoCDPrincipalHAReplicationInitialAckTimeout])
+	assert.Equal(t, "/app/config/ha-peer-tls/tls.crt", envMap[EnvArgoCDPrincipalHAPeerTLSCert])
+	assert.Equal(t, "/app/config/ha-peer-tls/tls.key", envMap[EnvArgoCDPrincipalHAPeerTLSKey])
+}
+
+func TestReconcilePrincipalDeployment_HA_Enabled(t *testing.T) {
+	adminPort := int32(PrincipalHAAdminPort)
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalHA(
+		true,
+		"primary",
+		"principal-replica.example.com:443",
+		[]string{"replica"},
+		&adminPort,
+		"mtls:subject:CN=ha-admin",
+		"5m",
+	))
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, testCompName, cr, sch, tlsprofile.TLSConfigProfile{DisableClusterTLSProfile: true})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	container := deployment.Spec.Template.Spec.Containers[0]
+	envMap := make(map[string]string)
+	for _, e := range container.Env {
+		envMap[e.Name] = e.Value
+	}
+	assert.Equal(t, "true", envMap[EnvArgoCDPrincipalHAEnabled])
+	assert.Equal(t, "primary", envMap[EnvArgoCDPrincipalHAPreferredRole])
+	assert.Equal(t, "mtls:subject:CN=ha-admin", envMap[EnvArgoCDPrincipalHAAdminAuth])
+	assert.Equal(t, "/app/config/ha-peer-tls/tls.crt", envMap[EnvArgoCDPrincipalHAPeerTLSCert])
+	assert.Equal(t, "/app/config/ha-peer-tls/tls.key", envMap[EnvArgoCDPrincipalHAPeerTLSKey])
+
+	portNames := make(map[string]int32)
+	for _, p := range container.Ports {
+		portNames[p.Name] = p.ContainerPort
+	}
+	assert.Equal(t, int32(PrincipalHAAdminPort), portNames["ha-admin"])
+
+	// Dedicated replication client cert volume/mount
+	foundMount := false
+	for _, m := range container.VolumeMounts {
+		if m.Name == "ha-peer-tls" {
+			foundMount = true
+			assert.Equal(t, "/app/config/ha-peer-tls", m.MountPath)
+		}
+	}
+	assert.True(t, foundMount, "ha-peer-tls volume mount should be present when HA is enabled")
+
+	foundVolume := false
+	for _, v := range deployment.Spec.Template.Spec.Volumes {
+		if v.Name == "ha-peer-tls" {
+			foundVolume = true
+			assert.NotNil(t, v.Secret)
+			assert.Equal(t, "argocd-agent-ha-peer-tls", v.Secret.SecretName)
+			assert.Equal(t, new(true), v.Secret.Optional)
+		}
+	}
+	assert.True(t, foundVolume, "ha-peer-tls volume should be present when HA is enabled")
+}
+
+func TestReconcilePrincipalDeployment_HA_CustomPeerTLSSecret(t *testing.T) {
+	adminPort := int32(PrincipalHAAdminPort)
+	cr := makeTestArgoCD(withPrincipalEnabled(true), withPrincipalHAFull(
+		true,
+		"replica",
+		"principal-primary.example.com:443",
+		"custom-ha-peer-tls",
+		[]string{"argocd-agent-principal-peer"},
+		&adminPort,
+		"mtls:subject:CN=ha-admin",
+		"5m",
+	))
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	cl := makeTestReconcilerClient(sch, resObjs)
+
+	err := ReconcilePrincipalDeployment(cl, testCompName, testCompName, cr, sch, tlsprofile.TLSConfigProfile{DisableClusterTLSProfile: true})
+	assert.NoError(t, err)
+
+	deployment := &appsv1.Deployment{}
+	err = cl.Get(context.TODO(), types.NamespacedName{
+		Name:      generateAgentResourceName(cr.Name, testCompName),
+		Namespace: cr.Namespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	foundVolume := false
+	for _, v := range deployment.Spec.Template.Spec.Volumes {
+		if v.Name == "ha-peer-tls" {
+			foundVolume = true
+			assert.Equal(t, "custom-ha-peer-tls", v.Secret.SecretName)
+		}
+	}
+	assert.True(t, foundVolume)
+}
+
+func TestBuildPrincipalContainerEnv_HA_Disabled(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true)) // no HA spec set
+
+	env, err := buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{DisableClusterTLSProfile: true})
+	assert.NoError(t, err)
+
+	envMap := make(map[string]string)
+	for _, e := range env {
+		envMap[e.Name] = e.Value
+	}
+
+	_, haPresent := envMap[EnvArgoCDPrincipalHAEnabled]
+	assert.False(t, haPresent, "HA env vars should not be present when HA is not configured")
+}
+
+func TestBuildPorts_HA_Enabled(t *testing.T) {
+	enabled := true
+	cr := makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+			Enabled: &enabled,
+		}
+	})
+
+	ports := buildPorts(testCompName, cr)
+
+	portNames := make(map[string]int32)
+	for _, p := range ports {
+		portNames[p.Name] = p.ContainerPort
+	}
+
+	assert.Equal(t, int32(PrincipalHAAdminPort), portNames["ha-admin"])
+}
+
+func TestBuildPorts_HA_Disabled(t *testing.T) {
+	cr := makeTestArgoCD(withPrincipalEnabled(true))
+
+	ports := buildPorts(testCompName, cr)
+
+	for _, p := range ports {
+		assert.NotEqual(t, "ha-admin", p.Name, "ha-admin port should not be present when HA is disabled")
+	}
+}
+
+func TestBuildPorts_HA_CustomAdminPort(t *testing.T) {
+	enabled := true
+	customPort := int32(9405)
+	cr := makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+		if a.Spec.ArgoCDAgent == nil {
+			a.Spec.ArgoCDAgent = &argoproj.ArgoCDAgentSpec{}
+		}
+		if a.Spec.ArgoCDAgent.Principal == nil {
+			a.Spec.ArgoCDAgent.Principal = &argoproj.PrincipalSpec{}
+		}
+		a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+			Enabled:   &enabled,
+			AdminPort: &customPort,
+		}
+	})
+
+	ports := buildPorts(testCompName, cr)
+
+	portNames := make(map[string]int32)
+	for _, p := range ports {
+		portNames[p.Name] = p.ContainerPort
+	}
+
+	assert.Equal(t, int32(9405), portNames["ha-admin"])
+}
+
+func TestGetPrincipalHAHelperFunctions(t *testing.T) {
+	t.Run("hasPrincipalHA", func(t *testing.T) {
+		// No HA configured
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.False(t, hasPrincipalHA(cr))
+
+		// HA configured
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled: &enabled,
+			}
+		})
+		assert.True(t, hasPrincipalHA(cr))
+	})
+
+	t.Run("isPrincipalHAEnabled", func(t *testing.T) {
+		// No HA configured
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.False(t, isPrincipalHAEnabled(cr))
+
+		// HA configured but disabled
+		disabled := false
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled: &disabled,
+			}
+		})
+		assert.False(t, isPrincipalHAEnabled(cr))
+
+		// HA configured and enabled
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled: &enabled,
+			}
+		})
+		assert.True(t, isPrincipalHAEnabled(cr))
+	})
+
+	t.Run("getPrincipalHAPreferredRole", func(t *testing.T) {
+		// Default value
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "primary", getPrincipalHAPreferredRole(cr))
+
+		// Custom value
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:       &enabled,
+				PreferredRole: "replica",
+			}
+		})
+		assert.Equal(t, "replica", getPrincipalHAPreferredRole(cr))
+	})
+
+	t.Run("getPrincipalHAPeerAddress", func(t *testing.T) {
+		// No HA configured
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "", getPrincipalHAPeerAddress(cr))
+
+		// Custom value
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:     &enabled,
+				PeerAddress: "peer.example.com:8443",
+			}
+		})
+		assert.Equal(t, "peer.example.com:8443", getPrincipalHAPeerAddress(cr))
+	})
+
+	t.Run("getPrincipalHAPeerTLSSecretName", func(t *testing.T) {
+		// Default value when HA is not configured
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "argocd-agent-ha-peer-tls", getPrincipalHAPeerTLSSecretName(cr))
+
+		// Default when HA enabled but secret name unset
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled: &enabled,
+			}
+		})
+		assert.Equal(t, "argocd-agent-ha-peer-tls", getPrincipalHAPeerTLSSecretName(cr))
+
+		// Custom value
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:           &enabled,
+				PeerTLSSecretName: "custom-ha-peer-tls",
+			}
+		})
+		assert.Equal(t, "custom-ha-peer-tls", getPrincipalHAPeerTLSSecretName(cr))
+	})
+
+	t.Run("getPrincipalHAAllowedReplicationClients", func(t *testing.T) {
+		// No clients configured
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "", getPrincipalHAAllowedReplicationClients(cr))
+
+		// Single client
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:                   &enabled,
+				AllowedReplicationClients: []string{"primary"},
+			}
+		})
+		assert.Equal(t, "primary", getPrincipalHAAllowedReplicationClients(cr))
+
+		// Multiple clients
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:                   &enabled,
+				AllowedReplicationClients: []string{"primary", "replica"},
+			}
+		})
+		assert.Equal(t, "primary,replica", getPrincipalHAAllowedReplicationClients(cr))
+	})
+
+	t.Run("getPrincipalHAAdminPort", func(t *testing.T) {
+		// Default value
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, strconv.Itoa(PrincipalHAAdminPort), getPrincipalHAAdminPort(cr))
+
+		// Custom value
+		enabled := true
+		customPort := int32(9405)
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:   &enabled,
+				AdminPort: &customPort,
+			}
+		})
+		assert.Equal(t, "9405", getPrincipalHAAdminPort(cr))
+	})
+
+	t.Run("getPrincipalHAAdminAuth", func(t *testing.T) {
+		// Default empty value
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "", getPrincipalHAAdminAuth(cr))
+
+		// Custom value
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:   &enabled,
+				AdminAuth: "mtls:subject:CN=ha-admin",
+			}
+		})
+		assert.Equal(t, "mtls:subject:CN=ha-admin", getPrincipalHAAdminAuth(cr))
+	})
+
+	t.Run("getPrincipalHAReplicationInitialAckTimeout", func(t *testing.T) {
+		// Default value
+		cr := makeTestArgoCD(withPrincipalEnabled(true))
+		assert.Equal(t, "5m", getPrincipalHAReplicationInitialAckTimeout(cr))
+
+		// Custom value
+		enabled := true
+		cr = makeTestArgoCD(withPrincipalEnabled(true), func(a *argoproj.ArgoCD) {
+			a.Spec.ArgoCDAgent.Principal.HA = &argoproj.PrincipalHASpec{
+				Enabled:                      &enabled,
+				ReplicationInitialAckTimeout: "10m",
+			}
+		})
+		assert.Equal(t, "10m", getPrincipalHAReplicationInitialAckTimeout(cr))
+	})
 }

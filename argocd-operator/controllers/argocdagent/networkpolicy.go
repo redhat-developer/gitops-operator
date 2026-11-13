@@ -112,6 +112,14 @@ func buildPrincipalNetworkPolicySpec(compName string, cr *argoproj.ArgoCD) netwo
 		PrincipalHealthzServiceTargetPort,
 	}
 
+	if isPrincipalHAEnabled(cr) {
+		adminPort := int32(PrincipalHAAdminPort)
+		if cr.Spec.ArgoCDAgent.Principal.HA.AdminPort != nil {
+			adminPort = *cr.Spec.ArgoCDAgent.Principal.HA.AdminPort
+		}
+		targetPorts = append(targetPorts, adminPort)
+	}
+
 	ports := make([]networkingv1.NetworkPolicyPort, 0, len(targetPorts))
 	for _, p := range targetPorts {
 		ports = append(ports, networkingv1.NetworkPolicyPort{
