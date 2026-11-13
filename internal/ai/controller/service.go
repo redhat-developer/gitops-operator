@@ -59,7 +59,14 @@ func (s *TriggerService) Run(ctx context.Context, addr, tlsCert, tlsKey string, 
 		w.WriteHeader(http.StatusOK)
 	})
 
-	server := &http.Server{Addr: addr, Handler: mux}
+	// Bound how long an unauthenticated client can hold a connection while
+	// sending its request; TokenReview only runs once the request is read.
+	server := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+	}
 	if tlsEnabled {
 		server.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	}
