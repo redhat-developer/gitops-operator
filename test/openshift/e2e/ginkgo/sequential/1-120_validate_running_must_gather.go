@@ -65,10 +65,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verified the files collected for must gather are valid", Label("openshift"), func() {
 			By("creating namespace-scoped Argo CD instance")
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			DeferCleanup(nsCleanup)
 
 			nsf, nsfCleanup := fixture.CreateManagedNamespaceWithCleanupFunc(ns.Name+"-follower", ns.Name)
-			defer nsfCleanup()
+			DeferCleanup(nsfCleanup)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "left-argocd", Namespace: ns.Name},
