@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies spec.webhookSecrets.github.webhookSecretRef is synced into argocd-secret as webhook.github.secret", func() {
 			By("creating Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-github", Namespace: ns.Name},
@@ -104,7 +104,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies spec.webhookSecrets.gitlab.webhookSecretRef is synced into argocd-secret as webhook.gitlab.secret", func() {
 			By("creating Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: ns.Name},
@@ -153,7 +153,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies spec.webhookSecrets.azureDevOps username and password secretRefs are synced into argocd-secret", func() {
 			By("creating Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-ado", Namespace: ns.Name},
@@ -213,7 +213,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies GitHub and GitLab webhook secret references can be configured together on one ArgoCD instance", func() {
 			By("creating Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-multi", Namespace: ns.Name},
@@ -270,7 +270,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies Bitbucket Cloud, Bitbucket Server, and Gogs webhook secret references are synced into argocd-secret", func() {
 			By("creating Argo CD instance")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-bb-gogs", Namespace: ns.Name},
@@ -336,7 +336,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("does not remove webhook.github.secret when spec.webhookSecrets is never set on the Argo CD CR", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-manual-github-webhook", Namespace: ns.Name},
@@ -375,7 +375,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("preserves webhook.github.secret after declarative sync when entire spec.webhookSecrets is cleared", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-nil-whole-webhooksecrets", Namespace: ns.Name},
@@ -426,7 +426,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("removes webhook.github.secret from argocd-secret when GitHub is not declared in spec.webhookSecrets", func() {
 			By("creating Argo CD instance and syncing GitHub webhook secret")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-clear-gh", Namespace: ns.Name},
@@ -478,7 +478,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("removes webhook.gitlab.secret when GitLab is dropped from spec while GitHub remains", func() {
 			By("creating Argo CD instance and syncing GitHub and GitLab webhook secrets")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-partial-gl", Namespace: ns.Name},
@@ -547,7 +547,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("removes Azure DevOps webhook keys from argocd-secret when azureDevOps is dropped from spec.webhookSecrets", func() {
 			By("creating Argo CD instance and syncing Azure DevOps webhook credentials")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-drop-ado", Namespace: ns.Name},
@@ -609,7 +609,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("clears both Azure DevOps webhook keys from argocd-secret when only one ref can be resolved", func() {
 			By("creating Argo CD instance and syncing Azure DevOps webhook credentials")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-ado-atomic", Namespace: ns.Name},
@@ -670,7 +670,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("rejects spec.webhookSecrets.azureDevOps when only usernameSecretRef is set (CRD validation: both refs required together)", func() {
 			By("creating namespace and an ArgoCD CR with azureDevOps missing passwordSecretRef")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			invalid := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd-invalid-ado-pair", Namespace: ns.Name},

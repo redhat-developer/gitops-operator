@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("removes ApplicationSet workload and namespaced RBAC when spec.applicationSet is removed from the ArgoCD CR", func() {
 			testNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			const crName = "argocd-appset-spec-omit"
 			appsetWorkloadName := crName + "-applicationset-controller"

@@ -50,7 +50,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensures that ArgoCD CR .status.applicationset field correctly reflects the status of applicationset controller workload", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating simple, namespace-scoped ArgoCD CR")
 			argoCD := &argov1beta1api.ArgoCD{

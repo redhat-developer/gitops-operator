@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies per-component metrics config is applied to ServiceMonitors", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			controllerSMName := "example-argocd-metrics"
 			repoSMName := "example-argocd-repo-server-metrics"
@@ -266,7 +266,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies principal metrics config is applied to ServiceMonitor", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDName := "example-argocd"
 			principalSMName := argoCDName + "-agent-principal-metrics"
@@ -338,7 +338,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies agent metrics config is applied to ServiceMonitor", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDName := "example-argocd"
 			agentSMName := argoCDName + "-agent-agent-metrics"
