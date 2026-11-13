@@ -1241,6 +1241,7 @@ type ArgoCDSpec struct {
 	// The only keys currently supported for this parameter are:
 	// - controller.resource.health.persist
 	// - applicationsetcontroller.enable.tokenref.strict.mode — when ApplicationSet-in-any-namespace is active, the operator defaults this to "true"
+	// - server.disable.swagger.ui — set to "true" to stop the Argo CD server from serving the Swagger UI and the OpenAPI specification
 	CmdParams map[string]string `json:"cmdParams,omitempty"`
 
 	// ArgoCDAgent defines configurations for the ArgoCD Agent component.
