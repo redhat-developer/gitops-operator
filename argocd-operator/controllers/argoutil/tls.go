@@ -200,13 +200,16 @@ func MapCipherSuites(names []string) []string {
 
 // openShiftTLSGroupToGoCurve maps OpenShift TLSGroup names to crypto/tls CurveID
 // String() values accepted by Go-based components (e.g. gitops-backend).
-// Groups without a Go CurveID (e.g. SecP256r1MLKEM768) are omitted.
+// Only OpenShift TLSGroups that have a matching crypto/tls CurveID are listed;
+// pure-PQ CurveIDs such as MLKEM1024 are omitted because OpenShift has no TLSGroup for them.
 var openShiftTLSGroupToGoCurve = map[configv1.TLSGroup]string{
-	configv1.TLSGroupX25519:         tls.X25519.String(),
-	configv1.TLSGroupSecP256r1:      tls.CurveP256.String(),
-	configv1.TLSGroupSecP384r1:      tls.CurveP384.String(),
-	configv1.TLSGroupSecP521r1:      tls.CurveP521.String(),
-	configv1.TLSGroupX25519MLKEM768: tls.X25519MLKEM768.String(),
+	configv1.TLSGroupX25519:             tls.X25519.String(),
+	configv1.TLSGroupSecP256r1:          tls.CurveP256.String(),
+	configv1.TLSGroupSecP384r1:          tls.CurveP384.String(),
+	configv1.TLSGroupSecP521r1:          tls.CurveP521.String(),
+	configv1.TLSGroupX25519MLKEM768:     tls.X25519MLKEM768.String(),
+	configv1.TLSGroupSecP256r1MLKEM768:  tls.SecP256r1MLKEM768.String(),
+	configv1.TLSGroupSecP384r1MLKEM1024: tls.SecP384r1MLKEM1024.String(),
 }
 
 // MapOpenShiftTLSGroupsToGoCurves converts OpenShift TLS groups to a
@@ -241,13 +244,15 @@ func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component strin
 
 // openShiftTLSGroupToGoCurveID maps OpenShift TLSGroup names to numeric
 // crypto/tls CurveID values accepted by gitops-promoter's
-// --tls-curve-preferences flag.
+// --tls-curve-preferences flag. Kept in sync with openShiftTLSGroupToGoCurve.
 var openShiftTLSGroupToGoCurveID = map[configv1.TLSGroup]tls.CurveID{
-	configv1.TLSGroupX25519:         tls.X25519,
-	configv1.TLSGroupSecP256r1:      tls.CurveP256,
-	configv1.TLSGroupSecP384r1:      tls.CurveP384,
-	configv1.TLSGroupSecP521r1:      tls.CurveP521,
-	configv1.TLSGroupX25519MLKEM768: tls.X25519MLKEM768,
+	configv1.TLSGroupX25519:             tls.X25519,
+	configv1.TLSGroupSecP256r1:          tls.CurveP256,
+	configv1.TLSGroupSecP384r1:          tls.CurveP384,
+	configv1.TLSGroupSecP521r1:          tls.CurveP521,
+	configv1.TLSGroupX25519MLKEM768:     tls.X25519MLKEM768,
+	configv1.TLSGroupSecP256r1MLKEM768:  tls.SecP256r1MLKEM768,
+	configv1.TLSGroupSecP384r1MLKEM1024: tls.SecP384r1MLKEM1024,
 }
 
 // MapOpenShiftTLSGroupsToGoCurveIDs converts OpenShift TLS groups to a

@@ -115,13 +115,14 @@ func TestMapOpenShiftTLSGroupsToGoCurves(t *testing.T) {
 				configv1.TLSGroupX25519,
 				configv1.TLSGroupSecP256r1,
 				configv1.TLSGroupSecP384r1,
+				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroupSecP384r1MLKEM1024,
 			},
-			expected: "X25519MLKEM768:X25519:CurveP256:CurveP384",
+			expected: "X25519MLKEM768:X25519:CurveP256:CurveP384:SecP256r1MLKEM768:SecP384r1MLKEM1024",
 		},
 		{
 			name: "skips unsupported groups when some remain supported",
 			input: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
 				configv1.TLSGroupX25519,
 				configv1.TLSGroup("UnknownGroup"),
 			},
@@ -130,7 +131,7 @@ func TestMapOpenShiftTLSGroupsToGoCurves(t *testing.T) {
 		{
 			name: "errors when all configured groups are unsupported",
 			input: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroup("UnknownGroup"),
 			},
 			expectError: true,
 		},
@@ -174,13 +175,14 @@ func TestMapOpenShiftTLSGroupsToGoCurveIDs(t *testing.T) {
 				configv1.TLSGroupX25519,
 				configv1.TLSGroupSecP256r1,
 				configv1.TLSGroupSecP384r1,
+				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroupSecP384r1MLKEM1024,
 			},
-			expected: "4588,29,23,24",
+			expected: "4588,29,23,24,4587,4589",
 		},
 		{
 			name: "skips unsupported groups when some remain supported",
 			input: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
 				configv1.TLSGroupX25519,
 				configv1.TLSGroup("UnknownGroup"),
 			},
@@ -189,7 +191,7 @@ func TestMapOpenShiftTLSGroupsToGoCurveIDs(t *testing.T) {
 		{
 			name: "errors when all configured groups are unsupported",
 			input: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroup("UnknownGroup"),
 			},
 			expectError: true,
 		},
