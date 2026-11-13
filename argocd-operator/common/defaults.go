@@ -85,7 +85,7 @@ const (
 	ArgoCDDefaultArgoImage = "quay.io/argoproj/argocd"
 
 	// ArgoCDDefaultArgoVersion is the Argo CD container image digest to use when version not specified.
-	ArgoCDDefaultArgoVersion = "sha256:8e5cc5bb008df8a09dba439462e58c94c55b7735888d3ebde0c25fc05e4e5335" // v3.5.6
+	ArgoCDDefaultArgoVersion = "sha256:296e3d74f449b2ce45265613fcb68c18ed7366488360c8ea32f5f2a93d2e5c54" // v3.6.1
 
 	// ArgoCDDefaultBackupKeyLength is the length of the generated default backup key.
 	ArgoCDDefaultBackupKeyLength = 32
@@ -142,7 +142,7 @@ const (
 	ArgoCDDexServerTokenRenewalThresholdPercent int64 = 33
 
 	// ArgoCDDefaultDexVersion is the Dex container image tag to use when not specified.
-	ArgoCDDefaultDexVersion = "sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462" // v2.45.1
+	ArgoCDDefaultDexVersion = "sha256:933fcd3f523338c847b88ef84a7145fb2fcb7b9917f08418612afeaaa2001777" // v2.46.0
 
 	// ArgoCDDefaultDexRunAsUser is the numeric UID of the "dex" user declared in the Dex image.
 	// Kubernetes requires a numeric runAsUser when runAsNonRoot is true and the image USER is a named string.
