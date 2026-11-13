@@ -147,6 +147,8 @@ spec:
     applicationsetcontroller.enable.tokenref.strict.mode: "false"
 ```
 
+The Operator restarts the ApplicationSet controller when the strict mode value changes, so both setting and removing this parameter take effect without a manual restart.
+
 !!! important
     Only disable strict mode temporarily during migration, or if you have compensating controls. Prefer labeling Secrets with `argocd.argoproj.io/secret-type: scm-creds` and keeping strict mode enabled.
 
