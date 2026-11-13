@@ -40,10 +40,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		// This test supersedes 1-017_validate_cmp
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
+			ns        *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -53,7 +52,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			defer cleanupFunc()
 			if ns != nil {
 				fixture.OutputDebugOnFail(ns.Name)
 			}
@@ -61,7 +59,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("validates that an Argo CD Application with a ConfigManagementPlugin mounted via sidecar will deploy as expected", func() {
 
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating simple namespace-scoped Argo CD instance with a CMP sidecar, where the sidecar is a simple bash script")
 			argoCD := &argov1beta1api.ArgoCD{

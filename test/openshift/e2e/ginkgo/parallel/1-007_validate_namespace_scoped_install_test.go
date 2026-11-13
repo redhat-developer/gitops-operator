@@ -48,7 +48,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		var (
 			ctx       context.Context
 			k8sClient client.Client
-			nsCleanup func()
 			ns        *corev1.Namespace
 		)
 
@@ -61,17 +60,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		AfterEach(func() {
 
 			fixture.OutputDebugOnFail(ns)
-
-			if nsCleanup != nil {
-				nsCleanup()
-			}
-
 		})
 
 		It("ensures namespace-scoped ArgoCD install has all the expected K8s resources", func() {
 
 			By("creating namespace-scoped ArgoCD")
+			var nsCleanup func()
 			ns, nsCleanup = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(nsCleanup)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
