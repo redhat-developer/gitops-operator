@@ -51,7 +51,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			k8sClient           client.Client
 			ctx                 context.Context
 			ns                  *corev1.Namespace
-			cleanupFunc         func()
 			argoCD              *argov1beta1api.ArgoCD
 			paramsConfigMap     *corev1.ConfigMap
 			principalDeployment *appsv1.Deployment
@@ -62,7 +61,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-agent-debug-1-060")
+			DeferCleanup(cleanupFunc)
 
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
@@ -100,12 +101,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name:      argoCDAgentPrincipalName,
 					Namespace: ns.Name,
 				},
-			}
-		})
-
-		AfterEach(func() {
-			if cleanupFunc != nil {
-				cleanupFunc()
 			}
 		})
 
