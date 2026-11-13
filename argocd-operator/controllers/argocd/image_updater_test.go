@@ -2225,12 +2225,29 @@ func TestReconcileImageUpdaterDeployment_TLSArgs(t *testing.T) {
 			unexpectedArgs: []string{"--tlsminversion", "--tlsciphers", "--tlscurvepreferences"},
 		},
 		{
-			name: "omits curve preferences when all groups are unsupported",
+			name: "forwards hybrid PQC curve preferences",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				DisableClusterTLSProfile: false,
 				MinVersion:               configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupSecP384r1MLKEM1024,
+				},
+			},
+			expectedArgs: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlscurvepreferences",
+				"SecP256r1MLKEM768:SecP384r1MLKEM1024",
+			},
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: false,
+				MinVersion:               configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			expectedArgs: []string{
@@ -2294,7 +2311,7 @@ func TestReconcileImageUpdaterDeployment_DisabledWithUnsupportedCurves(t *testin
 			DisableClusterTLSProfile: false,
 			MinVersion:               configv1.VersionTLS12,
 			CurvePreferences: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroup("UnknownGroup"),
 			},
 		},
 	}

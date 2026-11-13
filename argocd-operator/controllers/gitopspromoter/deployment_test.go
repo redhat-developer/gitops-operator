@@ -585,11 +585,25 @@ func TestBuildPromoterTLSArgsFromClusterTLSProfile(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name: "incompatible curves are skipped without failing",
+			name: "hybrid PQC curve IDs are forwarded to promoter",
 			profile: tlsProfile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: []string{
+				"--tls-min-version=VersionTLS12",
+				"--tls-curve-preferences=4587,29",
+			},
+		},
+		{
+			name: "unknown curves are skipped without failing",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			expected: []string{
