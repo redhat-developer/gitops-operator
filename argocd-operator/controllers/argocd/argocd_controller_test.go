@@ -233,11 +233,16 @@ func TestReconcileArgoCD_AINotificationsRetry(t *testing.T) {
 	if err != nil || result.RequeueAfter != 5*time.Second {
 		t.Fatalf("missing token should schedule a retry: result=%v err=%v", result, err)
 	}
-	token := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: aiTriggerTokenSecretName, Namespace: a.Namespace},
-		Data:       map[string][]byte{"token": []byte("populated")},
+	// The first reconciliation already created the Secret; Kubernetes would
+	// populate its token, so fill it in here rather than creating it again.
+	token := &corev1.Secret{}
+	if err := cl.Get(context.Background(), types.NamespacedName{
+		Name: aiTriggerTokenSecretName, Namespace: a.Namespace,
+	}, token); err != nil {
+		t.Fatal(err)
 	}
-	if err := cl.Create(context.Background(), token); err != nil {
+	token.Data = map[string][]byte{"token": []byte("populated")}
+	if err := cl.Update(context.Background(), token); err != nil {
 		t.Fatal(err)
 	}
 	result, err = r.Reconcile(context.Background(), request)
