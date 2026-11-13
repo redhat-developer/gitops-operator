@@ -1460,6 +1460,59 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(cmdParamsCM, "30s", "5s").Should(configmapFixture.HaveStringDataKeyValue(common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey, "true"))
 		})
 
+		It("rolls out the applicationset controller when tokenRef strict mode changes", func() {
+			appsetArgocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-argocd")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			targetNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appset-target-ns")
+			cleanupFunctions = append(cleanupFunctions, cleanupFunc)
+
+			argoCD := &v1beta1.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tokenref-strict-rollout",
+					Namespace: appsetArgocdNS.Name,
+				},
+				Spec: v1beta1.ArgoCDSpec{
+					ApplicationSet: &v1beta1.ArgoCDApplicationSet{
+						SourceNamespaces: []string{targetNS.Name},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
+
+			// The controller reads tokenRef strict mode from its environment when it starts. The value has to be set
+			// on the container, and not referenced from argocd-cmd-params-cm, for a change to replace the Pod.
+			appsetDeployment := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tokenref-strict-rollout-applicationset-controller",
+					Namespace: argoCD.Namespace,
+				},
+			}
+			expectStrictModeOnController := func(value string) {
+				GinkgoHelper()
+				Eventually(appsetDeployment, "3m", "5s").Should(deploymentFixture.HaveContainerWithEnvVar(common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName, value, 0))
+				Eventually(appsetDeployment, "3m", "5s").Should(deploymentFixture.HaveUpdatedReplicas(1))
+				Eventually(appsetDeployment, "3m", "5s").Should(deploymentFixture.HaveReadyReplicas(1))
+			}
+
+			By("verifying that the controller starts with strict mode enabled")
+			expectStrictModeOnController("true")
+
+			By("opting out through .spec.cmdParams")
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.CmdParams = map[string]string{
+					common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey: "false",
+				}
+			})
+			expectStrictModeOnController("false")
+
+			By("removing the opt-out, so that strict mode is back to its default")
+			argocdFixture.Update(argoCD, func(ac *v1beta1.ArgoCD) {
+				ac.Spec.CmdParams = nil
+			})
+			expectStrictModeOnController("true")
+		})
+
 	})
 })
 

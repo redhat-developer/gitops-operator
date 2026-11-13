@@ -393,6 +393,13 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 }
 
 func (r *ReconcileArgoCD) applicationSetContainer(cr *argoproj.ArgoCD, addSCMGitlabVolumeMount bool) (corev1.Container, error) {
+	// The controller only reads tokenRef strict mode when it starts. The value is set on the container, rather than
+	// referenced from argocd-cmd-params-cm, so that changing it rolls out the Deployment.
+	tokenRefStrictModeValue, err := r.getTokenRefStrictModeValue(cr)
+	if err != nil {
+		return corev1.Container{}, err
+	}
+
 	// Global proxy env vars go first
 	appSetEnv := []corev1.EnvVar{
 		{
@@ -404,16 +411,8 @@ func (r *ReconcileArgoCD) applicationSetContainer(cr *argoproj.ArgoCD, addSCMGit
 			},
 		},
 		{
-			Name: common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
-			ValueFrom: &corev1.EnvVarSource{
-				ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: common.ArgoCDCmdParamsConfigMapName,
-					},
-					Key:      common.ArgoCDApplicationSetControllerTokenRefStrictModeCmdParamKey,
-					Optional: new(true),
-				},
-			},
+			Name:  common.ArgoCDApplicationSetControllerTokenRefStrictModeEnvName,
+			Value: tokenRefStrictModeValue,
 		},
 	}
 
