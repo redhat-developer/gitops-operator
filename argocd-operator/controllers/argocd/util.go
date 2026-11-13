@@ -713,8 +713,26 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	if !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0 {
+	var aiPending error
+	if !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0 || AINotificationsEnabled(cr) {
 		log.Info("reconciling Notifications controller")
+		if err := r.reconcileNotificationsController(cr); err != nil {
+			if err != errAINotificationsPending {
+				return err
+			}
+			// Finish reconciling other Argo CD resources while dependencies
+			// are being populated, then schedule the notification retry.
+			aiPending = err
+		}
+	} else {
+		// Clean up any stale AI entries first.
+		if err := r.cleanupAINotifications(cr); err != nil {
+			return err
+		}
+		// AI alone can have started the controller, and disabling it does not
+		// go through the spec.notifications.enabled predicate. shouldRunNotificationsController
+		// is false here, so reconciling removes the Deployment, RBAC,
+		// ServiceAccount, Secret, and default configuration.
 		if err := r.reconcileNotificationsController(cr); err != nil {
 			return err
 		}
@@ -749,7 +767,7 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	return nil
+	return aiPending
 }
 
 func (r *ReconcileArgoCD) deleteClusterResources(cr *argoproj.ArgoCD) error {
@@ -931,6 +949,12 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 	bldr.Owns(&v1.Role{})
 	bldr.Owns(&v1.RoleBinding{})
 	bldr.Owns(&v1alpha1.NotificationsConfiguration{})
+
+	// These sources belong to GitopsService, so Owns does not enqueue ArgoCD
+	// when their asynchronous token or serving CA data changes.
+	bldr.Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
+	bldr.Watches(&corev1.ConfigMap{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
+	bldr.Watches(&v1alpha1.NotificationsConfiguration{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
 
 	bldr.Watches(&argoproj.NamespaceManagement{}, handler.EnqueueRequestsFromMapFunc(nmMapper), builder.WithPredicates(r.namespaceManagementFilterPredicate()))
 

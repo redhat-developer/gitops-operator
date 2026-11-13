@@ -112,10 +112,12 @@ func (r *ReconcileGitopsService) SetupWithManager(mgr ctrl.Manager) error {
 		For(&pipelinesv1alpha1.GitopsService{}, builder.WithPredicates(pred)).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&rbacv1.ClusterRole{}).
+		Owns(&rbacv1.Role{}).
+		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.Deployment{}, builder.WithPredicates(pred)).
-		Owns(&corev1.Service{}, builder.WithPredicates(pred))
+		Owns(&corev1.Service{})
 
 	if util.IsRouteAPIFound() {
 		bldr = bldr.Owns(&routev1.Route{}, builder.WithPredicates(pred))
@@ -154,6 +156,7 @@ type ReconcileGitopsService struct {
 	// PluginNamespace is the namespace where console plugin resources (Deployment, Service, ConfigMap) are deployed.
 	// This is typically the operator's own namespace (e.g. "openshift-gitops-operator").
 	PluginNamespace string
+
 }
 
 // +kubebuilder:rbac:groups=config.openshift.io,resources=authentications,verbs=get;list;watch
@@ -235,7 +238,7 @@ type ReconcileGitopsService struct {
 
 // Reconcile reads that state of the cluster for a GitopsService object and makes changes based on the state read
 // and what is in the GitopsService.Spec
-func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileGitopsService) Reconcile(ctx context.Context, request reconcile.Request) (result reconcile.Result, reconcileErr error) {
 	reqLogger := logs.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling GitopsService")
 
@@ -1113,6 +1116,25 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"applications",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"patch",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"agentic.openshift.io",
+			},
+			Resources: []string{
+				"agenticruns",
+				"agenticrunapprovals",
+				"analysisresults",
+				"escalationresults",
+				"executionresults",
+				"verificationresults",
 			},
 			Verbs: []string{
 				"get",

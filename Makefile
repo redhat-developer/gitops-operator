@@ -3,11 +3,12 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= ""
+VERSION ?= 1.23.0
 
 
-# Try to detect Docker or Podman
-CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
+
+# Try to detect Docker or Podman (override with: make CONTAINER_RUNTIME=podman ...)
+CONTAINER_RUNTIME ?= $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
 
 # If neither Docker nor Podman is found, print an error message and exit
 ifeq ($(CONTAINER_RUNTIME),)
@@ -35,7 +36,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # IMAGE defines the base image to be used for operator, bundle and catalog.
-IMAGE ?= quay.io/redhat-developer/gitops-operator
+IMAGE ?= ghcr.io/svghadi/gitops-operator
 
 # IMAGE_TAG_BASE defines the docker.io namespace and part of the image name for remote images.
 # This variable is used to construct full image tags for bundle and catalog images.
@@ -46,7 +47,7 @@ IMAGE_TAG_BASE ?= $(IMAGE)
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
-BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:$(VERSION)
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:latest
 
 # BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
 BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
@@ -60,7 +61,11 @@ ifeq ($(USE_IMAGE_DIGESTS), true)
 endif
 
 # Image URL to use all building/pushing image targets
-IMG ?= $(IMAGE):$(VERSION)
+IMG ?= $(IMAGE):latest
+
+# AI controller image (override for local builds, e.g. quay.io/<user>/...)
+GITOPS_AI_CONTROLLER_IMG ?= ghcr.io/svghadi/gitops-ai-controller:latest
+PLATFORM ?= linux/amd64
 
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
@@ -201,11 +206,31 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
-	$(CONTAINER_RUNTIME) build -t ${IMG} .
+	$(CONTAINER_RUNTIME) build --platform $(PLATFORM) -t ${IMG} .
+
+.PHONY: docker-build-no-test
+docker-build-no-test: ## Build container image with the manager (skip unit tests).
+	$(CONTAINER_RUNTIME) build --platform $(PLATFORM) -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.
 	$(CONTAINER_RUNTIME) push ${IMG}
+
+.PHONY: docker-build-gitops-ai-controller
+docker-build-gitops-ai-controller: ## Build the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) build --platform $(PLATFORM) -f Dockerfile.gitops-ai-controller \
+		--build-arg COMMIT=$(shell git rev-parse --short HEAD) \
+		-t $(GITOPS_AI_CONTROLLER_IMG) .
+
+.PHONY: docker-push-gitops-ai-controller
+docker-push-gitops-ai-controller: ## Push the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) push $(GITOPS_AI_CONTROLLER_IMG)
+
+.PHONY: docker-build-all
+docker-build-all: docker-build docker-build-gitops-ai-controller ## Build operator and gitops-ai-controller images.
+
+.PHONY: docker-push-all
+docker-push-all: docker-push docker-push-gitops-ai-controller ## Push operator and gitops-ai-controller images.
 
 ##@ Build Dependencies
 
@@ -321,7 +346,7 @@ endif
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:latest
 
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)

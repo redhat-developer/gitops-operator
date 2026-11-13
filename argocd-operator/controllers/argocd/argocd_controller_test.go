@@ -41,6 +41,7 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
+	argov1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
@@ -61,7 +62,7 @@ func TestReconcileArgoCD_Reconcile_with_deleted(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -102,7 +103,7 @@ func TestReconcileArgoCD_DexWorkloads(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, makeTestK8sClientWithTokenReactor("mock-dex-token"))
 
@@ -189,7 +190,7 @@ func TestReconcileArgoCD_Reconcile(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -214,6 +215,104 @@ func TestReconcileArgoCD_Reconcile(t *testing.T) {
 	}
 }
 
+func TestReconcileArgoCD_AINotificationsRetry(t *testing.T) {
+	t.Setenv(enableAIFeaturesEnv, "true")
+	t.Setenv(aiTriggerTLSEnv, "false")
+	argoutil.SetRouteAPIFound(true)
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: true}
+	})
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	cl := makeTestReconcilerClient(sch, []client.Object{a}, []client.Object{a}, nil)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+	if err := createNamespace(r, a.Namespace, ""); err != nil {
+		t.Fatal(err)
+	}
+	request := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(a)}
+	result, err := r.Reconcile(context.Background(), request)
+	if err != nil || result.RequeueAfter != 5*time.Second {
+		t.Fatalf("missing token should schedule a retry: result=%v err=%v", result, err)
+	}
+
+	// The first reconciliation already created the Secret; Kubernetes would
+	// populate its token, so fill it in here rather than creating it again.
+	token := &corev1.Secret{}
+	if err := cl.Get(context.Background(), types.NamespacedName{
+		Name: aiTriggerTokenSecretName, Namespace: a.Namespace,
+	}, token); err != nil {
+		t.Fatal(err)
+	}
+	token.Data = map[string][]byte{"token": []byte("populated")}
+	if err := cl.Update(context.Background(), token); err != nil {
+		t.Fatal(err)
+	}
+	result, err = r.Reconcile(context.Background(), request)
+	if err != nil || result.RequeueAfter != 0 {
+		t.Fatalf("populated dependencies should finish setup: result=%v err=%v", result, err)
+	}
+}
+
+// AI alone can start the notifications controller, and turning it off does not
+// go through the spec.notifications.enabled predicate, so the reconciler itself
+// has to tear the controller down.
+func TestReconcileArgoCD_AINotificationsDisableRemovesController(t *testing.T) {
+	t.Setenv(enableAIFeaturesEnv, "true")
+	t.Setenv(aiTriggerTLSEnv, "false")
+	argoutil.SetRouteAPIFound(true)
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: true}
+	})
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	cl := makeTestReconcilerClient(sch, []client.Object{a}, []client.Object{a}, nil)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+	if err := createNamespace(r, a.Namespace, ""); err != nil {
+		t.Fatal(err)
+	}
+	request := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(a)}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	token := &corev1.Secret{}
+	if err := cl.Get(context.Background(), types.NamespacedName{
+		Name: aiTriggerTokenSecretName, Namespace: a.Namespace,
+	}, token); err != nil {
+		t.Fatal(err)
+	}
+	token.Data = map[string][]byte{"token": []byte("populated")}
+	if err := cl.Update(context.Background(), token); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+
+	// spec.notifications stays empty throughout, so AI is the only reason the
+	// controller is running.
+	deployKey := types.NamespacedName{
+		Name:      nameWithSuffix("notifications-controller", a),
+		Namespace: a.Namespace,
+	}
+	if err := cl.Get(context.Background(), deployKey, &appsv1.Deployment{}); err != nil {
+		t.Fatalf("AI troubleshooting should start the notifications controller: %v", err)
+	}
+
+	current := &argoproj.ArgoCD{}
+	if err := cl.Get(context.Background(), client.ObjectKeyFromObject(a), current); err != nil {
+		t.Fatal(err)
+	}
+	current.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: false}
+	if err := cl.Update(context.Background(), current); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cl.Get(context.Background(), deployKey, &appsv1.Deployment{}); !apierrors.IsNotFound(err) {
+		t.Fatalf("disabling AI should remove the notifications controller Deployment, got err=%v", err)
+	}
+}
+
 func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	argoutil.SetRouteAPIFound(true) // Setup Route API for tests that call full reconciler
 	logf.SetLogger(ZapLogger(true))
@@ -233,7 +332,7 @@ func TestReconcileArgoCD_LabelSelector(t *testing.T) {
 	resObjs := []client.Object{a, b, c}
 	subresObjs := []client.Object{a, b, c}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	rt := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -483,7 +582,7 @@ func TestReconcileArgoCD_Status_Condition(t *testing.T) {
 	resObjs := []client.Object{a}
 	subresObjs := []client.Object{a}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	rt := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 	rt.LabelSelector = "foo=bar"
@@ -547,7 +646,7 @@ func TestReconcileArgoCD_Cleanup_RBACs_When_NamespaceManagement_Disabled(t *test
 	resObjs := []client.Object{argoCD, nsMgmt}
 	subresObjs := []client.Object{argoCD, nsMgmt}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
@@ -628,7 +727,7 @@ func TestReconcileArgoCD_Cleanup_Skipped_When_Namespace_Has_ManagedByLabel(t *te
 	resObjs := []client.Object{argoCD, nsMgmt}
 	subresObjs := []client.Object{argoCD, nsMgmt}
 	runtimeObjs := []runtime.Object{}
-	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
 	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
 	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
 
