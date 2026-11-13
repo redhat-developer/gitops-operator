@@ -337,6 +337,108 @@ func TestReconcileArgoCD_reconcile_ServerDeployment_env(t *testing.T) {
 	})
 }
 
+// serverDisableSwaggerUIEnv returns the ARGOCD_SERVER_DISABLE_SWAGGER_UI env vars of the argocd-server container.
+func serverDisableSwaggerUIEnv(t *testing.T, r *ReconcileArgoCD) []corev1.EnvVar {
+	t.Helper()
+
+	deployment := &appsv1.Deployment{}
+	err := r.Get(context.TODO(), types.NamespacedName{
+		Name:      "argocd-server",
+		Namespace: testNamespace,
+	}, deployment)
+	assert.NoError(t, err)
+
+	found := []corev1.EnvVar{}
+	for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == "ARGOCD_SERVER_DISABLE_SWAGGER_UI" {
+			found = append(found, env)
+		}
+	}
+	return found
+}
+
+func TestReconcileArgoCD_reconcile_ServerDeployment_disableSwaggerUI(t *testing.T) {
+	tests := []struct {
+		name      string
+		cmdParams map[string]string
+		serverEnv []corev1.EnvVar
+		want      []corev1.EnvVar
+	}{
+		{
+			name: "not set when cmdParams is empty",
+			want: []corev1.EnvVar{},
+		},
+		{
+			name:      "not set when cmdParams only has other keys",
+			cmdParams: map[string]string{"controller.resource.health.persist": "true"},
+			want:      []corev1.EnvVar{},
+		},
+		{
+			name:      "set when the key is true",
+			cmdParams: map[string]string{"server.disable.swagger.ui": "true"},
+			want:      []corev1.EnvVar{{Name: "ARGOCD_SERVER_DISABLE_SWAGGER_UI", Value: "true"}},
+		},
+		{
+			name:      "value is passed to argocd-server unchanged",
+			cmdParams: map[string]string{"server.disable.swagger.ui": "False"},
+			want:      []corev1.EnvVar{{Name: "ARGOCD_SERVER_DISABLE_SWAGGER_UI", Value: "False"}},
+		},
+		{
+			name:      "env set in .spec.server.env takes precedence",
+			cmdParams: map[string]string{"server.disable.swagger.ui": "true"},
+			serverEnv: []corev1.EnvVar{{Name: "ARGOCD_SERVER_DISABLE_SWAGGER_UI", Value: "false"}},
+			want:      []corev1.EnvVar{{Name: "ARGOCD_SERVER_DISABLE_SWAGGER_UI", Value: "false"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logf.SetLogger(ZapLogger(true))
+			a := makeTestArgoCD()
+			a.Spec.CmdParams = tt.cmdParams
+			a.Spec.Server.Env = tt.serverEnv
+
+			resObjs := []client.Object{a}
+			subresObjs := []client.Object{a}
+			runtimeObjs := []runtime.Object{}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			assert.NoError(t, r.reconcileServerDeployment(a, false))
+
+			assert.Equal(t, tt.want, serverDisableSwaggerUIEnv(t, r))
+		})
+	}
+}
+
+// Changing the key on an existing instance has to change the Deployment, otherwise argocd-server is not restarted and
+// keeps serving the Swagger UI.
+func TestReconcileArgoCD_reconcile_ServerDeployment_disableSwaggerUIChanged(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+	a := makeTestArgoCD()
+
+	resObjs := []client.Object{a}
+	subresObjs := []client.Object{a}
+	runtimeObjs := []runtime.Object{}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	assert.NoError(t, r.reconcileServerDeployment(a, false))
+	assert.Empty(t, serverDisableSwaggerUIEnv(t, r))
+
+	a.Spec.CmdParams = map[string]string{"server.disable.swagger.ui": "true"}
+	assert.NoError(t, r.reconcileServerDeployment(a, false))
+	assert.Equal(t,
+		[]corev1.EnvVar{{Name: "ARGOCD_SERVER_DISABLE_SWAGGER_UI", Value: "true"}},
+		serverDisableSwaggerUIEnv(t, r))
+
+	a.Spec.CmdParams = nil
+	assert.NoError(t, r.reconcileServerDeployment(a, false))
+	assert.Empty(t, serverDisableSwaggerUIEnv(t, r))
+}
+
 func TestReconcileArgoCD_reconcileRepoDeployment_env(t *testing.T) {
 	t.Run("Test some env set in argocd-repo-server", func(t *testing.T) {
 		logf.SetLogger(ZapLogger(true))

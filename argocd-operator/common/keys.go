@@ -291,6 +291,13 @@ const (
 	// ArgoCDApplicationSetControllerTokenRefStrictModeEnvName is the env variable to enable tokenRef strict mode in the ApplicationSet controller.
 	ArgoCDApplicationSetControllerTokenRefStrictModeEnvName = "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE" // #nosec G101
 
+	// ArgoCDServerDisableSwaggerUICmdParamKey is the upstream argocd-cmd-params-cm key consumed by
+	// ARGOCD_SERVER_DISABLE_SWAGGER_UI.
+	ArgoCDServerDisableSwaggerUICmdParamKey = "server.disable.swagger.ui"
+
+	// ArgoCDServerDisableSwaggerUIEnvName is the env variable to disable the Swagger UI endpoints in the Argo CD server.
+	ArgoCDServerDisableSwaggerUIEnvName = "ARGOCD_SERVER_DISABLE_SWAGGER_UI"
+
 	// ArgoCDAgentPrincipalLogLevelKey is the argocd-agent-params ConfigMap key for the principal's log level.
 	ArgoCDAgentPrincipalLogLevelKey = "principal.log.level"
 

@@ -935,10 +935,25 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 	return r.Create(context.TODO(), deploy)
 }
 
+// getArgoServerCmdParamsEnv returns the environment variables for the .spec.cmdParams keys consumed by the ArgoCD Server.
+// The server only reads these keys from its environment, and the values are set on the container, rather than
+// referenced from argocd-cmd-params-cm, so that changing a key rolls out the Deployment.
+func getArgoServerCmdParamsEnv(cr *argoproj.ArgoCD) []corev1.EnvVar {
+	env := []corev1.EnvVar{}
+	if val, ok := cr.Spec.CmdParams[common.ArgoCDServerDisableSwaggerUICmdParamKey]; ok {
+		env = append(env, corev1.EnvVar{
+			Name:  common.ArgoCDServerDisableSwaggerUIEnvName,
+			Value: val,
+		})
+	}
+	return env
+}
+
 // reconcileServerDeployment will ensure the Deployment resource is present for the ArgoCD Server component.
 func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSForRedis bool) error {
 	deploy := newDeploymentWithSuffix("server", "server", cr)
 	serverEnv := cr.Spec.Server.Env
+	serverEnv = argoutil.EnvMerge(serverEnv, getArgoServerCmdParamsEnv(cr), false)
 	serverEnv = argoutil.EnvMerge(serverEnv, proxyEnvVars(), false)
 	serverEnv = argoutil.EnvMerge(serverEnv, argoutil.GetRedisAuthEnv(), false)
 	AddSeccompProfileForOpenShift(r.Client, &deploy.Spec.Template.Spec)
