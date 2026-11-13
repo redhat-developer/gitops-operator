@@ -984,11 +984,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 	if cr.Spec.Server.VolumeMounts != nil {
 		serverVolumeMounts = append(serverVolumeMounts, cr.Spec.Server.VolumeMounts...)
 	}
-	// argocd-server does not support --tlscurvepreferences yet; omit curves until a
-	// supporting image is the default. Keep min version and ciphers.
-	tlsProfileForServer := r.CentralTLSConfigProfile
-	tlsProfileForServer.CurvePreferences = nil
-	arguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForServer, "argocd-server")
+	arguments, err := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-server")
 	if err != nil {
 		return err
 	}
