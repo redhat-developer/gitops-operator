@@ -149,6 +149,12 @@ spec:
       kind: ChangeTransferPolicy
       name: changetransferpolicies.promoter.argoproj.io
       version: v1alpha1
+    - description: ChangeTransferPolicyHistory is the Schema for the changetransferpolicyhistories
+        API.
+      displayName: ChangeTransferPolicyHistory
+      kind: ChangeTransferPolicyHistory
+      name: changetransferpolicyhistories.promoter.argoproj.io
+      version: v1alpha1
     - description: ClusterScmProvider is a cluster-scoped SCM instance (such as GitHub).
       displayName: ClusterSCMProvider
       kind: ClusterScmProvider
@@ -164,6 +170,12 @@ spec:
       displayName: ControllerConfiguration
       kind: ControllerConfiguration
       name: controllerconfigurations.promoter.argoproj.io
+      version: v1alpha1
+    - description: DependentsSuccessfulCommitStatus is the Schema for the dependentssuccessfulcommitstatuses
+        API.
+      displayName: DependentsSuccessfulCommitStatus
+      kind: DependentsSuccessfulCommitStatus
+      name: dependentssuccessfulcommitstatuses.promoter.argoproj.io
       version: v1alpha1
     - description: GitCommitStatus evaluates commit data with a custom expression
         for promotion gating.
@@ -188,11 +200,11 @@ spec:
       kind: PullRequest
       name: pullrequests.promoter.argoproj.io
       version: v1alpha1
-    - description: RevertCommit represents a revert commit created to roll back a
-        promotion.
-      displayName: RevertCommit
-      kind: RevertCommit
-      name: revertcommits.promoter.argoproj.io
+    - description: RestoreActiveCommit restores one environment's active branch to
+        a previously hydrated commit.
+      displayName: RestoreActiveCommit
+      kind: RestoreActiveCommit
+      name: restoreactivecommits.promoter.argoproj.io
       version: v1alpha1
     - description: ScheduledCommitStatus provides calendar-based gating for environment
         promotions.

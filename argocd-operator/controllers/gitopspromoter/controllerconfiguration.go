@@ -56,6 +56,16 @@ func ReconcilePromoterControllerConfiguration(client client.Client, compName str
 			}
 			return controllerConfiguration, nil
 		}
+
+		// Upgrade path: older ControllerConfigurations lack work-queue sections that the
+		// current CRD marks required. Merge defaults for unset sections only; never overwrite
+		// user-tuned values.
+		if mergeMissingControllerConfigurationDefaults(controllerConfiguration) {
+			argoutil.LogResourceUpdate(log, controllerConfiguration, "merging missing controller configuration work-queue defaults")
+			if err := client.Update(context.Background(), controllerConfiguration); err != nil {
+				return nil, fmt.Errorf("failed to update controller configuration %s: %v", controllerConfiguration.Name, err)
+			}
+		}
 		return controllerConfiguration, nil
 	}
 
@@ -82,45 +92,55 @@ func buildControllerConfiguration(compName string, cr *argoproj.ArgoCD) *promote
 		},
 		Spec: promoter.ControllerConfigurationSpec{
 			PromotionStrategy: promoter.PromotionStrategyConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			ChangeTransferPolicyHistory: promoter.ChangeTransferPolicyHistoryConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(5),
 			},
 			ChangeTransferPolicy: promoter.ChangeTransferPolicyConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			PullRequest: promoter.PullRequestConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 				Template: promoter.PullRequestTemplate{
 					Title:       "Promote {{ with .ChangeTransferPolicy.Spec.ActivePath }}`{{ . }}` {{ end }}({{ trunc 5 .ChangeTransferPolicy.Status.Proposed.Dry.Sha }}) to `{{ .ChangeTransferPolicy.Spec.ActiveBranch }}`",
 					Description: "This PR is promoting {{ with .ChangeTransferPolicy.Spec.ActivePath }}`{{ . }}` on {{ end }}the environment branch `{{ .ChangeTransferPolicy.Spec.ActiveBranch }}` from dry sha {{ .ChangeTransferPolicy.Status.Active.Dry.Sha }} to {{ .ChangeTransferPolicy.Status.Proposed.Dry.Sha }}.",
 				},
 			},
 			CommitStatus: promoter.CommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			ArgoCDCommitStatus: promoter.ArgoCDCommitStatusConfiguration{
-				WorkQueue:              buildDefaultWorkQueueSettings(),
+				WorkQueue:              buildDefaultWorkQueueSettings(10),
 				WatchLocalApplications: true,
 			},
 			TimedCommitStatus: promoter.TimedCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			GitCommitStatus: promoter.GitCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			WebRequestCommitStatus: promoter.WebRequestCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			DependentsSuccessfulCommitStatus: promoter.DependentsSuccessfulCommitStatusConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 			ScheduledCommitStatus: promoter.ScheduledCommitStatusConfiguration{
-				WorkQueue: buildDefaultWorkQueueSettings(),
+				WorkQueue: buildDefaultWorkQueueSettings(10),
+			},
+			RestoreActiveCommit: promoter.RestoreActiveCommitConfiguration{
+				WorkQueue: buildDefaultWorkQueueSettings(10),
 			},
 		},
 	}
 }
 
-// buildDefaultWorkQueueSettings creates the default settings for a WorkQueue
-func buildDefaultWorkQueueSettings() promoter.WorkQueue {
+// buildDefaultWorkQueueSettings creates the default settings for a WorkQueue,
+// matching upstream gitops-promoter config/config/controllerconfiguration.yaml.
+func buildDefaultWorkQueueSettings(maxConcurrentReconciles int) promoter.WorkQueue {
 	return promoter.WorkQueue{
-		MaxConcurrentReconciles: 10,
+		MaxConcurrentReconciles: maxConcurrentReconciles,
 		RequeueDuration: metav1.Duration{
 			Duration: 5 * time.Minute,
 		},
@@ -134,7 +154,7 @@ func buildDefaultWorkQueueSettings() promoter.WorkQueue {
 				{
 					FastSlow: &promoter.FastSlow{
 						FastDelay: metav1.Duration{
-							Duration: 1 * time.Minute,
+							Duration: 1 * time.Second,
 						},
 						SlowDelay: metav1.Duration{
 							Duration: 5 * time.Minute,
@@ -145,6 +165,43 @@ func buildDefaultWorkQueueSettings() promoter.WorkQueue {
 			},
 		},
 	}
+}
+
+// mergeMissingControllerConfigurationDefaults fills required work-queue sections that are
+// unset on an existing ControllerConfiguration (typical after upgrading to a CRD that added
+// new required controllers). Returns true when the object was mutated.
+func mergeMissingControllerConfigurationDefaults(existing *promoter.ControllerConfiguration) bool {
+	changed := false
+
+	if isWorkQueueUnset(existing.Spec.ChangeTransferPolicyHistory.WorkQueue) {
+		existing.Spec.ChangeTransferPolicyHistory.WorkQueue = buildDefaultWorkQueueSettings(5)
+		changed = true
+	}
+	if isWorkQueueUnset(existing.Spec.DependentsSuccessfulCommitStatus.WorkQueue) {
+		existing.Spec.DependentsSuccessfulCommitStatus.WorkQueue = buildDefaultWorkQueueSettings(10)
+		changed = true
+	}
+	if isWorkQueueUnset(existing.Spec.RestoreActiveCommit.WorkQueue) {
+		existing.Spec.RestoreActiveCommit.WorkQueue = buildDefaultWorkQueueSettings(10)
+		changed = true
+	}
+
+	return changed
+}
+
+// isWorkQueueUnset reports whether a WorkQueue is the zero value left behind when a required
+// section was absent from stored JSON (or never configured).
+func isWorkQueueUnset(wq promoter.WorkQueue) bool {
+	return wq.MaxConcurrentReconciles == 0 &&
+		wq.RequeueDuration.Duration == 0 &&
+		isRateLimiterUnset(wq.RateLimiter)
+}
+
+func isRateLimiterUnset(rl promoter.RateLimiter) bool {
+	return rl.FastSlow == nil &&
+		rl.ExponentialFailure == nil &&
+		rl.Bucket == nil &&
+		len(rl.MaxOf) == 0
 }
 
 // DeleteControllerConfigurations deletes a list of ControllerConfigurations

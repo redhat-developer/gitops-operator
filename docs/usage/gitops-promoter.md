@@ -47,14 +47,30 @@ The following resources are created when the Promoter is enabled:
 - `<instance-name>-promoter-apiserver` service
 - `v1alpha1.view.promoter.argoproj.io` apiService
 - `<instance-name>-promoter-apiserver` deployment
+- `promoter-apiserver-serving-cert` secret (built-in cert rotation; omitted when `.spec.promoter.apiserver.tls.certSecretName` is set)
+- `<instance-name>-<instance-namespace>-promoter-controller-manager-apiserver-cert-rotation` clusterRole/clusterRoleBinding (built-in cert rotation)
+
+### Controller TLS settings
+
+On OpenShift, the GitOps Promoter controller inherits the cluster TLS security profile (minimum TLS version, cipher suites, and curve preferences) and passes them to the controller as:
+
+- `--tls-min-version`
+- `--tls-cipher-suites`
+- `--tls-curve-preferences`
+
+These settings apply to the controller's metrics/webhook servers, outbound HTTPS/mTLS clients, and related Go HTTP transports. When no cluster TLS profile is available (or applying it is disabled), the controller keeps Go's default TLS behavior.
 
 ### TLS for API Server
 
-The API Server requires certificates for the APIService. Currently these must be manually provided (this will change in the future).
+By default, when `.spec.promoter.apiserver.tls.certSecretName` is unset, the operator enables upstream gitops-promoter built-in serving-cert rotation:
 
-A CA is required for the APIService and then a certificate generated from that CA is required for the deployment of the API Server.
+- Creates an empty `promoter-apiserver-serving-cert` Secret
+- Runs the controller with `--apiserver-cert-rotation` (and related flags) so it issues/rotates the serving cert and injects the CA into the APIService
+- Mounts the Secret into the API Server at `/serving-certs`
 
-To provide TLS certificates, the field `.spec.promoter.apiserver.tls` is used. An example of how to configure this is shown below, along with the Secrets used to store the certificates:
+The API Server may take up to a few minutes to become Ready on first install while the controller issues the certificate.
+
+To bring your own certificates instead, set `.spec.promoter.apiserver.tls`. Provide a CA for the APIService and a certificate generated from that CA for the API Server Deployment:
 
 ```yaml
 apiVersion: argoproj.io/v1beta1
@@ -108,6 +124,49 @@ spec:
   promoter:
     enabled: true
     argoCDUIExtensionEnabled: true
+```
+
+### Migrating `orderCommitStatusRef`
+
+gitops-promoter **v0.39+** (OpenShift GitOps builds that ship promoter **v0.49+**) requires every `PromotionStrategy` to set `spec.orderCommitStatusRef` to a matching ordering gate. Existing strategies created before that change lack the field: cluster updates that omit it fail CRD validation, and Promoter cannot reconcile those strategies until the gate and reference exist.
+
+As a Technology Preview feature, expect breaking API changes across promoter upgrades. Prefer updating the **GitOps source manifests** that own each strategy (typical when using the Argo CD UI extension), then sync. Full upstream migration notes for 0.38 → 0.39 (and earlier) are in [gitops-promoter upgrading](https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy).
+
+#### What to add
+
+For each `PromotionStrategy`:
+
+1. Create a `DependentsSuccessfulCommitStatus` in the same namespace (commonly the same name as the strategy).
+2. Set `spec.orderCommitStatusRef` on the strategy to that gate.
+3. Remove legacy ordering keys from `proposedCommitStatuses` if present (`promoter-previous-environment`, or a manually listed `dependents-successful`). The PromotionStrategy controller injects the gate key from `orderCommitStatusRef`.
+
+Linear pipelines omit `dependsOn`; order is inferred from `spec.environments` list order. Custom DAGs set `dependsOn` on `PromotionStrategy.spec.environments[]` (not on the gate CR).
+
+Example (also at [`examples/gitops-promoter-order-commit-status.yaml`](../../examples/gitops-promoter-order-commit-status.yaml)):
+
+```yaml
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: demo
+spec:
+  orderCommitStatusRef:
+    group: promoter.argoproj.io
+    kind: DependentsSuccessfulCommitStatus
+    name: demo
+  environments:
+    - branch: environment/dev
+    - branch: environment/staging
+    - branch: environment/prod
+---
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: demo
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: demo
 ```
 
 ## Uninstallation

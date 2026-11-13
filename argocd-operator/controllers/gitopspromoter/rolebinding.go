@@ -37,7 +37,17 @@ func ReconcilePromoterControllerClusterRoleBindings(client client.Client, compNa
 	reconciledClusterRoleBindings := []*rbacv1.ClusterRoleBinding{}
 
 	for _, clusterRole := range clusterRoleBindingsToReconcile {
-		resultClusterRoleBinding, err := ReconcilePromoterClusterRoleBinding(client, compName, clusterRole.name, clusterRole.roleRefName, sa, cr, true)
+		if clusterRole.skipCreateWhenEmpty && reflect.DeepEqual(clusterRole.policyRule, []rbacv1.PolicyRule{}) {
+			// Custom ClusterRole: still bind to the external roleRef, but drop any leftover
+			// generated default binding named after the CR-derived resource.
+			_, err := ReconcilePromoterClusterRoleBinding(client, compName, generatePromoterResourceNameWithNamespace(compName, cr), clusterRole.roleRefName, sa, cr, true)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		resultClusterRoleBinding, err := ReconcilePromoterClusterRoleBinding(client, compName, clusterRole.name, clusterRole.roleRefName, sa, cr, clusterRole.enabled)
 		if err != nil {
 			return nil, err
 		}

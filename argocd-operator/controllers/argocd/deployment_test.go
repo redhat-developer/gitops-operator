@@ -3516,11 +3516,28 @@ func TestBuildTLSArgs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "omits curve preferences when all groups are unsupported",
+			name: "forwards hybrid PQC curve preferences",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupSecP384r1MLKEM1024,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlscurvepreferences",
+				"SecP256r1MLKEM768:SecP384r1MLKEM1024",
+			},
+			wantErr: false,
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			expected: []string{

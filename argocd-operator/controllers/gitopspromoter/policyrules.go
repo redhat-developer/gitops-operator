@@ -29,6 +29,12 @@ type policyRuleConfig struct {
 	name        string
 	roleRefName string
 	policyRule  []rbacv1.PolicyRule
+	// skipCreateWhenEmpty indicates an empty policyRule means "use a custom/external role"
+	// (do not create). When false, an empty policyRule with enabled=false deletes the role.
+	skipCreateWhenEmpty bool
+	// enabled controls whether the ClusterRole/Binding should exist. Defaults to true when unset
+	// by callers that leave this falsey only when intentionally disabling a companion role.
+	enabled bool
 }
 
 // buildPolicyRulesForControllerClusterRoles creates a list of configs for the ClusterRoles that are needed by the controller
@@ -41,11 +47,64 @@ func buildPolicyRulesForControllerClusterRoles(compName string, cr *argoproj.Arg
 		policyRule = buildPolicyRuleForControllerClusterRole()
 	}
 
-	return []policyRuleConfig{
+	configs := []policyRuleConfig{
 		{
-			name:        generatePromoterResourceNameWithNamespace(compName, cr),
-			roleRefName: name,
-			policyRule:  policyRule,
+			name:                generatePromoterResourceNameWithNamespace(compName, cr),
+			roleRefName:         name,
+			policyRule:          policyRule,
+			skipCreateWhenEmpty: true,
+			enabled:             true,
+		},
+	}
+
+	// Extra ClusterRole for built-in apiserver serving-cert rotation (APIService caBundle +
+	// serving-cert Secret update). Always included so disable paths can delete leftovers.
+	certRotationName := generatePromoterAPIServerCertRotationClusterRoleName(compName, cr)
+	certRotationEnabled := usesBuiltInAPIServerCerts(cr) && isAPIServerEnabled(cr)
+	certRotationRules := []rbacv1.PolicyRule{}
+	if certRotationEnabled {
+		certRotationRules = buildPolicyRuleForControllerAPIServerCertRotation()
+	}
+	configs = append(configs, policyRuleConfig{
+		name:        certRotationName,
+		roleRefName: certRotationName,
+		policyRule:  certRotationRules,
+		enabled:     certRotationEnabled,
+	})
+
+	return configs
+}
+
+// generatePromoterAPIServerCertRotationClusterRoleName returns the ClusterRole/Binding name for
+// built-in apiserver cert rotation RBAC.
+func generatePromoterAPIServerCertRotationClusterRoleName(compName string, cr *argoproj.ArgoCD) string {
+	return fmt.Sprintf("%s-%s", generatePromoterResourceNameWithNamespace(compName, cr), "apiserver-cert-rotation")
+}
+
+// buildPolicyRuleForControllerAPIServerCertRotation mirrors upstream
+// config/apiserver/certs-builtin-controller/rbac.yaml permissions needed by cert-controller.
+func buildPolicyRuleForControllerAPIServerCertRotation() []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{"secrets"},
+			ResourceNames: []string{
+				DefaultAPIServerServingCertSecretName,
+			},
+			Verbs: []string{"update"},
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Resources: []string{"apiservices"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Resources: []string{"apiservices"},
+			ResourceNames: []string{
+				DefaultAPIServerAPIServiceName,
+			},
+			Verbs: []string{"update"},
 		},
 	}
 }
@@ -62,19 +121,23 @@ func buildPolicyRulesForAPIServerClusterRoles(compName string, cr *argoproj.Argo
 
 	return []policyRuleConfig{
 		{
-			name:        generatePromoterResourceNameWithNamespace(compName, cr),
-			roleRefName: name,
-			policyRule:  policyRule,
+			name:                generatePromoterResourceNameWithNamespace(compName, cr),
+			roleRefName:         name,
+			policyRule:          policyRule,
+			skipCreateWhenEmpty: true,
+			enabled:             true,
 		},
 		{
 			name:        fmt.Sprintf("%s-%s", generatePromoterResourceNameWithNamespace(compName, cr), "promotionstrategydetails-viewer"),
 			roleRefName: fmt.Sprintf("%s-%s", generatePromoterResourceNameWithNamespace(compName, cr), "promotionstrategydetails-viewer"),
 			policyRule:  buildPolicyRuleForAPIServerPromotionStrategyDetailsViewer(),
+			enabled:     true,
 		},
 	}
 }
 
-// buildPolicyRuleForControllerClusterRole creates the default policy rule for the Controller's cluster role
+// buildPolicyRuleForControllerClusterRole creates the default policy rule for the Controller's cluster role.
+// Rules mirror upstream gitops-promoter config/rbac/role.yaml for the pinned release.
 func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
@@ -93,6 +156,20 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 		{
 			APIGroups: []string{
 				"",
+			},
+			Resources: []string{
+				"secrets",
+			},
+			Verbs: []string{
+				"get",
+				"list",
+				"patch",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"",
 				"events.k8s.io",
 			},
 			Resources: []string{
@@ -101,20 +178,6 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			Verbs: []string{
 				"create",
 				"patch",
-			},
-		},
-		{
-			APIGroups: []string{
-				"",
-			},
-			Resources: []string{
-				"secrets",
-			},
-			Verbs: []string{
-				"get",
-				"list",
-				"watch",
-				"update",
 			},
 		},
 		{
@@ -136,9 +199,9 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"argocdcommitstatuses",
+				"dependentssuccessfulcommitstatuses",
 				"gitcommitstatuses",
 				"promotionstrategies",
-				"revertcommits",
 				"scheduledcommitstatuses",
 				"timedcommitstatuses",
 				"webrequestcommitstatuses",
@@ -156,7 +219,9 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			Resources: []string{
 				"argocdcommitstatuses/finalizers",
 				"changetransferpolicies/finalizers",
+				"changetransferpolicyhistories/finalizers",
 				"clusterscmproviders/finalizers",
+				"dependentssuccessfulcommitstatuses/finalizers",
 				"gitcommitstatuses/finalizers",
 				"gitrepositories/finalizers",
 				"promotionstrategies/finalizers",
@@ -177,12 +242,15 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			Resources: []string{
 				"argocdcommitstatuses/status",
 				"changetransferpolicies/status",
+				"changetransferpolicyhistories/status",
 				"clusterscmproviders/status",
 				"commitstatuses/status",
+				"dependentssuccessfulcommitstatuses/status",
 				"gitcommitstatuses/status",
 				"gitrepositories/status",
 				"promotionstrategies/status",
 				"pullrequests/status",
+				"restoreactivecommits/status",
 				"scheduledcommitstatuses/status",
 				"scmproviders/status",
 				"timedcommitstatuses/status",
@@ -200,7 +268,9 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"changetransferpolicies",
+				"commitstatuses",
 				"pullrequests",
+				"restoreactivecommits",
 			},
 			Verbs: []string{
 				"create",
@@ -209,6 +279,22 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 				"list",
 				"patch",
 				"update",
+				"watch",
+			},
+		},
+		{
+			APIGroups: []string{
+				"promoter.argoproj.io",
+			},
+			Resources: []string{
+				"changetransferpolicyhistories",
+			},
+			Verbs: []string{
+				"create",
+				"delete",
+				"get",
+				"list",
+				"patch",
 				"watch",
 			},
 		},
@@ -232,21 +318,8 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			APIGroups: []string{
 				"promoter.argoproj.io",
 			},
-			Resources: []string{
-				"commitstatuses",
-			},
-			Verbs: []string{
-				"create",
-				"delete",
-				"get",
-				"list",
-				"patch",
-				"watch",
-			},
-		},
-		{
-			APIGroups: []string{
-				"promoter.argoproj.io",
+			ResourceNames: []string{
+				"promoter-controller-configuration",
 			},
 			Resources: []string{
 				"controllerconfigurations",
@@ -261,6 +334,9 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 			APIGroups: []string{
 				"promoter.argoproj.io",
 			},
+			ResourceNames: []string{
+				"promoter-controller-configuration",
+			},
 			Resources: []string{
 				"controllerconfigurations/status",
 			},
@@ -273,7 +349,8 @@ func buildPolicyRuleForControllerClusterRole() []rbacv1.PolicyRule {
 	}
 }
 
-// buildPolicyRuleForAPIServerClusterRole builds the default policy rule for the API Server
+// buildPolicyRuleForAPIServerClusterRole builds the default policy rule for the API Server.
+// Rules mirror upstream gitops-promoter config/apiserver/base/rbac.yaml for the pinned release.
 func buildPolicyRuleForAPIServerClusterRole() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
@@ -282,7 +359,9 @@ func buildPolicyRuleForAPIServerClusterRole() []rbacv1.PolicyRule {
 			},
 			Resources: []string{
 				"promotionstrategies",
+				"changetransferpolicyhistories",
 				"changetransferpolicies",
+				"restoreactivecommits",
 				"pullrequests",
 				"commitstatuses",
 				"argocdcommitstatuses",
@@ -290,6 +369,7 @@ func buildPolicyRuleForAPIServerClusterRole() []rbacv1.PolicyRule {
 				"timedcommitstatuses",
 				"webrequestcommitstatuses",
 				"scheduledcommitstatuses",
+				"dependentssuccessfulcommitstatuses",
 				"gitrepositories",
 				"scmproviders",
 				"clusterscmproviders",
@@ -311,6 +391,21 @@ func buildPolicyRuleForAPIServerClusterRole() []rbacv1.PolicyRule {
 				"get",
 				"list",
 				"watch",
+			},
+		},
+		// Read at startup for spec.scope and spec.clusterScmProvider.mode.
+		{
+			APIGroups: []string{
+				"promoter.argoproj.io",
+			},
+			ResourceNames: []string{
+				"promoter-controller-configuration",
+			},
+			Resources: []string{
+				"controllerconfigurations",
+			},
+			Verbs: []string{
+				"get",
 			},
 		},
 	}

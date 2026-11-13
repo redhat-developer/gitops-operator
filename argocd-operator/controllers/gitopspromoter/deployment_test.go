@@ -30,8 +30,11 @@ import (
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	configv1 "github.com/openshift/api/config/v1"
+
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 func makeExistingDeployment(sa *corev1.ServiceAccount, cr *argoproj.ArgoCD) *appsv1.Deployment {
@@ -433,7 +436,7 @@ func TestReconcilePromoterControllerDeployment_PromoterDisabled(t *testing.T) {
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch)
+	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch, tlsProfile.TLSConfigProfile{})
 	assert.NoError(t, err)
 	assert.NotNil(t, deployment)
 
@@ -457,7 +460,7 @@ func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
 	sch := makeTestReconcilerScheme()
 	client := makeTestReconcilerClient(sch, resObjs)
 
-	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch)
+	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch, tlsProfile.TLSConfigProfile{})
 	assert.NoError(t, err)
 	assert.NotNil(t, deployment)
 
@@ -472,13 +475,148 @@ func TestReconcilePromoterControllerDeployment_PromoterEnabled(t *testing.T) {
 	assert.Equal(t, cr.Namespace, retrievedDeployment.Namespace)
 	assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrievedDeployment.Labels)
 
-	cfg := createControllerConfig()
+	cfg := createControllerConfig(cr, tlsProfile.TLSConfigProfile{})
 	assert.Equal(t, cfg.command, retrievedDeployment.Spec.Template.Spec.Containers[0].Command)
+	assert.Equal(t, cfg.args, retrievedDeployment.Spec.Template.Spec.Containers[0].Args)
 	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
 	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
 	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
 	assert.Equal(t, cfg.volumeMounts, retrievedDeployment.Spec.Template.Spec.Containers[0].VolumeMounts)
 	assert.Equal(t, cfg.volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
+	assert.Contains(t, retrievedDeployment.Spec.Template.Spec.Containers[0].Args, "--apiserver-cert-rotation")
+}
+
+func TestReconcilePromoterControllerDeployment_WithTLSProfile(t *testing.T) {
+	cr := makeTestArgoCD(withPromoterEnabled(true))
+	sa := makeExistingServiceAccount(cr)
+
+	resObjs := []client.Object{cr}
+	sch := makeTestReconcilerScheme()
+	client := makeTestReconcilerClient(sch, resObjs)
+
+	centralTLS := tlsProfile.TLSConfigProfile{
+		MinVersion: configv1.VersionTLS12,
+		Ciphers: []string{
+			"ECDHE-RSA-AES128-GCM-SHA256",
+			"TLS_AES_128_GCM_SHA256",
+		},
+		CurvePreferences: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+		},
+	}
+
+	deployment, err := ReconcilePromoterControllerDeployment(client, testCompName, sa, cr, sch, centralTLS)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment)
+
+	retrievedDeployment := &appsv1.Deployment{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name:      deployment.Name,
+		Namespace: cr.Namespace,
+	}, retrievedDeployment)
+	assert.NoError(t, err)
+
+	expectedArgs := buildControllerArgs(cr, centralTLS)
+	assert.Equal(t, expectedArgs, retrievedDeployment.Spec.Template.Spec.Containers[0].Args)
+	assert.Contains(t, retrievedDeployment.Spec.Template.Spec.Containers[0].Args, "--tls-min-version=VersionTLS12")
+	assert.Contains(t, retrievedDeployment.Spec.Template.Spec.Containers[0].Args, "--tls-curve-preferences=29,23")
+	assert.Contains(t, retrievedDeployment.Spec.Template.Spec.Containers[0].Args, "--apiserver-cert-rotation")
+}
+
+func TestBuildPromoterTLSArgsFromClusterTLSProfile(t *testing.T) {
+	tests := []struct {
+		name     string
+		profile  tlsProfile.TLSConfigProfile
+		expected []string
+	}{
+		{
+			name:     "empty profile",
+			profile:  tlsProfile.TLSConfigProfile{},
+			expected: nil,
+		},
+		{
+			name: "disabled profile",
+			profile: tlsProfile.TLSConfigProfile{
+				DisableClusterTLSProfile: true,
+				MinVersion:               configv1.VersionTLS12,
+				Ciphers:                  []string{"ECDHE-RSA-AES128-GCM-SHA256"},
+			},
+			expected: nil,
+		},
+		{
+			name: "TLS 1.2 with ciphers and curves",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+					"TLS_AES_128_GCM_SHA256",
+				},
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupX25519MLKEM768,
+					configv1.TLSGroupX25519,
+					configv1.TLSGroupSecP256r1,
+				},
+			},
+			expected: []string{
+				"--tls-min-version=VersionTLS12",
+				"--tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+				"--tls-curve-preferences=4588,29,23",
+			},
+		},
+		{
+			name: "TLS 1.3 omits cipher suites",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS13,
+				Ciphers: []string{
+					"ECDHE-RSA-AES128-GCM-SHA256",
+					"TLS_AES_128_GCM_SHA256",
+				},
+			},
+			expected: []string{
+				"--tls-min-version=VersionTLS13",
+			},
+		},
+		{
+			name: "unsupported min version is omitted",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS10,
+			},
+			expected: nil,
+		},
+		{
+			name: "hybrid PQC curve IDs are forwarded to promoter",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: []string{
+				"--tls-min-version=VersionTLS12",
+				"--tls-curve-preferences=4587,29",
+			},
+		},
+		{
+			name: "unknown curves are skipped without failing",
+			profile: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
+				},
+			},
+			expected: []string{
+				"--tls-min-version=VersionTLS12",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, BuildPromoterTLSArgsFromClusterTLSProfile(tt.profile))
+		})
+	}
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterDisabled(t *testing.T) {
@@ -532,13 +670,19 @@ func TestReconcilePromoterAPIServerDeployment_PromoterEnabled(t *testing.T) {
 	assert.Equal(t, cr.Namespace, retrievedDeployment.Namespace)
 	assert.Equal(t, buildLabelsForPromoterResources(testCompName, cr), retrievedDeployment.Labels)
 
-	cfg := createAPIServerConfig()
+	cfg := createAPIServerConfig(cr)
 	assert.Equal(t, cfg.command, retrievedDeployment.Spec.Template.Spec.Containers[0].Command)
 	assert.Equal(t, cfg.args, retrievedDeployment.Spec.Template.Spec.Containers[0].Args)
 	assert.Equal(t, cfg.securityContext, retrievedDeployment.Spec.Template.Spec.Containers[0].SecurityContext)
 	assert.Equal(t, cfg.ports, retrievedDeployment.Spec.Template.Spec.Containers[0].Ports)
 	assert.Equal(t, cfg.livenessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].LivenessProbe)
 	assert.Equal(t, cfg.readinessProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe)
+	assert.Equal(t, cfg.startupProbe, retrievedDeployment.Spec.Template.Spec.Containers[0].StartupProbe)
+	assert.Equal(t, cfg.volumes, retrievedDeployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, cfg.volumeMounts, retrievedDeployment.Spec.Template.Spec.Containers[0].VolumeMounts)
+	assert.Equal(t, DefaultAPIServerServingCertSecretName, retrievedDeployment.Spec.Template.Spec.Volumes[0].Secret.SecretName)
+	assert.NotNil(t, retrievedDeployment.Spec.Template.Spec.Volumes[0].Secret.Optional)
+	assert.True(t, *retrievedDeployment.Spec.Template.Spec.Volumes[0].Secret.Optional)
 }
 
 func TestReconcilePromoterAPIServerDeployment_PromoterEnabled_APIServerDisabled(t *testing.T) {

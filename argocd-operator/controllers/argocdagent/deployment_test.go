@@ -819,10 +819,23 @@ func TestGetPrincipalTlsConfig(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "unsupported curve groups skipped when others remain",
+			name: "hybrid PQC curve groups are forwarded",
 			tlsProfile: tlsprofile.TLSConfigProfile{
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupX25519,
+				},
+			},
+			expected: map[string]string{
+				"--tlsCurvePreferences": "SecP256r1MLKEM768,X25519",
+			},
+			wantErr: false,
+		},
+		{
+			name: "unsupported curve groups skipped when others remain",
+			tlsProfile: tlsprofile.TLSConfigProfile{
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
 					configv1.TLSGroupX25519,
 				},
 			},
@@ -835,7 +848,7 @@ func TestGetPrincipalTlsConfig(t *testing.T) {
 			name: "all unsupported curve groups returns error",
 			tlsProfile: tlsprofile.TLSConfigProfile{
 				CurvePreferences: []configv1.TLSGroup{
-					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			expected: nil,
@@ -887,7 +900,7 @@ func TestBuildPrincipalContainerEnv_TLSCurvePreferences(t *testing.T) {
 
 	_, err = buildPrincipalContainerEnv(cr, tlsprofile.TLSConfigProfile{
 		CurvePreferences: []configv1.TLSGroup{
-			configv1.TLSGroupSecP256r1MLKEM768,
+			configv1.TLSGroup("UnknownGroup"),
 		},
 	})
 	assert.Error(t, err)

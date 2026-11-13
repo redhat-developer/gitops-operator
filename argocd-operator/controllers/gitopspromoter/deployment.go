@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -32,9 +33,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
+	configv1 "github.com/openshift/api/config/v1"
+
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	tlsProfile "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 )
 
 // Useful constants for the Promoter's Deployment
@@ -57,14 +61,16 @@ type deploymentConfig struct {
 	ports           []corev1.ContainerPort
 	livenessProbe   *corev1.Probe
 	readinessProbe  *corev1.Probe
+	startupProbe    *corev1.Probe
 	volumes         []corev1.Volume
 	volumeMounts    []corev1.VolumeMount
 }
 
 // createControllerConfig creates the deploymentConfig that is to be used with the Controller
-func createControllerConfig() deploymentConfig {
+func createControllerConfig(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) deploymentConfig {
 	return deploymentConfig{
 		command:         buildContainerCommand(binaryControllerCmd),
+		args:            buildControllerArgs(cr, centralTLSProfile),
 		securityContext: buildControllerSecurityContext(),
 		livenessProbe:   buildControllerLivenessProbe(),
 		readinessProbe:  buildControllerReadinessProbe(),
@@ -74,21 +80,29 @@ func createControllerConfig() deploymentConfig {
 }
 
 // createAPIServerConfig creates the deploymentConfig that is to be used with the API Server
-func createAPIServerConfig() deploymentConfig {
-	return deploymentConfig{
+func createAPIServerConfig(cr *argoproj.ArgoCD) deploymentConfig {
+	cfg := deploymentConfig{
 		command:         buildContainerCommand(binaryAPIServerCmd),
 		args:            buildAPIServerArgs(),
 		securityContext: buildAPIServerSecurityContext(),
 		ports:           buildAPIServerPorts(),
 		livenessProbe:   buildAPIServerLivenessProbe(),
 		readinessProbe:  buildAPIServerReadinessProbe(),
+		volumes:         buildAPIServerVolumes(cr),
+		volumeMounts:    buildAPIServerVolumeMounts(),
 	}
+	if usesBuiltInAPIServerCerts(cr) {
+		// Built-in certs start empty; give the controller time to issue them before
+		// liveness probing takes over (mirrors upstream certs-builtin patch).
+		cfg.startupProbe = buildAPIServerStartupProbe()
+	}
+	return cfg
 }
 
 // ReconcilePromoterControllerDeployment reconciles the Promoter's Controller Deployment
 // Calls the generic ReconcilePromoterDeployment function with the settings for the Controller
-func ReconcilePromoterControllerDeployment(client client.Client, compName string, sa *corev1.ServiceAccount, cr *argoproj.ArgoCD, scheme *runtime.Scheme) (*appsv1.Deployment, error) {
-	cfg := createControllerConfig()
+func ReconcilePromoterControllerDeployment(client client.Client, compName string, sa *corev1.ServiceAccount, cr *argoproj.ArgoCD, scheme *runtime.Scheme, centralTLSProfile tlsProfile.TLSConfigProfile) (*appsv1.Deployment, error) {
+	cfg := createControllerConfig(cr, centralTLSProfile)
 	deployment, err := ReconcilePromoterDeployment(client, compName, sa, cr, scheme, cfg, true)
 	if err != nil {
 		return nil, err
@@ -99,14 +113,8 @@ func ReconcilePromoterControllerDeployment(client client.Client, compName string
 // ReconcilePromoterAPIServerDeployment reconciles the Promoter's API Server Deployment
 // Calls the generic ReconcilePromoterDeployment function with the settings for the API Server
 func ReconcilePromoterAPIServerDeployment(client client.Client, compName string, sa *corev1.ServiceAccount, cr *argoproj.ArgoCD, scheme *runtime.Scheme) (*appsv1.Deployment, error) {
-	cfg := createAPIServerConfig()
-	enabled := cr.Spec.Promoter == nil || cr.Spec.Promoter.APIServer.IsEnabled()
-	if cr.Spec.Promoter != nil && cr.Spec.Promoter.APIServer != nil && cr.Spec.Promoter.APIServer.TLS != nil && cr.Spec.Promoter.APIServer.TLS.CertSecretName != "" {
-		cfg.volumes = buildAPIServerVolumes(cr)
-		cfg.volumeMounts = buildAPIServerVolumeMounts()
-	} else if enabled {
-		log.Info("Warning: no TLS cert for the API Server specified, api server may fail to start.")
-	}
+	cfg := createAPIServerConfig(cr)
+	enabled := isAPIServerEnabled(cr)
 
 	deployment, err := ReconcilePromoterDeployment(client, compName, sa, cr, scheme, cfg, enabled)
 	if err != nil {
@@ -147,6 +155,13 @@ func ReconcilePromoterDeployment(client client.Client, compName string, sa *core
 
 		if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].Command, cfg.command) {
 			deployment.Spec.Template.Spec.Containers[0].Command = cfg.command
+			changed = true
+		}
+
+		actualArgs := sliceEmptyToNil(deployment.Spec.Template.Spec.Containers[0].Args)
+		desiredArgs := sliceEmptyToNil(cfg.args)
+		if !reflect.DeepEqual(actualArgs, desiredArgs) {
+			deployment.Spec.Template.Spec.Containers[0].Args = cfg.args
 			changed = true
 		}
 
@@ -194,6 +209,11 @@ func ReconcilePromoterDeployment(client client.Client, compName string, sa *core
 
 		if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].ReadinessProbe, cfg.readinessProbe) {
 			deployment.Spec.Template.Spec.Containers[0].ReadinessProbe = cfg.readinessProbe
+			changed = true
+		}
+
+		if !reflect.DeepEqual(deployment.Spec.Template.Spec.Containers[0].StartupProbe, cfg.startupProbe) {
+			deployment.Spec.Template.Spec.Containers[0].StartupProbe = cfg.startupProbe
 			changed = true
 		}
 
@@ -279,6 +299,7 @@ func buildDeploymentSpec(compName string, sa *corev1.ServiceAccount, cr *argopro
 						Ports:           cfg.ports,
 						LivenessProbe:   cfg.livenessProbe,
 						ReadinessProbe:  cfg.readinessProbe,
+						StartupProbe:    cfg.startupProbe,
 						VolumeMounts:    cfg.volumeMounts,
 					},
 				},
@@ -437,6 +458,89 @@ func buildAPIServerReadinessProbe() *corev1.Probe {
 	}
 }
 
+// buildAPIServerStartupProbe waits for built-in serving certs to be issued before liveness.
+func buildAPIServerStartupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path:   "/livez",
+				Port:   intstr.FromString("https"),
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+		PeriodSeconds:    5,
+		FailureThreshold: 60,
+	}
+}
+
+// buildControllerArgs builds the Args for the Controller's container within its Deployment,
+// including TLS settings derived from the OpenShift cluster TLS security profile and optional
+// built-in apiserver cert-rotation flags.
+func buildControllerArgs(cr *argoproj.ArgoCD, centralTLSProfile tlsProfile.TLSConfigProfile) []string {
+	args := BuildPromoterTLSArgsFromClusterTLSProfile(centralTLSProfile)
+	if usesBuiltInAPIServerCerts(cr) && isAPIServerEnabled(cr) {
+		args = append(args,
+			"--apiserver-cert-rotation",
+			"--apiserver-cert-rotation-secret-name="+DefaultAPIServerServingCertSecretName,
+			"--apiserver-cert-rotation-service-name="+generatePromoterResourceName(string(argoproj.PromoterComponentTypeAPIServer), cr),
+			"--apiserver-cert-rotation-apiservice-name="+DefaultAPIServerAPIServiceName,
+		)
+	}
+	return args
+}
+
+// BuildPromoterTLSArgsFromClusterTLSProfile converts the cluster TLS profile into
+// gitops-promoter controller CLI flags (--tls-min-version, --tls-cipher-suites,
+// --tls-curve-preferences). Empty/disabled profiles produce no args so promoter
+// keeps Go defaults.
+func BuildPromoterTLSArgsFromClusterTLSProfile(centralTLSProfile tlsProfile.TLSConfigProfile) []string {
+	if centralTLSProfile.DisableClusterTLSProfile {
+		return nil
+	}
+
+	var args []string
+
+	// Promoter accepts Kubernetes-style version names and rejects versions below TLS 1.2.
+	switch centralTLSProfile.MinVersion {
+	case configv1.VersionTLS12, configv1.VersionTLS13:
+		args = append(args, "--tls-min-version="+string(centralTLSProfile.MinVersion))
+	}
+
+	if ciphers := argoutil.MapCipherSuites(centralTLSProfile.Ciphers); len(ciphers) > 0 {
+		// Go's tls.Config.CipherSuites only applies to TLS 1.2 and below, and
+		// promoter rejects TLS 1.3 suite names. Omit ciphers when min version is
+		// TLS 1.3; otherwise drop TLS 1.3-only suites from the list.
+		if centralTLSProfile.MinVersion != configv1.VersionTLS13 {
+			tls13Ciphers := map[string]bool{
+				"TLS_AES_128_GCM_SHA256":       true,
+				"TLS_AES_256_GCM_SHA384":       true,
+				"TLS_CHACHA20_POLY1305_SHA256": true,
+			}
+			filtered := make([]string, 0, len(ciphers))
+			for _, cipher := range ciphers {
+				if !tls13Ciphers[cipher] {
+					filtered = append(filtered, cipher)
+				}
+			}
+			if len(filtered) > 0 {
+				args = append(args, "--tls-cipher-suites="+strings.Join(filtered, ","))
+			}
+		}
+	}
+
+	curves, err := argoutil.MapOpenShiftTLSGroupsToGoCurveIDs(centralTLSProfile.CurvePreferences, "gitops-promoter")
+	if err != nil {
+		// Do not fail reconciliation for incompatible curve preferences. Keep min
+		// version/ciphers and fall back to promoter's default curve selection.
+		log.Info("skipping TLS curve preferences; falling back to component defaults",
+			"component", "gitops-promoter", "error", err.Error())
+	} else if curves != "" {
+		args = append(args, "--tls-curve-preferences="+curves)
+	}
+
+	return args
+}
+
 // buildAPIServerArgs builds the Args for the API Server's container within its Deployment
 // #TODO: Allow for custom args through CR if there are worth it settings in the Promoter
 func buildAPIServerArgs() []string {
@@ -471,14 +575,25 @@ func buildControllerVolumeMounts() []corev1.VolumeMount {
 
 // buildAPIServerVolumes builds the Volumes for the API Server
 func buildAPIServerVolumes(cr *argoproj.ArgoCD) []corev1.Volume {
+	secretVolume := &corev1.SecretVolumeSource{
+		SecretName:  getAPIServerServingCertSecretName(cr),
+		DefaultMode: ptr.To(int32(420)),
+	}
+	if usesBuiltInAPIServerCerts(cr) {
+		// Secret starts empty; project only the serving key pair and mark optional so the
+		// pod can schedule before the controller issues the cert. CA private key stays out.
+		secretVolume.Optional = ptr.To(true)
+		secretVolume.Items = []corev1.KeyToPath{
+			{Key: "tls.crt", Path: "tls.crt"},
+			{Key: "tls.key", Path: "tls.key"},
+		}
+	}
+
 	return []corev1.Volume{
 		{
 			Name: apiServerTLSVolumeName,
 			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  cr.Spec.Promoter.APIServer.TLS.CertSecretName,
-					DefaultMode: ptr.To(int32(420)),
-				},
+				Secret: secretVolume,
 			},
 		},
 		{

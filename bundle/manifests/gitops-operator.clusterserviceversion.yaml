@@ -309,6 +309,12 @@ spec:
       kind: ChangeTransferPolicy
       name: changetransferpolicies.promoter.argoproj.io
       version: v1alpha1
+    - description: ChangeTransferPolicyHistory is the Schema for the changetransferpolicyhistories
+        API.
+      displayName: ChangeTransferPolicyHistory
+      kind: ChangeTransferPolicyHistory
+      name: changetransferpolicyhistories.promoter.argoproj.io
+      version: v1alpha1
     - description: A ClusterAnalysisTemplate is like an AnalysisTemplate,but it is
         not limited to its namespace. It can be used by any Rollout throughout the
         cluster.
@@ -331,6 +337,12 @@ spec:
       displayName: ControllerConfiguration
       kind: ControllerConfiguration
       name: controllerconfigurations.promoter.argoproj.io
+      version: v1alpha1
+    - description: DependentsSuccessfulCommitStatus is the Schema for the dependentssuccessfulcommitstatuses
+        API.
+      displayName: DependentsSuccessfulCommitStatus
+      kind: DependentsSuccessfulCommitStatus
+      name: dependentssuccessfulcommitstatuses.promoter.argoproj.io
       version: v1alpha1
     - description: An Experiment is limited run of one or more ReplicaSets for the
         purposes of analysis. Experiments typically run for a pre-determined duration,
@@ -382,11 +394,11 @@ spec:
       kind: PullRequest
       name: pullrequests.promoter.argoproj.io
       version: v1alpha1
-    - description: RevertCommit represents a revert commit created to roll back a
-        promotion.
-      displayName: RevertCommit
-      kind: RevertCommit
-      name: revertcommits.promoter.argoproj.io
+    - description: RestoreActiveCommit restores one environment's active branch to
+        a previously hydrated commit.
+      displayName: RestoreActiveCommit
+      kind: RestoreActiveCommit
+      name: restoreactivecommits.promoter.argoproj.io
       version: v1alpha1
     - description: A controller for managing Argo Rollouts
       displayName: RolloutManager

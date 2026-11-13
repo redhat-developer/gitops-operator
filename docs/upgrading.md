@@ -293,3 +293,13 @@ references declared on **`spec.webhookSecrets`** in the **ArgoCD** CR (`v1beta1`
 - **If you set** `spec.webhookSecrets`, the operator syncs the providers you declare into `argocd-secret`. Providers not listed while management is enabled can have their **`webhook.*` keys cleared** on reconcile—see [Configuring webhook secrets](./usage/webhook-secrets.md) for exact semantics.
 
 For migration from manual edits, verification, integrations (External Secrets, Sealed Secrets), and troubleshooting, use the **[Configuring webhook secrets](./usage/webhook-secrets.md)** guide. A runnable example can be found at <https://github.com/redhat-developer/gitops-operator/blob/master/examples/argocd-webhook-secrets.yaml>.
+
+## GitOps Promoter: required `orderCommitStatusRef`
+
+When upgrading to an OpenShift GitOps / Argo CD Operator release that ships **gitops-promoter v0.49+**, every `PromotionStrategy` must declare `spec.orderCommitStatusRef` pointing at a `DependentsSuccessfulCommitStatus`. Strategies created before that release lack the field; updates that omit it fail CRD validation and Promoter cannot reconcile them.
+
+Update the GitOps source manifests for each strategy (and sync), or follow upstream’s upgrade guide. Operator-facing summary and example:
+
+- [Migrating orderCommitStatusRef](./usage/gitops-promoter.md#migrating-ordercommitstatusref)
+- [`examples/gitops-promoter-order-commit-status.yaml`](../examples/gitops-promoter-order-commit-status.yaml)
+- [Upstream upgrading — 0.39](https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy)
