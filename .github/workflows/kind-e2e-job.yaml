@@ -12,6 +12,9 @@ env:
   IMG: gitops-operator:test
   LOG_DIR: /tmp/kind-ci-artifacts
 
+permissions:
+  contents: read
+
 jobs:
   ci-e2e:
     name: Run E2E tests (${{ inputs.test-type }}) on xKS

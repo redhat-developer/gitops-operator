@@ -5,6 +5,12 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= ""
 
+# ARGO_CD_TARGET_VERSION is the target version that argocd-operator will install.
+# Update this when you upgrade the Argo CD dependencies of the project.
+# After updating, call 'make update-dependencies'.
+# Notes:
+# - String should NOT begin with 'v' prefix, e.g. 'v3.1.1'
+ARGO_CD_TARGET_VERSION ?= 3.5.6
 
 # Try to detect Docker or Podman
 CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
@@ -138,15 +144,15 @@ vet: ## Run go vet against code.
 
 .PHONY: update-dependencies
 update-dependencies: ## Update Go dependencies and regenerate CRDs, manifests and bundle.
-	$(MAKE) -C argocd-operator update-dependencies
+	hack/update-dependencies-script/run.sh
 
 .PHONY: update-dependencies-argocd
 update-dependencies-argocd: ## Update only the Argo CD dependency.
-	$(MAKE) -C argocd-operator update-dependencies-argocd
+	hack/update-dependencies-script/argocd/run.sh
 
 .PHONY: update-dependencies-gitops-promoter
 update-dependencies-gitops-promoter: ## Update only the GitOps Promoter dependency.
-	$(MAKE) -C argocd-operator update-dependencies-gitops-promoter
+	hack/update-dependencies-script/gitops-promoter/run.sh
 
 get-image-updater-crd: ## Download Image Updater CRD.
 	@echo "downloading image updater crd"
