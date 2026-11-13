@@ -37,7 +37,7 @@ import (
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
-	Context("1-115-validate_imagepullpolicy_gitopsservice", func() {
+	Context("1-115-validate_imagepullpolicy_gitopsservice", Label("openshift"), func() {
 
 		var (
 			ctx       context.Context
