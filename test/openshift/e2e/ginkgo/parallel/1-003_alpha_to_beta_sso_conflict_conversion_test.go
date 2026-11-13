@@ -49,6 +49,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies expected behaviour of ArgoCD CR when dex and keycloak are both specified in v1alpha1 API", Label("openshift"), func() {
 
+			if fixture.EnvLocalRun() {
+				Skip("Conversion via webhook requires the operator to be running on the cluster, which is not the case for a local run")
+				return
+			}
+
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
 

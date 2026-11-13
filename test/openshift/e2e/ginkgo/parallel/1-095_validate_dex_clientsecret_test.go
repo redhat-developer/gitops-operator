@@ -121,6 +121,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}, "2m", "5s").Should(BeTrue(), "'$oidc.dex.clientSecret' should be set. Any other value implies that the client secret is exposed via ConfigMap")
 
 			By("verifying the Dex SA has no non-expiring kubernetes.io/service-account-token Secrets in its .secrets list")
+			// The operator must clean up legacy SA token Secrets and must not auto-generate new ones.
 			dexSANoLegacyTokenRefs := func() bool {
 				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serviceAccount), serviceAccount); err != nil {
 					return false
