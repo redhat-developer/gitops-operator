@@ -24,9 +24,9 @@ const (
 	aiNotifTriggerKey            = "trigger.on-gitops-ai-diagnose"
 	aiNotifTemplateKey           = "template.gitops-ai-diagnose"
 	aiNotifServiceKey            = "service.webhook.gitops-ai-controller"
-	aiTriggerTokenSecretName     = "gitops-ai-controller-notifications-token"
-	aiNotificationsSecretName    = "argocd-notifications-secret"
-	aiTriggerTokenKey            = "gitops-ai-controller-token"
+	aiTriggerTokenSecretName     = "gitops-ai-controller-notifications-token" // #nosec G101 -- resource name, not a credential
+	aiNotificationsSecretName    = "argocd-notifications-secret"              // #nosec G101 -- resource name, not a credential
+	aiTriggerTokenKey            = "gitops-ai-controller-token" // #nosec G101 -- Secret data key, not a credential
 	aiTLSCertsConfigMapName      = "argocd-tls-certs-cm"
 	aiCABundleKey                = "service-ca.crt"
 	aiCAConfigMapName            = "gitops-ai-controller-serving-ca"

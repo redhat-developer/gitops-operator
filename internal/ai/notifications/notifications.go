@@ -10,9 +10,9 @@ const (
 	ServiceKey          = "service.webhook.gitops-ai-controller"
 	SubscriptionKey     = "subscriptions"
 	ConfigurationName   = "default-notifications-configuration"
-	TokenSecretName     = "gitops-ai-controller-notifications-token"
-	NotificationsSecret = "argocd-notifications-secret"
-	TriggerTokenKey     = "gitops-ai-controller-token"
+	TokenSecretName     = "gitops-ai-controller-notifications-token" // #nosec G101 -- resource name, not a credential
+	NotificationsSecret = "argocd-notifications-secret"              // #nosec G101 -- resource name, not a credential
+	TriggerTokenKey     = "gitops-ai-controller-token"               // #nosec G101 -- Secret data key, not a credential
 	CAConfigMap         = "gitops-ai-controller-serving-ca"
 	ServiceName         = "gitops-ai-controller"
 )
