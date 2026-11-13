@@ -36,21 +36,6 @@ func SetRouteAPIFound(found bool) {
 }
 
 // *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetTemplateAPIFound(found bool) {
-	templateAPIFound = found
-}
-
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetAppsAPIFound(found bool) {
-	appsAPIFound = found
-}
-
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
-func SetOAuthAPIFound(found bool) {
-	oauthAPIFound = found
-}
-
-// *** THIS SHOULD ONLY BE USED FOR UNIT TESTING ***
 func SetOLMAPIFound(found bool) {
 	olmAPIFound = found
 }

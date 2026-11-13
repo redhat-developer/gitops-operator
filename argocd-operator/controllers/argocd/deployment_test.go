@@ -2071,6 +2071,33 @@ func TestReconcileArgoCD_reconcileRedisDeployment(t *testing.T) {
 	assert.Equal(t, int32(3), *d.Spec.Replicas)
 }
 
+// SCC admission (OpenShift, MicroShift) assigns UIDs, so a fixed RunAsUser must only be set without SCC.
+func TestReconcileArgoCD_reconcileRedisDeployment_runAsUserFollowsSCC(t *testing.T) {
+	for _, scc := range []bool{false, true} {
+		t.Run(fmt.Sprintf("scc=%v", scc), func(t *testing.T) {
+			original := sccAPIFound
+			sccAPIFound = scc
+			t.Cleanup(func() { sccAPIFound = original })
+
+			cr := makeTestArgoCD()
+			resObjs := []client.Object{cr}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			assert.NoError(t, r.reconcileRedisDeployment(cr, false))
+			d := &appsv1.Deployment{}
+			assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-redis", Namespace: cr.Namespace}, d))
+			sc := d.Spec.Template.Spec.SecurityContext
+			if scc {
+				assert.True(t, sc == nil || sc.RunAsUser == nil)
+			} else {
+				assert.Equal(t, int64(1000), *sc.RunAsUser)
+			}
+		})
+	}
+}
+
 func TestReconcileArgoCD_reconcileRedisDeployment_volumeUpdate(t *testing.T) {
 	// tests reconciler hook for redis deployment
 	cr := makeTestArgoCD()
