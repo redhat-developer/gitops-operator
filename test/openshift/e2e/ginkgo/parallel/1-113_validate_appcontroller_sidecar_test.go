@@ -61,7 +61,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 						SidecarContainers: []corev1.Container{
 							{
 								Name:  "sidecar",
-								Image: "quay.io/fedora/fedora:latest", // the original test used busybox image from docker hub
+								Image: fixture.SidecarImage, // the original test used busybox image from docker hub
 								Resources: corev1.ResourceRequirements{
 									Limits: corev1.ResourceList{
 										corev1.ResourceCPU:    resource.MustParse("50m"),
@@ -87,7 +87,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(pod.Spec.Containers).To(HaveLen(2))
 
 			Expect(pod.Spec.Containers[1].Name).To(Equal("sidecar"))
-			Expect(pod.Spec.Containers[1].Image).To(Equal("quay.io/fedora/fedora:latest"))
+			Expect(pod.Spec.Containers[1].Image).To(Equal(fixture.SidecarImage))
 
 			Expect(pod.Spec.Containers[1].Resources).To(Equal(
 				corev1.ResourceRequirements{
