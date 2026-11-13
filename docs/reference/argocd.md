@@ -1608,6 +1608,30 @@ spec:
       - /argocd
 ```
 
+### Server Swagger UI
+
+The Argo CD Server serves its OpenAPI specification at `/swagger.json` and an interactive Swagger UI at `/swagger-ui`, both without authentication. To stop serving them, set `server.disable.swagger.ui` to `"true"` in `.spec.cmdParams`. The operator restarts the Argo CD Server to apply the change.
+
+!!! note
+    This requires Argo CD v3.6 or later. Earlier versions ignore the setting.
+
+!!! note
+    If `ARGOCD_SERVER_DISABLE_SWAGGER_UI` is also set in `.spec.server.env`, that value takes precedence.
+
+### Server Swagger UI Example
+
+``` yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+  labels:
+    example: server
+spec:
+  cmdParams:
+    server.disable.swagger.ui: "true"
+```
+
 ### Server GRPC Options
 
 The following properties are available to configure GRPC for the Argo CD Server component.

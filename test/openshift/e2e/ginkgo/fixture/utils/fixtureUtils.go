@@ -5,6 +5,7 @@ import (
 
 	certificatesv1beta1 "k8s.io/api/certificates/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,6 +62,18 @@ func GetE2ETestKubeClientWithError() (client.Client, *runtime.Scheme, error) {
 	}
 
 	return k8sClient, scheme, nil
+}
+
+// GetE2ETestKubeClientset returns a client-go Clientset, for the API requests that the controller-runtime Client
+// does not support (e.g. the 'proxy' subresource of a Service).
+func GetE2ETestKubeClientset() kubernetes.Interface {
+	config, err := getSystemKubeConfig()
+	Expect(err).ToNot(HaveOccurred())
+
+	clientset, err := kubernetes.NewForConfig(config)
+	Expect(err).ToNot(HaveOccurred())
+
+	return clientset
 }
 
 // getKubeClient returns a controller-runtime Client for accessing K8s API resources used by the controller.
