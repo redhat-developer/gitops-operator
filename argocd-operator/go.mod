@@ -18,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift/api v0.0.0-20260619095050-5346161d1bf2
 	github.com/openshift/library-go v0.0.0-20260703081820-c6cd1a243d2d
-	github.com/operator-framework/api v0.17.5
+	github.com/operator-framework/api v0.46.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.1
 	github.com/prometheus/client_golang v1.25.0
 	github.com/sethvargo/go-password v0.4.0
@@ -26,13 +26,13 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/mod v0.42.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.37.0
-	k8s.io/apiextensions-apiserver v0.37.0
-	k8s.io/apimachinery v0.37.0
-	k8s.io/client-go v0.37.0
+	k8s.io/api v0.37.1
+	k8s.io/apiextensions-apiserver v0.37.1
+	k8s.io/apimachinery v0.37.1
+	k8s.io/client-go v0.37.1
 	k8s.io/kube-aggregator v0.37.0
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	sigs.k8s.io/controller-runtime v0.24.1
+	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -174,16 +174,16 @@ require (
 	golang.org/x/tools v0.51.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260825221802-da73d73af1c5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
-	k8s.io/apiserver v0.37.0 // indirect
+	k8s.io/apiserver v0.37.1 // indirect
 	k8s.io/cli-runtime v0.37.0 // indirect
-	k8s.io/component-base v0.37.0 // indirect
+	k8s.io/component-base v0.37.1 // indirect
 	k8s.io/component-helpers v0.37.0 // indirect
 	k8s.io/controller-manager v0.37.0 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
