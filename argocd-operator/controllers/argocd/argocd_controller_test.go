@@ -233,6 +233,7 @@ func TestReconcileArgoCD_AINotificationsRetry(t *testing.T) {
 	if err != nil || result.RequeueAfter != 5*time.Second {
 		t.Fatalf("missing token should schedule a retry: result=%v err=%v", result, err)
 	}
+
 	// The first reconciliation already created the Secret; Kubernetes would
 	// populate its token, so fill it in here rather than creating it again.
 	token := &corev1.Secret{}
@@ -248,6 +249,67 @@ func TestReconcileArgoCD_AINotificationsRetry(t *testing.T) {
 	result, err = r.Reconcile(context.Background(), request)
 	if err != nil || result.RequeueAfter != 0 {
 		t.Fatalf("populated dependencies should finish setup: result=%v err=%v", result, err)
+	}
+}
+
+// AI alone can start the notifications controller, and turning it off does not
+// go through the spec.notifications.enabled predicate, so the reconciler itself
+// has to tear the controller down.
+func TestReconcileArgoCD_AINotificationsDisableRemovesController(t *testing.T) {
+	t.Setenv(enableAIFeaturesEnv, "true")
+	t.Setenv(aiTriggerTLSEnv, "false")
+	argoutil.SetRouteAPIFound(true)
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: true}
+	})
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	cl := makeTestReconcilerClient(sch, []client.Object{a}, []client.Object{a}, nil)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+	if err := createNamespace(r, a.Namespace, ""); err != nil {
+		t.Fatal(err)
+	}
+	request := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(a)}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	token := &corev1.Secret{}
+	if err := cl.Get(context.Background(), types.NamespacedName{
+		Name: aiTriggerTokenSecretName, Namespace: a.Namespace,
+	}, token); err != nil {
+		t.Fatal(err)
+	}
+	token.Data = map[string][]byte{"token": []byte("populated")}
+	if err := cl.Update(context.Background(), token); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+
+	// spec.notifications stays empty throughout, so AI is the only reason the
+	// controller is running.
+	deployKey := types.NamespacedName{
+		Name:      nameWithSuffix("notifications-controller", a),
+		Namespace: a.Namespace,
+	}
+	if err := cl.Get(context.Background(), deployKey, &appsv1.Deployment{}); err != nil {
+		t.Fatalf("AI troubleshooting should start the notifications controller: %v", err)
+	}
+
+	current := &argoproj.ArgoCD{}
+	if err := cl.Get(context.Background(), client.ObjectKeyFromObject(a), current); err != nil {
+		t.Fatal(err)
+	}
+	current.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: false}
+	if err := cl.Update(context.Background(), current); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Reconcile(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cl.Get(context.Background(), deployKey, &appsv1.Deployment{}); !apierrors.IsNotFound(err) {
+		t.Fatalf("disabling AI should remove the notifications controller Deployment, got err=%v", err)
 	}
 }
 

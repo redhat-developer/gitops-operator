@@ -724,9 +724,18 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 			// are being populated, then schedule the notification retry.
 			aiPending = err
 		}
-	} else if err := r.cleanupAINotifications(cr); err != nil {
-		// Notifications controller is not running, but clean up any stale AI entries.
-		return err
+	} else {
+		// Clean up any stale AI entries first.
+		if err := r.cleanupAINotifications(cr); err != nil {
+			return err
+		}
+		// AI alone can have started the controller, and disabling it does not
+		// go through the spec.notifications.enabled predicate. shouldRunNotificationsController
+		// is false here, so reconciling removes the Deployment, RBAC,
+		// ServiceAccount, Secret, and default configuration.
+		if err := r.reconcileNotificationsController(cr); err != nil {
+			return err
+		}
 	}
 
 	if IsImageUpdaterAPIAvailable() {
