@@ -381,6 +381,10 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 	}
 
 	if err := r.reconcileResources(argocd, argoCDStatus); err != nil {
+		if errs.Is(err, errAINotificationsPending) {
+			reqLogger.Info(err.Error())
+			return reconcile.Result{RequeueAfter: 5 * time.Second}, argocd, argoCDStatus, nil
+		}
 		// Error reconciling ArgoCD sub-resources - requeue the request.
 		return reconcile.Result{}, argocd, argoCDStatus, err
 	}

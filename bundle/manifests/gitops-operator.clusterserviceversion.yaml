@@ -207,7 +207,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/redhat-developer/gitops-operator
     support: Red Hat
-  name: gitops-operator.v1.8.0
+  name: gitops-operator.v1.23.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -978,9 +978,20 @@ spec:
                 - name: LABEL_SELECTOR
                 - name: DISABLE_CLUSTER_TLS_PROFILE
                   value: "false"
+                - name: GITOPS_AI_CONTROLLER_TLS_ENABLED
+                  value: "false"
+                - name: GITOPS_AI_AGENTIC_RUN_NAMESPACE
+                  value: openshift-lightspeed
+                - name: GITOPS_AI_DIAGNOSIS_COOLDOWN
+                  value: 10m
+                - name: GITOPS_AI_CONTROLLER_IMAGE
+                  value: ghcr.io/svghadi/gitops-ai-controller:latest
+                - name: IMAGE_PULL_POLICY
+                  value: Always
                 - name: ENABLE_CONVERSION_WEBHOOK
                   value: "true"
-                image: quay.io/redhat-developer/gitops-operator:latest
+                image: ghcr.io/svghadi/gitops-operator:latest
+                imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -1079,8 +1090,8 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat Inc
-  replaces: gitops-operator.v1.7.3
-  version: 1.8.0
+  replaces: gitops-operator.v1.22.2
+  version: 1.23.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1alpha1

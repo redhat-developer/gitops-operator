@@ -2,6 +2,7 @@ package notificationsconfiguration
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -227,6 +228,79 @@ func TestReconcileNotifications_DeleteConfigMap(t *testing.T) {
 	// Verify if ConfigMap is created with required data
 	assert.Equal(t, testCM.Data["trigger.on-sync-status-test"],
 		"- when: app.status.sync.status == 'Unknown' \n send: [my-custom-template]")
+}
+
+func TestReconcileNotifications_MergesAINCCR(t *testing.T) {
+	sch := makeTestReconcilerScheme(v1alpha1.AddToScheme, promoter.AddToScheme)
+
+	defaultNC := makeTestNotificationsConfiguration(func(a *v1alpha1.NotificationsConfiguration) {
+		a.Spec = v1alpha1.NotificationsConfigurationSpec{
+			Triggers:      map[string]string{"trigger.on-sync-failed": "user-trigger"},
+			Subscriptions: map[string]string{"subscriptions": "- recipients:\n  - slack:ops\n  triggers:\n  - on-sync-failed\n"},
+		}
+	})
+	aiNC := &v1alpha1.NotificationsConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: aiNotificationsConfigurationName, Namespace: defaultNC.Namespace},
+		Spec: v1alpha1.NotificationsConfigurationSpec{
+			Triggers:      map[string]string{"trigger.on-gitops-ai-diagnose": "ai-trigger"},
+			Templates:     map[string]string{"template.gitops-ai-diagnose": "ai-template"},
+			Services:      map[string]string{"service.webhook.gitops-ai-controller": "ai-service"},
+			Subscriptions: map[string]string{"subscriptions": "- recipients:\n  - gitops-ai-controller\n  triggers:\n  - on-gitops-ai-diagnose\n"},
+		},
+	}
+
+	cl := makeTestReconcilerClient(sch, []client.Object{defaultNC, aiNC}, nil, nil)
+	r := makeTestReconciler(cl, sch)
+
+	// Reconcile triggered by the default NC CR.
+	if err := r.reconcileNotificationsConfigmap(defaultNC); err != nil {
+		t.Fatal(err)
+	}
+
+	cm := &corev1.ConfigMap{}
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: ArgoCDNotificationsConfigMap, Namespace: defaultNC.Namespace}, cm); err != nil {
+		t.Fatal(err)
+	}
+
+	// User trigger from default NC CR.
+	if cm.Data["trigger.on-sync-failed"] != "user-trigger" {
+		t.Errorf("user trigger missing or incorrect: %v", cm.Data)
+	}
+	// AI entries from AI NC CR.
+	if cm.Data["trigger.on-gitops-ai-diagnose"] != "ai-trigger" {
+		t.Errorf("AI trigger missing: %v", cm.Data)
+	}
+	if cm.Data["template.gitops-ai-diagnose"] != "ai-template" {
+		t.Errorf("AI template missing: %v", cm.Data)
+	}
+	if cm.Data["service.webhook.gitops-ai-controller"] != "ai-service" {
+		t.Errorf("AI service missing: %v", cm.Data)
+	}
+	// Subscriptions must contain both user and AI entries.
+	subs := cm.Data["subscriptions"]
+	if !strings.Contains(subs, "slack:ops") || !strings.Contains(subs, "gitops-ai-controller") {
+		t.Errorf("subscriptions missing expected entries: %v", subs)
+	}
+
+	// Deleting the AI NC CR and reconciling via default must remove AI entries from CM.
+	if err := r.Delete(context.TODO(), aiNC); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.reconcileNotificationsConfigmap(defaultNC); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: ArgoCDNotificationsConfigMap, Namespace: defaultNC.Namespace}, cm); err != nil {
+		t.Fatal(err)
+	}
+	if cm.Data["trigger.on-gitops-ai-diagnose"] != "" {
+		t.Errorf("AI trigger not removed after AI NC CR deletion: %v", cm.Data)
+	}
+	if strings.Contains(cm.Data["subscriptions"], "gitops-ai-controller") {
+		t.Errorf("AI subscription not removed after AI NC CR deletion: %v", cm.Data["subscriptions"])
+	}
+	if !strings.Contains(cm.Data["subscriptions"], "slack:ops") {
+		t.Errorf("user subscription lost after AI NC CR deletion: %v", cm.Data["subscriptions"])
+	}
 }
 
 func Test_checkIfContextEquals(t *testing.T) {

@@ -49,6 +49,8 @@ github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261020182657-c2b1e3017e2c h1:
 github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261020182657-c2b1e3017e2c/go.mod h1:RsOM4gdM/lsvAfIuzAhYrnHDTLA1AGooZRzVyxbVT3A=
 github.com/argoproj/argo-cd/v3 v3.5.6 h1:twzdsPiPufKLRtEqD1Jg3FqtuZmSHLTIxs7t6fSkjlk=
 github.com/argoproj/argo-cd/v3 v3.5.6/go.mod h1:LJTX+2yLfWvFCK7/wyg+f9KEQ92QBYLtsQiMJ1jEor0=
+github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717 h1:XNYbHdLr+kKfDMIcP9ys2tDRjYrAg7jJSqmlNbdIFK8=
+github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717/go.mod h1:H4NYQDN1RX8fkWgaME1golcTpvCeYSYNUuufWpWOkgw=
 github.com/argoproj/pkg/v2 v2.0.1 h1:O/gCETzB/3+/hyFL/7d/VM/6pSOIRWIiBOTb2xqAHvc=
 github.com/argoproj/pkg/v2 v2.0.1/go.mod h1:sdifF6sUTx9ifs38ZaiNMRJuMpSCBB9GulHfbPgQeRE=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
@@ -126,6 +128,8 @@ github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjT
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f h1:Wl78ApPPB2Wvf/TIe2xdyJxTlb6obmF18d8QdkxNDu4=
 github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f/go.mod h1:OSYXu++VVOHnXeitef/D8n/6y4QV8uLHSFXX4NeXMGc=
+github.com/expr-lang/expr v1.17.8 h1:W1loDTT+0PQf5YteHSTpju2qfUfNoBt4yw9+wOEU9VM=
+github.com/expr-lang/expr v1.17.8/go.mod h1:8/vRC7+7HBzESEqt5kKpYXxrxkr31SaO8r40VO/1IT4=
 github.com/fatih/camelcase v1.0.0 h1:hxNvNX/xYBp0ovncs8WyWZrOrpBNub/JfaMvbURyft8=
 github.com/fatih/camelcase v1.0.0/go.mod h1:yN2Sb0lFhZJUdVvtELVWefmrXpuZESvPmqwoZc+/fpc=
 github.com/fatih/color v1.19.0 h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=

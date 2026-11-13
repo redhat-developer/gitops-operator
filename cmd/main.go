@@ -67,12 +67,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	goversion "github.com/hashicorp/go-version"
 	tlspkg "github.com/openshift/controller-runtime-common/pkg/tls"
 	pipelinesv1alpha1 "github.com/redhat-developer/gitops-operator/api/v1alpha1"
 	"github.com/redhat-developer/gitops-operator/common"
 	"github.com/redhat-developer/gitops-operator/controllers"
 	"github.com/redhat-developer/gitops-operator/controllers/argocd/openshift"
 	"github.com/redhat-developer/gitops-operator/controllers/util"
+	aioperator "github.com/redhat-developer/gitops-operator/internal/ai/operator"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -80,6 +82,8 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/pkg/tlsprofile"
 	//+kubebuilder:scaffold:imports
 )
+
+const aiMinOCPVersion = "5.0"
 
 var (
 	scheme   = k8sruntime.NewScheme()
@@ -112,6 +116,10 @@ func main() {
 	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
 	flag.BoolVar(&disableClusterTLSProfile, "disable-cluster-tls-profile", false, "Disable use of the cluster TLS security profile")
 	flag.BoolVar(&secureMetrics, "metrics-secure", secureMetrics, "If the metrics endpoint should be served securely.")
+	enableAIFeatures := strings.EqualFold(os.Getenv("GITOPS_AI_ENABLED"), "true")
+	flag.BoolVar(&enableAIFeatures, "gitops-ai-enabled", enableAIFeatures,
+		"Enable AI-assisted GitOps features such as automated application diagnosis. "+
+			"Set GITOPS_AI_ENABLED=true or --gitops-ai-enabled to enable.")
 
 	//Configure log level
 	logLevelStr := strings.ToLower(os.Getenv("LOG_LEVEL"))
@@ -138,6 +146,12 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+	// Notification helpers in the embedded Argo CD operator read this setting
+	// from the environment. Apply the parsed flag so both controllers agree.
+	if err := os.Setenv("GITOPS_AI_ENABLED", fmt.Sprint(enableAIFeatures)); err != nil {
+		setupLog.Error(err, "unable to configure AI features")
+		os.Exit(1)
+	}
 	if strings.EqualFold(os.Getenv("DISABLE_CLUSTER_TLS_PROFILE"), "true") {
 		disableClusterTLSProfile = true
 	}
@@ -229,6 +243,36 @@ func main() {
 		client = cw.NewClientWrapper(mgr.GetClient(), liveClient)
 	} else {
 		client = mgr.GetClient()
+	}
+
+	if enableAIFeatures && util.IsConfigAPIFound() {
+		directClient, err := crclient.New(ctrl.GetConfigOrDie(), crclient.Options{Scheme: mgr.GetScheme()})
+		if err != nil {
+			setupLog.Error(err, "unable to create client for AI version check; disabling AI features")
+			enableAIFeatures = false
+		}
+		var ocpVersionStr string
+		if enableAIFeatures {
+			ocpVersionStr, err = util.GetClusterVersion(directClient)
+		}
+		if err != nil {
+			setupLog.Error(err, "unable to determine cluster version; disabling AI features")
+			enableAIFeatures = false
+		} else if ocpVersionStr != "" {
+			minAIVer, _ := goversion.NewVersion(aiMinOCPVersion)
+			clusterVer, err := goversion.NewVersion(ocpVersionStr)
+			if err != nil || clusterVer.Core().LessThan(minAIVer) {
+				setupLog.Info("AI features require OCP "+aiMinOCPVersion+" or later; disabling",
+					"clusterVersion", ocpVersionStr)
+				enableAIFeatures = false
+			}
+		}
+		if !enableAIFeatures {
+			if err := os.Setenv("GITOPS_AI_ENABLED", "false"); err != nil {
+				setupLog.Error(err, "unable to update AI feature flag")
+				os.Exit(1)
+			}
+		}
 	}
 
 	if util.IsConfigAPIFound() && !disableClusterTLSProfile {
@@ -333,6 +377,15 @@ func main() {
 			PluginNamespace:       pluginNamespace,
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "GitopsService")
+			os.Exit(1)
+		}
+
+		if err = (&aioperator.GitOpsAIControllerReconciler{
+			Client:            client,
+			EnableAIFeatures:  enableAIFeatures,
+			OperatorNamespace: pluginNamespace,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "GitOpsAIController")
 			os.Exit(1)
 		}
 	} else {

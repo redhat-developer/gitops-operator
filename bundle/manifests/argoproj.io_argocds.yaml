@@ -11191,6 +11191,17 @@ spec:
                 description: AggregatedClusterRoles will allow users to have aggregated
                   ClusterRoles for a cluster scoped instance.
                 type: boolean
+              ai:
+                description: |-
+                  AI holds configuration for AI-assisted GitOps features.
+                  Requires --enable-ai-features on the gitops-operator manager.
+                properties:
+                  troubleshooting:
+                    description: |-
+                      Troubleshooting enables automatic AI-assisted diagnosis of failing applications
+                      via the gitops-ai-controller notification webhook.
+                    type: boolean
+                type: object
               applicationInstanceLabelKey:
                 description: ApplicationInstanceLabelKey is the key name where Argo
                   CD injects the app name as a tracking label.

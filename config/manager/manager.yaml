@@ -41,7 +41,18 @@ spec:
           value: ""
         - name: DISABLE_CLUSTER_TLS_PROFILE
           value: "false"
+        - name: GITOPS_AI_CONTROLLER_TLS_ENABLED
+          value: "false"
+        - name: GITOPS_AI_AGENTIC_RUN_NAMESPACE
+          value: openshift-lightspeed
+        - name: GITOPS_AI_DIAGNOSIS_COOLDOWN
+          value: 10m
+        - name: GITOPS_AI_CONTROLLER_IMAGE
+          value: ghcr.io/svghadi/gitops-ai-controller:latest
+        - name: IMAGE_PULL_POLICY
+          value: Always
         image: controller:latest
+        imagePullPolicy: Always
         livenessProbe:
           httpGet:
             path: /healthz

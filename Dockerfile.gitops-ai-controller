@@ -1,0 +1,19 @@
+FROM golang:1.26 AS builder
+WORKDIR /workspace
+COPY go.mod go.sum ./
+COPY argocd-operator/ argocd-operator/
+RUN go mod download
+COPY cmd/gitops-ai-controller/ cmd/gitops-ai-controller/
+COPY internal/ai/utils/ internal/ai/utils/
+COPY internal/ai/controller/ internal/ai/controller/
+ARG TARGETARCH
+ARG COMMIT=unknown
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build \
+    -ldflags="-X main.commit=${COMMIT}" \
+    -o gitops-ai-controller ./cmd/gitops-ai-controller/
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/gitops-ai-controller .
+USER 65532:65532
+ENTRYPOINT ["/gitops-ai-controller"]

@@ -41,6 +41,7 @@ import (
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
+	argov1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
@@ -211,6 +212,37 @@ func TestReconcileArgoCD_Reconcile(t *testing.T) {
 		Namespace: testNamespace,
 	}, deployment); err != nil {
 		t.Fatalf("failed to find the redis deployment: %#v\n", err)
+	}
+}
+
+func TestReconcileArgoCD_AINotificationsRetry(t *testing.T) {
+	t.Setenv(enableAIFeaturesEnv, "true")
+	t.Setenv(aiTriggerTLSEnv, "false")
+	argoutil.SetRouteAPIFound(true)
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.AI = &argoproj.ArgoCDAISpec{Troubleshooting: true}
+	})
+	sch := makeTestReconcilerScheme(argov1alpha1.AddToScheme, argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme, configv1.Install, routev1.Install)
+	cl := makeTestReconcilerClient(sch, []client.Object{a}, []client.Object{a}, nil)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+	if err := createNamespace(r, a.Namespace, ""); err != nil {
+		t.Fatal(err)
+	}
+	request := reconcile.Request{NamespacedName: client.ObjectKeyFromObject(a)}
+	result, err := r.Reconcile(context.Background(), request)
+	if err != nil || result.RequeueAfter != 5*time.Second {
+		t.Fatalf("missing token should schedule a retry: result=%v err=%v", result, err)
+	}
+	token := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: aiTriggerTokenSecretName, Namespace: a.Namespace},
+		Data:       map[string][]byte{"token": []byte("populated")},
+	}
+	if err := cl.Create(context.Background(), token); err != nil {
+		t.Fatal(err)
+	}
+	result, err = r.Reconcile(context.Background(), request)
+	if err != nil || result.RequeueAfter != 0 {
+		t.Fatalf("populated dependencies should finish setup: result=%v err=%v", result, err)
 	}
 }
 

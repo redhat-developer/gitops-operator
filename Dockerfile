@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM golang:1.26.5 as builder
+FROM golang:1.26.5 AS builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -16,6 +16,7 @@ COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY common/ common/
+COPY internal/ai/ internal/ai/
 COPY version/ version/
 
 # Build - Use TARGETARCH to build for the correct architecture

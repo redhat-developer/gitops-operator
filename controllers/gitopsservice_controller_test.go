@@ -22,6 +22,7 @@ import (
 	"os"
 	"testing"
 
+	argov1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/console/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -1266,6 +1267,7 @@ func TestCleanKAMResources_Idempotent(t *testing.T) {
 }
 
 func addKnownTypesToScheme(scheme *runtime.Scheme) {
+	scheme.AddKnownTypes(argov1alpha1.GroupVersion, &argov1alpha1.NotificationsConfiguration{})
 	scheme.AddKnownTypes(configv1.GroupVersion, &configv1.ClusterVersion{})
 	scheme.AddKnownTypes(pipelinesv1alpha1.GroupVersion, &pipelinesv1alpha1.GitopsService{})
 	scheme.AddKnownTypes(argoapp.GroupVersion, &argoapp.ArgoCD{})
