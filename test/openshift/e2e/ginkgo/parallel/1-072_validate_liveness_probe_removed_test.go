@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies that livenessProbe is not set on argocd-application-controller StatefulSet on default namespace-scoped Argo CD instance", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating simple namespace-scoped Argo CD instance")
 			argoCD := &argov1beta1api.ArgoCD{

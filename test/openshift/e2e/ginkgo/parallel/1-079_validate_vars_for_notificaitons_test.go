@@ -52,7 +52,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensures that setting an environment variable on notifications controller via ArgoCD CR will cause the env var to be set on notification controller Deployment", func() {
 			By("creating an Argo CD instance with notification enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{

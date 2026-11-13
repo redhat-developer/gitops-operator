@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating a basic Argo CD instance with .spec.resourceIgnoreDifferences/resourceActions/resourceHealthChecks set with custom values")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDYAML := `
 metadata:

@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating an Argo CD instance with Dex OpenShift Auth enabled")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{

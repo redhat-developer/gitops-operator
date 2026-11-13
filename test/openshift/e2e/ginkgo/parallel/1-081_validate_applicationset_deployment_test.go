@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that an Argo CD instance has applicationset controller workload and service with expected values", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDName := "argocd-" + string(uuid.NewUUID())[0:8]
 			appsetName := argoCDName + "-applicationset-controller"
