@@ -319,7 +319,7 @@ func (r *ReconcileArgoCD) imageUpdaterWatchNSMapper(ctx context.Context, o clien
 		// normalizeWatchNamespaces canonicalizes "*," → "*", rejects "*,team-a", etc.
 		// On error (invalid config) or when the value resolves to a sentinel, skip:
 		// the main reconcile loop will surface the error.
-		normalized, err := normalizeWatchNamespaces(watchNS)
+		normalized, err := normalizeWatchNamespaces(watchNS, argocd.Namespace)
 		if err != nil || normalized == "" || normalized == "*" {
 			continue
 		}
