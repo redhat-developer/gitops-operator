@@ -68,19 +68,27 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 				gs.Spec.NodeSelector["key1"] = "value1"
 			})
 
-			By("ensuring Deployments and StatefulSets pick up the change we made to nodeSelector in GitOpsService CR")
+			By("ensuring the openshift-gitops namespace annotation picks up GitOpsService nodeSelector")
+			openshiftGitopsNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops"}}
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.HaveAnnotation(common.InfraNodeSelectorAnnotation, "key1=value1"))
 
-			for _, deploymentName := range deploymentNameList {
+			By("ensuring the GitOps Service backend Deployment still has nodeSelector on the pod template")
+			clusterDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "cluster", Namespace: "openshift-gitops"}}
+			Eventually(clusterDepl).Should(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
+				"kubernetes.io/os": "linux",
+				"key1":             "value1",
+			}))
+
+			By("ensuring Argo CD workload templates keep the default nodeSelector (namespace annotation schedules them)")
+			argoCDDeploymentNames := []string{"openshift-gitops-server", "openshift-gitops-repo-server", "openshift-gitops-dex-server", "openshift-gitops-redis"}
+			for _, deploymentName := range argoCDDeploymentNames {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: "openshift-gitops"}}
 				Eventually(depl).Should(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
 					"kubernetes.io/os": "linux",
-					"key1":             "value1",
 				}))
 			}
-
 			Eventually(appControllerSS).Should(statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
 				"kubernetes.io/os": "linux",
-				"key1":             "value1",
 			}))
 
 			By("enabling runOnInfra and setting various tolerations on GitOpsService")
@@ -93,17 +101,26 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Value:  "reserved"}}
 			})
 
-			By("ensuring the openshift-gitops namespace has the infra node-selector annotation")
-			openshiftGitopsNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "openshift-gitops"}}
-			Eventually(openshiftGitopsNS).Should(namespaceFixture.HaveAnnotation(common.InfraNodeSelectorAnnotation, common.InfraNodeSelectorAnnotationValue))
+			By("ensuring the openshift-gitops namespace annotation merges infra and custom selectors")
+			Eventually(openshiftGitopsNS).Should(namespaceFixture.HaveAnnotation(common.InfraNodeSelectorAnnotation,
+				common.NamespaceNodeSelectorAnnotation(true, map[string]string{"key1": "value1"})))
 
-			By("ensuring Deployments and StatefulSets still have the custom nodeSelector and tolerations")
+			By("ensuring the GitOps Service backend Deployment still has the custom nodeSelector and tolerations")
+			Eventually(clusterDepl).Should(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
+				"kubernetes.io/os": "linux",
+				"key1":             "value1",
+			}))
+			Eventually(clusterDepl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{{
+				Effect: "NoSchedule",
+				Key:    "infra",
+				Value:  "reserved",
+			}}))
 
-			for _, deploymentName := range deploymentNameList {
+			By("ensuring Argo CD workloads get GitopsService tolerations, with node selection via the namespace annotation")
+			for _, deploymentName := range argoCDDeploymentNames {
 				depl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Namespace: "openshift-gitops"}}
 				Eventually(depl).Should(deploymentFixture.HaveTemplateSpecNodeSelector(map[string]string{
 					"kubernetes.io/os": "linux",
-					"key1":             "value1",
 				}))
 				Eventually(depl).Should(deploymentFixture.HaveTolerations([]corev1.Toleration{{
 					Effect: "NoSchedule",
@@ -111,10 +128,8 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Value:  "reserved",
 				}}))
 			}
-
 			Eventually(appControllerSS).Should(statefulsetFixture.HaveTemplateSpecNodeSelector(map[string]string{
 				"kubernetes.io/os": "linux",
-				"key1":             "value1",
 			}))
 			Eventually(appControllerSS).Should(statefulsetFixture.HaveTolerations([]corev1.Toleration{{
 				Effect: "NoSchedule",
