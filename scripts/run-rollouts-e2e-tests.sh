@@ -7,6 +7,8 @@
 
 set -ex
 
+export OPERATOR_NAMESPACE=openshift-gitops-operator
+
 function wait_until_pods_running() {
   echo -n "Waiting until all pods in namespace $1 are up"
 
@@ -66,22 +68,22 @@ function enable_rollouts_cluster_scoped_namespaces() {
   # - CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES="argo-rollouts,test-rom-ns-1,rom-ns-1"
 
   if ! [ -z $NON_OLM ]; then
-    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES="argo-rollouts,test-rom-ns-1,rom-ns-1"
+    oc set env deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES="argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"
     
   elif [ -z $CI ]; then 
 
     oc patch -n openshift-gitops-operator subscription openshift-gitops-operator \
-      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": "argo-rollouts,test-rom-ns-1,rom-ns-1"}]}}}'
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": "argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}]}}}'
 
   else
 
     oc patch -n openshift-gitops-operator subscription `subscription=gitops-operator- && oc get subscription --all-namespaces | grep $subscription | head -1 | awk '{print $2}'` \
-      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": "argo-rollouts,test-rom-ns-1,rom-ns-1"}]}}}'
+      --type merge --patch '{"spec": {"config": {"env": [{"name": "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", "value": "argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}]}}}'
   fi
 
   # Loop to wait until CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES is added to the OpenShift GitOps Operator Deployment
   for i in {1..30}; do
-    if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1"}'; then
+    if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}'; then
       echo "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES to be set"
       break
     else
@@ -91,7 +93,7 @@ function enable_rollouts_cluster_scoped_namespaces() {
   done
 
   # Verify the variable is set
-  if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1"}'; then
+  if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}'; then
     echo "CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES is set."
   else 
     echo "ERROR: CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES was never set."
@@ -179,7 +181,7 @@ function disable_rollouts_cluster_scope_namespaces() {
 
   # Loop to wait until CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES is removed from the OpenShift GitOps Operator Deplyoment
   for i in {1..30}; do
-    if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1"}'; then
+    if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}'; then
       echo "Waiting for CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES to be removed"
       sleep 5      
     else
@@ -189,7 +191,7 @@ function disable_rollouts_cluster_scope_namespaces() {
   done
 
   # Verify it has been removed.
-  if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1"}'; then
+  if oc get deployment openshift-gitops-operator-controller-manager -n openshift-gitops-operator -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q '{"name":"CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES","value":"argo-rollouts,test-rom-ns-1,rom-ns-1,openshift-gitops-operator"}'; then
     echo "ERROR: CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES was not successfully removed."
     exit 1    
   else 
