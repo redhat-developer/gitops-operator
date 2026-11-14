@@ -62,14 +62,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespaces")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-1")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			sourceNS2, cleanupFunc2 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-2")
-			defer cleanupFunc2()
+			DeferCleanup(cleanupFunc2)
 
 			By("creating Argo CD instance with notifications enabled and sourceNamespaces configured")
 			argocd := &argov1beta1api.ArgoCD{
@@ -202,14 +202,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespaces")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-3")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			unmanagedNS, cleanupFunc2 := fixture.CreateNamespaceWithCleanupFunc("notif-unmanaged-ns")
-			defer cleanupFunc2()
+			DeferCleanup(cleanupFunc2)
 
 			By("creating Argo CD instance with notifications enabled but only sourceNS1 in both SourceNamespaces and Notifications.SourceNamespaces")
 			argocd := &argov1beta1api.ArgoCD{
@@ -291,14 +291,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespaces")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-4")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			sourceNS2, cleanupFunc2 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-5")
-			defer cleanupFunc2()
+			DeferCleanup(cleanupFunc2)
 
 			By("creating Argo CD instance with notifications enabled and both namespaces configured")
 			argocd := &argov1beta1api.ArgoCD{
@@ -397,11 +397,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespace")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-6")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			By("creating Argo CD instance with notifications disabled but sourceNamespaces configured")
 			argocd := &argov1beta1api.ArgoCD{
@@ -466,14 +466,14 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespaces")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-7")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			sourceNS2, cleanupFunc2 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-8")
-			defer cleanupFunc2()
+			DeferCleanup(cleanupFunc2)
 
 			By("creating Argo CD instance with notifications enabled and only sourceNS1 configured")
 			argocd := &argov1beta1api.ArgoCD{
@@ -547,11 +547,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating Argo CD instance namespace")
 			argocdNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating source namespace")
 			sourceNS1, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("notif-source-ns-9")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			By("creating Argo CD instance with notifications disabled")
 			argocd := &argov1beta1api.ArgoCD{
