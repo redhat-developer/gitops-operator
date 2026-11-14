@@ -840,6 +840,7 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 	}
 
 	podSpec := &desiredDeployment.Spec.Template.Spec
+	podSpec.AutomountServiceAccountToken = new(true)
 	podSpec.SecurityContext = &corev1.PodSecurityContext{
 		RunAsNonRoot: new(true),
 	}

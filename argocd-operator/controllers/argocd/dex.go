@@ -485,6 +485,7 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 	}}
 
 	deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDDefaultDexServiceAccountName)
+	deploy.Spec.Template.Spec.AutomountServiceAccountToken = new(true)
 	deploy.Spec.Template.Spec.Volumes = dexVolumes
 
 	if cr.Spec.PriorityClassName != "" {
@@ -587,10 +588,13 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 			existing.Spec.Template.Spec.Volumes = deploy.Spec.Template.Spec.Volumes
 			changes = append(changes, "volumes")
 		}
-
 		if !reflect.DeepEqual(deploy.Spec.Template.Spec.ServiceAccountName, existing.Spec.Template.Spec.ServiceAccountName) {
 			existing.Spec.Template.Spec.ServiceAccountName = deploy.Spec.Template.Spec.ServiceAccountName
 			changes = append(changes, "serviceAccountName")
+		}
+		if !reflect.DeepEqual(deploy.Spec.Template.Spec.AutomountServiceAccountToken, existing.Spec.Template.Spec.AutomountServiceAccountToken) {
+			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			changes = append(changes, "automountServiceAccountToken")
 		}
 
 		addKubernetesData(deploy.Spec.Template.Labels, existing.Spec.Template.Labels)
