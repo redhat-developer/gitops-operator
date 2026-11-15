@@ -414,6 +414,60 @@ type ArgoCDImageUpdaterSpec struct {
 
 	// Resources defines the Compute Resources required by the container for Argo CD Image Updater.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// WebhookServer defines the options for exposing the Image Updater webhook server, which image registries
+	// can call to trigger an immediate image update check.
+	WebhookServer ImageUpdaterWebhookServerSpec `json:"webhookServer,omitempty"`
+}
+
+// IsWebhookEnabled returns true if Image Updater is enabled and its webhook server is exposed through a Route or an Ingress.
+func (s *ArgoCDImageUpdaterSpec) IsWebhookEnabled() bool {
+	return s.Enabled && (s.WebhookServer.Route.Enabled || s.WebhookServer.Ingress.Enabled)
+}
+
+// ImageUpdaterWebhookServerSpec defines the options for the Image Updater webhook server.
+type ImageUpdaterWebhookServerSpec struct {
+	// Host is the hostname to use for Ingress/Route resources.
+	Host string `json:"host,omitempty"`
+
+	// Ingress defines the desired state for an Ingress for the Image Updater webhook.
+	Ingress ArgoCDIngressSpec `json:"ingress,omitempty"`
+
+	// Route defines the desired state for an OpenShift Route for the Image Updater webhook.
+	Route ArgoCDRouteSpec `json:"route,omitempty"`
+
+	// Insecure disables TLS on the Image Updater webhook server, which then serves plain HTTP on port 8082.
+	// When false (the default), the server serves TLS using an OpenShift service serving certificate and the
+	// Route defaults to reencrypt termination. When true, no serving certificate is requested and the Route
+	// defaults to edge termination.
+	//
+	// This does not by itself expose the webhook over plain HTTP outside the cluster. With an edge Route,
+	// registries still connect over HTTPS and the router terminates TLS, so only the router-to-pod leg is
+	// plain HTTP inside the cluster. An Ingress relies on .spec.imageUpdater.webhookServer.ingress.tls for
+	// its external TLS; without it, clients reach the Ingress over plain HTTP as well.
+	Insecure bool `json:"insecure,omitempty"`
+
+	// Secrets references the Secrets holding the shared secrets used to validate incoming registry webhooks.
+	Secrets *ImageUpdaterWebhookSecretsSpec `json:"secrets,omitempty"`
+}
+
+// ImageUpdaterWebhookSecretsSpec holds references to Secret keys containing per-registry webhook secrets.
+// The referenced Secrets must be in the same namespace as the Argo CD instance.
+type ImageUpdaterWebhookSecretsSpec struct {
+	// Docker references the Docker Hub webhook secret.
+	Docker *WebhookSecretKeySelector `json:"docker,omitempty"`
+	// GHCR references the GitHub Container Registry webhook secret.
+	GHCR *WebhookSecretKeySelector `json:"ghcr,omitempty"`
+	// Quay references the Quay webhook secret.
+	Quay *WebhookSecretKeySelector `json:"quay,omitempty"`
+	// Harbor references the Harbor webhook secret.
+	Harbor *WebhookSecretKeySelector `json:"harbor,omitempty"`
+	// ACR references the Azure Container Registry webhook secret.
+	ACR *WebhookSecretKeySelector `json:"acr,omitempty"`
+	// AliyunACR references the Aliyun Container Registry webhook secret.
+	AliyunACR *WebhookSecretKeySelector `json:"aliyunACR,omitempty"`
+	// CloudEvents references the CloudEvents webhook secret.
+	CloudEvents *WebhookSecretKeySelector `json:"cloudEvents,omitempty"`
 }
 
 // ArgoCDImportSpec defines the desired state for the ArgoCD import/restore process.
@@ -1291,12 +1345,17 @@ const OpenShiftOAuthErrorMessage = "OpenShiftOAuth is not supported when externa
 const (
 	ArgoCDConditionType               = "Reconciled"
 	ArgoCDConditionConfigurationError = "UnsupportedConfiguration"
+
+	// ArgoCDConditionImageUpdaterWebhookConfigurationError is set when the Image Updater webhook configuration
+	// is unlikely to work as intended.
+	ArgoCDConditionImageUpdaterWebhookConfigurationError = "ImageUpdaterWebhookConfigurationError"
 )
 
 const (
-	ArgoCDConditionReasonSuccess       = "Success"
-	ArgoCDConditionReasonSSOError      = "UnsupportedSSOConfiguration"
-	ArgoCDConditionReasonErrorOccurred = "ErrorOccurred"
+	ArgoCDConditionReasonSuccess                      = "Success"
+	ArgoCDConditionReasonSSOError                     = "UnsupportedSSOConfiguration"
+	ArgoCDConditionReasonErrorOccurred                = "ErrorOccurred"
+	ArgoCDConditionReasonImageUpdaterWebhookMisconfig = "InvalidImageUpdaterWebhookConfiguration"
 )
 
 // ArgoCDStatus defines the observed state of ArgoCD

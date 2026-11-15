@@ -89,6 +89,12 @@ const (
 	// ApplicationSetControllerWebhookSuffix is the suffix for ApplicationSet Webhook
 	ApplicationSetControllerWebhookSuffix = "appset-webhook"
 
+	// ImageUpdaterWebhookSuffix is the suffix for the Image Updater webhook Service, Route and Ingress
+	ImageUpdaterWebhookSuffix = "image-updater-webhook"
+
+	// ImageUpdaterWebhookTLSSecretSuffix is the suffix for the Image Updater webhook serving certificate Secret
+	ImageUpdaterWebhookTLSSecretSuffix = "image-updater-webhook-tls" // #nosec G101
+
 	// ArgoCDAggregateToControllerLabelKey is label to configure base aggregated ClusterRole for Argo CD Application Controller.
 	ArgoCDAggregateToControllerLabelKey = "argocd/aggregate-to-controller"
 
