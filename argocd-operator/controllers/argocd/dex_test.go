@@ -403,8 +403,9 @@ func TestReconcileArgoCD_reconcileDexDeployment(t *testing.T) {
 				},
 			},
 		},
-		ServiceAccountName: "argocd-argocd-dex-server",
-		NodeSelector:       common.DefaultNodeSelector(),
+		ServiceAccountName:           "argocd-argocd-dex-server",
+		NodeSelector:                 common.DefaultNodeSelector(),
+		AutomountServiceAccountToken: new(true),
 	}
 	assert.Equal(t, want, deployment.Spec.Template.Spec)
 }
@@ -520,8 +521,9 @@ func TestReconcileArgoCD_reconcileDexDeployment_withUpdate(t *testing.T) {
 						},
 					},
 				},
-				ServiceAccountName: "argocd-argocd-dex-server",
-				NodeSelector:       common.DefaultNodeSelector(),
+				ServiceAccountName:           "argocd-argocd-dex-server",
+				NodeSelector:                 common.DefaultNodeSelector(),
+				AutomountServiceAccountToken: new(true),
 			},
 		},
 		{
@@ -647,8 +649,9 @@ func TestReconcileArgoCD_reconcileDexDeployment_withUpdate(t *testing.T) {
 						},
 					},
 				},
-				ServiceAccountName: "argocd-argocd-dex-server",
-				NodeSelector:       common.DefaultNodeSelector(),
+				ServiceAccountName:           "argocd-argocd-dex-server",
+				NodeSelector:                 common.DefaultNodeSelector(),
+				AutomountServiceAccountToken: new(true),
 			},
 		},
 	}
