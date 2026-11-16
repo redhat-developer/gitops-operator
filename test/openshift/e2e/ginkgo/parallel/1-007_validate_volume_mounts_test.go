@@ -37,10 +37,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	Context("1-007_validate_volume_mounts", func() {
 
 		var (
-			ctx         context.Context
-			k8sClient   client.Client
-			randomNS    *corev1.Namespace
-			cleanupFunc func()
+			ctx       context.Context
+			k8sClient client.Client
+			randomNS  *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -52,17 +51,14 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		AfterEach(func() {
 			fixture.OutputDebugOnFail(randomNS)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-
 		})
 
 		It("verifies that applicationset controller has the expected volumes and volumemounts, including custom volumes and voluemmounts", func() {
 
 			By("creating new namespace-scoped Argo CD instance with applicationset enabled, and custom volumes and volume mounts")
+			var cleanupFunc func()
 			randomNS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			// The first part of this test is exactly the same as 1-019, so I have only ported the second part.
 
@@ -145,7 +141,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that dex controller has the expected volumes and volumemounts, including custom volumes and volumemounts", func() {
 
 			By("creating new namespace-scoped Argo CD instance with dex enabled and custom volumes and volume mounts")
+			var cleanupFunc func()
 			randomNS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDRandomNS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
