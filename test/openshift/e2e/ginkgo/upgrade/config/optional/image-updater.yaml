@@ -1,5 +1,9 @@
-# Image Updater on the second instance. Optional: applied only when the installed ArgoCD CRD
-# has the field (see applyOptionalConfig in features_test.go).
+# Image Updater on the second instance, and an application for it to update. Optional:
+# applied only when the installed ArgoCD CRD has the field (see applyOptionalConfig in
+# features_test.go).
+#
+# The ImageUpdater CR allows the one tag range ~29437546.0 of the guestbook image, so it
+# settles on a single tag: the Application's kustomize image is set once, and stays.
 apiVersion: argoproj.io/v1beta1
 kind: ArgoCD
 metadata:
@@ -11,3 +15,56 @@ spec:
     env:
       - name: IMAGE_UPDATER_LOGLEVEL
         value: debug
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upgrade-imageupdater
+  labels:
+    argocd.argoproj.io/managed-by: upgrade-argocd
+---
+# The guestbook image runs as root.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: anyuid
+  namespace: upgrade-imageupdater
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:openshift:scc:anyuid
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: upgrade-imageupdater
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: upgrade-argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/redhat-developer/gitops-operator
+    path: test/examples/image-updater
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: upgrade-imageupdater
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: guestbook
+  namespace: upgrade-argocd
+spec:
+  applicationRefs:
+    - namePattern: guestbook
+      images:
+        - alias: guestbook
+          imageName: quay.io/devtools_gitops/guestbook_go:~29437546.0
+          commonUpdateSettings:
+            updateStrategy: semver

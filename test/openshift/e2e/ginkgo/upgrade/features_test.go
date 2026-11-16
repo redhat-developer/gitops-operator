@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	argocdv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -93,6 +93,9 @@ func readConfig() []*unstructured.Unstructured {
 // checks after the upgrade ask for exactly what was applied before it.
 var optionalFeatures = map[string]bool{}
 
+// optionalObjects are the objects of the optional files that were applied.
+var optionalObjects []*unstructured.Unstructured
+
 // argoCDSpecFields returns the names of the fields under .spec of the ArgoCD CRD that is
 // installed now.
 func argoCDSpecFields() map[string]bool {
@@ -132,6 +135,11 @@ func applyOptionalConfig() {
 
 		var unknown []string
 		for _, obj := range readFile(file) {
+			// Only the ArgoCD object is checked against the CRD. The other kinds come
+			// with the feature: their CRDs appear once the operator enables it.
+			if obj.GetKind() != "ArgoCD" {
+				continue
+			}
 			spec, _ := obj.Object["spec"].(map[string]any)
 			for field := range spec {
 				if !known[field] {
@@ -150,6 +158,7 @@ func applyOptionalConfig() {
 				return k8sClient.Apply(ctx, client.ApplyConfigurationFromUnstructured(obj.DeepCopy()),
 					client.FieldOwner("upgrade-test-"+feature), client.ForceOwnership)
 			}, "5m", "5s").Should(Succeed())
+			optionalObjects = append(optionalObjects, obj)
 		}
 		optionalFeatures[feature] = true
 	}
@@ -169,10 +178,15 @@ func applyConfig() {
 	applyOptionalConfig()
 }
 
-// configSpecs returns the .spec of every object in config/ as it is on the cluster now.
+// configSpecs returns the .spec of every object in config/, and of every optional object that
+// was applied, as it is on the cluster now.
 func configSpecs() map[string]any {
 	specs := map[string]any{}
-	for _, obj := range readConfig() {
+	objects := readConfig()
+	for _, obj := range optionalObjects {
+		objects = append(objects, obj.DeepCopy())
+	}
+	for _, obj := range objects {
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 		specs[obj.GetKind()+" "+obj.GetNamespace()+"/"+obj.GetName()] = obj.Object["spec"]
 	}
@@ -262,6 +276,24 @@ func verifyFeatures() {
 	if optionalFeatures["image-updater"] {
 		Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-image-updater-controller", Namespace: "upgrade-argocd"}}, "5m", "10s").
 			Should(deploymentFixture.HaveReadyReplicas(1), "image updater")
+
+		// The ImageUpdater CR allows one tag range. The updater writes that tag into the
+		// Application as a kustomize image, and the Application deploys it.
+		guestbook := &argocdv1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "guestbook", Namespace: "upgrade-argocd"}}
+		Eventually(func() string {
+			if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(guestbook), guestbook); err != nil {
+				GinkgoWriter.Println(err)
+				return ""
+			}
+			if guestbook.Spec.Source == nil || guestbook.Spec.Source.Kustomize == nil || len(guestbook.Spec.Source.Kustomize.Images) == 0 {
+				return ""
+			}
+			return string(guestbook.Spec.Source.Kustomize.Images[0])
+		}, "10m", "10s").Should(ContainSubstring("29437546.0"), "the image updater set the image on the Application")
+		Eventually(guestbook, "10m", "10s").Should(And(
+			applicationFixture.HaveSyncStatusCode(argocdv1alpha1.SyncStatusCodeSynced),
+			applicationFixture.HaveHealthStatusCode(health.HealthStatusHealthy),
+		), "guestbook")
 	}
 	if optionalFeatures["source-hydrator"] {
 		Eventually(argoCD, "5m", "10s").Should(argocdFixture.HaveCommitServerStatus("Running"))

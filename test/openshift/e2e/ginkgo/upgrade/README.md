@@ -42,7 +42,7 @@ oc delete rollout,rolloutmanager --all -n upgrade-rollouts
 # Applications first, while the Argo CD instance is still there to run their finalizers.
 oc delete applicationset,application --all -n upgrade-argocd
 oc delete appproject,argocd --all -n upgrade-argocd
-oc delete namespace upgrade-rollouts upgrade-app upgrade-appset upgrade-argocd
+oc delete namespace upgrade-rollouts upgrade-app upgrade-appset upgrade-imageupdater upgrade-argocd
 oc delete subscription,csv,operatorgroup --all -n openshift-gitops-operator
 oc delete namespace openshift-gitops-operator
 # The default instance can only go once the operator is gone, or it is recreated; and with
@@ -69,7 +69,7 @@ instance's cluster-scoped RBAC behind.
 | AppProject and Application | `04-applications.yaml` | `Synced` and `Healthy` |
 | ApplicationSet | `04-applications.yaml` | generated Application is `Synced` and `Healthy` |
 | Argo Rollouts outside `openshift-gitops` (`CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES`) | `05-rollouts.yaml` and the Subscription | RolloutManager `Available`, Rollout `Healthy` |
-| Image Updater (optional, see below) | `optional/image-updater.yaml` | Image Updater controller Deployment is ready |
+| Image Updater and an `ImageUpdater` CR (optional, see below) | `optional/image-updater.yaml` | controller Deployment is ready; the `guestbook` Application has the kustomize image the CR allows, and is `Synced` and `Healthy` |
 | Source Hydrator and Commit Server (optional) | `optional/source-hydrator.yaml` | `status.commitServer` is `Running`, Deployment is ready |
 | GitOps Promoter (optional) | `optional/promoter.yaml` | controller and API server Deployments are ready |
 
@@ -83,8 +83,11 @@ for it before and after the upgrade. Which features run therefore depends on
 `PREVIOUS_CHANNEL`: for example the promoter and the source hydrator run when upgrading from
 1.22, not from 1.21.
 
-An optional file is a partial ArgoCD object that is applied on top of the instance in
-`config/03-argocd.yaml`, under its own field owner. Keep each file to its own feature.
+An optional file starts with a partial ArgoCD object that is applied on top of the instance in
+`config/03-argocd.yaml`, under its own field owner. Keep each file to its own feature. It may
+follow with objects of its own (the Image Updater file adds a namespace, an Application and an
+`ImageUpdater`); only the ArgoCD object is checked against the CRD, and those objects take part
+in the "configuration unchanged" check like the ones in `config/`.
 
 ## Adding a feature
 
