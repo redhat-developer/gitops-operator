@@ -28,7 +28,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 )
 
-// getArgoServerPath will return the Ingress Path for the Argo CD component.
+// getPathOrDefault returns the given Ingress path, or the default path if it is empty.
 func getPathOrDefault(path string) string {
 	result := common.ArgoCDDefaultIngressPath
 	if len(path) > 0 {
@@ -101,7 +101,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 	}
 
 	if !cr.Spec.Server.Ingress.Enabled {
-		if objectFound {
+		if objectFound && metav1.IsControlledBy(existingIngress, cr) {
 			// Ingress exists but enabled flag has been set to false, delete the Ingress
 			argoutil.LogResourceDeletion(log, ingress, "server ingress is disabled")
 			return r.Delete(context.TODO(), ingress)
@@ -112,12 +112,16 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 	// Add default annotations
 	atns := make(map[string]string)
 	atns[common.ArgoCDKeyIngressSSLRedirect] = "true"
-	atns[common.ArgoCDKeyIngressBackendProtocol] = "HTTP"
-
-	// Override default annotations if specified
-	if len(cr.Spec.Server.Ingress.Annotations) > 0 {
-		atns = cr.Spec.Server.Ingress.Annotations
+	// argocd-server serves TLS (and redirects plain HTTP with a 307) unless insecure is set,
+	// so the backend must be HTTPS in that case.
+	backendPort, backendProtocol := "https", "HTTPS"
+	if getArgoServerInsecure(cr) {
+		backendPort, backendProtocol = "http", "HTTP"
 	}
+	atns[common.ArgoCDKeyIngressBackendProtocol] = backendProtocol
+
+	// User annotations are merged over the defaults (per key)
+	atns = mergeAnnotations(atns, cr.Spec.Server.Ingress.Annotations)
 
 	ingress.Annotations = atns
 
@@ -137,7 +141,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 								Service: &networkingv1.IngressServiceBackend{
 									Name: nameWithSuffix("server", cr),
 									Port: networkingv1.ServiceBackendPort{
-										Name: "http",
+										Name: backendPort,
 									},
 								},
 							},
@@ -164,29 +168,7 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 		ingress.Spec.TLS = cr.Spec.Server.Ingress.TLS
 	}
 	if objectFound {
-		var changes []string
-		// If Ingress found and enabled, make sure the ingressClassName is up-to-date
-		if existingIngress.Spec.IngressClassName != cr.Spec.Server.Ingress.IngressClassName {
-			existingIngress.Spec.IngressClassName = cr.Spec.Server.Ingress.IngressClassName
-			changes = append(changes, "ingress class name")
-		}
-		if !reflect.DeepEqual(cr.Spec.Server.Ingress.Annotations, existingIngress.Annotations) {
-			existingIngress.Annotations = cr.Spec.Server.Ingress.Annotations
-			changes = append(changes, "annotations")
-		}
-		if !reflect.DeepEqual(ingress.Spec.Rules, existingIngress.Spec.Rules) {
-			existingIngress.Spec.Rules = ingress.Spec.Rules
-			changes = append(changes, "ingress rules")
-		}
-		if !reflect.DeepEqual(ingress.Spec.TLS, existingIngress.Spec.TLS) {
-			existingIngress.Spec.TLS = ingress.Spec.TLS
-			changes = append(changes, "ingress tls")
-		}
-		if len(changes) > 0 {
-			argoutil.LogResourceUpdate(log, existingIngress, "updating", strings.Join(changes, ", "))
-			return r.Update(context.TODO(), existingIngress)
-		}
-		return nil // Ingress with no changes to apply, do nothing
+		return r.updateIngress(cr, existingIngress, ingress)
 	}
 	if err := controllerutil.SetControllerReference(cr, ingress, r.Scheme); err != nil {
 		return err
@@ -198,32 +180,33 @@ func (r *ReconcileArgoCD) reconcileArgoServerIngress(cr *argoproj.ArgoCD) error 
 // reconcileArgoServerGRPCIngress will ensure that the ArgoCD Server GRPC Ingress is present.
 func (r *ReconcileArgoCD) reconcileArgoServerGRPCIngress(cr *argoproj.ArgoCD) error {
 	ingress := newIngressWithSuffix("grpc", cr)
+	existingIngress := newIngressWithSuffix("grpc", cr)
 
-	ingressExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, ingress.Name, ingress)
+	objectFound, err := argoutil.IsObjectFound(r.Client, cr.Namespace, ingress.Name, existingIngress)
 	if err != nil {
 		return err
 	}
-	if ingressExists {
-		if !cr.Spec.Server.GRPC.Ingress.Enabled {
+
+	if !cr.Spec.Server.GRPC.Ingress.Enabled {
+		if objectFound && metav1.IsControlledBy(existingIngress, cr) {
 			// Ingress exists but enabled flag has been set to false, delete the Ingress
 			argoutil.LogResourceDeletion(log, ingress, "server grpc ingress is disabled")
 			return r.Delete(context.TODO(), ingress)
 		}
-		return nil // Ingress found and enabled, do nothing
-	}
-
-	if !cr.Spec.Server.GRPC.Ingress.Enabled {
 		return nil // Ingress not enabled, move along...
 	}
 
 	// Add default annotations
 	atns := make(map[string]string)
-	atns[common.ArgoCDKeyIngressBackendProtocol] = "GRPC"
-
-	// Override default annotations if specified
-	if len(cr.Spec.Server.GRPC.Ingress.Annotations) > 0 {
-		atns = cr.Spec.Server.GRPC.Ingress.Annotations
+	// argocd-server serves TLS unless insecure is set, so plaintext GRPC would 502.
+	grpcProtocol := "GRPCS"
+	if getArgoServerInsecure(cr) {
+		grpcProtocol = "GRPC"
 	}
+	atns[common.ArgoCDKeyIngressBackendProtocol] = grpcProtocol
+
+	// User annotations are merged over the defaults (per key)
+	atns = mergeAnnotations(atns, cr.Spec.Server.GRPC.Ingress.Annotations)
 
 	ingress.Annotations = atns
 
@@ -268,6 +251,10 @@ func (r *ReconcileArgoCD) reconcileArgoServerGRPCIngress(cr *argoproj.ArgoCD) er
 	// Allow override of TLS options if specified
 	if len(cr.Spec.Server.GRPC.Ingress.TLS) > 0 {
 		ingress.Spec.TLS = cr.Spec.Server.GRPC.Ingress.TLS
+	}
+
+	if objectFound {
+		return r.updateIngress(cr, existingIngress, ingress)
 	}
 
 	if err := controllerutil.SetControllerReference(cr, ingress, r.Scheme); err != nil {
@@ -338,6 +325,9 @@ func (r *ReconcileArgoCD) reconcileApplicationSetControllerIngress(cr *argoproj.
 		return err
 	}
 	if ingressExists {
+		if !metav1.IsControlledBy(ingress, cr) {
+			return nil // not ours, never delete
+		}
 		if cr.Spec.ApplicationSet == nil || !cr.Spec.ApplicationSet.WebhookServer.Ingress.Enabled {
 			var explanation string
 			if cr.Spec.ApplicationSet == nil {
@@ -361,10 +351,8 @@ func (r *ReconcileArgoCD) reconcileApplicationSetControllerIngress(cr *argoproj.
 	atns[common.ArgoCDKeyIngressSSLRedirect] = "true"
 	atns[common.ArgoCDKeyIngressBackendProtocol] = "HTTP"
 
-	// Override default annotations if specified
-	if len(cr.Spec.ApplicationSet.WebhookServer.Ingress.Annotations) > 0 {
-		atns = cr.Spec.ApplicationSet.WebhookServer.Ingress.Annotations
-	}
+	// User annotations are merged over the defaults (per key)
+	atns = mergeAnnotations(atns, cr.Spec.ApplicationSet.WebhookServer.Ingress.Annotations)
 
 	ingress.Annotations = atns
 
@@ -409,4 +397,49 @@ func (r *ReconcileArgoCD) reconcileApplicationSetControllerIngress(cr *argoproj.
 	}
 	argoutil.LogResourceCreation(log, ingress)
 	return r.Create(context.TODO(), ingress)
+}
+
+// updateIngress applies the desired Ingress spec to an existing one the CR owns.
+// Ingresses not controlled by the CR are left untouched.
+func (r *ReconcileArgoCD) updateIngress(cr *argoproj.ArgoCD, existing, desired *networkingv1.Ingress) error {
+	if !metav1.IsControlledBy(existing, cr) {
+		log.Info("ingress exists but is not owned by this ArgoCD, skipping update", "name", existing.Name, "namespace", existing.Namespace)
+		return nil
+	}
+	var changes []string
+	if !reflect.DeepEqual(existing.Spec.IngressClassName, desired.Spec.IngressClassName) {
+		existing.Spec.IngressClassName = desired.Spec.IngressClassName
+		changes = append(changes, "ingress class name")
+	}
+	// Merge instead of replace so annotations added by other controllers survive.
+	// ponytail: annotations removed from the CR are not removed from the Ingress.
+	if merged := mergeAnnotations(existing.Annotations, desired.Annotations); !reflect.DeepEqual(merged, existing.Annotations) {
+		existing.Annotations = merged
+		changes = append(changes, "annotations")
+	}
+	if !reflect.DeepEqual(desired.Spec.Rules, existing.Spec.Rules) {
+		existing.Spec.Rules = desired.Spec.Rules
+		changes = append(changes, "ingress rules")
+	}
+	if !reflect.DeepEqual(desired.Spec.TLS, existing.Spec.TLS) {
+		existing.Spec.TLS = desired.Spec.TLS
+		changes = append(changes, "ingress tls")
+	}
+	if len(changes) == 0 {
+		return nil
+	}
+	argoutil.LogResourceUpdate(log, existing, "updating", strings.Join(changes, ", "))
+	return r.Update(context.TODO(), existing)
+}
+
+// mergeAnnotations returns base overlaid with overrides; neither input is modified.
+func mergeAnnotations(base, overrides map[string]string) map[string]string {
+	merged := make(map[string]string, len(base)+len(overrides))
+	for k, v := range base {
+		merged[k] = v
+	}
+	for k, v := range overrides {
+		merged[k] = v
+	}
+	return merged
 }

@@ -80,6 +80,10 @@ const (
 	// ArgoCDKeyIngressSSLRedirect is the ssl force-redirect key for labels.
 	ArgoCDKeyIngressSSLRedirect = "nginx.ingress.kubernetes.io/force-ssl-redirect"
 
+	// ArgoCDKeyIngressRouteTermination is the annotation the OpenShift ingress-to-route controller reads to choose
+	// the TLS termination of the Route it creates for an Ingress (edge, passthrough or reencrypt).
+	ArgoCDKeyIngressRouteTermination = "route.openshift.io/termination"
+
 	// ArgoCDKeyIngressSSLPassthrough is the ssl passthrough key for labels.
 	ArgoCDKeyIngressSSLPassthrough = "nginx.ingress.kubernetes.io/ssl-passthrough" // #nosec G101
 
