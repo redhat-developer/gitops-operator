@@ -1,0 +1,13 @@
+# Image Updater on the second instance. Optional: applied only when the installed ArgoCD CRD
+# has the field (see applyOptionalConfig in features_test.go).
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: upgrade-argocd
+spec:
+  imageUpdater:
+    enabled: true
+    env:
+      - name: IMAGE_UPDATER_LOGLEVEL
+        value: debug

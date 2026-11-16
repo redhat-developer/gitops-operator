@@ -69,6 +69,22 @@ instance's cluster-scoped RBAC behind.
 | AppProject and Application | `04-applications.yaml` | `Synced` and `Healthy` |
 | ApplicationSet | `04-applications.yaml` | generated Application is `Synced` and `Healthy` |
 | Argo Rollouts outside `openshift-gitops` (`CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES`) | `05-rollouts.yaml` and the Subscription | RolloutManager `Available`, Rollout `Healthy` |
+| Image Updater (optional, see below) | `optional/image-updater.yaml` | Image Updater controller Deployment is ready |
+| Source Hydrator and Commit Server (optional) | `optional/source-hydrator.yaml` | `status.commitServer` is `Running`, Deployment is ready |
+| GitOps Promoter (optional) | `optional/promoter.yaml` | controller and API server Deployments are ready |
+
+## Optional features
+
+Files in [`config/optional/`](config/optional) set fields that only newer versions of the
+operator have, so they cannot be in `config/`: applying a field the CRD does not have fails.
+Each file is applied only if the ArgoCD CRD of the version that is installed has every
+`.spec` field the file sets. The test prints each file it leaves out, and skips the check
+for it before and after the upgrade. Which features run therefore depends on
+`PREVIOUS_CHANNEL`: for example the promoter and the source hydrator run when upgrading from
+1.22, not from 1.21.
+
+An optional file is a partial ArgoCD object that is applied on top of the instance in
+`config/03-argocd.yaml`, under its own field owner. Keep each file to its own feature.
 
 ## Adding a feature
 
@@ -77,4 +93,5 @@ check for it to `verifyFeatures` in `features_test.go`. The check runs before an
 upgrade without any further change.
 
 Everything in `config/` has to be valid for the oldest operator version the test is run
-against.
+against. A feature that only newer versions have goes in `config/optional/`, with its check
+in `verifyFeatures` guarded by `optionalFeatures["<file name>"]`.

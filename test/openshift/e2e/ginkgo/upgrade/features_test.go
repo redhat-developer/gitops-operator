@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	rolloutmanagerv1alpha1 "github.com/argoproj-labs/argo-rollouts-manager/api/v1alpha1"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -51,6 +52,28 @@ import (
 // and by the Rollout.
 var workloadNamespaces = []string{"upgrade-app", "upgrade-appset", "upgrade-rollouts"}
 
+// readFile returns every object in one YAML file, in order.
+func readFile(file string) []*unstructured.Unstructured {
+	f, err := os.Open(file)
+	Expect(err).ToNot(HaveOccurred())
+	defer f.Close()
+
+	var objects []*unstructured.Unstructured
+	decoder := yaml.NewYAMLOrJSONDecoder(f, 4096)
+	for {
+		obj := &unstructured.Unstructured{}
+		err := decoder.Decode(obj)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		Expect(err).ToNot(HaveOccurred(), file)
+		if len(obj.Object) > 0 {
+			objects = append(objects, obj)
+		}
+	}
+	return objects
+}
+
 // readConfig returns every object in config/*.yaml, in file name order.
 func readConfig() []*unstructured.Unstructured {
 	files, err := filepath.Glob("config/*.yaml")
@@ -59,24 +82,77 @@ func readConfig() []*unstructured.Unstructured {
 
 	var objects []*unstructured.Unstructured
 	for _, file := range files {
-		f, err := os.Open(file)
-		Expect(err).ToNot(HaveOccurred())
-		defer f.Close()
-
-		decoder := yaml.NewYAMLOrJSONDecoder(f, 4096)
-		for {
-			obj := &unstructured.Unstructured{}
-			err := decoder.Decode(obj)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			Expect(err).ToNot(HaveOccurred(), file)
-			if len(obj.Object) > 0 {
-				objects = append(objects, obj)
-			}
-		}
+		objects = append(objects, readFile(file)...)
 	}
 	return objects
+}
+
+// optionalFeatures are the features in config/optional/, by file name without the extension.
+// A feature is applied, and checked, only if the previous version of the operator has every
+// .spec field it sets. It is decided once, when the configuration is applied, so that the
+// checks after the upgrade ask for exactly what was applied before it.
+var optionalFeatures = map[string]bool{}
+
+// argoCDSpecFields returns the names of the fields under .spec of the ArgoCD CRD that is
+// installed now.
+func argoCDSpecFields() map[string]bool {
+	crd := &unstructured.Unstructured{}
+	crd.SetAPIVersion("apiextensions.k8s.io/v1")
+	crd.SetKind("CustomResourceDefinition")
+	Expect(k8sClient.Get(ctx, client.ObjectKey{Name: "argocds.argoproj.io"}, crd)).To(Succeed())
+
+	versions, _, _ := unstructured.NestedSlice(crd.Object, "spec", "versions")
+	for _, v := range versions {
+		version := v.(map[string]any)
+		if version["name"] != "v1beta1" {
+			continue
+		}
+		properties, _, _ := unstructured.NestedMap(version, "schema", "openAPIV3Schema", "properties", "spec", "properties")
+		fields := map[string]bool{}
+		for name := range properties {
+			fields[name] = true
+		}
+		return fields
+	}
+	Fail("the ArgoCD CRD has no v1beta1 version")
+	return nil
+}
+
+// applyOptionalConfig applies each file in config/optional/ whose fields the installed
+// operator knows, and says which it left out. Each file is applied under its own field
+// owner, because files apply parts of the same ArgoCD object, and applying a file under
+// another file's owner would remove what that file set.
+func applyOptionalConfig() {
+	files, err := filepath.Glob("config/optional/*.yaml")
+	Expect(err).ToNot(HaveOccurred())
+
+	known := argoCDSpecFields()
+	for _, file := range files {
+		feature := strings.TrimSuffix(filepath.Base(file), ".yaml")
+
+		var unknown []string
+		for _, obj := range readFile(file) {
+			spec, _ := obj.Object["spec"].(map[string]any)
+			for field := range spec {
+				if !known[field] {
+					unknown = append(unknown, field)
+				}
+			}
+		}
+		if len(unknown) > 0 {
+			By("not applying " + feature + ": the operator installed now has no .spec." + strings.Join(unknown, ", .spec."))
+			continue
+		}
+
+		for _, obj := range readFile(file) {
+			By("applying " + feature + ": " + obj.GetKind() + " " + obj.GetNamespace() + "/" + obj.GetName())
+			Eventually(func() error {
+				return k8sClient.Apply(ctx, client.ApplyConfigurationFromUnstructured(obj.DeepCopy()),
+					client.FieldOwner("upgrade-test-"+feature), client.ForceOwnership)
+			}, "5m", "5s").Should(Succeed())
+		}
+		optionalFeatures[feature] = true
+	}
 }
 
 // applyConfig applies config/*.yaml the way 'oc apply --server-side' would. Each object
@@ -90,6 +166,7 @@ func applyConfig() {
 				client.FieldOwner("upgrade-test"), client.ForceOwnership)
 		}, "5m", "5s").Should(Succeed())
 	}
+	applyOptionalConfig()
 }
 
 // configSpecs returns the .spec of every object in config/ as it is on the cluster now.
@@ -179,6 +256,24 @@ func verifyFeatures() {
 	Eventually(func() string {
 		return applicationControllerMemoryLimit("upgrade-argocd", "argocd-application-controller")
 	}, "5m", "10s").Should(Equal("2Gi"))
+
+	By("optional features: each one that was applied is running")
+
+	if optionalFeatures["image-updater"] {
+		Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-argocd-image-updater-controller", Namespace: "upgrade-argocd"}}, "5m", "10s").
+			Should(deploymentFixture.HaveReadyReplicas(1), "image updater")
+	}
+	if optionalFeatures["source-hydrator"] {
+		Eventually(argoCD, "5m", "10s").Should(argocdFixture.HaveCommitServerStatus("Running"))
+		Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-commit-server", Namespace: "upgrade-argocd"}}, "5m", "10s").
+			Should(deploymentFixture.HaveReadyReplicas(1), "commit server")
+	}
+	if optionalFeatures["promoter"] {
+		for _, name := range []string{"argocd-promoter-controller-manager", "argocd-promoter-apiserver"} {
+			Eventually(&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "upgrade-argocd"}}, "5m", "10s").
+				Should(deploymentFixture.HaveReadyReplicas(1), name)
+		}
+	}
 
 	By("second instance: has cluster-wide permissions, from ARGOCD_CLUSTER_CONFIG_NAMESPACES on the Subscription")
 
