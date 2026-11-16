@@ -202,10 +202,32 @@ func TestImageFromEnvVariable(t *testing.T) {
 		}
 	})
 
+	t.Run("maps hybrid PQC curve preferences to Go curve names", func(t *testing.T) {
+		deployment, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
+			CurvePreferences: []configv1.TLSGroup{
+				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroupSecP384r1MLKEM1024,
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var gotCurves string
+		for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+			if env.Name == "TLS_CURVE_PREFERENCES" {
+				gotCurves = env.Value
+			}
+		}
+		want := "SecP256r1MLKEM768:SecP384r1MLKEM1024"
+		if gotCurves != want {
+			t.Errorf("TLS curve preferences mismatch: got %s, want %s", gotCurves, want)
+		}
+	})
+
 	t.Run("errors when curve preferences contain only unsupported groups", func(t *testing.T) {
 		_, err := newBackendDeployment(ns, corev1.PullPolicy(corev1.PullIfNotPresent), tlsprofile.TLSConfigProfile{
 			CurvePreferences: []configv1.TLSGroup{
-				configv1.TLSGroupSecP256r1MLKEM768,
+				configv1.TLSGroup("UnknownGroup"),
 			},
 		})
 		if err == nil {
