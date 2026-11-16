@@ -1657,11 +1657,13 @@ func TestNamespaceManagementHandlers(t *testing.T) {
 		t.Helper()
 
 		role := newRole("test-role", policyRuleForApplicationController(), argo)
+		role.Name = "test-role"
 		role.Namespace = namespace
 		_, err := client.RbacV1().Roles(namespace).Create(context.TODO(), role, metav1.CreateOptions{})
 		assert.NoError(t, err)
 
 		roleBinding := newRoleBindingWithname("test-rolebinding", argo)
+		roleBinding.Name = "test-rolebinding"
 		roleBinding.Namespace = namespace
 		_, err = client.RbacV1().RoleBindings(namespace).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 		assert.NoError(t, err)
@@ -1773,8 +1775,9 @@ func TestNamespaceManagementHandlers(t *testing.T) {
 			Spec:       argoproj.NamespaceManagementSpec{ManagedBy: "argocd"},
 		}
 
-		resObjs := []client.Object{argoCD, nsMgmt}
-		subresObjs := []client.Object{argoCD, nsMgmt}
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNamespace}}
+		resObjs := []client.Object{argoCD, ns, nsMgmt}
+		subresObjs := []client.Object{argoCD, ns, nsMgmt}
 		runtimeObjs := []runtime.Object{}
 		sch := makeTestReconcilerScheme(argoproj.AddToScheme)
 		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
