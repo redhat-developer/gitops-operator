@@ -2022,12 +2022,14 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 }
 
 func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *argoproj.NamespaceManagement, k8sClient kubernetes.Interface) bool {
+	// The CR's own namespace is the one withdrawing consent, so its labels decide whether the
+	// old manager keeps access.
 	ns := &corev1.Namespace{}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: oldNSMgmt.Spec.ManagedBy}, ns); err != nil {
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: oldNSMgmt.Namespace}, ns); err != nil {
 		return false
 	}
 
-	// Skip Update if managed-by label exists and matches .spec.managedBy
+	// Skip Update if the namespace still grants the old manager access through its managed-by label
 	if isNamespaceLabelledManagedBy(ns, oldNSMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping update cleanup", oldNSMgmt.Namespace))
 		return false
@@ -2044,12 +2046,14 @@ func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *
 }
 
 func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.NamespaceManagement, k8sClient kubernetes.Interface) bool {
+	// The CR's own namespace is the one withdrawing consent, so its labels decide whether the
+	// manager keeps access.
 	ns := &corev1.Namespace{}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: nsMgmt.Spec.ManagedBy}, ns); err != nil {
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: nsMgmt.Namespace}, ns); err != nil {
 		return false
 	}
 
-	// Skip cleanup if managed-by label exists and matches .spec.managedBy
+	// Skip cleanup if the namespace still grants the manager access through its managed-by label
 	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
 		return false

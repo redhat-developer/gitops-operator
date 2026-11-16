@@ -18,6 +18,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1738,7 +1739,7 @@ func TestNamespaceManagementHandlers(t *testing.T) {
 		}
 
 		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
-			Name: "old",
+			Name: testNamespace,
 		}}
 
 		resObjs := []client.Object{argoCD, ns, oldNSMgmt, newNSMgmt}
@@ -1794,6 +1795,82 @@ func TestNamespaceManagementHandlers(t *testing.T) {
 		_, err = client.CoreV1().Secrets(argoCD.Namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 		assert.NoError(t, err)
 	})
+}
+
+// The NamespaceManagement cleanup must decide from the labels of the namespace that
+// withdraws its consent (the CR's own namespace), not from those of the managing namespace.
+func TestNamespaceManagementCleanupChecksTheTargetNamespace(t *testing.T) {
+	const (
+		manager = "manager"
+		target  = "target"
+	)
+
+	tests := []struct {
+		name string
+		// retarget changes .spec.managedBy to another namespace; otherwise the CR is deleted.
+		retarget      bool
+		targetLabels  map[string]string
+		wantRBACsLeft int
+	}{
+		{
+			name:          "deleting the CR revokes the grant, although the manager labels itself",
+			wantRBACsLeft: 0,
+		},
+		{
+			name:          "retargeting the CR revokes the grant, although the manager labels itself",
+			retarget:      true,
+			wantRBACsLeft: 0,
+		},
+		{
+			name:          "deleting the CR keeps the grant the target namespace gives through its own label",
+			targetLabels:  map[string]string{common.ArgoCDManagedByLabel: manager},
+			wantRBACsLeft: 2,
+		},
+		{
+			name:          "retargeting the CR keeps the grant the target namespace gives through its own label",
+			retarget:      true,
+			targetLabels:  map[string]string{common.ArgoCDManagedByLabel: manager},
+			wantRBACsLeft: 2,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			managerNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:   manager,
+				Labels: map[string]string{common.ArgoCDManagedByLabel: manager},
+			}}
+			targetNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: target, Labels: test.targetLabels}}
+			nsMgmt := &argoproj.NamespaceManagement{
+				ObjectMeta: metav1.ObjectMeta{Name: "consent", Namespace: target},
+				Spec:       argoproj.NamespaceManagementSpec{ManagedBy: manager},
+			}
+
+			resObjs := []client.Object{managerNS, targetNS, nsMgmt}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, resObjs, []runtime.Object{})
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			argoLabels := map[string]string{common.ArgoCDKeyPartOf: common.ArgoCDAppName}
+			k8sClient := testclient.NewSimpleClientset(
+				&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: "manager-role", Namespace: target, Labels: argoLabels}},
+				&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: "manager-rolebinding", Namespace: target, Labels: argoLabels}},
+			)
+
+			if test.retarget {
+				retargeted := nsMgmt.DeepCopy()
+				retargeted.Spec.ManagedBy = "other-manager"
+				r.handleNamespaceManagementUpdate(nsMgmt, retargeted, k8sClient)
+			} else {
+				r.handleNamespaceManagementDelete(nsMgmt, k8sClient)
+			}
+
+			roles, err := k8sClient.RbacV1().Roles(target).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(t, err)
+			roleBindings, err := k8sClient.RbacV1().RoleBindings(target).List(context.TODO(), metav1.ListOptions{})
+			assert.NoError(t, err)
+			assert.Equal(t, test.wantRBACsLeft, len(roles.Items)+len(roleBindings.Items))
+		})
+	}
 }
 
 func TestGetNamespacesToDelete(t *testing.T) {
