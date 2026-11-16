@@ -231,8 +231,11 @@ export class ApplicationsPage {
 
   async clearAllFilters() {
     await this.ensureFiltersVisible();
-    //argo 3.3 names it as "CLEAR" but 3.4+ is "CLEAR ALL"
-    const btn = this.page.getByRole('button', { name: /CLEAR(\s+ALL)?/i }).first();
+    //3.4+ has a CLEAR per group so grab CLEAR ALL when we can
+    const clearAll = this.page.getByRole('button', { name: /CLEAR\s+ALL/i }).first();
+    const btn = (await clearAll.isVisible())
+      ? clearAll
+      : this.page.getByRole('button', { name: /CLEAR/i }).first();
     if (await btn.isVisible()) {
       await btn.click();
       await expect(btn).toBeHidden({ timeout: TIMEOUTS.panel });
