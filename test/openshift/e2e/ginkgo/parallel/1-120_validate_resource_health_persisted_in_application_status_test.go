@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sequential
+package parallel
 
 import (
 	"context"
@@ -34,11 +34,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	const (
-		argoCDName   = "example-argocd"
-		appName      = "guestbook"
-		appNamespace = "guestbook-1-120"
+		argoCDName = "example-argocd"
+		appName    = "guestbook"
 	)
 
 	var (
@@ -47,7 +46,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 	)
 
 	BeforeEach(func() {
-		fixture.EnsureSequentialCleanSlate()
+		fixture.EnsureParallelCleanSlate()
 
 		k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 		ctx = context.Background()
@@ -83,9 +82,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}}
 			Eventually(ss).Should(ssFixture.HaveReadyReplicas(1))
 
-			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace, ns.Name)
-			defer cleanupFunc()
-
 			By("Creating ArgoCD Application CR")
 			app := &argoprojv1a1.Application{
 				ObjectMeta: metav1.ObjectMeta{
@@ -101,7 +97,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					Destination: argoprojv1a1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
-						Namespace: targetNamespace.Name,
+						Namespace: ns.Name,
 					},
 					SyncPolicy: &argoprojv1a1.SyncPolicy{
 						Automated: &argoprojv1a1.SyncPolicyAutomated{},
@@ -162,9 +158,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}}
 			Eventually(ss).Should(ssFixture.HaveReadyReplicas(1))
 
-			targetNamespace, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc(appNamespace+"1", ns.Name)
-			defer cleanupFunc()
-
 			By("Creating ArgoCD Application CR")
 			app := &argoprojv1a1.Application{
 				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: ns.Name},
@@ -177,7 +170,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					},
 					Destination: argoprojv1a1.ApplicationDestination{
 						Server:    "https://kubernetes.default.svc",
-						Namespace: targetNamespace.Name,
+						Namespace: ns.Name,
 					},
 					SyncPolicy: &argoprojv1a1.SyncPolicy{
 						Automated: &argoprojv1a1.SyncPolicyAutomated{},

@@ -116,6 +116,27 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				}
 			})
 
+			Eventually(func() bool {
+				if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(serverSvc), serverSvc); err != nil {
+					GinkgoWriter.Println(err)
+					return false
+				}
+				if serverSvc.Annotations == nil {
+					return true
+				}
+				_, present := serverSvc.Annotations[common.AnnotationOpenShiftServiceCA]
+				return !present
+			}, "1m", "2s").Should(BeTrue())
+
+			By("triggering reconciliation via a no-op ArgoCD metadata change")
+
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				if ac.Annotations == nil {
+					ac.Annotations = map[string]string{}
+				}
+				ac.Annotations["argocds.argoproj.io/e2e-serving-cert-reconcile-touch"] = "1"
+			})
+
 			Eventually(serverSvc, "3m", "5s").Should(
 				k8sFixture.HaveAnnotationWithValue(common.AnnotationOpenShiftServiceCA, common.ArgoCDServerTLSSecretName))
 
@@ -124,7 +145,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		})
 
-		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", func() {
+		It("does not add serving-cert annotation when argocd-server-tls already exists as a user-managed secret (not Service CA)", Label("openshift"), func() {
 			certPem, keyPem, err := certFixture.GenerateCert()
 			Expect(err).NotTo(HaveOccurred())
 

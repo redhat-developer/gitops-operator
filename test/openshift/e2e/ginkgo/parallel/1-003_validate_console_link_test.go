@@ -1,4 +1,4 @@
-package sequential
+package parallel
 
 import (
 	"strings"
@@ -12,12 +12,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
+var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-003_validate_console_link", func() {
 
 		BeforeEach(func() {
-			fixture.EnsureSequentialCleanSlate()
+			fixture.EnsureParallelCleanSlate()
 		})
 
 		It("verifies ConsoleLink exists and has expected content", Label("openshift"), func() {
