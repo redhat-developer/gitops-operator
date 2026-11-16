@@ -192,6 +192,8 @@ Annotations | [Empty] | Custom annotations to pods deployed by the operator
 Labels | [Empty] | Custom labels to pods deployed by the operator
 Metrics.Interval | [Empty] | Prometheus scrape interval for the Application Controller ServiceMonitor. If empty, Prometheus uses its default.
 Metrics.ScrapeTimeout | [Empty] | Prometheus scrape timeout for the Application Controller ServiceMonitor. If empty, Prometheus uses its default.
+GoRuntime.Enabled | true | Whether to enable automatic Go runtime tuning (`GOMEMLIMIT`, `GOMAXPROCS`) for the ArgoCD Application Controller. Cannot re-enable tuning when the operator-level `DISABLE_GO_RUNTIME_TUNING` kill switch is set. |
+GoRuntime.MemoryLimitPercent | 80 | The percentage (1-100) of the memory limit used to compute `GOMEMLIMIT`. The remaining headroom is reserved for non-heap memory and garbage collection overhead. | Must be between 1 and 100
 
 ### Controller Example
 
@@ -267,6 +269,26 @@ spec:
     sharding:
       enabled: true
       replicas: 5
+```
+
+The following example shows how to configure automatic Go runtime tuning of the Argo CD Application Controller. `GOMEMLIMIT` will be computed as 75% of the controller memory limit; `GOMAXPROCS` is always derived at 100% of the CPU limit.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+  labels:
+    example: controller
+spec:
+  controller:
+    resources:
+      limits:
+        cpu: '2'
+        memory: 2Gi
+    goRuntime:
+      enabled: true
+      memoryLimitPercent: 75
 ```
 
 The following example shows how to configure initContainers for the ArgoCD Application Controller component.
