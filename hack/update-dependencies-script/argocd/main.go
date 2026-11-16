@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -77,11 +78,12 @@ func main() {
 	// update Argo CD crds
 	updateArgoCDCRDs(argoCDRepoRoot, gitopsOperatorRoot)
 
+	// update controllers/argocd/dex_test.go: test references a dex container image
+	// (do this before go.mod regeneration so a later failure does not leave the image pin stale)
+	replaceDexImageReferenceInDexTest(argocdOperatorRoot, dexContainerInfo)
+
 	// update go.mod and regenerate the manifests/bundle: acquire target argo cd version, and ensures replace block matches upstream
 	updateGoModAndRegenBundle(targetArgoCDVersion, argocdOperatorRoot, gitopsOperatorRoot, argoCDRepoRoot)
-
-	// update controllers/argocd/dex_test.go: test references a dex container image
-	replaceDexImageReferenceInDexTest(argocdOperatorRoot, dexContainerInfo)
 
 	fmt.Println()
 	fmt.Println("Dependency update is complete:")
@@ -400,15 +402,18 @@ func copyGoModReplaceBlockFromArgoCDToArgoCDOperator(argoCDRepoRoot string, argo
 				newArgoCDOperatorGoModFileContents += replaceBlockFromArgoCDLine + "\n"
 			}
 
-			// argo-cd declares gitops-engine at a pseudo-version where go.mod didn't exist yet, then
-			// overrides it with a local replace (=> ./gitops-engine) that only works inside its own
-			// monorepo. Downstream consumers must pin it to the actual argo-cd commit instead.
+			// As of Argo CD v3.6.0, gitops-engine is published as a tagged submodule
+			// (github.com/argoproj/argo-cd/gitops-engine/v3 @ gitops-engine/vX.Y.Z). The
+			// monorepo-only `replace => ./gitops-engine` lives outside the replace () block
+			// and must not be copied; no downstream replace is required.
 			gitopsEngineLine, err := buildGitopsEngineReplaceLine(argoCDRepoRoot, targetArgoCDVersion)
 			if err != nil {
 				utils.ExitWithError(fmt.Errorf("unable to build gitops-engine replace line: %v", err))
 				return
 			}
-			newArgoCDOperatorGoModFileContents += gitopsEngineLine + "\n"
+			if gitopsEngineLine != "" {
+				newArgoCDOperatorGoModFileContents += gitopsEngineLine + "\n"
+			}
 
 		} else if x >= argocdOperatorReplaceStart && x <= argocdOperatorReplaceEnd {
 			// skip existing replace block in argocd-operator's go.mod
@@ -423,14 +428,31 @@ func copyGoModReplaceBlockFromArgoCDToArgoCDOperator(argoCDRepoRoot string, argo
 	}
 }
 
-// buildGitopsEngineReplaceLine generates the replace directive that pins
-// github.com/argoproj/argo-cd/gitops-engine to the actual argo-cd commit, e.g.:
+// buildGitopsEngineReplaceLine returns a replace directive for gitops-engine when one is
+// still required. Starting with Argo CD v3.6.0, gitops-engine is released as the tagged
+// module github.com/argoproj/argo-cd/gitops-engine/v3 (gitops-engine/vX.Y.Z), so no
+// replace is needed and this returns an empty string.
 //
-//	// argo-cd v3.4.2 declares gitops-engine at a pseudo-version where go.mod
-//	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
-//	// Downstream consumers must resolve it themselves; pin to the v3.4.2 commit.
+// Pre-v3.6 releases declared gitops-engine at a pseudo-version and overrode it with a
+// local `replace => ./gitops-engine` that only works inside the argo-cd monorepo. For
+// those versions this would pin the old module path to the release commit, e.g.:
+//
 //	github.com/argoproj/argo-cd/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260512203152-0dc6b1b57dd5
 func buildGitopsEngineReplaceLine(argoCDRepoRoot string, targetArgoCDVersion string) (string, error) {
+	engineGoMod := filepath.Join(argoCDRepoRoot, "gitops-engine", "go.mod")
+	exists, err := utils.FileExists(engineGoMod)
+	if err != nil {
+		return "", fmt.Errorf("unable to check gitops-engine go.mod: %v", err)
+	}
+	if exists {
+		contents := strings.Join(utils.GetFileContentsAsLines(engineGoMod), "\n")
+		if strings.Contains(contents, "module github.com/argoproj/argo-cd/gitops-engine/v3") {
+			// Tagged gitops-engine/v3 module — no replace required.
+			return "", nil
+		}
+	}
+
+	// Legacy path: pin the unversioned gitops-engine module to the argo-cd release commit.
 	// Fetch hash and Unix timestamp in one call. %ct is timezone-agnostic (seconds since epoch),
 	// which we then convert to UTC — pseudo-versions must use UTC timestamps.
 	out, _, err := utils.RunCommandWithWorkDir(argoCDRepoRoot, "git", "log", "-1", "--format=%H %ct")
@@ -462,12 +484,31 @@ func buildGitopsEngineReplaceLine(argoCDRepoRoot string, targetArgoCDVersion str
 // version, and regenerates the generated assets. argocd-operator is a submodule that carries the
 // code, while the parent gitops-operator module owns config/, bundle/ and the vendor tree.
 func updateGoModAndRegenBundle(targetArgoCDVersion string, argocdOperatorRoot string, gitopsOperatorRoot string, argoCDRepoRoot string) {
-	// Both modules require argo-cd directly, so bump them in lockstep.
+	// Rewrite imports to the tagged gitops-engine/v3 module path before go get / tidy.
+	// Walk the parent repo root once (covers argocd-operator/ and test/).
+	rewriteGitopsEngineImports(gitopsOperatorRoot)
+
+	engineGoMod := filepath.Join(argoCDRepoRoot, "gitops-engine", "go.mod")
+	usesTaggedEngine := false
+	if exists, err := utils.FileExists(engineGoMod); err == nil && exists {
+		contents := strings.Join(utils.GetFileContentsAsLines(engineGoMod), "\n")
+		usesTaggedEngine = strings.Contains(contents, "module github.com/argoproj/argo-cd/gitops-engine/v3")
+	}
+
+	// Both modules require argo-cd (and, as of v3.6, gitops-engine/v3) directly, so bump them in lockstep.
 	for _, moduleRoot := range []string{argocdOperatorRoot, gitopsOperatorRoot} {
-		if err := utils.RunCommandListWithWorkDir(moduleRoot,
-			[][]string{
-				{"go", "get", "github.com/argoproj/argo-cd/v3@" + targetArgoCDVersion},
-			}); err != nil {
+		if usesTaggedEngine {
+			// Drop the legacy unversioned gitops-engine require so tidy does not try to
+			// resolve a module path that no longer has a go.mod at old revisions.
+			dropLegacyGitopsEngineRequire(filepath.Join(moduleRoot, "go.mod"))
+		}
+		cmds := [][]string{
+			{"go", "get", "github.com/argoproj/argo-cd/v3@" + targetArgoCDVersion},
+		}
+		if usesTaggedEngine {
+			cmds = append(cmds, []string{"go", "get", "github.com/argoproj/argo-cd/gitops-engine/v3@" + targetArgoCDVersion})
+		}
+		if err := utils.RunCommandListWithWorkDir(moduleRoot, cmds); err != nil {
 			utils.ExitWithError(fmt.Errorf("unable to update go.mod in %s: %v", moduleRoot, err))
 			return
 		}
@@ -476,8 +517,13 @@ func updateGoModAndRegenBundle(targetArgoCDVersion string, argocdOperatorRoot st
 	copyGoModReplaceBlockFromArgoCDToArgoCDOperator(argoCDRepoRoot, argocdOperatorRoot, targetArgoCDVersion)
 
 	// The parent module has its own replace block (it imports argo-cd directly too), so keep
-	// its gitops-engine pin in sync without overwriting its additional CVE/k8s replaces.
+	// its gitops-engine pin in sync without overwriting its additional CVE replaces.
 	updateGitopsEngineReplaceLineInGoMod(filepath.Join(gitopsOperatorRoot, "go.mod"), argoCDRepoRoot, targetArgoCDVersion)
+	// Also strip any legacy gitops-engine replace left in the argocd-operator go.mod when the
+	// replace block was rewritten from a pre-v3.6 pin.
+	updateGitopsEngineReplaceLineInGoMod(filepath.Join(argocdOperatorRoot, "go.mod"), argoCDRepoRoot, targetArgoCDVersion)
+	// Sync parent k8s.io replace pins to the versions from Argo CD, preserving extra CVE pins.
+	syncK8sReplaceVersionsFromArgoCD(filepath.Join(gitopsOperatorRoot, "go.mod"), filepath.Join(argoCDRepoRoot, "go.mod"))
 
 	for _, moduleRoot := range []string{argocdOperatorRoot, gitopsOperatorRoot} {
 		if err := utils.RunCommandListWithWorkDir(moduleRoot,
@@ -508,10 +554,12 @@ func updateGoModAndRegenBundle(targetArgoCDVersion string, argocdOperatorRoot st
 	}
 }
 
-// updateGitopsEngineReplaceLineInGoMod rewrites the gitops-engine replace directive (and the
-// version comments around it) in the given go.mod. argo-cd overrides gitops-engine with a local
-// replace that does not propagate to downstream modules, so every consumer must pin it to the
-// argo-cd release commit.
+// updateGitopsEngineReplaceLineInGoMod rewrites or removes the gitops-engine replace directive
+// (and the version comments around it) in the given go.mod.
+//
+// Pre-v3.6: argo-cd overrode gitops-engine with a local replace that does not propagate, so
+// every consumer must pin it to the argo-cd release commit.
+// v3.6+: gitops-engine/v3 is a tagged module, so any legacy replace/comments are removed.
 func updateGitopsEngineReplaceLineInGoMod(goModPath string, argoCDRepoRoot string, targetArgoCDVersion string) {
 	replaceBlock, err := buildGitopsEngineReplaceLine(argoCDRepoRoot, targetArgoCDVersion)
 	if err != nil {
@@ -519,8 +567,11 @@ func updateGitopsEngineReplaceLineInGoMod(goModPath string, argoCDRepoRoot strin
 		return
 	}
 
-	replaceBlockLines := strings.Split(replaceBlock, "\n")
-	directive := replaceBlockLines[len(replaceBlockLines)-1]
+	var directive string
+	if replaceBlock != "" {
+		replaceBlockLines := strings.Split(replaceBlock, "\n")
+		directive = replaceBlockLines[len(replaceBlockLines)-1]
+	}
 
 	lines := utils.GetFileContentsAsLines(goModPath)
 	newContent := ""
@@ -529,21 +580,38 @@ func updateGitopsEngineReplaceLineInGoMod(goModPath string, argoCDRepoRoot strin
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		switch {
-		case strings.HasPrefix(trimmed, "github.com/argoproj/argo-cd/gitops-engine =>"):
-			newContent += directive + "\n"
+		case strings.HasPrefix(trimmed, "github.com/argoproj/argo-cd/gitops-engine =>") ||
+			strings.HasPrefix(trimmed, "github.com/argoproj/argo-cd/gitops-engine/v3 =>"):
 			matched = true
+			if directive != "" {
+				newContent += directive + "\n"
+			}
+			// else: drop the replace — tagged gitops-engine/v3 needs none
 		case strings.HasPrefix(trimmed, "// This replace block is from Argo CD v"):
 			newContent += "\t// This replace block is from Argo CD " + targetArgoCDVersion + " go.mod\n"
-		case strings.HasPrefix(trimmed, "// v") && strings.Contains(trimmed, "declares gitops-engine at a pseudo-version"):
-			newContent += "\t// " + targetArgoCDVersion + " declares gitops-engine at a pseudo-version where go.mod\n"
-		case strings.HasPrefix(trimmed, "// Downstream consumers must resolve it themselves; pin to the v"):
-			newContent += "\t// Downstream consumers must resolve it themselves; pin to the " + targetArgoCDVersion + " commit.\n"
+		case strings.Contains(trimmed, "declares gitops-engine at a pseudo-version"):
+			matched = true
+			if directive != "" {
+				newContent += "\t// " + targetArgoCDVersion + " declares gitops-engine at a pseudo-version where go.mod\n"
+			}
+		case strings.HasPrefix(trimmed, "// didn't exist yet, then overrides with replace => ./gitops-engine locally."):
+			matched = true
+			if directive != "" {
+				newContent += line + "\n"
+			}
+		case strings.HasPrefix(trimmed, "// Downstream consumers must resolve it themselves; pin to the"):
+			matched = true
+			if directive != "" {
+				newContent += "\t// Downstream consumers must resolve it themselves; pin to the " + targetArgoCDVersion + " commit.\n"
+			}
 		default:
 			newContent += line + "\n"
 		}
 	}
 
-	if !matched {
+	// When moving to a tagged gitops-engine/v3, the legacy replace may already have been dropped
+	// by copyGoModReplaceBlockFromArgoCDToArgoCDOperator; absence is fine.
+	if directive != "" && !matched {
 		utils.ExitWithError(fmt.Errorf("unable to find gitops-engine replace directive in %s", goModPath))
 		return
 	}
@@ -551,6 +619,128 @@ func updateGitopsEngineReplaceLineInGoMod(goModPath string, argoCDRepoRoot strin
 	if err := os.WriteFile(goModPath, []byte(strings.TrimSpace(newContent)+"\n"), 0o600); err != nil {
 		utils.ExitWithError(fmt.Errorf("unable to write to file: %s %v", goModPath, err))
 	}
+}
+
+// dropLegacyGitopsEngineRequire removes a direct require of the unversioned
+// github.com/argoproj/argo-cd/gitops-engine module from go.mod. That path is invalid
+// once Argo CD publishes gitops-engine/v3 as a tagged submodule.
+func dropLegacyGitopsEngineRequire(goModPath string) {
+	lines := utils.GetFileContentsAsLines(goModPath)
+	newContent := ""
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "github.com/argoproj/argo-cd/gitops-engine ") ||
+			trimmed == "github.com/argoproj/argo-cd/gitops-engine" {
+			continue
+		}
+		newContent += line + "\n"
+	}
+	if err := os.WriteFile(goModPath, []byte(strings.TrimSpace(newContent)+"\n"), 0o600); err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to write to file: %s %v", goModPath, err))
+	}
+}
+
+// rewriteGitopsEngineImports updates Go import paths from the legacy
+// github.com/argoproj/argo-cd/gitops-engine/... module to the tagged
+// github.com/argoproj/argo-cd/gitops-engine/v3/... module introduced in Argo CD v3.6.
+func rewriteGitopsEngineImports(moduleRoots ...string) {
+	const (
+		legacy = "github.com/argoproj/argo-cd/gitops-engine/"
+		tagged = "github.com/argoproj/argo-cd/gitops-engine/v3/"
+	)
+
+	// Match the module path followed by any run of already-migrated segments, so the
+	// rewrite is idempotent (running it repeatedly must not produce /v3/v3/...). Because
+	// the tagged path contains the legacy path as a prefix, sequential string
+	// replacements cannot express this: a plain ReplaceAll(legacy, tagged) would also
+	// rewrite an already-tagged path a second time.
+	engineImport := regexp.MustCompile(`github\.com/argoproj/argo-cd/gitops-engine/(?:(?:v3|__V3__)/)*`)
+
+	for _, root := range moduleRoots {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				name := info.Name()
+				// Skip vendored code, git metadata, and this updater (which documents the
+				// legacy module path in comments/format strings).
+				if name == "vendor" || name == ".git" || name == "update-dependencies-script" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(path, ".go") {
+				return nil
+			}
+			bytes, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			contents := string(bytes)
+			if !strings.Contains(contents, legacy) {
+				return nil
+			}
+			updated := engineImport.ReplaceAllString(contents, tagged)
+			if updated == contents {
+				return nil
+			}
+			return os.WriteFile(path, []byte(updated), 0o600)
+		})
+		if err != nil {
+			utils.ExitWithError(fmt.Errorf("unable to rewrite gitops-engine imports under %s: %v", root, err))
+		}
+	}
+}
+
+// syncK8sReplaceVersionsFromArgoCD rewrites k8s.io/* replace directives in destGoMod to match
+// the versions pinned in argoCDGoMod, leaving non-k8s replace entries (e.g. CVE pins) untouched.
+func syncK8sReplaceVersionsFromArgoCD(destGoMod string, argoCDGoMod string) {
+	argoLines := utils.GetFileContentsAsLines(argoCDGoMod)
+	versionByModule := map[string]string{}
+	for _, line := range argoLines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "k8s.io/") || !strings.Contains(trimmed, "=>") {
+			continue
+		}
+		parts := strings.Fields(trimmed)
+		// expected: k8s.io/api => k8s.io/api v0.37.0
+		if len(parts) < 4 || parts[1] != "=>" {
+			continue
+		}
+		versionByModule[parts[0]] = parts[len(parts)-1]
+	}
+	if len(versionByModule) == 0 {
+		utils.ExitWithError(fmt.Errorf("no k8s.io replace directives found in %s", argoCDGoMod))
+		return
+	}
+
+	destLines := utils.GetFileContentsAsLines(destGoMod)
+	newContent := ""
+	updated := 0
+	for _, line := range destLines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "k8s.io/") && strings.Contains(trimmed, "=>") {
+			parts := strings.Fields(trimmed)
+			if len(parts) >= 4 && parts[1] == "=>" {
+				if ver, ok := versionByModule[parts[0]]; ok {
+					indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+					newContent += indent + parts[0] + " => " + parts[2] + " " + ver + "\n"
+					updated++
+					continue
+				}
+			}
+		}
+		newContent += line + "\n"
+	}
+	if updated == 0 {
+		utils.ExitWithError(fmt.Errorf("no k8s.io replace directives updated in %s", destGoMod))
+		return
+	}
+	if err := os.WriteFile(destGoMod, []byte(strings.TrimSpace(newContent)+"\n"), 0o600); err != nil {
+		utils.ExitWithError(fmt.Errorf("unable to write to file: %s %v", destGoMod, err))
+	}
+	fmt.Printf("Synced %d k8s.io replace pins in %s from Argo CD go.mod\n", updated, destGoMod)
 }
 
 // replaceLineInCommonDefaultGo updates a line in 'common/defaults.go' beginning with 'variableToReplace' with a different container image digest and version comment

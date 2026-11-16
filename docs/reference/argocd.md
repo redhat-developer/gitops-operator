@@ -192,6 +192,8 @@ Annotations | [Empty] | Custom annotations to pods deployed by the operator
 Labels | [Empty] | Custom labels to pods deployed by the operator
 Metrics.Interval | [Empty] | Prometheus scrape interval for the Application Controller ServiceMonitor. If empty, Prometheus uses its default.
 Metrics.ScrapeTimeout | [Empty] | Prometheus scrape timeout for the Application Controller ServiceMonitor. If empty, Prometheus uses its default.
+GoRuntime.Enabled | true | Whether to enable automatic Go runtime tuning (`GOMEMLIMIT`, `GOMAXPROCS`) for the ArgoCD Application Controller. Cannot re-enable tuning when the operator-level `DISABLE_GO_RUNTIME_TUNING` kill switch is set. |
+GoRuntime.MemoryLimitPercent | 80 | The percentage (1-100) of the memory limit used to compute `GOMEMLIMIT`. The remaining headroom is reserved for non-heap memory and garbage collection overhead. | Must be between 1 and 100
 
 ### Controller Example
 
@@ -267,6 +269,26 @@ spec:
     sharding:
       enabled: true
       replicas: 5
+```
+
+The following example shows how to configure automatic Go runtime tuning of the Argo CD Application Controller. `GOMEMLIMIT` will be computed as 75% of the controller memory limit; `GOMAXPROCS` is always derived at 100% of the CPU limit.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: example-argocd
+  labels:
+    example: controller
+spec:
+  controller:
+    resources:
+      limits:
+        cpu: '2'
+        memory: 2Gi
+    goRuntime:
+      enabled: true
+      memoryLimitPercent: 75
 ```
 
 The following example shows how to configure initContainers for the ArgoCD Application Controller component.
@@ -549,6 +571,19 @@ The following properties are available for configuring the Image Updater control
 | Image     | [Empty] | The container image for Image Updater. Takes precedence over the `ARGOCD_IMAGE_UPDATER_IMAGE` environment variable; when both are unset, defaults to the stable Image Updater image at quay.io for this version of OpenShift GitOps. |
 | Env       | [Empty] | Environment to set for the image updater workloads.                                                                                                                                                                                  |
 | Resources | [Empty] | The container compute resources.                                                                                                                                                                                                     |
+| WebhookServer | [Empty] | Options for exposing the Image Updater webhook server. See [Image Updater Webhook Server Options](#image-updater-webhook-server-options).                                                                                     |
+
+### Image Updater Webhook Server Options
+
+The following properties are available under `.spec.imageUpdater.webhookServer`. See the [Image Updater usage guide](../usage/image-updater.md#webhook) for details.
+
+| Name     | Default | Description |
+|----------|---------|-------------|
+| Host     | [Empty] | The hostname to use for the Route or Ingress. For a Route, defaults to `<instance-name>-image-updater-webhook-<namespace>.<apps-domain>`. |
+| Ingress  | [Object] | Ingress configuration options. The webhook server is exposed when `ingress.enabled` is `true`. |
+| Route    | [Object] | Route configuration options. The webhook server is exposed when `route.enabled` is `true`. |
+| Insecure | `false` | Disable TLS on the webhook server, which then serves plain HTTP on port `8082`. When `false`, the server uses an OpenShift service serving certificate and the Route defaults to `reencrypt` termination. When `true`, no certificate is requested and the Route defaults to `edge` termination; registries still connect to an `edge` Route over HTTPS, and only the router-to-pod leg is plain HTTP. An Ingress relies on `ingress.tls` for the external connection. |
+| Secrets  | [Empty] | References to Secret keys holding the per-registry webhook secrets: `docker`, `ghcr`, `quay`, `harbor`, `acr`, `aliyunACR`, `cloudEvents`. Each entry has a `name` and a `key`. |
 
 ### Image Updater Controller Example
 
