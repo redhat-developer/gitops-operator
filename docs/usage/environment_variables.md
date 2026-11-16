@@ -14,6 +14,7 @@ The following environment variables are available in GitOps Operator:
 | `ARGOCD_LABEL_SELECTOR` | none | The label selector can be set on gitops-operator by exporting `ARGOCD_LABEL_SELECTOR` (eg: `export ARGOCD_LABEL_SELECTOR=foo=bar`). The labels can be added to the argocd instances using the command `kubectl label argocd test1 foo=bar -n test-argocd`. This will enable the operator instance to be tailored to oversee only the corresponding ArgoCD instances having the matching label selector. |
 | `LOG_LEVEL` | info | This sets the logging level of the manager (operator) pod. Valid values are "debug", "info", "warn", "error", "panic" and "fatal". |
 | `MEMORY_OPTIMIZATION_ENABLED` | true | When set to `false`, disables the memory optimization that strips data from Secrets and ConfigMaps that are not tracked by the operator. This optimization helps reduce memory usage. |
+| `DISABLE_GO_RUNTIME_TUNING` | false | When set to `true`, disables automatic Go runtime tuning (`GOMEMLIMIT`, `GOMAXPROCS`) of the Argo CD Application Controller for all Argo CD instances. See [Go Runtime Tuning](go-runtime-tuning.md). |
 
 
 Custom Environment Variables are supported in `applicationSet`, `controller`, `notifications`, `repo` and `server` components. For example:
