@@ -61,7 +61,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating namespace-scoped Argo CD instance")
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating webhook workload and configuration that will output to console when webhooks are received")
 
