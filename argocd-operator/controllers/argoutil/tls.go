@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -199,13 +200,16 @@ func MapCipherSuites(names []string) []string {
 
 // openShiftTLSGroupToGoCurve maps OpenShift TLSGroup names to crypto/tls CurveID
 // String() values accepted by Go-based components (e.g. gitops-backend).
-// Groups without a Go CurveID (e.g. SecP256r1MLKEM768) are omitted.
+// Only OpenShift TLSGroups that have a matching crypto/tls CurveID are listed;
+// pure-PQ CurveIDs such as MLKEM1024 are omitted because OpenShift has no TLSGroup for them.
 var openShiftTLSGroupToGoCurve = map[configv1.TLSGroup]string{
-	configv1.TLSGroupX25519:         tls.X25519.String(),
-	configv1.TLSGroupSecP256r1:      tls.CurveP256.String(),
-	configv1.TLSGroupSecP384r1:      tls.CurveP384.String(),
-	configv1.TLSGroupSecP521r1:      tls.CurveP521.String(),
-	configv1.TLSGroupX25519MLKEM768: tls.X25519MLKEM768.String(),
+	configv1.TLSGroupX25519:             tls.X25519.String(),
+	configv1.TLSGroupSecP256r1:          tls.CurveP256.String(),
+	configv1.TLSGroupSecP384r1:          tls.CurveP384.String(),
+	configv1.TLSGroupSecP521r1:          tls.CurveP521.String(),
+	configv1.TLSGroupX25519MLKEM768:     tls.X25519MLKEM768.String(),
+	configv1.TLSGroupSecP256r1MLKEM768:  tls.SecP256r1MLKEM768.String(),
+	configv1.TLSGroupSecP384r1MLKEM1024: tls.SecP384r1MLKEM1024.String(),
 }
 
 // MapOpenShiftTLSGroupsToGoCurves converts OpenShift TLS groups to a
@@ -236,6 +240,47 @@ func MapOpenShiftTLSGroupsToGoCurves(groups []configv1.TLSGroup, component strin
 		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
 	}
 	return strings.Join(names, ":"), nil
+}
+
+// openShiftTLSGroupToGoCurveID maps OpenShift TLSGroup names to numeric
+// crypto/tls CurveID values accepted by gitops-promoter's
+// --tls-curve-preferences flag. Kept in sync with openShiftTLSGroupToGoCurve.
+var openShiftTLSGroupToGoCurveID = map[configv1.TLSGroup]tls.CurveID{
+	configv1.TLSGroupX25519:             tls.X25519,
+	configv1.TLSGroupSecP256r1:          tls.CurveP256,
+	configv1.TLSGroupSecP384r1:          tls.CurveP384,
+	configv1.TLSGroupSecP521r1:          tls.CurveP521,
+	configv1.TLSGroupX25519MLKEM768:     tls.X25519MLKEM768,
+	configv1.TLSGroupSecP256r1MLKEM768:  tls.SecP256r1MLKEM768,
+	configv1.TLSGroupSecP384r1MLKEM1024: tls.SecP384r1MLKEM1024,
+}
+
+// MapOpenShiftTLSGroupsToGoCurveIDs converts OpenShift TLS groups to a
+// comma-separated list of numeric Go crypto/tls CurveID values (e.g. "29,23,24")
+// for components that accept Int32Slice CLI flags such as gitops-promoter.
+// Unsupported groups are skipped and logged. If groups is non-empty but none
+// are supported by Go, an error is returned so callers do not treat an
+// incompatible profile as an absent preference.
+func MapOpenShiftTLSGroupsToGoCurveIDs(groups []configv1.TLSGroup, component string) (string, error) {
+	if len(groups) == 0 {
+		return "", nil
+	}
+	ids := make([]string, 0, len(groups))
+	skipped := make([]configv1.TLSGroup, 0)
+	for _, group := range groups {
+		if id, ok := openShiftTLSGroupToGoCurveID[group]; ok {
+			ids = append(ids, strconv.FormatUint(uint64(id), 10))
+			continue
+		}
+		skipped = append(skipped, group)
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("TLS curve preference profile is incompatible with %s: none of the configured groups are supported by Go crypto/tls: %v", component, groups)
+	}
+	if len(skipped) > 0 {
+		log.Info("skipping unsupported TLS curve preference groups", "component", component, "groups", skipped)
+	}
+	return strings.Join(ids, ","), nil
 }
 
 // supportedOpenSSLTLSGroups lists OpenShift TLS groups whose IANA names are
