@@ -57,7 +57,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx                 context.Context
 			argoCD              *argov1beta1api.ArgoCD
 			ns                  *corev1.Namespace
-			cleanupFunc         func()
 			principalDeployment *appsv1.Deployment
 			agentDeployment     *appsv1.Deployment
 		)
@@ -68,7 +67,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, argocd-spiffe-1-136")
 
 			ctx = context.Background()
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-spiffe-1-136")
+			DeferCleanup(cleanupFunc)
 
 			// Add privileged Pod Security Admission labels required for SPIFFE CSI driver
 			By("Adding privileged pod security labels to namespace for SPIFFE CSI driver")
@@ -93,13 +94,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name:      argoCDAgentAgentName,
 					Namespace: ns.Name,
 				},
-			}
-		})
-
-		AfterEach(func() {
-			By("Cleanup namespace")
-			if cleanupFunc != nil {
-				cleanupFunc()
 			}
 		})
 

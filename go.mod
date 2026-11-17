@@ -5,7 +5,7 @@ go 1.27.0
 replace github.com/redhat-developer/gitops-operator/argocd-operator => ./argocd-operator
 
 require (
-	github.com/argoproj-labs/argo-rollouts-manager v0.10.1-0.20261106150320-e3de64a38974
+	github.com/argoproj-labs/argo-rollouts-manager v0.10.1-0.20261113233154-b9d5c7863c95
 	github.com/argoproj-labs/argocd-image-updater v1.5.0
 	github.com/argoproj-labs/gitops-promoter v0.35.1
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.1

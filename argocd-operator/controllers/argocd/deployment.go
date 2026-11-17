@@ -400,7 +400,8 @@ func newDeploymentWithName(name string, component string, cr *argoproj.ArgoCD) *
 				Annotations: make(map[string]string),
 			},
 			Spec: corev1.PodSpec{
-				NodeSelector: common.DefaultNodeSelector(),
+				NodeSelector:                 common.DefaultNodeSelector(),
+				AutomountServiceAccountToken: new(false),
 			},
 		},
 	}
@@ -632,6 +633,10 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 		if !reflect.DeepEqual(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
 			existing.Spec.Template.Labels = deploy.Spec.Template.Labels
 			changes = append(changes, "labels")
+		}
+		if !reflect.DeepEqual(deploy.Spec.Template.Spec.AutomountServiceAccountToken, existing.Spec.Template.Spec.AutomountServiceAccountToken) {
+			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			changes = append(changes, "automountServiceAccountToken")
 		}
 
 		if len(changes) > 0 {
@@ -917,6 +922,10 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 			existing.Spec.Template.Spec.ServiceAccountName = deploy.Spec.Template.Spec.ServiceAccountName
 			changes = append(changes, "serviceAccountName")
 		}
+		if !reflect.DeepEqual(deploy.Spec.Template.Spec.AutomountServiceAccountToken, existing.Spec.Template.Spec.AutomountServiceAccountToken) {
+			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			changes = append(changes, "automountServiceAccountToken")
+		}
 		if len(changes) > 0 {
 			argoutil.LogResourceUpdate(log, existing, "updating", strings.Join(changes, ", "))
 			return r.Update(context.TODO(), existing)
@@ -1031,6 +1040,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 		VolumeMounts:    serverVolumeMounts,
 	}}
 	deploy.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr.Name, common.ArgoCDServerComponent)
+	deploy.Spec.Template.Spec.AutomountServiceAccountToken = new(true)
 
 	serverVolumes := []corev1.Volume{
 		{
@@ -1315,6 +1325,10 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 		if !reflect.DeepEqual(deploy.Spec.Template.Spec.ServiceAccountName, existing.Spec.Template.Spec.ServiceAccountName) {
 			existing.Spec.Template.Spec.ServiceAccountName = deploy.Spec.Template.Spec.ServiceAccountName
 			changes = append(changes, "serviceAccountName")
+		}
+		if !reflect.DeepEqual(deploy.Spec.Template.Spec.AutomountServiceAccountToken, existing.Spec.Template.Spec.AutomountServiceAccountToken) {
+			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			changes = append(changes, "automountServiceAccountToken")
 		}
 
 		if len(changes) > 0 {
