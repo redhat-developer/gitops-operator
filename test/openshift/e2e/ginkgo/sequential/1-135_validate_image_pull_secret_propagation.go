@@ -142,7 +142,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance")
 			argocdNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 			}
@@ -171,7 +171,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance")
 			argocdNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 			}
@@ -196,7 +196,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance a new namespace")
 			argocdNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 			}
@@ -263,7 +263,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer argocdNSCleanup()
+			DeferCleanup(argocdNSCleanup)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 			}
@@ -291,7 +291,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer argocdNSCleanup()
+			DeferCleanup(argocdNSCleanup)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 			}
@@ -319,7 +319,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance with HA enabled in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer argocdNSCleanup()
+			DeferCleanup(argocdNSCleanup)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -341,7 +341,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance with Dex SSO enabled in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer argocdNSCleanup()
+			DeferCleanup(argocdNSCleanup)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
@@ -364,7 +364,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating the ArgoCD instance with Dex SSO enabled in a separate namespace")
 			argocdNS, argocdNSCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer argocdNSCleanup()
+			DeferCleanup(argocdNSCleanup)
 			argoCD := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "example-argocd", Namespace: argocdNS.Name},
 				Spec: argov1beta1api.ArgoCDSpec{
