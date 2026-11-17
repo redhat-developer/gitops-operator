@@ -14952,7 +14952,7 @@ spec:
                   The only keys currently supported for this parameter are:
                   - controller.resource.health.persist
                   - applicationsetcontroller.enable.tokenref.strict.mode — when ApplicationSet-in-any-namespace is active, the operator defaults this to "true"
-                  - server.disable.swagger.ui — set to "true" to stop the Argo CD server from serving the Swagger UI and the OpenAPI specification; ARGOCD_SERVER_DISABLE_SWAGGER_UI in .spec.server.env takes precedence over this key
+                  - server.disable.swagger.ui — set to "true" to stop the Argo CD server from serving the Swagger UI and the OpenAPI specification. Requires Argo CD v3.6 or later; earlier versions ignore it. ARGOCD_SERVER_DISABLE_SWAGGER_UI in .spec.server.env takes precedence over this key
                 type: object
               commitServer:
                 description: CommitServer defines the options for the ArgoCD Commit
