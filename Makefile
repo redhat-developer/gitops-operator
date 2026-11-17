@@ -62,6 +62,9 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE):$(VERSION)
 
+# Set VERSION or override the full AI controller image.
+GITOPS_AI_CONTROLLER_IMG ?= quay.io/redhat-developer/gitops-ai-controller:v$(VERSION)
+
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.35.0
@@ -206,6 +209,16 @@ docker-build: test ## Build container image with the manager.
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.
 	$(CONTAINER_RUNTIME) push ${IMG}
+
+.PHONY: docker-build-gitops-ai-controller
+docker-build-gitops-ai-controller: ## Build the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) build $(if $(PLATFORM),--platform $(PLATFORM)) -f Dockerfile.gitops-ai-controller \
+		--build-arg COMMIT=$(shell git rev-parse --short HEAD) \
+		-t $(GITOPS_AI_CONTROLLER_IMG) .
+
+.PHONY: docker-push-gitops-ai-controller
+docker-push-gitops-ai-controller: ## Push the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) push $(GITOPS_AI_CONTROLLER_IMG)
 
 ##@ Build Dependencies
 

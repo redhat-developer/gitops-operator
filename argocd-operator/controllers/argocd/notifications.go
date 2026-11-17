@@ -99,6 +99,13 @@ func (r *ReconcileArgoCD) reconcileNotificationsController(cr *argoproj.ArgoCD) 
 		}
 	}
 
+	if AINotificationsEnabled(cr) {
+		log.Info("reconciling AI notifications configuration")
+	}
+	if err := r.reconcileAINotifications(cr); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -125,7 +132,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsConfigurationCR(cr *argoproj.Arg
 		}
 
 		// NotificationsConfiguration doesn't exist and shouldn't, nothing to do here
-		if !isNotificationsEnabled(cr) {
+		if !shouldRunNotificationsController(cr) {
 			return nil
 		}
 
@@ -136,7 +143,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsConfigurationCR(cr *argoproj.Arg
 		}
 	}
 
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		argoutil.LogResourceDeletion(log, defaultNotificationsConfigurationCR, "notifications are disabled")
 		return r.Delete(context.TODO(), defaultNotificationsConfigurationCR)
 	}
@@ -220,7 +227,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsServiceAccount(cr *argoproj.Argo
 		}
 
 		// SA doesn't exist and shouldn't, nothing to do here
-		if !isNotificationsEnabled(cr) {
+		if !shouldRunNotificationsController(cr) {
 			return nil, nil
 		}
 
@@ -245,7 +252,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsServiceAccount(cr *argoproj.Argo
 	}
 
 	// SA exists but shouldn't, so it should be deleted
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		argoutil.LogResourceDeletion(log, sa, "notifications are disabled")
 		return nil, r.Delete(context.TODO(), sa)
 	}
@@ -285,7 +292,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRole(cr *argoproj.ArgoCD) (*rbac
 		}
 
 		// role does not exist and shouldn't, nothing to do here
-		if !isNotificationsEnabled(cr) {
+		if !shouldRunNotificationsController(cr) {
 			return nil, nil
 		}
 
@@ -303,7 +310,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRole(cr *argoproj.ArgoCD) (*rbac
 	}
 
 	// role exists but shouldn't, so it should be deleted
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		argoutil.LogResourceDeletion(log, existingRole, "notifications are disabled")
 		return nil, r.Delete(context.TODO(), existingRole)
 	}
@@ -349,7 +356,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRoleBinding(cr *argoproj.ArgoCD,
 		}
 
 		// roleBinding does not exist and shouldn't, nothing to do here
-		if !isNotificationsEnabled(cr) {
+		if !shouldRunNotificationsController(cr) {
 			return nil
 		}
 
@@ -363,7 +370,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRoleBinding(cr *argoproj.ArgoCD,
 	}
 
 	// roleBinding exists but shouldn't, so it should be deleted
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		argoutil.LogResourceDeletion(log, existingRoleBinding, "notifications are disabled")
 		return r.Delete(context.TODO(), existingRoleBinding)
 	}
@@ -391,7 +398,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsClusterRole(cr *argoproj.ArgoCD)
 
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
 	// controller disabled, don't create resources
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		allowed = false
 	}
 
@@ -438,7 +445,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsClusterRoleBinding(cr *argoproj.
 
 	allowed := argoutil.IsNamespaceClusterConfigNamespace(cr.Namespace)
 	// controller disabled, don't create resources
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		allowed = false
 	}
 
@@ -514,7 +521,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsDeployment(cr *argoproj.ArgoCD, 
 		return err
 	}
 
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		if deplExists {
 			argoutil.LogResourceDeletion(log, desiredDeployment, "notifications not enabled")
 			return r.Delete(context.TODO(), desiredDeployment)
@@ -589,7 +596,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsDeployment(cr *argoproj.ArgoCD, 
 		WorkingDir: "/app",
 	}}
 
-	return r.reconcileDeploymentHelper(cr, desiredDeployment, "notifications", cr.Spec.Notifications.Enabled)
+	return r.reconcileDeploymentHelper(cr, desiredDeployment, "notifications", shouldRunNotificationsController(cr))
 }
 
 // reconcileNotificationsService will ensure that the Service for the Notifications controller metrics is present.
@@ -675,7 +682,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsSecret(cr *argoproj.ArgoCD) erro
 
 	if secretExists {
 		// secret exists but shouldn't, so it should be deleted
-		if !isNotificationsEnabled(cr) {
+		if !shouldRunNotificationsController(cr) {
 			argoutil.LogResourceDeletion(log, existingSecret, "notifications are disabled")
 			return r.Delete(context.TODO(), existingSecret)
 		}
@@ -685,7 +692,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsSecret(cr *argoproj.ArgoCD) erro
 	}
 
 	// secret doesn't exist and shouldn't, nothing to do here
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		return nil
 	}
 
@@ -1018,6 +1025,13 @@ func (r *ReconcileArgoCD) removeUnmanagedNotificationsSourceNamespaceResources(c
 // isNotificationsEnabled returns true if notifications are configured and enabled in the ArgoCD CR
 func isNotificationsEnabled(cr *argoproj.ArgoCD) bool {
 	return !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) && cr.Spec.Notifications.Enabled
+}
+
+// shouldRunNotificationsController returns true when the notifications controller
+// should be running — either because user-notifications are configured and enabled,
+// or because AI troubleshooting needs the controller to deliver webhooks.
+func shouldRunNotificationsController(cr *argoproj.ArgoCD) bool {
+	return isNotificationsEnabled(cr) || AINotificationsEnabled(cr)
 }
 
 // cleanupUnmanagedNotificationsSourceNamespaceResources removes the notifications resources from target namespace
