@@ -59,16 +59,16 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Creating namespaces")
 
 			centralArgoCDNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-cluster-config")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			test_1_24_customNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-1-24-custom")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			test_2_24_customNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("test-2-24-custom")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			longnsNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("longns-abcdefghijklmnopqrstuvwxyz-123456789012345")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating argocd instance in central-argocd, with the other namespaces as source namespaces")
 

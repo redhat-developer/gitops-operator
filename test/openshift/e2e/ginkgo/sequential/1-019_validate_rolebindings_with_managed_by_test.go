@@ -51,11 +51,11 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("creating a namespace for containing central Argo CD")
 			centralArgoCD_NS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("central-argocd")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a namespace that is managed by the above ArgoCD instance")
 			argocd1_NS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("argocd-1", centralArgoCD_NS.Name)
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a namespace in central-argocd")
 			argoCD_central := &argov1beta1api.ArgoCD{
