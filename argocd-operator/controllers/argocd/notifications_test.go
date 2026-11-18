@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	testclient "k8s.io/client-go/kubernetes/fake"
 
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	promoter "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -29,7 +31,100 @@ import (
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/common"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
+	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/notificationsconfiguration"
 )
+
+func TestReconcileNotifications_TrackExistingConfigMap(t *testing.T) {
+	for _, sourceNamespace := range []bool{false, true} {
+		for _, tc := range []struct {
+			name          string
+			enabled       bool
+			existingCR    bool
+			trackingLabel string
+			deleting      bool
+			wantTracked   bool
+		}{
+			{name: "enabling", enabled: true, wantTracked: true},
+			{name: "upgrading", enabled: true, existingCR: true, wantTracked: true},
+			{name: "disabled", existingCR: true},
+			{name: "already tracked", enabled: true, existingCR: true, trackingLabel: common.ArgoCDAppName, wantTracked: true},
+			{name: "conflicting label", enabled: true, existingCR: true, trackingLabel: "another-operator"},
+			{name: "deleting", enabled: true, existingCR: true, deleting: true},
+		} {
+			t.Run(fmt.Sprintf("sourceNamespace=%t/%s", sourceNamespace, tc.name), func(t *testing.T) {
+				a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+					a.Spec.Notifications.Enabled = tc.enabled
+				})
+				namespace := a.Namespace
+				if sourceNamespace {
+					namespace = "source-namespace"
+				}
+				cm := &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      notificationsconfiguration.ArgoCDNotificationsConfigMap,
+						Namespace: namespace,
+						Labels:    map[string]string{"custom": "preserved"},
+					},
+					Data: map[string]string{"context": "region: east\n"},
+				}
+				if tc.trackingLabel != "" {
+					cm.Labels[common.ArgoCDTrackedByOperatorLabel] = tc.trackingLabel
+				}
+				if tc.deleting {
+					now := metav1.Now()
+					cm.DeletionTimestamp = &now
+					cm.Finalizers = []string{"example.com/cleanup"}
+				}
+				objects := []client.Object{a, cm}
+				if tc.existingCR {
+					objects = append(objects, &v1alpha1.NotificationsConfiguration{
+						ObjectMeta: metav1.ObjectMeta{Name: DefaultNotificationsConfigurationInstanceName, Namespace: namespace},
+						Spec:       v1alpha1.NotificationsConfigurationSpec{Context: map[string]string{"region": "west"}},
+					})
+				}
+				sch := makeTestReconcilerScheme(argoproj.AddToScheme, v1alpha1.AddToScheme)
+				cl := makeTestReconcilerClient(sch, objects, nil, nil)
+				r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+				key := client.ObjectKeyFromObject(cm)
+				before := &v1.ConfigMap{}
+				require.NoError(t, cl.Get(context.TODO(), key, before))
+
+				reconcileConfig := func() error {
+					if sourceNamespace {
+						return r.reconcileSourceNamespaceNotificationsConfigurationCR(a, namespace)
+					}
+					return r.reconcileNotificationsConfigurationCR(a)
+				}
+				require.NoError(t, reconcileConfig())
+				updated := &v1.ConfigMap{}
+				require.NoError(t, cl.Get(context.TODO(), key, updated))
+				assert.Equal(t, tc.wantTracked, argoutil.IsTrackedByOperator(updated.Labels))
+				assert.Equal(t, before.Data, updated.Data, "adding the label must preserve configuration")
+				assert.Equal(t, "preserved", updated.Labels["custom"])
+				if tc.trackingLabel != "" {
+					assert.Equal(t, tc.trackingLabel, updated.Labels[common.ArgoCDTrackedByOperatorLabel])
+				}
+				if !tc.wantTracked || tc.trackingLabel != "" {
+					assert.Equal(t, before.ResourceVersion, updated.ResourceVersion)
+				}
+
+				version := updated.ResourceVersion
+				require.NoError(t, reconcileConfig())
+				require.NoError(t, cl.Get(context.TODO(), key, updated))
+				assert.Equal(t, version, updated.ResourceVersion, "repeated reconciliation must not rewrite the label")
+
+				if tc.wantTracked && tc.existingCR {
+					// The upgraded notifications controller can now apply the existing CR.
+					notifications := &notificationsconfiguration.NotificationsConfigurationReconciler{Client: cl, Scheme: sch}
+					_, err := notifications.Reconcile(context.TODO(), reconcile.Request{NamespacedName: key})
+					require.NoError(t, err)
+					require.NoError(t, cl.Get(context.TODO(), key, updated))
+					assert.Equal(t, "region: west\n", updated.Data["context"])
+				}
+			})
+		}
+	}
+}
 
 func TestReconcileNotifications_CreateRoles(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
