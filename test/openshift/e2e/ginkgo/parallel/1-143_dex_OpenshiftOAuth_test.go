@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating namespace for test")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating an ArgoCD instance with OpenShiftOAuth enabled")
 			argoCD := &argov1beta1api.ArgoCD{

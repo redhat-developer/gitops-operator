@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensures that setting .spec.controller.respectRBAC will cause that value to be set in Argo CD's argocd-cm ConfigMap, and that invalid values are ignored", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating basic Argo CD instance with respect RBAC set to normal")
 
