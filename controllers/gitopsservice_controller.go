@@ -1117,25 +1117,6 @@ func policyRuleForBackendServiceClusterRole() []rbacv1.PolicyRule {
 			Verbs: []string{
 				"get",
 				"list",
-				"patch",
-				"watch",
-			},
-		},
-		{
-			APIGroups: []string{
-				"agentic.openshift.io",
-			},
-			Resources: []string{
-				"agenticruns",
-				"agenticrunapprovals",
-				"analysisresults",
-				"escalationresults",
-				"executionresults",
-				"verificationresults",
-			},
-			Verbs: []string{
-				"get",
-				"list",
 				"watch",
 			},
 		},
