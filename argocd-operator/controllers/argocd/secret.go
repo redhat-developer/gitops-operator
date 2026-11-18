@@ -1159,7 +1159,7 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 	if newExists {
 		if secretIsComplete(new) {
 			// Healthy - keep it
-			return r.deleteLegacyRedisSecret(cr)
+			return r.deleteLegacyRedisSecretWithUsageCheck(cr)
 		}
 		// secret not healthy, update
 		new = argoutil.NewSecretWithName(cr, ARGOCD_REDIS)
@@ -1175,7 +1175,7 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 			return err
 		}
 
-		if err := r.deleteLegacyRedisSecret(cr); err != nil {
+		if err := r.deleteLegacyRedisSecretWithUsageCheck(cr); err != nil {
 			return err
 		}
 		argoutil.LogResourceUpdate(log, new)
@@ -1208,7 +1208,7 @@ func (r *ReconcileArgoCD) reconcileRedisSecret(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
-	if err := r.deleteLegacyRedisSecret(cr); err != nil {
+	if err := r.deleteLegacyRedisSecretWithUsageCheck(cr); err != nil {
 		return err
 	}
 	argoutil.LogResourceCreation(log, new)
@@ -1282,7 +1282,7 @@ func secretReferencedByPodSpec(spec *corev1.PodSpec, secretName string) bool {
 	return false
 }
 
-func (r *ReconcileArgoCD) deleteLegacyRedisSecret(cr *argoproj.ArgoCD) error {
+func (r *ReconcileArgoCD) deleteLegacyRedisSecretWithUsageCheck(cr *argoproj.ArgoCD) error {
 	// Delete [instance]-redis-initial-password
 	legacy := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
 
