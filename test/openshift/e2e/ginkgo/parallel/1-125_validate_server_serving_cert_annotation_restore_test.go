@@ -49,7 +49,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("restores service.beta.openshift.io/serving-cert-secret-name when Route TLS returns from passthrough to default reencrypt", func() {
+		It("restores service.beta.openshift.io/serving-cert-secret-name when Route TLS returns from passthrough to default reencrypt", Label("openshift"), func() {
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 			defer nsCleanup()
 

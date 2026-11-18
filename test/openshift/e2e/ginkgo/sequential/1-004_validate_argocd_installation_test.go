@@ -28,12 +28,13 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-004_validate_argocd_installation", func() {
+		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 		})
 
-		It("verifies that default openshift-gitops Argo CD instance becomes available after modifying .spec.controller.processors.operation value", func() {
+		It("verifies that default openshift-gitops Argo CD instance becomes available after modifying .spec.controller.processors.operation value", Label("openshift"), func() {
 
 			By("verifying default openshift-gitops Argo CD instance is available")
 			argocd, err := argocdFixture.GetOpenShiftGitOpsNSArgoCD()

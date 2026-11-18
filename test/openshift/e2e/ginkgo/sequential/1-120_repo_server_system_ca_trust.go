@@ -27,7 +27,7 @@ import (
 
 	"github.com/onsi/gomega/gcustom"
 	matcher "github.com/onsi/gomega/types"
-	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/clusterserviceversion"
+	olmv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -81,7 +81,7 @@ var (
 )
 
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
-	Context("1-120_repo_server_system_ca_trust", func() {
+	Context("1-120_repo_server_system_ca_trust", Label("openshift"), func() {
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()
 
@@ -91,7 +91,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			clusterSupportsClusterTrustBundles = detectClusterTrustBundleSupport(k8sClient, ctx)
 
 			// The differences between the upstream image using Ubuntu, and the downstream one using rhel.
-			image, imageVersion = getArgoCDComponentImageAndVersion()
+			image, imageVersion = getArgoCDComponentImageAndVersion(k8sClient, ctx)
 		})
 
 		AfterEach(func() {
@@ -100,7 +100,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			purgeCtbs()
 		})
 
-		It("ensures that missing Secret aborts startup", func() {
+		It("ensures that missing Secret aborts startup", Label("openshift"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with missing Secret")
@@ -162,7 +162,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			)))
 		})
 
-		It("ensures that CMs and Secrets are trusted in repo-server and plugins", func() {
+		It("ensures that CMs and Secrets are trusted in repo-server and plugins", Label("openshift"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			cmCert := createCmFromCert(ns, getCACert("github.com"))
@@ -210,7 +210,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			verifyCorrectlyConfiguredTrust(ns)
 		})
 
-		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", func() {
+		It("ensures that 0 trusted certs with DropImageCertificates trusts nothing", Label("openshift"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -242,7 +242,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(trustedHelmApp).Should(appFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeUnknown))
 		})
 
-		It("ensures that empty trust keeps image certs in place", func() {
+		It("ensures that empty trust keeps image certs in place", Label("openshift"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust")
@@ -256,7 +256,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Expect(repoServerSystemCaTrust(ns)).Should(trustCerts(BeNumerically(">", 100), Not(BeEmpty())))
 		})
 
-		It("ensures that Secrets and ConfigMaps get reconciled", func() {
+		It("ensures that Secrets and ConfigMaps get reconciled", Label("openshift"), func() {
 			ns, cleanupNs = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
 
 			By("creating Argo CD instance with empty system trust, but full of anticipation")
@@ -901,13 +901,21 @@ func purgeCtbs() {
 // getArgoCDComponentImageAndVersion ensures rhel based image is used for testing this.
 // If this is installed as a full-blown operator, use its images.
 // If not, inject bleeding-edge pre-release rhel-based images.
-func getArgoCDComponentImageAndVersion() (string, string) {
-	csv := clusterserviceversion.Get(ctx, k8sClient)
-	if csv != nil {
-		for _, image := range csv.Spec.RelatedImages {
-			if image.Name == "argocd_image" {
-				By("Detected operator image " + image.Image + ". Using it")
-				return "", ""
+// On xks (no OLM/CSV API), falls back to RHEL image — required because the operator's
+// CA trust init container uses RHEL-specific tools (update-ca-trust, trust).
+func getArgoCDComponentImageAndVersion(k8sClient client.Client, ctx context.Context) (string, string) {
+	var csvList olmv1alpha1.ClusterServiceVersionList
+	if err := k8sClient.List(ctx, &csvList, client.InNamespace("openshift-gitops-operator")); err == nil {
+		for idx := range csvList.Items {
+			idxCSV := csvList.Items[idx]
+			if !strings.Contains(idxCSV.Name, "gitops-operator") {
+				continue
+			}
+			for _, img := range idxCSV.Spec.RelatedImages {
+				if img.Name == "argocd_image" {
+					By("Detected operator image " + img.Image + ". Using it")
+					return "", ""
+				}
 			}
 		}
 	}
