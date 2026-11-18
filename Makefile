@@ -359,12 +359,16 @@ catalog-push: ## Push a catalog image.
 .PHONY: gosec
 gosec: go_sec
 	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager" --exclude-dir "argocd-operator/hack/"  ./...
+	cd argocd-operator && $(GO_SEC) --exclude-dir "hack/" ./...
+
+# Set LINT_AUTOFIX=false to report lint issues without applying fixes.
+LINT_AUTOFIX ?= true
 
 .PHONY: lint
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
-	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
-	cd argocd-operator && $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+	$(GOLANGCI_LINT) run --fix=$(LINT_AUTOFIX) --verbose --timeout 300s
+	cd argocd-operator && $(GOLANGCI_LINT) run --fix=$(LINT_AUTOFIX) --verbose --timeout 300s
 
 
 GO_SEC = $(shell pwd)/bin/gosec
