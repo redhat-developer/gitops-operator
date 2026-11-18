@@ -2264,6 +2264,11 @@ func (r *ReconcileArgoCD) reconcileDeploymentHelper(cr *argoproj.ArgoCD, desired
 		changes = append(changes, "selector")
 	}
 
+	if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken, desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken) {
+		existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken = desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken
+		changes = append(changes, "autoMountServiceAccountToken")
+	}
+
 	if len(changes) > 0 {
 		argoutil.LogResourceUpdate(log, existingDeployment, "updating", strings.Join(changes, ", "))
 		return r.Update(context.TODO(), existingDeployment)
@@ -2313,7 +2318,7 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 	}
 
 	log.Info("reconciling GitOps Promoter's Controller Deployment")
-	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme); err != nil {
+	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme, r.CentralTLSConfigProfile); err != nil {
 		return err
 	}
 
@@ -2347,6 +2352,11 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 
 	log.Info("reconciling GitOps Promoter's API Server Service")
 	if _, err = gitopspromoter.ReconcilePromoterAPIServerService(r.Client, apiServerCompName, cr); err != nil {
+		return err
+	}
+
+	log.Info("reconciling GitOps Promoter's API Server serving certificate Secret")
+	if _, err = gitopspromoter.ReconcilePromoterAPIServerServingCertSecret(r.Client, cr, r.Scheme); err != nil {
 		return err
 	}
 

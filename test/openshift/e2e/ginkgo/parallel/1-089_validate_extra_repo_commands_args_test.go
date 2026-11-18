@@ -51,7 +51,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensuring that extra args can be added to repo server via ArgoCD .spec.repo.extraRepoCommandArgs", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating simple, namespace-scoped ArgoCD CR")
 			argoCD := &argov1beta1api.ArgoCD{

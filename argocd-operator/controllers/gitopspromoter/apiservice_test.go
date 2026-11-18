@@ -363,6 +363,30 @@ func TestReconcilePromoterAPIServerAPIService_No_CABundle(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestReconcilePromoterAPIServerAPIService_BuiltIn_PreservesCABundle(t *testing.T) {
+	// Built-in cert rotation owns caBundle; operator updates must not wipe it.
+	cr := makeTestArgoCD(withPromoterEnabled(true), withPromoterAPIServerEnabled(true))
+
+	existingAPIService := makeExistingAPIService(cr)
+	existingAPIService.Spec.CABundle = []byte(testCACertData)
+	existingAPIService.Spec.Service.Port = ptr.To(int32(25565))
+
+	resObjs := []client.Object{cr, existingAPIService}
+	sch := makeTestReconcilerScheme()
+	client := makeTestReconcilerClient(sch, resObjs)
+
+	_, err := ReconcilePromoterAPIServerAPIService(client, testCompName, cr)
+	assert.NoError(t, err)
+
+	retrievedAPIService := &apiregistrationv1.APIService{}
+	err = client.Get(context.Background(), types.NamespacedName{
+		Name: "v1alpha1.view.promoter.argoproj.io",
+	}, retrievedAPIService)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte(testCACertData), retrievedAPIService.Spec.CABundle)
+	assert.Equal(t, ptr.To(int32(APIServerPort)), retrievedAPIService.Spec.Service.Port)
+}
+
 func TestReconcilePromoterAPIServerAPIService_Exists_Update(t *testing.T) {
 	// Test case: APIService exists and the service it is pointing to has been updated
 	// Expected behavior: the API service is updated to have the correct service reference

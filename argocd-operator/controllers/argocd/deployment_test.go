@@ -925,6 +925,7 @@ func TestReconcileArgoCD_reconcileRedisHAProxyDeployment_ModifyContainerSpec(t *
 			Namespace: a.Namespace,
 		},
 		deployment))
+	assert.False(t, *deployment.Spec.Template.Spec.AutomountServiceAccountToken)
 
 	// Modify the deployment container environment variables
 	deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
@@ -1362,6 +1363,7 @@ func TestReconcileArgoCD_reconcileServerDeployment(t *testing.T) {
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -1852,6 +1854,7 @@ func TestReconcileArgoCD_reconcileServerDeploymentWithInsecure(t *testing.T) {
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -1937,6 +1940,7 @@ func TestReconcileArgoCD_reconcileServerDeploymentChangedToInsecure(t *testing.T
 		},
 		deployment))
 	want := corev1.PodSpec{
+		AutomountServiceAccountToken: new(true),
 		Containers: []corev1.Container{
 			{
 				Name:            "argocd-server",
@@ -2069,6 +2073,7 @@ func TestReconcileArgoCD_reconcileRedisDeployment(t *testing.T) {
 	d := &appsv1.Deployment{}
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: cr.Name + "-redis", Namespace: cr.Namespace}, d))
 	assert.Equal(t, int32(3), *d.Spec.Replicas)
+	assert.False(t, *d.Spec.Template.Spec.AutomountServiceAccountToken)
 }
 
 func TestReconcileArgoCD_reconcileRedisDeployment_volumeUpdate(t *testing.T) {
@@ -3516,11 +3521,28 @@ func TestBuildTLSArgs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "omits curve preferences when all groups are unsupported",
+			name: "forwards hybrid PQC curve preferences",
 			centralTLS: tlsProfile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
 					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroupSecP384r1MLKEM1024,
+				},
+			},
+			expected: []string{
+				"--tlsminversion",
+				"1.2",
+				"--tlscurvepreferences",
+				"SecP256r1MLKEM768:SecP384r1MLKEM1024",
+			},
+			wantErr: false,
+		},
+		{
+			name: "omits curve preferences when all groups are unsupported",
+			centralTLS: tlsProfile.TLSConfigProfile{
+				MinVersion: configv1.VersionTLS12,
+				CurvePreferences: []configv1.TLSGroup{
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			expected: []string{
@@ -3563,8 +3585,6 @@ func TestArgoCDServerAndRepoServerDeploymentArgs(t *testing.T) {
 			"ECDHE-RSA-AES128-GCM-SHA256",
 			"ECDHE-RSA-AES256-GCM-SHA384",
 		},
-		// Curve preferences are set on the central profile but omitted for
-		// server/repo-server until those components support --tlscurvepreferences.
 		CurvePreferences: []configv1.TLSGroup{
 			configv1.TLSGroupX25519,
 			configv1.TLSGroupSecP256r1,
@@ -3576,13 +3596,12 @@ func TestArgoCDServerAndRepoServerDeploymentArgs(t *testing.T) {
 	args := []string{
 		"--tlsminversion", "1.2",
 		"--tlsciphers", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+		"--tlscurvepreferences", "X25519:CurveP256",
 	}
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
-	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 	assert.NoError(t, r.reconcileRepoDeployment(a, false))
 	assert.NoError(t, r.Get(context.TODO(), types.NamespacedName{Name: "argocd-repo-server", Namespace: a.Namespace}, deployment))
 	assert.Equal(t, args, deployment.Spec.Template.Spec.Containers[0].Args)
-	assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Args, "--tlscurvepreferences")
 }
 
 func TestReconcileServer_PromoterUIExtension(t *testing.T) {

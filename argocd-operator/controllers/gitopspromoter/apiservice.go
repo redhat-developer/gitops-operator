@@ -76,6 +76,11 @@ func ReconcilePromoterAPIServerAPIService(client client.Client, compName string,
 			return nil, err
 		}
 
+		// Built-in cert rotation owns .spec.caBundle; preserve whatever the rotator wrote.
+		if usesBuiltInAPIServerCerts(cr) {
+			expectedSpec.CABundle = apiSvc.Spec.CABundle
+		}
+
 		if !reflect.DeepEqual(apiSvc.Spec.Service, expectedSpec.Service) ||
 			!reflect.DeepEqual(apiSvc.Spec.CABundle, expectedSpec.CABundle) {
 
@@ -148,6 +153,9 @@ func buildAPIServiceSpec(client client.Client, compName string, cr *argoproj.Arg
 		} else {
 			return apiregistrationv1.APIServiceSpec{}, fmt.Errorf("ca bundle not found in secret %s at key %s, API Server may not work correctly", cr.Spec.Promoter.APIServer.TLS.CABundleSecretName, key)
 		}
+	} else if usesBuiltInAPIServerCerts(cr) {
+		// CA is injected into the APIService by the promoter controller's cert rotator.
+		log.Info("using built-in apiserver cert rotation; CABundle will be managed by the promoter controller")
 	} else {
 		log.Info("Warning: CA Bundle is not set, APIService will not be able to authenticate API Server.")
 	}

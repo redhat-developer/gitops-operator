@@ -52,7 +52,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("ensures that you can add env vars to applicationset container via .spec.applicationset.env field", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD CR with appset controller enabled")
 			argoCD := &argov1beta1api.ArgoCD{

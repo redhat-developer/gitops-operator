@@ -38,7 +38,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verifies that custom traffic management and metrics plugins can be added to Argo Rollouts instance via RolloutManager CR", Label("openshift"), func() {
 
 			namespace, cleanupNamespace := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupNamespace()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
 
 			By("creating a new Argo Rollouts instance in openshift-gitops namespace, containing a custom traffic management plugin and a custom metrics plugin")
