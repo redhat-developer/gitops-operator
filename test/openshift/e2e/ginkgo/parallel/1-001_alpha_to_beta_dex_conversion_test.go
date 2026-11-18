@@ -55,7 +55,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			DeferCleanup(nsCleanup)
 
 			By("creating Argo CD with dex and server values via v1alpha1 API")
 

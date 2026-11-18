@@ -48,7 +48,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies app controller StatefulSet container has expected HOME env var and redis-initial-pass volume mount", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDName := "argocd-redis"
 
