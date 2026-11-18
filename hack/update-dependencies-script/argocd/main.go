@@ -673,7 +673,7 @@ func rewriteGitopsEngineImports(moduleRoots ...string) {
 			if !strings.HasSuffix(path, ".go") {
 				return nil
 			}
-			bytes, err := os.ReadFile(path)
+			bytes, err := os.ReadFile(path) // #nosec G122 & G304
 			if err != nil {
 				return err
 			}
@@ -685,7 +685,7 @@ func rewriteGitopsEngineImports(moduleRoots ...string) {
 			if updated == contents {
 				return nil
 			}
-			return os.WriteFile(path, []byte(updated), 0o600)
+			return os.WriteFile(path, []byte(updated), 0o600) // #nosec G122 & G703
 		})
 		if err != nil {
 			utils.ExitWithError(fmt.Errorf("unable to rewrite gitops-engine imports under %s: %v", root, err))
