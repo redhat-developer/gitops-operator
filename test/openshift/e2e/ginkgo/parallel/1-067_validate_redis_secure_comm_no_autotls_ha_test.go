@@ -196,7 +196,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Expect(sentinelConf).To(MatchRegexp(line))
 			}
 
-			fqdnSuffix := ".svc.cluster.local.:"
+			fqdnSuffix := ".svc.cluster.local:"
 
 			repoServerDepl := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "argocd-repo-server", Namespace: ns.Name}}
 			Eventually(repoServerDepl, "2m", "5s").Should(k8sFixture.ExistByName(), "Repo server deployment did not exist within timeout")

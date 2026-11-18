@@ -143,7 +143,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("expecting redis-server to have desired container process command/arguments")
 
-			fqdnSuffix := ".svc.cluster.local.:"
+			fqdnSuffix := ".svc.cluster.local:"
 
 			expectedString := "--save \"\" --appendonly no --aclfile /app/config/redis-auth/users.acl"
 
