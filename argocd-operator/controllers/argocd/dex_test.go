@@ -1778,4 +1778,3 @@ func TestBuildDexWebTLSConfig(t *testing.T) {
     - "X25519"
     - "CurveP384"`, got)
 }
-
