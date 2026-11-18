@@ -1720,7 +1720,7 @@ func TestGetDexConfig_TLS(t *testing.T) {
 			centralTLS: tlsProfile.TLSConfigProfile{
 				MinVersion: configv1.VersionTLS12,
 				CurvePreferences: []configv1.TLSGroup{
-					configv1.TLSGroupSecP256r1MLKEM768,
+					configv1.TLSGroup("UnknownGroup"),
 				},
 			},
 			want: `web:
