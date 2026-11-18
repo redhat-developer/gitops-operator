@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating namespace-scoped Argo CD instance with labels and annotations set on components")
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			dex := &argov1beta1api.ArgoCDDexSpec{
 				Labels: map[string]string{

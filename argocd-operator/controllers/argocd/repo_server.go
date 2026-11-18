@@ -211,11 +211,7 @@ func (r *ReconcileArgoCD) reconcileRepoDeployment(cr *argocdoperatorv1beta1.Argo
 		repoServerVolumeMounts = append(repoServerVolumeMounts, cr.Spec.Repo.VolumeMounts...)
 	}
 
-	// argocd-repo-server does not support --tlscurvepreferences yet; omit curves until a
-	// supporting image is the default. Keep min version and ciphers.
-	tlsProfileForRepoServer := r.CentralTLSConfigProfile
-	tlsProfileForRepoServer.CurvePreferences = nil
-	arguments, err := BuildTLSArgsFromClusterTLSProfile(tlsProfileForRepoServer, "argocd-repo-server")
+	arguments, err := BuildTLSArgsFromClusterTLSProfile(r.CentralTLSConfigProfile, "argocd-repo-server")
 	if err != nil {
 		return err
 	}

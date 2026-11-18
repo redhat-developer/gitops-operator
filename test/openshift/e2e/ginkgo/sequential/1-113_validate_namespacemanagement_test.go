@@ -303,7 +303,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Create a namespace that does NOT match glob pattern")
 			unmanagedNs, cleanupFunc4 := fixture.CreateNamespaceWithCleanupFunc("unmanaged-ns")
-			defer cleanupFunc4()
+			DeferCleanup(cleanupFunc4)
 
 			By("Create namespaceManagement CR in unmanaged namespace (no match expected)")
 			nsm2 := argov1beta1api.NamespaceManagement{

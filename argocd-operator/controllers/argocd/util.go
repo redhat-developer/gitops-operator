@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -366,9 +367,21 @@ func getArgoContainerImage(cr *argoproj.ArgoCD) string {
 	return argoutil.CombineImageTag(img, tag)
 }
 
-// getArgoServerInsecure returns the insecure value for the ArgoCD Server component.
+// getArgoServerInsecure returns the effective insecure value for the ArgoCD Server component.
+// extraCommandArgs are appended after the spec flag in the server command, so the last
+// --insecure / --insecure=<bool> occurrence wins.
 func getArgoServerInsecure(cr *argoproj.ArgoCD) bool {
-	return cr.Spec.Server.Insecure
+	insecure := cr.Spec.Server.Insecure
+	for _, a := range cr.Spec.Server.ExtraCommandArgs {
+		if a == "--insecure" {
+			insecure = true
+		} else if v, ok := strings.CutPrefix(a, "--insecure="); ok {
+			if b, err := strconv.ParseBool(v); err == nil {
+				insecure = b
+			}
+		}
+	}
+	return insecure
 }
 
 func isRedisTLSVerificationDisabled(cr *argoproj.ArgoCD) bool {
@@ -2251,6 +2264,11 @@ func (r *ReconcileArgoCD) reconcileDeploymentHelper(cr *argoproj.ArgoCD, desired
 		changes = append(changes, "selector")
 	}
 
+	if !reflect.DeepEqual(existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken, desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken) {
+		existingDeployment.Spec.Template.Spec.AutomountServiceAccountToken = desiredDeployment.Spec.Template.Spec.AutomountServiceAccountToken
+		changes = append(changes, "autoMountServiceAccountToken")
+	}
+
 	if len(changes) > 0 {
 		argoutil.LogResourceUpdate(log, existingDeployment, "updating", strings.Join(changes, ", "))
 		return r.Update(context.TODO(), existingDeployment)
@@ -2300,7 +2318,7 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 	}
 
 	log.Info("reconciling GitOps Promoter's Controller Deployment")
-	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme); err != nil {
+	if _, err = gitopspromoter.ReconcilePromoterControllerDeployment(r.Client, controllerCompName, sa, cr, r.Scheme, r.CentralTLSConfigProfile); err != nil {
 		return err
 	}
 
@@ -2334,6 +2352,11 @@ func (r *ReconcileArgoCD) reconcileGitOpsPromoter(cr *argoproj.ArgoCD) error {
 
 	log.Info("reconciling GitOps Promoter's API Server Service")
 	if _, err = gitopspromoter.ReconcilePromoterAPIServerService(r.Client, apiServerCompName, cr); err != nil {
+		return err
+	}
+
+	log.Info("reconciling GitOps Promoter's API Server serving certificate Secret")
+	if _, err = gitopspromoter.ReconcilePromoterAPIServerServingCertSecret(r.Client, cr, r.Scheme); err != nil {
 		return err
 	}
 

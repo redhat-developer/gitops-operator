@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			fixture.EnsureRunningOnOpenShift()
 
 			ns, nsCleanup := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer nsCleanup()
+			DeferCleanup(nsCleanup)
 
 			By("creating Argo CD with server and appset controller webhook routes")
 

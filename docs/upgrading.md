@@ -2,6 +2,32 @@
 
 This page contains upgrade instructions and migration guides for the Argo CD Operator.
 
+## Upgrading to OpenShift GitOps v1.23
+
+### Automatic Go runtime tuning for the Application Controller
+If you're upgrading to an operator version that enables automatic Go runtime tuning by default, note the following changes:
+
+1. When `.spec.controller.resources.limits` is defined on the Application Controller, the operator sets the `GOMEMLIMIT` and `GOMAXPROCS` environment variables on the Application Controller StatefulSet, derived from the configured limits
+2. `GOMEMLIMIT` is set to 80% of the memory limit by default; the percentage is configurable per instance via `.spec.controller.goRuntime.memoryLimitPercent`
+3. `GOMAXPROCS` is set to the CPU limit in whole cores, floored at `1` for CPU limits below one core
+4. Manual `GOMEMLIMIT`/`GOMAXPROCS` values defined in `.spec.controller.env` are not corrected on reconcile; user-defined environment variables always take precedence
+
+The following users are **unaffected** by this change:
+- Users who do not configure `.spec.controller.resources.limits` on the Application Controller
+- Users who already define both `GOMEMLIMIT` and `GOMAXPROCS` in `.spec.controller.env`
+
+The following users are **affected** and should review the new behavior:
+- Users with `.spec.controller.resources.limits.memory` set: `GOMEMLIMIT` will be injected at 80% of the limit
+- Users with `.spec.controller.resources.limits.cpu` set: `GOMAXPROCS` will be injected at the whole-core CPU limit
+- Users who define only `GOMEMLIMIT` (or only `GOMAXPROCS`) in `.spec.controller.env`: the manually-set variable is preserved, but the operator sets the other variable when the matching resource limit is configured
+
+### Remediation steps
+
+If you need to opt out of automatic tuning:
+
+1. Per instance, set `.spec.controller.goRuntime.enabled` to `false` (see [Go Runtime Tuning](./usage/go-runtime-tuning.md))
+2. Cluster-wide, set `DISABLE_GO_RUNTIME_TUNING` to `"true"` in the operator Subscription; note that per-instance settings cannot re-enable tuning while this is set
+
 ## Upgrading from OpenShift GitOps ≤v1.20 to OpenShift GitOps v1.21+
 
 ### ApplicationSet tokenRef strict mode
@@ -293,3 +319,13 @@ references declared on **`spec.webhookSecrets`** in the **ArgoCD** CR (`v1beta1`
 - **If you set** `spec.webhookSecrets`, the operator syncs the providers you declare into `argocd-secret`. Providers not listed while management is enabled can have their **`webhook.*` keys cleared** on reconcile—see [Configuring webhook secrets](./usage/webhook-secrets.md) for exact semantics.
 
 For migration from manual edits, verification, integrations (External Secrets, Sealed Secrets), and troubleshooting, use the **[Configuring webhook secrets](./usage/webhook-secrets.md)** guide. A runnable example can be found at <https://github.com/redhat-developer/gitops-operator/blob/master/examples/argocd-webhook-secrets.yaml>.
+
+## GitOps Promoter: required `orderCommitStatusRef`
+
+When upgrading to an OpenShift GitOps / Argo CD Operator release that ships **gitops-promoter v0.49+**, every `PromotionStrategy` must declare `spec.orderCommitStatusRef` pointing at a `DependentsSuccessfulCommitStatus`. Strategies created before that release lack the field; updates that omit it fail CRD validation and Promoter cannot reconcile them.
+
+Update the GitOps source manifests for each strategy (and sync), or follow upstream’s upgrade guide. Operator-facing summary and example:
+
+- [Migrating orderCommitStatusRef](./usage/gitops-promoter.md#migrating-ordercommitstatusref)
+- [`examples/gitops-promoter-order-commit-status.yaml`](../examples/gitops-promoter-order-commit-status.yaml)
+- [Upstream upgrading — 0.39](https://gitops-promoter.readthedocs.io/en/latest/upgrading/#039-promotion-order-on-promotionstrategy)

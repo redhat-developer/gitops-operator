@@ -33,7 +33,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		It("verifying Rollouts operator creates the expected policy rules", func() {
 
 			namespace, cleanupNamespace := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupNamespace()
+			DeferCleanup(cleanupNamespace)
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES", namespace.Name)
 
 			By("creating cluster-scoped Argo Rollouts instance in openshift-gitops RolloutManager")

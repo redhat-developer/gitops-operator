@@ -469,7 +469,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Create namespace for hosting namespace-scoped ArgoCD instance with agent
 			nsScoped, cleanupFuncScoped := fixture.CreateNamespaceWithCleanupFunc("argocd-agent-agent-ns-scoped-1-052")
-			defer cleanupFuncScoped()
+			DeferCleanup(cleanupFuncScoped)
 
 			// Update namespace in ArgoCD CR
 			argoCD.Namespace = nsScoped.Name
@@ -522,7 +522,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			// Create namespace for hosting namespace-scoped ArgoCD instance with agent
 			nsScoped, cleanupFuncScoped := fixture.CreateNamespaceWithCleanupFunc("argocd-agent-agent-ns-scoped-1-052")
-			defer cleanupFuncScoped()
+			DeferCleanup(cleanupFuncScoped)
 
 			// Update namespace in ArgoCD CR
 			argoCD.Namespace = nsScoped.Name

@@ -58,11 +58,10 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		)
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			argoCD      *argov1beta1api.ArgoCD
-			ns          *corev1.Namespace
-			cleanupFunc func()
+			k8sClient client.Client
+			ctx       context.Context
+			argoCD    *argov1beta1api.ArgoCD
+			ns        *corev1.Namespace
 
 			controllerServiceAccount          *corev1.ServiceAccount
 			controllerDeployment              *appsv1.Deployment
@@ -90,7 +89,9 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("gitops-promoter-1-134")
+			DeferCleanup(cleanupFunc)
 
 			// Deploy an ArgoCD CR with only the Promoter enabled and nothing else
 			argoCD = &argov1beta1api.ArgoCD{
@@ -185,13 +186,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 					Name:      apiServerClusterScopedName + "-extension-auth-reader",
 					Namespace: "kube-system",
 				},
-			}
-		})
-
-		AfterEach(func() {
-			By("Cleaning up namespace")
-			if cleanupFunc != nil {
-				cleanupFunc()
 			}
 		})
 

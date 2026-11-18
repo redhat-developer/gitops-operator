@@ -59,11 +59,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			By("creating 3 ArgoCD instances in 3 different namespaces, with different RBAC policies")
 
 			test_1_086_customNS, cleanup1 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom-" + string(uuid.NewUUID())[0:8])
-			defer cleanup1()
+			DeferCleanup(cleanup1)
 			test_1_086_custom2NS, cleanup2 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom2-" + string(uuid.NewUUID())[0:8])
-			defer cleanup2()
+			DeferCleanup(cleanup2)
 			test_1_086_custom3NS, cleanup3 := fixture.CreateNamespaceWithCleanupFunc("test-1-086-custom3-" + string(uuid.NewUUID())[0:8])
-			defer cleanup3()
+			DeferCleanup(cleanup3)
 
 			argoCD_default_policy := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy", Namespace: test_1_086_customNS.Name},

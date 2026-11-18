@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating new namespace-scoped Argo CD instance")
 			randomNS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			argoCDRandomNS := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: randomNS.Name},
