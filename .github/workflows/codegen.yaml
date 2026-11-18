@@ -87,4 +87,4 @@ jobs:
 
       - name: "Ensure code passes 'golangci-lint' - run 'make lint' to identify issues"
         run: |
-          make lint 
+          LINT_AUTOFIX=false make lint
