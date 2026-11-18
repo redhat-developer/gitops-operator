@@ -6,14 +6,11 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 
-	"github.com/go-logr/logr"
 	argoapp "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	aiconfig "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/ai"
 	"github.com/redhat-developer/gitops-operator/common"
-	"github.com/redhat-developer/gitops-operator/internal/ai/notifications"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -51,7 +48,7 @@ func agenticOperatorFixture(t *testing.T) client.Client {
 func doReconcile(t *testing.T, cl client.Client, enableAI bool, ns string) {
 	t.Helper()
 	key := types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: ns}
-	if _, err := reconcileAIController(cl, enableAI, ns, "", key, logr.Discard()); err != nil {
+	if _, err := reconcileAIController(cl, enableAI, ns, "", key); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -168,7 +165,7 @@ func TestAgenticUnownedDeploymentIsPreserved(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := deployment.DeepCopy()
-			_, err := reconcileAIController(cl, enabled, "gitops", "", types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: "gitops"}, logr.Discard())
+			_, err := reconcileAIController(cl, enabled, "gitops", "", types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: "gitops"})
 			if enabled && err == nil {
 				t.Fatal("accepted deployment without management label")
 			}
@@ -198,24 +195,6 @@ func TestAgenticOwnedResourceRecreated(t *testing.T) {
 	}
 }
 
-func TestAgenticSubscriptionMergeInNotifications(t *testing.T) {
-	original := "- recipients: [slack:ops, gitops-ai-controller]\n  triggers: [on-sync-failed, on-gitops-ai-diagnose]\n  selector: team=platform\n"
-	enabled, err := notifications.MergeSubscription(original, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	disabled, err := notifications.MergeSubscription(enabled, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(disabled, "slack:ops") || !strings.Contains(disabled, "on-sync-failed") {
-		t.Fatal("user subscription entries lost after disable")
-	}
-	if strings.Contains(disabled, "gitops-ai-controller") || strings.Contains(disabled, "on-gitops-ai-diagnose") {
-		t.Fatal("AI entries still present after disable")
-	}
-}
-
 func TestAgenticArgoCDReadErrorPreservesResources(t *testing.T) {
 	cl := agenticOperatorFixture(t)
 	doReconcile(t, cl, true, testServiceNamespace)
@@ -228,7 +207,7 @@ func TestAgenticArgoCDReadErrorPreservesResources(t *testing.T) {
 			return c.Get(ctx, key, obj, opts...)
 		},
 	})
-	_, err := reconcileAIController(failing, true, testServiceNamespace, "", types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: testServiceNamespace}, logr.Discard())
+	_, err := reconcileAIController(failing, true, testServiceNamespace, "", types.NamespacedName{Name: common.ArgoCDInstanceName, Namespace: testServiceNamespace})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("expected API error, got %v", err)
 	}

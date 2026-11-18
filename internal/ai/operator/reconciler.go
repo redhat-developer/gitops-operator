@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	argoproj "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	aiconfig "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/ai"
 	"github.com/redhat-developer/gitops-operator/internal/ai/utils"
@@ -21,7 +20,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -80,11 +78,8 @@ func (r *GitOpsAIControllerReconciler) managedResourceEventHandler() handler.Eve
 }
 
 func (r *GitOpsAIControllerReconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	log := logf.Log.WithName("gitops_ai_controller").WithValues(
-		"Request.Namespace", req.Namespace, "Request.Name", req.Name,
-	)
 	return reconcileAIController(r.Client, r.EnableAIFeatures,
-		r.OperatorNamespace, r.LabelSelector, req.NamespacedName, log)
+		r.OperatorNamespace, r.LabelSelector, req.NamespacedName)
 }
 
 // reconcileAIController creates or updates all K8s resources for the
@@ -99,7 +94,6 @@ func reconcileAIController(
 	operatorNamespace string,
 	labelSelector string,
 	argocdKey types.NamespacedName,
-	logger logr.Logger,
 ) (reconcile.Result, error) {
 	ctx := context.TODO()
 	ns := operatorNamespace
@@ -164,7 +158,7 @@ func reconcileAIController(
 			return reconcile.Result{}, err
 		}
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, cleanupStaleAIRunRBAC(ctx, cl, ns, runNS)
 }
 
 // applyManagedResource creates or patches a single managed resource, preserving
@@ -258,6 +252,42 @@ func isManagedResource(obj client.Object) bool {
 	return obj.GetLabels()[utils.ManagedBy] == utils.Manager
 }
 
+// Discover previous run namespaces from bindings to this operator's account.
+// Delete the Role first so an interrupted cleanup retains its binding as
+// ownership evidence for the next reconciliation, without granting access.
+func cleanupStaleAIRunRBAC(ctx context.Context, cl client.Client, operatorNamespace, currentRunNamespace string) error {
+	bindings := &rbacv1.RoleBindingList{}
+	if err := cl.List(ctx, bindings, client.MatchingLabels{utils.ManagedBy: utils.Manager}); err != nil {
+		return err
+	}
+	for i := range bindings.Items {
+		binding := &bindings.Items[i]
+		if binding.Name != ServiceName || binding.Namespace == currentRunNamespace {
+			continue
+		}
+		desired := NewRoleBinding(binding.Namespace, operatorNamespace)
+		if binding.RoleRef != desired.RoleRef || !reflect.DeepEqual(binding.Subjects, desired.Subjects) {
+			continue
+		}
+		role := &rbacv1.Role{}
+		if err := cl.Get(ctx, client.ObjectKey{Name: ServiceName, Namespace: binding.Namespace}, role); err != nil {
+			if !apierrors.IsNotFound(err) {
+				return err
+			}
+		} else if isManagedResource(role) && reflect.DeepEqual(role.Rules, NewRole(binding.Namespace).Rules) {
+			uid, resourceVersion := role.UID, role.ResourceVersion
+			if err := client.IgnoreNotFound(cl.Delete(ctx, role, client.Preconditions{UID: &uid, ResourceVersion: &resourceVersion})); err != nil {
+				return err
+			}
+		}
+		uid, resourceVersion := binding.UID, binding.ResourceVersion
+		if err := client.IgnoreNotFound(cl.Delete(ctx, binding, client.Preconditions{UID: &uid, ResourceVersion: &resourceVersion})); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func cleanupAIController(ctx context.Context, cl client.Client, ns, runNS string) error {
 	deploy := &appsv1.Deployment{}
 	if err := cl.Get(ctx, types.NamespacedName{Name: ServiceName, Namespace: ns}, deploy); err == nil {
@@ -273,6 +303,9 @@ func cleanupAIController(ctx context.Context, cl client.Client, ns, runNS string
 			}
 		}
 	} else if !apierrors.IsNotFound(err) {
+		return err
+	}
+	if err := cleanupStaleAIRunRBAC(ctx, cl, ns, ""); err != nil {
 		return err
 	}
 

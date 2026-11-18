@@ -133,7 +133,7 @@ func (r *ReconcileArgoCD) reconcileAINotifications(cr *argoproj.ArgoCD) error {
 	}
 
 	aiSpec := v1alpha1.NotificationsConfigurationSpec{
-		Triggers:      map[string]string{aiNotifTriggerKey: aiNotificationTrigger()},
+		Triggers:      map[string]string{aiNotifTriggerKey: aiconfig.NotificationTrigger()},
 		Templates:     map[string]string{aiNotifTemplateKey: "webhook:\n  gitops-ai-controller:\n    method: POST\n    path: /api/v1/diagnose\n    body: |\n      {\"application\":\"{{.app.metadata.name}}\",\"applicationNamespace\":\"{{.app.metadata.namespace}}\"}\n"},
 		Services:      map[string]string{aiNotifServiceKey: fmt.Sprintf("url: %s://%s.%s.svc:%d\nheaders:\n- name: Authorization\n  value: Bearer $gitops-ai-controller-token\n", scheme, aiTriggerServiceName, triggerNS, port)},
 		Subscriptions: map[string]string{"subscriptions": "- recipients:\n  - gitops-ai-controller\n  triggers:\n  - on-gitops-ai-diagnose\n"},
@@ -495,17 +495,4 @@ func (r *ReconcileArgoCD) reconcileAIEnrollment(cr *argoproj.ArgoCD, enroll bool
 		}
 		return r.Patch(ctx, registry, client.MergeFromWithOptions(before, client.MergeFromWithOptimisticLock{}))
 	})
-}
-
-// aiNotificationTrigger returns the YAML for the on-gitops-ai-diagnose trigger.
-// The epoch-based oncePer key allows redelivery when Notifications re-evaluates
-// an Application after a lost webhook without scheduling that re-evaluation itself.
-func aiNotificationTrigger() string {
-	once := "  oncePer: app.metadata.uid + ':' + toJSON(app.status.sync.revisions ?? [app.status.sync.revision ?? '']) + ':' + (app.status.health.lastTransitionTime ?? '') + ':' + string(int(time.Now().Unix() / 60))\n"
-	var b strings.Builder
-	for _, h := range []string{"Degraded", "Unknown", "Missing", "Progressing", "Healthy", "Suspended"} {
-		fmt.Fprintf(&b, "- when: app.status.health.status == '%s'\n", h)
-		b.WriteString(once + "  send: [gitops-ai-diagnose]\n")
-	}
-	return b.String()
 }

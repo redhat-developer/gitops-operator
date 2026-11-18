@@ -1,4 +1,4 @@
-package notifications
+package notifications_test
 
 import (
 	"strings"
@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/triggers"
+	aiconfig "github.com/redhat-developer/gitops-operator/argocd-operator/pkg/ai"
 	"sigs.k8s.io/yaml"
 )
 
 func TestTriggerDeliversHealthWithoutGraceFiltering(t *testing.T) {
-	got := Trigger()
+	got := aiconfig.NotificationTrigger()
 	for _, health := range []string{"Degraded", "Unknown", "Missing", "Progressing", "Healthy", "Suspended"} {
 		if !strings.Contains(got, "app.status.health.status == '"+health+"'") {
 			t.Errorf("trigger missing health clause %s:\n%s", health, got)
@@ -26,7 +27,7 @@ func TestTriggerDeliversHealthWithoutGraceFiltering(t *testing.T) {
 
 func TestTriggerEngineDeliversEarlyHealthAndAllowsRedelivery(t *testing.T) {
 	var clauses []triggers.Condition
-	if err := yaml.Unmarshal([]byte(Trigger()), &clauses); err != nil {
+	if err := yaml.Unmarshal([]byte(aiconfig.NotificationTrigger()), &clauses); err != nil {
 		t.Fatal(err)
 	}
 	engine, err := triggers.NewService(map[string][]triggers.Condition{"diagnose": clauses})
@@ -70,29 +71,5 @@ func TestTriggerEngineDeliversEarlyHealthAndAllowsRedelivery(t *testing.T) {
 	}
 	if !retry[0].Triggered || retry[0].OncePer == first[0].OncePer {
 		t.Fatal("a later notification evaluation cannot redeliver")
-	}
-}
-
-func TestMergeSubscription(t *testing.T) {
-	original := "- recipients: [slack:ops, gitops-ai-controller]\n  triggers: [on-sync-failed, on-gitops-ai-diagnose]\n  selector: team=platform\n"
-	enabled, err := MergeSubscription(original, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	again, err := MergeSubscription(enabled, true)
-	if err != nil || again != enabled {
-		t.Fatal("merge not idempotent")
-	}
-	disabled, err := MergeSubscription(enabled, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(disabled, "slack:ops") || !strings.Contains(disabled, "on-sync-failed") || !strings.Contains(disabled, "team=platform") {
-		t.Fatal("user configuration lost")
-	}
-	for _, invalid := range []string{"not: a-list", "- recipients: slack:ops", "[broken"} {
-		if _, err := MergeSubscription(invalid, true); err == nil {
-			t.Fatalf("accepted %q", invalid)
-		}
 	}
 }

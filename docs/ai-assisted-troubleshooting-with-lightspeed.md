@@ -42,6 +42,11 @@ spec:
 This deploys the `gitops-ai-controller` and its supporting RBAC into the operator
 namespace. The ArgoCD-namespace resources are not created until step 2.
 
+Existing ArgoCD instances keep their current reconciliation and notification
+configuration until they opt in. They do not depend on the AI enrollment registry
+or the Lightspeed APIs. An AI notification setup error is reported and retried
+after the operator reconciles the remaining Argo CD resources.
+
 ## 2. Enable AI troubleshooting on the ArgoCD instance
 
 ```sh
@@ -68,6 +73,11 @@ The operator merges both configurations into `argocd-notifications-cm`, giving A
 values precedence on conflicting keys without changing the default CR. Subscriptions
 to the AI webhook are controlled by the operator; other recipients are preserved.
 Disabling AI removes its configuration and restores the default CR's settings.
+Notifications enabled through `spec.notifications.enabled` continue running.
+If AI alone started the notifications controller, disabling AI removes the shared
+notification resources created for AI while preserving pre-existing resources.
+Legacy shared Secrets and configurations without an AI-only ownership marker are
+retained during upgrades; cleanup removes the AI credential from the shared Secret.
 
 ## 3. Verify the installation
 

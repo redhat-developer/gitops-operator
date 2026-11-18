@@ -99,13 +99,6 @@ func (r *ReconcileArgoCD) reconcileNotificationsController(cr *argoproj.ArgoCD) 
 		}
 	}
 
-	if AINotificationsEnabled(cr) {
-		log.Info("reconciling AI notifications configuration")
-	}
-	if err := r.reconcileAINotifications(cr); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -137,6 +130,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsConfigurationCR(cr *argoproj.Arg
 		}
 
 		argoutil.LogResourceCreation(log, defaultNotificationsConfigurationCR)
+		markAIOnlyNotificationsResource(cr, defaultNotificationsConfigurationCR)
 		err := r.Create(context.TODO(), defaultNotificationsConfigurationCR)
 		if err != nil {
 			return err
@@ -244,6 +238,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsServiceAccount(cr *argoproj.Argo
 			sa.ImagePullSecrets = refs
 		}
 		argoutil.LogResourceCreation(log, sa)
+		markAIOnlyNotificationsResource(cr, sa)
 		err = r.Create(context.TODO(), sa)
 		if err != nil {
 			return nil, err
@@ -302,6 +297,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRole(cr *argoproj.ArgoCD) (*rbac
 		}
 
 		argoutil.LogResourceCreation(log, desiredRole)
+		markAIOnlyNotificationsResource(cr, desiredRole)
 		err := r.Create(context.TODO(), desiredRole)
 		if err != nil {
 			return nil, err
@@ -366,6 +362,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsRoleBinding(cr *argoproj.ArgoCD,
 		}
 
 		argoutil.LogResourceCreation(log, desiredRoleBinding)
+		markAIOnlyNotificationsResource(cr, desiredRoleBinding)
 		return r.Create(context.TODO(), desiredRoleBinding)
 	}
 
@@ -418,6 +415,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsClusterRole(cr *argoproj.ArgoCD)
 
 		// cluster role does not exist but should, so it should be created
 		argoutil.LogResourceCreation(log, desiredClusterRole)
+		markAIOnlyNotificationsResource(cr, desiredClusterRole)
 		err := r.Create(context.TODO(), desiredClusterRole)
 		if err != nil {
 			return nil, err
@@ -485,6 +483,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsClusterRoleBinding(cr *argoproj.
 			return nil
 		}
 		argoutil.LogResourceCreation(log, desiredClusterRoleBinding)
+		markAIOnlyNotificationsResource(cr, desiredClusterRoleBinding)
 		return r.Create(context.TODO(), desiredClusterRoleBinding)
 	}
 
@@ -500,6 +499,9 @@ func (r *ReconcileArgoCD) reconcileNotificationsClusterRoleBinding(cr *argoproj.
 		argoutil.LogResourceDeletion(log, existingClusterRoleBinding, "roleref changed, deleting cluster rolebinding in order to recreate it")
 		if err := r.Delete(context.TODO(), existingClusterRoleBinding); err != nil {
 			return err
+		}
+		if owner := existingClusterRoleBinding.Annotations[aiNotificationsControllerOwnerAnnotation]; owner != "" {
+			desiredClusterRoleBinding.Annotations[aiNotificationsControllerOwnerAnnotation] = owner
 		}
 		argoutil.LogResourceCreation(log, desiredClusterRoleBinding)
 		return r.Create(context.TODO(), desiredClusterRoleBinding)
@@ -596,6 +598,9 @@ func (r *ReconcileArgoCD) reconcileNotificationsDeployment(cr *argoproj.ArgoCD, 
 		WorkingDir: "/app",
 	}}
 
+	if !deplExists {
+		markAIOnlyNotificationsResource(cr, desiredDeployment)
+	}
 	return r.reconcileDeploymentHelper(cr, desiredDeployment, "notifications", shouldRunNotificationsController(cr))
 }
 
@@ -632,6 +637,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsMetricsService(cr *argoproj.Argo
 		return err
 	}
 	argoutil.LogResourceCreation(log, svc)
+	markAIOnlyNotificationsResource(cr, svc)
 	return r.Create(context.TODO(), svc)
 }
 
@@ -662,6 +668,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsServiceMonitor(cr *argoproj.Argo
 	serviceMonitor.Spec.Endpoints = []monitoringv1.Endpoint{desiredEndpoint}
 
 	argoutil.LogResourceCreation(log, serviceMonitor)
+	markAIOnlyNotificationsResource(cr, serviceMonitor)
 	return r.Create(context.TODO(), serviceMonitor)
 }
 
@@ -702,6 +709,7 @@ func (r *ReconcileArgoCD) reconcileNotificationsSecret(cr *argoproj.ArgoCD) erro
 	}
 
 	argoutil.LogResourceCreation(log, desiredSecret)
+	markAIOnlyNotificationsResource(cr, desiredSecret)
 	err := r.Create(context.TODO(), desiredSecret)
 	if err != nil {
 		return err

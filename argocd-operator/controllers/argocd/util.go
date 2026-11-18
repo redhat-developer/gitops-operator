@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -726,28 +727,31 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	var aiPending error
-	if !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0 || AINotificationsEnabled(cr) {
+	aiError := r.migrateLegacyAINotifications(cr)
+	aiEnabled := AINotificationsEnabled(cr)
+	if aiEnabled && aiError == nil {
+		aiError = r.setAINotificationsManaged(cr, true)
+	}
+	userNotifications := !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0
+	if userNotifications || (aiEnabled && aiError == nil) {
 		log.Info("reconciling Notifications controller")
 		if err := r.reconcileNotificationsController(cr); err != nil {
-			if err != errAINotificationsPending {
+			// Defer AI-only failures even when disabled notifications retain settings.
+			if !aiEnabled || isNotificationsEnabled(cr) {
 				return err
 			}
-			// Finish reconciling other Argo CD resources while dependencies
-			// are being populated, then schedule the notification retry.
-			aiPending = err
+			aiError = err
 		}
-	} else {
-		// Clean up any stale AI entries first.
-		if err := r.cleanupAINotifications(cr); err != nil {
-			return err
+	}
+	if aiEnabled && aiError == nil {
+		aiError = r.reconcileAINotifications(cr)
+	} else if !aiEnabled && aiError == nil && hasManagedAINotifications(cr) {
+		aiError = r.cleanupAINotifications(cr)
+		if aiError == nil && !userNotifications {
+			aiError = r.cleanupAIOnlyNotificationsController(cr)
 		}
-		// AI alone can have started the controller, and disabling it does not
-		// go through the spec.notifications.enabled predicate. shouldRunNotificationsController
-		// is false here, so reconciling removes the Deployment, RBAC,
-		// ServiceAccount, Secret, and default configuration.
-		if err := r.reconcileNotificationsController(cr); err != nil {
-			return err
+		if aiError == nil {
+			aiError = r.setAINotificationsManaged(cr, false)
 		}
 	}
 
@@ -769,7 +773,11 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 	}
 
 	if err := r.ReconcileNetworkPolicies(cr); err != nil {
-		return err
+		var aiPolicyError *aiNotificationsNetworkPolicyError
+		if !errors.As(err, &aiPolicyError) {
+			return err
+		}
+		aiError = err
 	}
 
 	if err := r.reconcileArgoCDAgent(cr); err != nil {
@@ -780,7 +788,7 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	return aiPending
+	return aiError
 }
 
 func (r *ReconcileArgoCD) deleteClusterResources(cr *argoproj.ArgoCD) error {

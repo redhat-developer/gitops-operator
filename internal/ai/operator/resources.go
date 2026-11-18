@@ -22,7 +22,7 @@ const (
 	TLSEnv             = "GITOPS_AI_CONTROLLER_TLS_ENABLED"
 )
 
-// DefaultImage follows the operator release; project CI publishes the matching tag.
+// DefaultImage follows the operator version embedded at build time.
 var DefaultImage = "quay.io/redhat-developer/gitops-ai-controller:v" + version.Version
 
 func NewServiceAccount(namespace string) *corev1.ServiceAccount {

@@ -62,8 +62,10 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE):$(VERSION)
 
+# Keep the development default aligned with version/version.go when VERSION is unset.
+OPERATOR_VERSION = $(or $(strip $(subst ",,$(VERSION))),0.0.1)
 # Set VERSION or override the full AI controller image.
-GITOPS_AI_CONTROLLER_IMG ?= quay.io/redhat-developer/gitops-ai-controller:v$(VERSION)
+GITOPS_AI_CONTROLLER_IMG ?= quay.io/redhat-developer/gitops-ai-controller:v$(OPERATOR_VERSION)
 
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
@@ -204,7 +206,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
-	$(CONTAINER_RUNTIME) build -t ${IMG} .
+	$(CONTAINER_RUNTIME) build --build-arg VERSION="$(OPERATOR_VERSION)" -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.

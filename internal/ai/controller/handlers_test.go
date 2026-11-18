@@ -54,4 +54,3 @@ func TestBuildAgenticRunObject_AnnotationsPreserved(t *testing.T) {
 		t.Errorf("namespace annotation wrong: %v", annotations[utils.AppNamespace])
 	}
 }
-
