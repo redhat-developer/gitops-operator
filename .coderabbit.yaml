@@ -1,6 +1,18 @@
 inheritance: true
+reviews:
+  auto_review:
+    base_branches:
+      - "^v[1-9][.].*$"
+  path_instructions:
+    - path: "argocd-operator/**"
+      instructions: >
+        This path is the in-repo fork of argoproj-labs/argocd-operator, the is undergoing
+        further development without an intent to ever merge or synchronize individual
+        changes between the codebases.
 knowledge_base:
   linked_repositories:
     - repository: 'argoproj-labs/argocd-operator'
       instructions: >
-        Avoid depending on it, its sources have been effectively forked and made part of this repository, so external dependency is undesirable.
+        Corresponds to the ./argocd-operator path in this repository. Avoid depending on
+        it, its sources have been effectively forked and made part of this repository, so
+        external dependency is undesirable.

@@ -27,13 +27,13 @@ Prefer test implemented as parallel, if they can be written as such.
     - Tests that rely on managed-by label.
     - Tests that use ArgoCD CR `.spec.sourceNamespaces`.
     - Tests that modify operator Subscription (including env vars).
-    - Thats that explicitly verifies behavior of the default instance in `openshift-gitops` namespace.
+    - Tests that modifies resources of the default instance in `openshift-gitops` namespace.
     - Tests that test features which require a cluster-scoped Argo CD instance (often requiring Subscription modification).
 - Use `Describe("GitOps Operator Parallel E2E Tests", func() { ... })` as the top-level describe block
 - Call `fixture.EnsureParallelCleanSlate()` in the `BeforeEach` function. (not `EnsureSequentialCleanSlate`)
 
 ### Sequential Tests (`test/openshift/e2e/ginkgo/sequential/*_test.go`)
 
-- Use `Describe("GitOps Operator Sequential E2E Tests", func() { ... })` as the top-level describe block
-- Call `fixture.EnsureSequentialCleanSlate()` in the `BeforeEach` function. (not `EnsureParallelCleanSlate`)
-- Strive for speeding up the tests where possible to save the time needed for execution.
+- Use `Describe("GitOps Operator Sequential E2E Tests", func() { ... })` as the top-level describe block.
+- Call `fixture.EnsureSequentialCleanSlate()` in the `BeforeEach` function. (not `EnsureParallelCleanSlate`).
+- Strive for speeding up the tests where possible to save the time needed for execution (but not at the expense of correctness).
