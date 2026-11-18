@@ -919,6 +919,7 @@ spec:
               volumes:
               - name: metrics-certs
                 secret:
+                  optional: true
                   secretName: openshift-gitops-operator-metrics-tls
       permissions:
       - rules:
