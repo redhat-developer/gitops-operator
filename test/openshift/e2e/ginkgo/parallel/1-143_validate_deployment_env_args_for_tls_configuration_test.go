@@ -9,6 +9,7 @@ package parallel
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,18 +32,15 @@ import (
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 	const (
-		argocdInstanceName = "example-argocd"
+		argocdInstanceName   = "example-argocd"
+		promoterInstanceName = "tls-promoter"
+		openshiftGitOpsNS    = "openshift-gitops"
 	)
 	var (
 		c         client.Client
 		ctx       context.Context
 		ocVersion string
 	)
-	BeforeEach(func() {
-		if fixture.EnvLocalRun() {
-			Skip("This test is known not to work when running gitops operator locally")
-		}
-	})
 	BeforeEach(func() {
 		fixture.EnsureParallelCleanSlate()
 		c, _ = utils.GetE2ETestKubeClient()
@@ -51,8 +49,40 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		Expect(ocVersion).ToNot(BeEmpty())
 		gitopsFixture.SkipIfMinOCPVersion(ocVersion, gitopsFixture.OCP4_22)
 	})
+	// Intermediate OpenShift TLS profile groups mapped for Go-based components.
+	const (
+		expectedGoTLSCurves = "X25519MLKEM768:X25519:CurveP256:CurveP384"
+		// Numeric CurveIDs for gitops-promoter --tls-curve-preferences.
+		expectedPromoterTLSCurves = "4588,29,23,24"
+		expectedGoTLSCiphers      = "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:" +
+			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:" +
+			"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+		expectedPromoterTLSCiphers = "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256," +
+			"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384," +
+			"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+	)
+
+	getArgValue := func(args []string, flag string) (value string, found bool) {
+		equalsPrefix := flag + "="
+		for i := range args {
+			arg := args[i]
+			if arg == flag {
+				found = true
+				if i+1 < len(args) {
+					value = args[i+1]
+				}
+				continue
+			}
+			if strings.HasPrefix(arg, equalsPrefix) {
+				found = true
+				value = strings.TrimPrefix(arg, equalsPrefix)
+			}
+		}
+		return
+	}
+
 	// --- Helper: Extract TLS values from args ---
-	getTLSValues := func(args []string) (min string, hasMin bool, hasCiphers bool, ciphers string) {
+	getTLSValues := func(args []string) (min string, hasMin bool, hasCiphers bool, ciphers string, hasCurves bool, curves string) {
 		for i := range args {
 			arg := args[i]
 			// handle --tlsminversion <value>
@@ -68,7 +98,13 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					ciphers = args[i+1]
 				}
 			}
-			// handle --tlsminversion=value
+			if arg == "--tlscurvepreferences" {
+				hasCurves = true
+				if i+1 < len(args) {
+					curves = args[i+1]
+				}
+			}
+			// handle --tlsminversion=value / --tlsciphers=value / --tlscurvepreferences=value
 			if len(arg) > len("--tlsminversion=") && arg[:len("--tlsminversion=")] == "--tlsminversion=" {
 				hasMin = true
 				min = arg[len("--tlsminversion="):]
@@ -77,12 +113,16 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				hasCiphers = true
 				ciphers = arg[len("--tlsciphers="):]
 			}
+			if len(arg) > len("--tlscurvepreferences=") && arg[:len("--tlscurvepreferences=")] == "--tlscurvepreferences=" {
+				hasCurves = true
+				curves = arg[len("--tlscurvepreferences="):]
+			}
 		}
 		return
 	}
 
 	Context("When the ArgoCD instance is created with default TLS settings", func() {
-		It("should validate default TLS values and updates on RepoServer, Server and Redis Deployments", Label("openshift"), func() {
+		It("should validate default TLS values on RepoServer, Server, Redis, Dex and GitOps Promoter", Label("openshift"), func() {
 			argocdNamespace := "test-tls-argocd-" + string(uuid.NewUUID())[0:8]
 
 			By("creating namespace")
@@ -140,13 +180,21 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			_, err = osFixture.ExecCommand("kubectl", "annotate", "secret", "argocd-operator-redis-tls", "argocds.argoproj.io/name=argocd", "-n", argocdNamespace)
 			Expect(err).ToNot(HaveOccurred())
 
-			By("creating ArgoCD instance")
+			By("creating ArgoCD instance with Dex and Image Updater enabled")
 			argo := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      argocdInstanceName,
 					Namespace: argocdNamespace,
 				},
-				Spec: argov1beta1api.ArgoCDSpec{},
+				Spec: argov1beta1api.ArgoCDSpec{
+					SSO: &argov1beta1api.ArgoCDSSOSpec{
+						Provider: argov1beta1api.SSOProviderTypeDex,
+						Dex: &argov1beta1api.ArgoCDDexSpec{
+							// OpenShiftOAuth keeps operator-injected TLS web settings in dex.config.
+							OpenShiftOAuth: true,
+						},
+					},
+				},
 			}
 			argo.Spec.ImageUpdater.Enabled = true
 			argo.Spec.ImageUpdater.Env = append(argo.Spec.ImageUpdater.Env, corev1.EnvVar{
@@ -157,6 +205,45 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			DeferCleanup(func() {
 				_ = c.Delete(ctx, argo)
 			})
+
+			By("creating a promoter-only ArgoCD in openshift-gitops (cluster-config namespace)")
+			promoterEnabled := true
+			apiServerDisabled := false
+			controllerDisabled := false
+			serverDisabled := false
+			repoDisabled := false
+			redisDisabled := false
+			promoterArgo := &argov1beta1api.ArgoCD{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      promoterInstanceName,
+					Namespace: openshiftGitOpsNS,
+				},
+				Spec: argov1beta1api.ArgoCDSpec{
+					Promoter: &argov1beta1api.PromoterSpec{
+						Enabled: &promoterEnabled,
+						APIServer: &argov1beta1api.PromoterAPIServerSpec{
+							Enabled: &apiServerDisabled,
+						},
+					},
+					Controller: argov1beta1api.ArgoCDApplicationControllerSpec{
+						Enabled: &controllerDisabled,
+					},
+					Server: argov1beta1api.ArgoCDServerSpec{
+						Enabled: &serverDisabled,
+					},
+					Repo: argov1beta1api.ArgoCDRepoSpec{
+						Enabled: &repoDisabled,
+					},
+					Redis: argov1beta1api.ArgoCDRedisSpec{
+						Enabled: &redisDisabled,
+					},
+				},
+			}
+			Expect(c.Create(ctx, promoterArgo)).To(Succeed())
+			DeferCleanup(func() {
+				_ = c.Delete(ctx, promoterArgo)
+			})
+
 			By("waiting for ArgoCD to be available")
 			Eventually(func() error {
 				return c.Get(ctx, types.NamespacedName{Name: argocdInstanceName, Namespace: argocdNamespace}, &argov1beta1api.ArgoCD{})
@@ -168,7 +255,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			}
 			time.Sleep(5 * time.Second)
 			// --- Validate updated TLS values ---
-			By("validating updated TLS args For RepoServer and Server")
+			By("validating updated TLS args for RepoServer, Server and Image Updater")
 			Eventually(func() bool {
 				for _, deploymentName := range coreDeployments {
 					deployment := &appsv1.Deployment{}
@@ -177,7 +264,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					}
 					valid := false
 					for _, container := range deployment.Spec.Template.Spec.Containers {
-						min, hasMin, hasCiphers, ciphers := getTLSValues(container.Args)
+						min, hasMin, hasCiphers, ciphers, hasCurves, curves := getTLSValues(container.Args)
 						if !hasMin {
 							continue
 						}
@@ -189,7 +276,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 							GinkgoWriter.Printf("%s: expected --tlsciphers to be present and non-empty, got %q\n", deploymentName, ciphers)
 							return false
 						}
-						GinkgoWriter.Printf("%s updated TLS OK: min=%s\n", deploymentName, min)
+						if !hasCurves || curves != expectedGoTLSCurves {
+							GinkgoWriter.Printf("%s: expected --tlscurvepreferences=%s, got %q\n", deploymentName, expectedGoTLSCurves, curves)
+							return false
+						}
+						GinkgoWriter.Printf("%s updated TLS OK: min=%s curves=%s\n", deploymentName, min, curves)
 						valid = true
 					}
 					if !valid {
@@ -261,7 +352,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				depl := &appsv1.Deployment{}
 				if err := c.Get(ctx, types.NamespacedName{
 					Name:      "cluster",
-					Namespace: "openshift-gitops",
+					Namespace: openshiftGitOpsNS,
 				}, depl); err != nil {
 					return err
 				}
@@ -275,13 +366,86 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					Name: "TLS_CIPHER_SUITES",
 					// OpenSSL names from the cluster TLS profile are mapped to IANA/Go
 					// names; TLS 1.3 suites are omitted when min version is 1.2.
-					Value: "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:" +
-						"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:" +
-						"TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256:TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+					Value: expectedGoTLSCiphers,
+				}))
+				Expect(env).To(ContainElement(corev1.EnvVar{
+					Name:  "TLS_CURVE_PREFERENCES",
+					Value: expectedGoTLSCurves,
 				}))
 
 				return nil
 			}, 60*time.Second, 2*time.Second).Should(Succeed())
+
+			By("Validating Dex TLS settings in argocd-cm dex.config")
+			Eventually(func() bool {
+				cm := &corev1.ConfigMap{}
+				if err := c.Get(ctx, types.NamespacedName{
+					Name:      "argocd-cm",
+					Namespace: argocdNamespace,
+				}, cm); err != nil {
+					GinkgoWriter.Printf("argocd-cm get failed: %v\n", err)
+					return false
+				}
+				dexConfig, ok := cm.Data["dex.config"]
+				if !ok || dexConfig == "" {
+					GinkgoWriter.Printf("dex.config missing or empty\n")
+					return false
+				}
+				// OpenShiftOAuth path remarshals YAML, so cipher/curve list items are
+				// typically unquoted; only require the values themselves.
+				if !strings.Contains(dexConfig, `tlsMinVersion: "1.2"`) {
+					GinkgoWriter.Printf("dex.config missing tlsMinVersion 1.2: %s\n", dexConfig)
+					return false
+				}
+				for _, cipher := range strings.Split(expectedGoTLSCiphers, ":") {
+					if !strings.Contains(dexConfig, cipher) {
+						GinkgoWriter.Printf("dex.config missing tlsCipher %s\n", cipher)
+						return false
+					}
+				}
+				for _, curve := range strings.Split(expectedGoTLSCurves, ":") {
+					if !strings.Contains(dexConfig, curve) {
+						GinkgoWriter.Printf("dex.config missing tlsCurvePreference %s\n", curve)
+						return false
+					}
+				}
+				GinkgoWriter.Printf("dex.config TLS OK\n")
+				return true
+			}, 60*time.Second, 2*time.Second).Should(BeTrue())
+
+			By("Validating GitOps Promoter controller TLS args")
+			Eventually(func() bool {
+				deployment := &appsv1.Deployment{}
+				if err := c.Get(ctx, types.NamespacedName{
+					Name:      promoterInstanceName + "-promoter-controller-manager",
+					Namespace: openshiftGitOpsNS,
+				}, deployment); err != nil {
+					GinkgoWriter.Printf("promoter deployment get failed: %v\n", err)
+					return false
+				}
+				if len(deployment.Spec.Template.Spec.Containers) == 0 {
+					return false
+				}
+				args := deployment.Spec.Template.Spec.Containers[0].Args
+
+				minVersion, hasMin := getArgValue(args, "--tls-min-version")
+				if !hasMin || minVersion != "VersionTLS12" {
+					GinkgoWriter.Printf("promoter: expected --tls-min-version=VersionTLS12, got %q\n", minVersion)
+					return false
+				}
+				ciphers, hasCiphers := getArgValue(args, "--tls-cipher-suites")
+				if !hasCiphers || ciphers != expectedPromoterTLSCiphers {
+					GinkgoWriter.Printf("promoter: expected --tls-cipher-suites=%s, got %q\n", expectedPromoterTLSCiphers, ciphers)
+					return false
+				}
+				curves, hasCurves := getArgValue(args, "--tls-curve-preferences")
+				if !hasCurves || curves != expectedPromoterTLSCurves {
+					GinkgoWriter.Printf("promoter: expected --tls-curve-preferences=%s, got %q\n", expectedPromoterTLSCurves, curves)
+					return false
+				}
+				GinkgoWriter.Printf("promoter TLS OK: min=%s curves=%s\n", minVersion, curves)
+				return true
+			}, 60*time.Second, 2*time.Second).Should(BeTrue())
 		})
 	})
 })
