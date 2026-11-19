@@ -90,7 +90,7 @@ jobs:
 
       - name: "Ensure code passes 'golangci-lint' - run 'make lint' to identify issues"
         run: |
-          make lint 
+          LINT_AUTOFIX=false make lint
 
   verify_argo_cd_has_updated_dependencies:
     name: Verify Argo CD has updated dependencies, for the given target version

@@ -68,6 +68,11 @@ endif
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE):$(VERSION)
 
+# Keep the development default aligned with version/version.go when VERSION is unset.
+OPERATOR_VERSION = $(or $(strip $(subst ",,$(VERSION))),0.0.1)
+# Set VERSION or override the full AI controller image.
+GITOPS_AI_CONTROLLER_IMG ?= quay.io/redhat-developer/gitops-ai-controller:v$(OPERATOR_VERSION)
+
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
 OPERATOR_SDK_VERSION ?= v1.35.0
@@ -207,11 +212,21 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
-	$(CONTAINER_RUNTIME) build -t ${IMG} .
+	$(CONTAINER_RUNTIME) build --build-arg VERSION="$(OPERATOR_VERSION)" -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.
 	$(CONTAINER_RUNTIME) push ${IMG}
+
+.PHONY: docker-build-gitops-ai-controller
+docker-build-gitops-ai-controller: ## Build the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) build $(if $(PLATFORM),--platform $(PLATFORM)) -f Dockerfile.gitops-ai-controller \
+		--build-arg COMMIT=$(shell git rev-parse --short HEAD) \
+		-t $(GITOPS_AI_CONTROLLER_IMG) .
+
+.PHONY: docker-push-gitops-ai-controller
+docker-push-gitops-ai-controller: ## Push the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) push $(GITOPS_AI_CONTROLLER_IMG)
 
 ##@ Build Dependencies
 
@@ -350,12 +365,16 @@ catalog-push: ## Push a catalog image.
 .PHONY: gosec
 gosec: go_sec
 	$(GO_SEC) --exclude-dir "hack/upgrade-rollouts-manager" --exclude-dir "argocd-operator/hack/"  ./...
+	cd argocd-operator && $(GO_SEC) --exclude-dir "hack/" ./...
+
+# Set LINT_AUTOFIX=false to report lint issues without applying fixes.
+LINT_AUTOFIX ?= true
 
 .PHONY: lint
 lint: golangci_lint
 	$(GOLANGCI_LINT) --version
-	$(GOLANGCI_LINT) run --fix --verbose --timeout 300s
-	cd argocd-operator && $(GOLANGCI_LINT) run --fix --verbose --timeout 300s
+	$(GOLANGCI_LINT) run --fix=$(LINT_AUTOFIX) --verbose --timeout 300s
+	cd argocd-operator && $(GOLANGCI_LINT) run --fix=$(LINT_AUTOFIX) --verbose --timeout 300s
 
 
 GO_SEC = $(shell pwd)/bin/gosec
