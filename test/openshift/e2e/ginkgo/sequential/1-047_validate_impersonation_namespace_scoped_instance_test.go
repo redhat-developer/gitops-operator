@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -28,38 +28,48 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	applicationFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
-	appprojectFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/appproject"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/configmap"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	appprojectFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/appproject"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
+	// Sequential: writes argocd.argoproj.io/managed-by on destination namespaces so the
+	// namespace-scoped instance can manage them; that label must not race with parallel tests.
 	Context("1-047_validate_impersonation_namespace_scoped_instance", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient      client.Client
+			ctx            context.Context
+			argoCD_NS      *corev1.Namespace
+			guestbookNS    *corev1.Namespace
+			guestbookDevNS *corev1.Namespace
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(argoCD_NS, guestbookNS, guestbookDevNS)
+		})
+
 		It("creates a namespace-scoped Argo CD instance, then verifies that when impersonation is enabled, that Argo CD is not able to deploy to a Namespace which the appproject does not have access to", func() {
 
 			By("creating simple namespace-scoped Argo CD instance with impersonation enabled")
-			argoCD_NS, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			var cleanupFunc func()
+			argoCD_NS, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD instance with application.sync.impersonation.enabled")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -86,8 +96,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argocdCMConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.sync.impersonation.enabled", "true"))
 
 			By("creating guestbook namespace which we will deploy to")
-			guestbookNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("guestbook-1-047", argoCD.Namespace)
-			defer cleanupFunc()
+			guestbookNS, cleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("guestbook-1-047", argoCD.Namespace)
+			DeferCleanup(cleanupFunc)
 
 			By("creating ServiceAccount in guestbook NS that Argo CD will deploy with")
 			serviceAccount := &corev1.ServiceAccount{
@@ -174,8 +184,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(guestbookApplication, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeSynced))
 
 			By("creating a new namespace 'guestbook-dev' which is managed by our argo cd instance")
-			guestbookDevNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("guestbook-dev-1-047", argoCD.Namespace)
-			defer cleanupFunc()
+			guestbookDevNS, cleanupFunc = fixture.CreateManagedNamespaceWithCleanupFunc("guestbook-dev-1-047", argoCD.Namespace)
+			DeferCleanup(cleanupFunc)
 
 			By("waiting for managed-by roles to be created in guestbook-dev namespace")
 			appControllerRole := &rbacv1.Role{
@@ -188,12 +198,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating AppProject destinations to allow deployment to new namespace, but we DON'T add a new serviceaccount within that namespace, as we did previously")
 			appprojectFixture.Update(appProject, func(ap *appv1alpha1.AppProject) {
-				appProject.Spec.Destinations = append(appProject.Spec.Destinations, appv1alpha1.ApplicationDestination{
+				ap.Spec.Destinations = append(ap.Spec.Destinations, appv1alpha1.ApplicationDestination{
 					Namespace: guestbookDevNS.Name,
 					Server:    "https://kubernetes.default.svc",
 				})
 			})
-
 			By("creating a new Application that attempts to deploy to that new namespace")
 			guestbookDevApplication := &appv1alpha1.Application{
 				ObjectMeta: metav1.ObjectMeta{
