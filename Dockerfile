@@ -21,11 +21,15 @@ COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY common/ common/
+COPY internal/ai/ internal/ai/
 COPY version/ version/
 
 # Build - Use TARGETARCH to build for the correct architecture
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -o manager ./cmd/main.go
+ARG VERSION=0.0.1
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a \
+    -ldflags="-X github.com/redhat-developer/gitops-operator/version.Version=${VERSION}" \
+    -o manager ./cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

@@ -57,6 +57,13 @@ const (
 	openShiftIngressOVNPolicyGroupLabel = "policy-group.network.openshift.io/ingress"
 )
 
+// Identify AI-only policy failures so the caller can finish ordinary reconciliation.
+type aiNotificationsNetworkPolicyError struct {
+	error
+}
+
+func (e *aiNotificationsNetworkPolicyError) Unwrap() error { return e.error }
+
 func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 	if IsImageUpdaterAPIAvailable() && cr.Spec.ImageUpdater.Enabled && cr.Spec.NetworkPolicy.IsEnabled() {
 		if err := r.reconcileImageUpdaterNetworkPolicy(ImageUpdaterNetworkPolicy, cr); err != nil {
@@ -79,8 +86,12 @@ func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 	}
 
 	// Reconcile Notifications Controller network policy
+	var aiError error
 	if err := r.ReconcileNotificationsControllerNetworkPolicy(cr); err != nil {
-		return err
+		if !AINotificationsEnabled(cr) || isNotificationsEnabled(cr) {
+			return err
+		}
+		aiError = &aiNotificationsNetworkPolicyError{err}
 	}
 
 	// Reconcile Dex Server network policy
@@ -109,7 +120,7 @@ func (r *ReconcileArgoCD) ReconcileNetworkPolicies(cr *argoproj.ArgoCD) error {
 		return err
 	}
 
-	return nil
+	return aiError
 }
 
 func (r *ReconcileArgoCD) deleteArgoCDNetworkPolicies(cr *argoproj.ArgoCD) error {
@@ -696,7 +707,7 @@ func (r *ReconcileArgoCD) ReconcileNotificationsControllerNetworkPolicy(cr *argo
 		return err
 	}
 
-	if !isNotificationsEnabled(cr) {
+	if !shouldRunNotificationsController(cr) {
 		if npExists {
 			argoutil.LogResourceDeletion(log, existing, "notifications are disabled")
 			return r.Delete(context.TODO(), existing)

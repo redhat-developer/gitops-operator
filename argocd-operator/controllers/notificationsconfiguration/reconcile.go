@@ -15,15 +15,20 @@
 package notificationsconfiguration
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1alpha1 "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1alpha1"
 )
 
 // reconcileNotificationsConfigurationResources will reconcile all the resources for the given CR.
 func (r *NotificationsConfigurationReconciler) reconcileNotificationsConfigurationResources(cr *v1alpha1.NotificationsConfiguration) error {
-
 	if err := r.reconcileNotificationsConfigmap(cr); err != nil {
 		return err
 	}
@@ -32,10 +37,22 @@ func (r *NotificationsConfigurationReconciler) reconcileNotificationsConfigurati
 
 // setResourceWatches will register Watches for each of the supported Resources.
 func setResourceWatches(bld *builder.Builder) *builder.Builder {
-	// Watch for changes to primary resource NotificationsConfiguration
 	bld.For(&v1alpha1.NotificationsConfiguration{})
-	// Watch for changes to Configmap sub-resources owned by NotificationsConfigurationController.
 	bld.Owns(&corev1.ConfigMap{})
-
+	// When the AI-managed NC CR changes or is deleted, re-trigger reconciliation
+	// of the default NC CR so it can rebuild the ConfigMap without AI entries.
+	bld.Watches(&v1alpha1.NotificationsConfiguration{}, handler.EnqueueRequestsFromMapFunc(
+		func(_ context.Context, obj client.Object) []reconcile.Request {
+			if obj.GetName() != aiNotificationsConfigurationName {
+				return nil
+			}
+			return []reconcile.Request{{
+				NamespacedName: types.NamespacedName{
+					Name:      defaultNotificationsConfigurationName,
+					Namespace: obj.GetNamespace(),
+				},
+			}}
+		},
+	))
 	return bld
 }
