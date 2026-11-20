@@ -264,6 +264,9 @@ type ArgoCDApplicationSet struct {
 	// LogFormat refers to the log format used by the ApplicationSet component. Defaults to ArgoCDDefaultLogFormat if not configured. Valid options are text or json.
 	// +kubebuilder:validation:Enum=text;json
 	LogFormat string `json:"logFormat,omitempty"`
+
+	// Replicas defines the number of replicas for argocd-applicationset-controller. Value should be greater than or equal to 0. Default is nil.
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 func (a *ArgoCDApplicationSet) IsEnabled() bool {
