@@ -1,6 +1,10 @@
 name: Trigger openshift-ci automation
 on:
   create
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest

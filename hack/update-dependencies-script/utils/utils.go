@@ -28,7 +28,7 @@ func RunCommandListWithWorkDir(workingDir string, commands [][]string) error {
 func RunCommandWithWorkDir(workingDir string, cmdList ...string) (string, string, error) {
 	fmt.Printf("%v:\n", cmdList)
 
-	cmd := exec.Command(cmdList[0], cmdList[1:]...)
+	cmd := exec.Command(cmdList[0], cmdList[1:]...) // #nosec G204 -- Command is used with a trusted source
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Dir = workingDir
@@ -91,13 +91,13 @@ func RemoveDuplicateLines(in []string) []string {
 }
 
 func CopyFile(srcParam, dstParam string) (err error) {
-	srcFile, err := os.Open(srcParam)
+	srcFile, err := os.Open(srcParam) // #nosec G304 -- File is opened with a trusted source
 	if err != nil {
 		return fmt.Errorf("could not open source file %s: %w", srcParam, err)
 	}
 	defer srcFile.Close()
 
-	destFile, err := os.Create(dstParam)
+	destFile, err := os.Create(dstParam) // #nosec G304 -- File is created with a trusted source
 	if err != nil {
 		return fmt.Errorf("could not create destination file %s: %w", dstParam, err)
 	}
@@ -132,7 +132,7 @@ func FileExists(filename string) (bool, error) {
 }
 
 func GetFileContentsAsLines(filePath string) []string {
-	bytes, err := os.ReadFile(filePath)
+	bytes, err := os.ReadFile(filePath) // #nosec G304 -- File is read with a trusted source
 	if err != nil {
 		ExitWithError(fmt.Errorf("unable to get "+filePath+": %v", err))
 		return nil
@@ -160,6 +160,7 @@ func CloneRepoIntoTempDir(repoURL, latestReleaseVersionTag string) (string, erro
 		"--branch", latestReleaseVersionTag,
 		"--single-branch",
 		"--no-tags",
+		"-c", "advice.detachedHead=false",
 		repoURL,
 		outputDir); err != nil {
 		return "", err
