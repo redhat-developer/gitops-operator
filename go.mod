@@ -10,6 +10,7 @@ require (
 	github.com/argoproj-labs/gitops-promoter v0.49.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.1
 	github.com/argoproj/argo-cd/v3 v3.6.1
+	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
 	github.com/cert-manager/cert-manager v1.21.2
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -21,7 +22,7 @@ require (
 	github.com/openshift/api v0.0.0-20260619095050-5346161d1bf2
 	github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e
 	github.com/operator-framework/api v0.17.5
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.92.1
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.95.2
 	// Internalized from a separate repo
 	github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
 	github.com/stretchr/testify v1.12.1
@@ -77,6 +78,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
+	github.com/expr-lang/expr v1.17.8 // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect

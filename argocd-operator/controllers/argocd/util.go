@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -726,10 +727,31 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	if !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0 {
+	aiError := r.migrateLegacyAINotifications(cr)
+	aiEnabled := AINotificationsEnabled(cr)
+	if aiEnabled && aiError == nil {
+		aiError = r.setAINotificationsManaged(cr, true)
+	}
+	userNotifications := !reflect.DeepEqual(cr.Spec.Notifications, argoproj.ArgoCDNotifications{}) || len(r.ManagedNotificationsSourceNamespaces) > 0
+	if userNotifications || (aiEnabled && aiError == nil) {
 		log.Info("reconciling Notifications controller")
 		if err := r.reconcileNotificationsController(cr); err != nil {
-			return err
+			// Defer AI-only failures even when disabled notifications retain settings.
+			if !aiEnabled || isNotificationsEnabled(cr) {
+				return err
+			}
+			aiError = err
+		}
+	}
+	if aiEnabled && aiError == nil {
+		aiError = r.reconcileAINotifications(cr)
+	} else if !aiEnabled && aiError == nil && hasManagedAINotifications(cr) {
+		aiError = r.cleanupAINotifications(cr)
+		if aiError == nil && !userNotifications {
+			aiError = r.cleanupAIOnlyNotificationsController(cr)
+		}
+		if aiError == nil {
+			aiError = r.setAINotificationsManaged(cr, false)
 		}
 	}
 
@@ -751,7 +773,11 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 	}
 
 	if err := r.ReconcileNetworkPolicies(cr); err != nil {
-		return err
+		var aiPolicyError *aiNotificationsNetworkPolicyError
+		if !errors.As(err, &aiPolicyError) {
+			return err
+		}
+		aiError = err
 	}
 
 	if err := r.reconcileArgoCDAgent(cr); err != nil {
@@ -762,7 +788,7 @@ func (r *ReconcileArgoCD) reconcileResources(cr *argoproj.ArgoCD, argocdStatus *
 		return err
 	}
 
-	return nil
+	return aiError
 }
 
 func (r *ReconcileArgoCD) deleteClusterResources(cr *argoproj.ArgoCD) error {
@@ -928,6 +954,7 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 	// Watch for changes to sub-resources owned by ArgoCD instances.
 	bldr.Owns(&corev1.ConfigMap{})
 	bldr.Owns(&corev1.Secret{})
+	bldr.Owns(&corev1.ServiceAccount{})
 	bldr.Owns(&corev1.Service{})
 	bldr.Owns(&appsv1.Deployment{})
 	bldr.Owns(&networkingv1.Ingress{})
@@ -944,6 +971,12 @@ func (r *ReconcileArgoCD) setResourceWatches(bldr *builder.Builder, clusterResou
 	bldr.Owns(&v1.Role{})
 	bldr.Owns(&v1.RoleBinding{})
 	bldr.Owns(&v1alpha1.NotificationsConfiguration{})
+
+	// Also route shared enrollment changes and changes to notification inputs
+	// whose ownership metadata may be absent, including deleted configurations.
+	bldr.Watches(&corev1.Secret{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
+	bldr.Watches(&corev1.ConfigMap{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
+	bldr.Watches(&v1alpha1.NotificationsConfiguration{}, handler.EnqueueRequestsFromMapFunc(r.aiNotificationDependencyRequests))
 
 	bldr.Watches(&argoproj.NamespaceManagement{}, handler.EnqueueRequestsFromMapFunc(nmMapper), builder.WithPredicates(r.namespaceManagementFilterPredicate()))
 

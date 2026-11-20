@@ -5,6 +5,12 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= ""
 
+# ARGO_CD_TARGET_VERSION is the target version that argocd-operator will install.
+# Update this when you upgrade the Argo CD dependencies of the project.
+# After updating, call 'make update-dependencies'.
+# Notes:
+# - String should NOT begin with 'v' prefix, e.g. 'v3.1.1'
+ARGO_CD_TARGET_VERSION ?= 3.6.1
 
 # Try to detect Docker or Podman
 CONTAINER_RUNTIME := $(shell command -v docker 2> /dev/null || command -v podman 2> /dev/null)
@@ -61,6 +67,11 @@ endif
 
 # Image URL to use all building/pushing image targets
 IMG ?= $(IMAGE):$(VERSION)
+
+# Keep the development default aligned with version/version.go when VERSION is unset.
+OPERATOR_VERSION = $(or $(strip $(subst ",,$(VERSION))),0.0.1)
+# Set VERSION or override the full AI controller image.
+GITOPS_AI_CONTROLLER_IMG ?= quay.io/redhat-developer/gitops-ai-controller:v$(OPERATOR_VERSION)
 
 # Set the Operator SDK version to use.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
@@ -138,15 +149,15 @@ vet: ## Run go vet against code.
 
 .PHONY: update-dependencies
 update-dependencies: ## Update Go dependencies and regenerate CRDs, manifests and bundle.
-	$(MAKE) -C argocd-operator update-dependencies
+	hack/update-dependencies-script/run.sh
 
 .PHONY: update-dependencies-argocd
 update-dependencies-argocd: ## Update only the Argo CD dependency.
-	$(MAKE) -C argocd-operator update-dependencies-argocd
+	hack/update-dependencies-script/argocd/run.sh
 
 .PHONY: update-dependencies-gitops-promoter
 update-dependencies-gitops-promoter: ## Update only the GitOps Promoter dependency.
-	$(MAKE) -C argocd-operator update-dependencies-gitops-promoter
+	hack/update-dependencies-script/gitops-promoter/run.sh
 
 get-image-updater-crd: ## Download Image Updater CRD.
 	@echo "downloading image updater crd"
@@ -201,11 +212,21 @@ run: manifests generate fmt vet ## Run a controller from your host.
 
 .PHONY: docker-build
 docker-build: test ## Build container image with the manager.
-	$(CONTAINER_RUNTIME) build -t ${IMG} .
+	$(CONTAINER_RUNTIME) build --build-arg VERSION="$(OPERATOR_VERSION)" -t ${IMG} .
 
 .PHONY: docker-push
 docker-push: ## Push container image with the manager.
 	$(CONTAINER_RUNTIME) push ${IMG}
+
+.PHONY: docker-build-gitops-ai-controller
+docker-build-gitops-ai-controller: ## Build the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) build $(if $(PLATFORM),--platform $(PLATFORM)) -f Dockerfile.gitops-ai-controller \
+		--build-arg COMMIT=$(shell git rev-parse --short HEAD) \
+		-t $(GITOPS_AI_CONTROLLER_IMG) .
+
+.PHONY: docker-push-gitops-ai-controller
+docker-push-gitops-ai-controller: ## Push the gitops-ai-controller container image.
+	$(CONTAINER_RUNTIME) push $(GITOPS_AI_CONTROLLER_IMG)
 
 ##@ Build Dependencies
 
