@@ -11,7 +11,7 @@ test.describe('Argo Rollouts UI extension', () => {
   const rolloutName = 'rollouts-demo';
   const gitopsNs = 'openshift-gitops';
   const rolloutManagerName = 'ui-e2e-rollouts';
-  //canary with an infinite pause so promote/abort/pause stay on the menu
+  //canary getting-started sample the first install can skip the pause step
   const targetRevision = 'v1.8.3';
 
   let originalEnableRolloutsUi = '';
@@ -128,7 +128,7 @@ test.describe('Argo Rollouts UI extension', () => {
       console.log(
         `[setup] argo-rollouts readyReplicas='${lastReady || '-'}' rmPhase='${lastPhase || '-'}' (${i}/40)`
       );
-      if (lastReady === '1') {
+      if (Number(lastReady) >= 1) {
         rmReady = true;
         break;
       }
@@ -136,7 +136,7 @@ test.describe('Argo Rollouts UI extension', () => {
     }
     if (!rmReady) {
       throw new Error(
-        `argo-rollouts in '${gitopsNs}' never reached readyReplicas=1 ` +
+        `argo-rollouts in '${gitopsNs}' never reached readyReplicas>=1 ` +
           `(ready='${lastReady || '-'}' rmPhase='${lastPhase || '-'}').`
       );
     }
