@@ -152,7 +152,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			secretNames = []string{
 				agentClientTLSSecretName,
 				agentRootCASecretName,
-				"example-redis-initial-password",
+				"argocd-redis",
 			}
 
 			serviceNames = []string{

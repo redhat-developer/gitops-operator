@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	testclient "k8s.io/client-go/kubernetes/fake"
@@ -132,6 +133,57 @@ func TestReconcileArgoCD_reconcileClusterCASecret(t *testing.T) {
 			Namespace: a.Namespace,
 		}, defaultSecret)
 		assert.True(t, apierrors.IsNotFound(err), "default-named CA secret must not be created when a custom name is set; got err: %v", err)
+	})
+
+	t.Run("carries the password over from a pre-users.acl redis-initial-password secret", func(t *testing.T) {
+		argocd := &argoproj.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd",
+				Namespace: "argocd-operator",
+			},
+		}
+
+		// The shape written by operators older than the auth/users.acl keys: admin.password only.
+		oldRedisSecret := argoutil.NewSecretWithSuffix(argocd, "redis-initial-password")
+		oldRedisSecret.Data = map[string][]byte{
+			"immutable":                   []byte("true"),
+			common.ArgoCDKeyAdminPassword: []byte("something"),
+		}
+		tlsSecret := argoutil.NewSecretWithSuffix(argocd, "tls")
+
+		resObjs := []client.Object{argocd}
+		subresObjs := []client.Object{argocd}
+		runtimeObjs := []runtime.Object{}
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+		cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+		r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+		err := r.Create(context.TODO(), oldRedisSecret)
+		assert.NoError(t, err)
+		err = r.Create(context.TODO(), tlsSecret)
+		assert.NoError(t, err)
+
+		err = r.reconcileRedisSecret(argocd)
+
+		assert.NoError(t, err)
+
+		oldSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: oldRedisSecret.Name, Namespace: "argocd-operator"}, oldRedisSecret)
+		assert.True(t, apierrors.IsNotFound(oldSecretErr))
+
+		newRedisSecret := argoutil.NewSecretWithName(argocd, "argocd-redis")
+
+		newSecretErr := r.Get(context.TODO(), types.NamespacedName{Name: newRedisSecret.Name, Namespace: "argocd-operator"}, newRedisSecret)
+		assert.NoError(t, newSecretErr)
+		// The legacy secret predates the auth/users.acl keys, but its password is still usable
+		// and must survive the upgrade rather than being rotated.
+		assert.Equal(t, "something", string(newRedisSecret.Data[common.ArgoCDKeyAdminPassword]),
+			"the legacy password should be carried over, not regenerated")
+		assert.Equal(t, "something", string(newRedisSecret.Data["auth"]))
+		assert.Equal(t, "default", string(newRedisSecret.Data["auth_username"]))
+		assert.Equal(t, "true", string(newRedisSecret.Data["immutable"]))
+		assert.Contains(t, string(newRedisSecret.Data["users.acl"]), "something",
+			"the missing keys should be derived from the carried-over password")
+		assert.NotEmpty(t, newRedisSecret.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
 	})
 
 	t.Run("skips creation when custom-named CA secret already exists", func(t *testing.T) {
@@ -523,15 +575,14 @@ func Test_ReconcileArgoCD_ReconcileShouldNotChangeWhenUpdatedAdminPass(t *testin
 	assert.True(t, argoutil.IsTrackedByOperator(testSecret.Labels))
 }
 
-func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
-	const suffix = "redis-initial-password"
+func Test_ReconcileArgoCD_ReconcileRedisSecret(t *testing.T) {
 	argocd := &argoproj.ArgoCD{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd",
 			Namespace: "argocd-operator",
 		},
 	}
-	secretName := argoutil.NewSecretWithSuffix(argocd, suffix).Name
+	secretName := "argocd-redis"
 	secretNN := types.NamespacedName{Name: secretName, Namespace: "argocd-operator"}
 
 	resObjs := []client.Object{argocd}
@@ -553,13 +604,14 @@ func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
 		actualPwd := string(actual.Data["auth"])
 		assert.NotEqual(t, "", actualPwd)
 		assert.Contains(t, string(actual.Data["users.acl"]), actualPwd, "Password is mentioned in the ACL file")
+		assert.NotEmpty(t, actual.OwnerReferences, "Secret is owned by the ArgoCD CR")
 		return actualPwd
 	}
 
 	t.Run("Create when does not exist", func(t *testing.T) {
 		require.ErrorContains(t, fetchSecret(), fmt.Sprintf(`secrets "%s" not found`, secretName))
 
-		require.NoError(t, r.reconcileRedisInitialPasswordSecret(argocd))
+		require.NoError(t, r.reconcileRedisSecret(argocd))
 
 		require.NoError(t, fetchSecret())
 		assertSecretValid()
@@ -567,14 +619,14 @@ func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
 
 	t.Run("Update keys and regenerate on operator upgrade", func(t *testing.T) {
 		const oldPwd = "asdfghjkl"
-		secret := argoutil.NewSecretWithSuffix(argocd, suffix)
+		secret := argoutil.NewSecretWithName(argocd, "argocd-redis")
 		secret.Data = map[string][]byte{
 			"immutable":                   []byte("true"),
 			common.ArgoCDKeyAdminPassword: []byte(oldPwd),
 		}
 		require.NoError(t, r.Update(t.Context(), secret))
 
-		require.NoError(t, r.reconcileRedisInitialPasswordSecret(argocd))
+		require.NoError(t, r.reconcileRedisSecret(argocd))
 
 		require.NoError(t, fetchSecret())
 		actualPwd := assertSecretValid()
@@ -586,11 +638,332 @@ func Test_ReconcileArgoCD_ReconcileRedisInitialPasswordSecret(t *testing.T) {
 		assertSecretValid()
 		oldVersion := actual.ResourceVersion
 
-		require.NoError(t, r.reconcileRedisInitialPasswordSecret(argocd))
+		require.NoError(t, r.reconcileRedisSecret(argocd))
 
 		require.NoError(t, fetchSecret())
 		assertSecretValid()
 		assert.Equal(t, oldVersion, actual.ResourceVersion, "Resource version should not change")
+	})
+}
+
+func Test_secretReferencedByPodSpec(t *testing.T) {
+	const secretName = "argocd-redis-initial-password"
+
+	secretVolume := func(name string) corev1.Volume {
+		return corev1.Volume{
+			Name:         "redis-auth",
+			VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: name}},
+		}
+	}
+
+	tests := []struct {
+		name     string
+		spec     corev1.PodSpec
+		expected bool
+	}{
+		{
+			name: "no reference at all",
+			spec: corev1.PodSpec{
+				Volumes:    []corev1.Volume{secretVolume("argocd-redis")},
+				Containers: []corev1.Container{{Name: "redis"}},
+			},
+			expected: false,
+		},
+		{
+			name:     "mounted as a secret volume",
+			spec:     corev1.PodSpec{Volumes: []corev1.Volume{secretVolume(secretName)}},
+			expected: true,
+		},
+		{
+			name: "mounted through a projected volume",
+			spec: corev1.PodSpec{Volumes: []corev1.Volume{{
+				Name: "redis-auth",
+				VolumeSource: corev1.VolumeSource{Projected: &corev1.ProjectedVolumeSource{
+					Sources: []corev1.VolumeProjection{
+						{ConfigMap: &corev1.ConfigMapProjection{}},
+						{Secret: &corev1.SecretProjection{
+							LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+						}},
+					},
+				}},
+			}}},
+			expected: true,
+		},
+		{
+			name: "injected through a secretKeyRef",
+			spec: corev1.PodSpec{Containers: []corev1.Container{{
+				Name: "redis",
+				Env: []corev1.EnvVar{{
+					Name: "REDIS_PASSWORD",
+					ValueFrom: &corev1.EnvVarSource{SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+						Key:                  "auth",
+					}},
+				}},
+			}}},
+			expected: true,
+		},
+		{
+			name: "injected through envFrom",
+			spec: corev1.PodSpec{Containers: []corev1.Container{{
+				Name: "redis",
+				EnvFrom: []corev1.EnvFromSource{{
+					SecretRef: &corev1.SecretEnvSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+					},
+				}},
+			}}},
+			expected: true,
+		},
+		{
+			name: "referenced only by an init container",
+			spec: corev1.PodSpec{
+				InitContainers: []corev1.Container{{
+					Name: "wait-for-redis",
+					EnvFrom: []corev1.EnvFromSource{{
+						SecretRef: &corev1.SecretEnvSource{
+							LocalObjectReference: corev1.LocalObjectReference{Name: secretName},
+						},
+					}},
+				}},
+				Containers: []corev1.Container{{Name: "redis"}},
+			},
+			expected: true,
+		},
+		{
+			name: "volume of another kind with no secret set",
+			spec: corev1.PodSpec{Volumes: []corev1.Volume{{
+				Name:         "tmp",
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+			}}},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, secretReferencedByPodSpec(&tt.spec, secretName))
+		})
+	}
+}
+
+func Test_salvageRedisPassword(t *testing.T) {
+	tests := []struct {
+		name string
+		data map[string][]byte
+		want []byte
+	}{
+		{
+			name: "nil data",
+			data: nil,
+			want: nil,
+		},
+		{
+			name: "no password keys at all",
+			data: map[string][]byte{"immutable": []byte("true")},
+			want: nil,
+		},
+		{
+			name: "admin.password only (pre-users.acl secret)",
+			data: map[string][]byte{common.ArgoCDKeyAdminPassword: []byte("ancient")},
+			want: []byte("ancient"),
+		},
+		{
+			name: "auth only",
+			data: map[string][]byte{"auth": []byte("from-auth")},
+			want: []byte("from-auth"),
+		},
+		{
+			name: "both present and equal, as every operator-written secret has them",
+			data: argoutil.GetRedisSecretData([]byte("agreed")),
+			want: []byte("agreed"),
+		},
+		{
+			name: "empty admin.password falls through to auth",
+			data: map[string][]byte{
+				common.ArgoCDKeyAdminPassword: []byte(""),
+				"auth":                        []byte("from-auth"),
+			},
+			want: []byte("from-auth"),
+		},
+		{
+			name: "both empty",
+			data: map[string][]byte{
+				common.ArgoCDKeyAdminPassword: []byte(""),
+				"auth":                        []byte(""),
+			},
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := salvageRedisPassword(&corev1.Secret{Data: tt.data})
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_ReconcileArgoCD_ReconcileRedisSecret_LegacyMigration(t *testing.T) {
+	const legacyPwd = "legacy-password"
+	const namespace = "argocd-operator"
+
+	newArgoCD := func() *argoproj.ArgoCD {
+		return &argoproj.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: namespace},
+		}
+	}
+
+	newReconciler := func(cr *argoproj.ArgoCD, objs ...client.Object) *ReconcileArgoCD {
+		sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+		cl := makeTestReconcilerClient(sch, append([]client.Object{cr}, objs...), []client.Object{cr}, []runtime.Object{})
+		return makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+	}
+
+	// A legacy secret holding every key the redis components expect.
+	newLegacySecret := func(cr *argoproj.ArgoCD) *corev1.Secret {
+		legacy := argoutil.NewSecretWithSuffix(cr, REDIS_INITIAL_PASSWORD)
+		legacy.Data = argoutil.GetRedisSecretData([]byte(legacyPwd))
+		return legacy
+	}
+
+	getSecret := func(t *testing.T, r *ReconcileArgoCD, name string) (*corev1.Secret, error) {
+		t.Helper()
+		secret := &corev1.Secret{}
+		err := r.Get(t.Context(), types.NamespacedName{Name: name, Namespace: namespace}, secret)
+		return secret, err
+	}
+
+	t.Run("carries the password over from a healthy legacy secret", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := newLegacySecret(argocd)
+		r := newReconciler(argocd, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		assert.Equal(t, legacyPwd, string(actual.Data[common.ArgoCDKeyAdminPassword]), "password should be carried over, not regenerated")
+		assert.Equal(t, legacyPwd, string(actual.Data["auth"]))
+		assert.Equal(t, "default", string(actual.Data["auth_username"]))
+		assert.Equal(t, "true", string(actual.Data["immutable"]), "keys derived by GetRedisSecretData must be present")
+		assert.Contains(t, string(actual.Data["users.acl"]), legacyPwd, "the ACL file must match the carried-over password")
+
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
+
+		_, err = getSecret(t, r, legacy.Name)
+		assert.True(t, apierrors.IsNotFound(err), "legacy secret should be deleted once nothing references it")
+	})
+
+	t.Run("salvages the password from the auth key when admin.password is absent", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := argoutil.NewSecretWithSuffix(argocd, REDIS_INITIAL_PASSWORD)
+		legacy.Data = map[string][]byte{
+			"immutable":     []byte("true"),
+			"auth":          []byte(legacyPwd),
+			"auth_username": []byte("default"),
+		}
+		r := newReconciler(argocd, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		assert.Equal(t, legacyPwd, string(actual.Data["auth"]), "auth should be used when admin.password is missing")
+		assert.Equal(t, legacyPwd, string(actual.Data[common.ArgoCDKeyAdminPassword]))
+		assert.Contains(t, string(actual.Data["users.acl"]), legacyPwd)
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
+	})
+
+	t.Run("generates a fresh password when the legacy secret holds nothing salvageable", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := argoutil.NewSecretWithSuffix(argocd, REDIS_INITIAL_PASSWORD)
+		legacy.Data = map[string][]byte{"immutable": []byte("true")} // no admin.password, no auth
+		r := newReconciler(argocd, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		// There is no password to carry over, but argocd-redis must still come out complete
+		// and owned - not an empty secret.
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		pwd := string(actual.Data["auth"])
+		assert.NotEmpty(t, pwd, "a password must be generated when none can be salvaged")
+		assert.Equal(t, pwd, string(actual.Data[common.ArgoCDKeyAdminPassword]))
+		assert.Equal(t, "default", string(actual.Data["auth_username"]))
+		assert.Equal(t, "true", string(actual.Data["immutable"]))
+		assert.Contains(t, string(actual.Data["users.acl"]), pwd)
+		assert.NotEmpty(t, actual.OwnerReferences, "argocd-redis should be owned by the ArgoCD CR")
+	})
+
+	t.Run("deletes the legacy secret when argocd-redis is already healthy", func(t *testing.T) {
+		argocd := newArgoCD()
+		existing := argoutil.NewSecretWithName(argocd, ARGOCD_REDIS)
+		existing.Data = argoutil.GetRedisSecretData([]byte("current-password"))
+		legacy := newLegacySecret(argocd)
+		r := newReconciler(argocd, existing, legacy)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		assert.Equal(t, "current-password", string(actual.Data[common.ArgoCDKeyAdminPassword]), "a healthy argocd-redis must be left alone")
+
+		_, err = getSecret(t, r, legacy.Name)
+		assert.True(t, apierrors.IsNotFound(err), "legacy secret should still be cleaned up on the healthy path")
+	})
+
+	t.Run("keeps the legacy secret while a pod still mounts it", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := newLegacySecret(argocd)
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis-0", Namespace: namespace},
+			Spec: corev1.PodSpec{
+				Volumes: []corev1.Volume{{
+					Name:         argoutil.RedisAuthVolumeName,
+					VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: legacy.Name}},
+				}},
+				Containers: []corev1.Container{{Name: "redis", Image: "redis"}},
+			},
+		}
+		r := newReconciler(argocd, legacy, pod)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		_, err := getSecret(t, r, legacy.Name)
+		assert.NoError(t, err, "legacy secret must survive while a running pod still mounts it")
+
+		// The new secret is still created, so the rollout has something to switch onto.
+		actual, err := getSecret(t, r, ARGOCD_REDIS)
+		require.NoError(t, err)
+		assert.Equal(t, legacyPwd, string(actual.Data[common.ArgoCDKeyAdminPassword]))
+	})
+
+	t.Run("keeps the legacy secret while a scaled-to-zero deployment references it", func(t *testing.T) {
+		argocd := newArgoCD()
+		legacy := newLegacySecret(argocd)
+		replicas := int32(0)
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-redis", Namespace: namespace},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: &replicas,
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Volumes: []corev1.Volume{{
+							Name:         argoutil.RedisAuthVolumeName,
+							VolumeSource: corev1.VolumeSource{Secret: &corev1.SecretVolumeSource{SecretName: legacy.Name}},
+						}},
+						Containers: []corev1.Container{{Name: "redis", Image: "redis"}},
+					},
+				},
+			},
+		}
+		r := newReconciler(argocd, legacy, deployment)
+
+		require.NoError(t, r.reconcileRedisSecret(argocd))
+
+		_, err := getSecret(t, r, legacy.Name)
+		assert.NoError(t, err, "a workload with no pods would still fail on scale-up, so the secret must survive")
 	})
 }
 
