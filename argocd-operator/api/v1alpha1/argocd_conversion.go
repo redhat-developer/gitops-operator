@@ -835,6 +835,7 @@ func ConvertAlphaToBetaPrincipal(src *PrincipalSpec) *v1beta1.PrincipalSpec {
 			SPIFFE:           ConvertAlphaToBetaSPIFFE(src.SPIFFE),
 			LogFullDetail:    src.LogFullDetail,
 			PProf:            ConvertAlphaToBetaAgentPProf(src.PProf),
+			HA:               ConvertAlphaToBetaPrincipalHA(src.HA),
 		}
 	}
 	return dst
@@ -873,6 +874,7 @@ func ConvertBetaToAlphaPrincipal(src *v1beta1.PrincipalSpec) *PrincipalSpec {
 			SPIFFE:           ConvertBetaToAlphaSPIFFE(src.SPIFFE),
 			LogFullDetail:    src.LogFullDetail,
 			PProf:            ConvertBetaToAlphaAgentPProf(src.PProf),
+			HA:               ConvertBetaToAlphaPrincipalHA(src.HA),
 		}
 	}
 	return dst
@@ -1289,6 +1291,40 @@ func ConvertBetaToAlphaPrincipalSelfRegistration(src *v1beta1.PrincipalSelfRegis
 			Enabled:              src.Enabled,
 			ClientCertSecretName: src.ClientCertSecretName,
 			ClusterSecretLabels:  src.ClusterSecretLabels,
+		}
+	}
+	return dst
+}
+
+func ConvertAlphaToBetaPrincipalHA(src *PrincipalHASpec) *v1beta1.PrincipalHASpec {
+	var dst *v1beta1.PrincipalHASpec
+	if src != nil {
+		dst = &v1beta1.PrincipalHASpec{
+			Enabled:                      src.Enabled,
+			PreferredRole:                src.PreferredRole,
+			PeerAddress:                  src.PeerAddress,
+			PeerTLSSecretName:            src.PeerTLSSecretName,
+			AllowedReplicationClients:    src.AllowedReplicationClients,
+			AdminPort:                    src.AdminPort,
+			AdminAuth:                    src.AdminAuth,
+			ReplicationInitialAckTimeout: src.ReplicationInitialAckTimeout,
+		}
+	}
+	return dst
+}
+
+func ConvertBetaToAlphaPrincipalHA(src *v1beta1.PrincipalHASpec) *PrincipalHASpec {
+	var dst *PrincipalHASpec
+	if src != nil {
+		dst = &PrincipalHASpec{
+			Enabled:                      src.Enabled,
+			PreferredRole:                src.PreferredRole,
+			PeerAddress:                  src.PeerAddress,
+			PeerTLSSecretName:            src.PeerTLSSecretName,
+			AllowedReplicationClients:    src.AllowedReplicationClients,
+			AdminPort:                    src.AdminPort,
+			AdminAuth:                    src.AdminAuth,
+			ReplicationInitialAckTimeout: src.ReplicationInitialAckTimeout,
 		}
 	}
 	return dst
