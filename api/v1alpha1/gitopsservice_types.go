@@ -51,12 +51,18 @@ type ConsolePluginStruct struct {
 type BackendStruct struct {
 	// Resources defines the resource requests and limits for the backend service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Replicas defines the number of replicas for the backend deployment
+	// +kubebuilder:validation:Minimum=0
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // GitopsPluginStruct defines the resource configuration for the Gitops Plugin components
 type GitopsPluginStruct struct {
 	// Resources defines the resource requests and limits for the gitops plugin service
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Replicas defines the number of replicas for the gitops plugin deployment
+	// +kubebuilder:validation:Minimum=0
+	Replicas *int32 `json:"replicas,omitempty"`
 }
 
 // GitopsServiceStatus defines the observed state of GitopsService
