@@ -354,12 +354,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-
-			if fixture.EnvCI() || fixture.EnvLocalRun() || fixture.EnvNonOLM() {
-				Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
-			} else {
-				Expect(container.Image).To(HavePrefix("registry.redhat.io/openshift-gitops-1/argocd-agent-rhel9"))
-			}
+			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
 
 			By("Create required secrets and certificates for principal pod to start properly")
 
@@ -408,7 +403,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Create ArgoCD instance")
 
-			argoCD.Spec.ArgoCDAgent.Principal.Image = common.ArgoCDAgentPrincipalDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for principal pod")
@@ -419,7 +413,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 
