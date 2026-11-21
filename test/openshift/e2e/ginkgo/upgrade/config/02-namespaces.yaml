@@ -1,0 +1,24 @@
+# upgrade-argocd holds a second Argo CD instance, the other three hold its workloads.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upgrade-argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upgrade-app
+  labels:
+    argocd.argoproj.io/managed-by: upgrade-argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upgrade-appset
+  labels:
+    argocd.argoproj.io/managed-by: upgrade-argocd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: upgrade-rollouts

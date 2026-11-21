@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: upgrade
+  namespace: upgrade-argocd
+spec:
+  sourceRepos:
+    - https://github.com/redhat-developer/gitops-operator
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: upgrade-app
+    - server: https://kubernetes.default.svc
+      namespace: upgrade-appset
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+  namespace: upgrade-argocd
+spec:
+  project: upgrade
+  source:
+    repoURL: https://github.com/redhat-developer/gitops-operator
+    path: test/examples/nginx
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: upgrade-app
+  syncPolicy:
+    automated: {}
+---
+# Generates one Application, nginx-appset, deploying the same example into upgrade-appset.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: nginx-appset
+  namespace: upgrade-argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - namespace: upgrade-appset
+  template:
+    metadata:
+      name: nginx-appset
+    spec:
+      project: upgrade
+      source:
+        repoURL: https://github.com/redhat-developer/gitops-operator
+        path: test/examples/nginx
+        targetRevision: HEAD
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{namespace}}"
+      syncPolicy:
+        automated: {}
