@@ -28,7 +28,7 @@ When you create, update, or delete an ApplicationSet resource, the ApplicationSe
 
 The ApplicationSet Controller does: 
 
-- create, update, and delete Application resources within the default `gitops-operator` namespace. 
+- create, update, and delete Application resources within the namespace of the ApplicationSet (`openshift-gitops` for the default instance). 
 - ensure that the Application resources remain consistent with the defined declarative ApplicationSet resource
 
 The ApplicationSet Controller does NOT:
@@ -209,22 +209,19 @@ The options for the `applicationsSync` field are:
 - `create-delete`: Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
 - `sync` (default): Update and Delete are allowed.
 
-You could also do the same via the `--policy` addition to the ApplicationSet controller Deployment.
-Run `kubectl edit deployment/gitops-applicationset-controller -n openshift-gitops` and then edit the `.spec.template.spec.containers[0].command` to have the following: 
+You could also do the same for every ApplicationSet by passing `--policy` to the ApplicationSet controller. The operator manages the `<argocd-name>-applicationset-controller` Deployment (`openshift-gitops-applicationset-controller` for the default instance) and reverts manual edits to its containers, so set the flag with `.spec.applicationSet.extraCommandArgs` in the ArgoCD CR instead (`oc edit argocd openshift-gitops -n openshift-gitops` for the default instance):
 
 ```yaml
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: openshift-gitops
+  namespace: openshift-gitops
 spec:
-    # (...)
-  template:
-    # (...)
-    spec:
-      containers:
-      - command:
-        - entrypoint.sh
-        - openshift-gitops-applicationset-controller
-        # Insert new parameters here, for example:
-        # --policy create-update
-    # (...)
+  applicationSet:
+    extraCommandArgs:
+      - --policy
+      - create-update
 ```
 When `--policy` is set as it is above, it does take precedence over the previously mentioned `.spec.syncPolicy.applicationsSync` field. 
 
@@ -327,17 +324,23 @@ Please note though that when using the non-cascaded delete, the `resources-final
 
 #### 5. Preventing an Application’s child resources from being modified
 
-When an Application resource is updated by the ApplicationSet controller, all of the child resources of the Application will be updated accordingly. However, by default (and as a safety mechanism), automated syncs will not delete resources when Argo CD detects the resource is no longer defined in Git. You can "pause" updates to cluster resources managed by the `Application` resource by unsetting the `spec.template.syncPolicy.automated`. As an extra precaution, you could also have `spec.template.syncPolicy.automated.prune` set to false to prevent any unexpected changes. 
+When an Application resource is updated by the ApplicationSet controller, the change reaches the Application's child resources on the next sync: automatically when the Application has automated sync enabled, or when a sync is triggered otherwise. However, by default (and as a safety mechanism), automated syncs will not delete resources when Argo CD detects the resource is no longer defined in Git. The sync settings of the generated Applications live in the Application template, under `spec.template.spec.syncPolicy`, not in the ApplicationSet's own `spec.syncPolicy`.
+
+You can "pause" updates to cluster resources managed by the generated `Application` resources by unsetting `spec.template.spec.syncPolicy.automated`, which turns automated sync off:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 spec:
   # (...)
-  syncPolicy:
-    automated:
-      prune: false 
+  template:
+    # (...)
+    spec:
+      # (...)
+      syncPolicy: {}
 ```
+
+Setting `spec.template.spec.syncPolicy.automated.prune` to `false` (the default) is not a way to pause auto-sync: it only stops automated sync from deleting resources that were removed from Git, while other changes in Git are still applied.
 
 #### 6. Preserving Application annotation and labels
 

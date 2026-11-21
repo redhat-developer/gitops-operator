@@ -157,7 +157,7 @@ apiVersion: pipelines.openshift.io/v1alpha1
 kind: GitopsService
 metadata:
   name: cluster
-      spec:
+spec:
   runOnInfra: true
   tolerations:
   - effect: NoSchedule
@@ -241,6 +241,7 @@ apiVersion: machine.openshift.io/v1beta1
 kind: MachineSet
 metadata:
   name: rhoms-4-10-081004-6jgmc-worker-us-east-2a
+  namespace: openshift-machine-api
 spec:
   replicas: 3
 
@@ -248,7 +249,33 @@ spec:
 
 Users can store the above described patch within their GitOps repositories to be applied and managed along with other Argo CD managed resources.
 
-[Kubernetes Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) allows users to patch existing resources and manage specific sets of fields only by setting the 'field manager' for those fields appropriately. Argo CD will soon include the ability to support server-side apply for manifests as described in this [accepted proposal](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/server-side-apply.md#server-side-apply-support-for-argocd). Users will have the option to express that they would like to enforce server-side apply through a new sync option either at application level, or at individual resource level by leveraging appropriate annotations (more details [here](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/server-side-apply.md#use-cases)).
+[Kubernetes Server Side Apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/) allows users to patch existing resources and manage specific sets of fields only by setting the 'field manager' for those fields appropriately. A partial manifest like the one above is applied with server-side apply, which Argo CD does not use by default. Enable it with the `ServerSideApply=true` [sync option](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#server-side-apply), either for the whole Application:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  # (...)
+  syncPolicy:
+    syncOptions:
+    - ServerSideApply=true
+```
+
+or only for the MachineSet, with an annotation on the resource:
+
+```yaml
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  name: rhoms-4-10-081004-6jgmc-worker-us-east-2a
+  namespace: openshift-machine-api
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true,Prune=false,Delete=false
+spec:
+  replicas: 3
+```
+
+**Warning**: once the patch is synced, Argo CD tracks the whole MachineSet, not only the patched fields. If the patch is removed from Git with pruning enabled, or the Application is deleted with cascading deletion, Argo CD deletes the real MachineSet together with its machines. Keep the `Prune=false` and `Delete=false` sync options on the MachineSet, as in the annotation example above, even when server-side apply is enabled for the whole Application: these two options only take effect per resource. `Delete=false` needs Argo CD v2.7 or later; on older versions, avoid cascading deletion of the Application. If the sync is rejected because the partial manifest misses required fields, add `Validate=false` in the same place as `ServerSideApply=true`: to the annotation value, or to the Application's `syncOptions`.
 
 On following these steps, users should be able to manage their machinesets using Argo CD v2.5 and upwards (available with OpenShift GitOps v1.7 and upwards). They should be able to have Argo CD apply their patches to existing resources using server-side apply, see the changes reflected on cluster, and have the 'field manager' updated appropriately for their resources. 
 
