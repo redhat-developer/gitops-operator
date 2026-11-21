@@ -27,21 +27,31 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
+
+const dexConfigYAML = `connectors:
+  - type: openshift
+    id: openshift
+    name: OpenShift
+    config:
+      issuer: https://kubernetes.default.svc
+      clientID: testclient
+      redirectURI: https://localhost:443/dex/callback
+      insecureCA: true
+      clientSecretFile: /var/run/secrets/kubernetes.io/serviceaccount/token`
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-120_verify_argocd_status_consistency", func() {
 
 		var (
-			k8sClient   client.Client
-			ctx         context.Context
-			cleanupFunc func()
-			ns          *corev1.Namespace
+			k8sClient client.Client
+			ctx       context.Context
+			ns        *corev1.Namespace
 		)
 
 		BeforeEach(func() {
@@ -54,14 +64,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		AfterEach(func() {
 			fixture.OutputDebugOnFail(ns)
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
 		})
 
 		It("cycle throughs each component of .status.phase, and ensures that enabling/disabling the components will affect the .status.phase as expected.", func() {
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			type componentEnabler struct {
 				// name of the component to be enabled/disabled
@@ -172,7 +180,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
 									Provider: argov1beta1api.SSOProviderTypeDex,
 									Dex: &argov1beta1api.ArgoCDDexSpec{
-										Config: "hi",
+										Config: dexConfigYAML,
 										Image:  "quay.io/argoprojlabs/argocd-operator-does-not-exist:latest",
 									},
 								}
@@ -180,7 +188,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 								ac.Spec.SSO = &argov1beta1api.ArgoCDSSOSpec{
 									Provider: argov1beta1api.SSOProviderTypeDex,
 									Dex: &argov1beta1api.ArgoCDDexSpec{
-										Config: "hi",
+										Config: dexConfigYAML,
 									},
 								}
 							}
@@ -204,7 +212,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 					SSO: &argov1beta1api.ArgoCDSSOSpec{
 						Provider: argov1beta1api.SSOProviderTypeDex,
 						Dex: &argov1beta1api.ArgoCDDexSpec{
-							Config: "hi",
+							Config: dexConfigYAML,
 						},
 					},
 					Repo:  argov1beta1api.ArgoCDRepoSpec{},
