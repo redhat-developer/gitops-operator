@@ -436,6 +436,81 @@ func TestReconcileApplicationSet_UpdateExistingDeployments(t *testing.T) {
 	checkExpectedDeploymentValues(t, r, deployment, &sa, nil, nil, a)
 }
 
+func TestReconcileApplicationSet_Deployments_Replicas(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	var (
+		oneReplica   int32 = 1
+		threeReplica int32 = 3
+	)
+
+	tests := []struct {
+		name               string
+		replicas           *int32
+		wantReplicas       *int32
+		wantLeaderElection bool
+	}{
+		{
+			name:               "replicas unset, leader election not enabled",
+			replicas:           nil,
+			wantReplicas:       nil,
+			wantLeaderElection: false,
+		},
+		{
+			name:               "replicas set to 1, leader election not enabled",
+			replicas:           &oneReplica,
+			wantReplicas:       &oneReplica,
+			wantLeaderElection: false,
+		},
+		{
+			name:               "replicas scaled above 1, leader election enabled",
+			replicas:           &threeReplica,
+			wantReplicas:       &threeReplica,
+			wantLeaderElection: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ApplicationSet = &argoproj.ArgoCDApplicationSet{
+					Replicas: test.replicas,
+				}
+			})
+
+			resObjs := []client.Object{a}
+			subresObjs := []client.Object{a}
+			runtimeObjs := []runtime.Object{}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			sa := v1.ServiceAccount{}
+			assert.NoError(t, r.reconcileApplicationSetDeployment(a, &sa))
+
+			deployment := &appsv1.Deployment{}
+			assert.NoError(t, r.Get(
+				context.TODO(),
+				types.NamespacedName{
+					Name:      "argocd-applicationset-controller",
+					Namespace: a.Namespace,
+				},
+				deployment))
+
+			assert.Equal(t, test.wantReplicas, deployment.Spec.Replicas)
+
+			gotLeaderElection := false
+			for _, arg := range deployment.Spec.Template.Spec.Containers[0].Command {
+				if arg == "--enable-leader-election" {
+					gotLeaderElection = true
+					break
+				}
+			}
+			assert.Equal(t, test.wantLeaderElection, gotLeaderElection)
+		})
+	}
+}
+
 func TestReconcileApplicationSet_Deployments_resourceRequirements(t *testing.T) {
 	logf.SetLogger(ZapLogger(true))
 	a := makeTestArgoCDWithResources()

@@ -46,6 +46,16 @@ const (
 	ApplicationSetGitlabSCMTlsMountPath = "/app/tls/scm/"
 )
 
+// getArgoCDApplicationSetReplicas will return the size value for the argocd-applicationset-controller replica
+// count if it has been set in the argocd CR. Otherwise, nil is returned if the replicas is not set in the
+// argocd CR or replicas value is < 0.
+func getArgoCDApplicationSetReplicas(cr *argoproj.ArgoCD) *int32 {
+	if cr.Spec.ApplicationSet != nil && cr.Spec.ApplicationSet.Replicas != nil && *cr.Spec.ApplicationSet.Replicas >= 0 {
+		return cr.Spec.ApplicationSet.Replicas
+	}
+	return nil
+}
+
 // getArgoApplicationSetCommand will return the command for the ArgoCD ApplicationSet component.
 // It returns an error when ApplicationSet source namespaces or apps source namespaces cannot be retrieved
 func (r *ReconcileArgoCD) getArgoApplicationSetCommand(cr *argoproj.ArgoCD) ([]string, error) {
@@ -62,6 +72,12 @@ func (r *ReconcileArgoCD) getArgoApplicationSetCommand(cr *argoproj.ArgoCD) ([]s
 
 	cmd = append(cmd, "--loglevel")
 	cmd = append(cmd, getLogLevel(cr.Spec.ApplicationSet.LogLevel))
+
+	// Running multiple active replicas without leader election would result in concurrent
+	// reconciliation of the same ApplicationSet objects, so enable it whenever scaled beyond 1.
+	if replicas := getArgoCDApplicationSetReplicas(cr); replicas != nil && *replicas > 1 {
+		cmd = append(cmd, "--enable-leader-election")
+	}
 
 	// Higher Preference to the new logFormat field. Fall back to the deprecated logformat field for backward compatibility.
 	logFormat := cr.Spec.ApplicationSet.LogFormat
@@ -296,6 +312,10 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 	}
 	AddSeccompProfileForOpenShift(r.Client, podSpec)
 
+	if replicas := getArgoCDApplicationSetReplicas(cr); replicas != nil {
+		deploy.Spec.Replicas = replicas
+	}
+
 	if cr.Spec.PriorityClassName != "" {
 		podSpec.PriorityClassName = cr.Spec.PriorityClassName
 	}
@@ -320,6 +340,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 			existing.Spec.Template.Spec.Containers[0].SecurityContext = deploy.Spec.Template.Spec.Containers[0].SecurityContext
 			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			existing.Spec.Replicas = deploy.Spec.Replicas
 
 			argoutil.LogResourceUpdate(log, existing, "due to difference in", deploymentsDifferent)
 			return r.Update(context.TODO(), existing)
@@ -393,6 +414,10 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 
 	if !reflect.DeepEqual(xPodSpec.AutomountServiceAccountToken, yPodSpec.AutomountServiceAccountToken) {
 		return "Spec.Template.Spec.AutomountServiceAccountToken"
+	}
+
+	if !reflect.DeepEqual(x.Spec.Replicas, y.Spec.Replicas) {
+		return "Spec.Replicas"
 	}
 
 	return ""
