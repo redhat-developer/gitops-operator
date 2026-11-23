@@ -53,7 +53,6 @@ export default defineConfig({
       },
     },
 
-    // Update chromium project
     {
       name: 'chromium',
       dependencies: ['setup'],
@@ -61,6 +60,18 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: '.auth/storageState.json',
         // project still has ignoreHTTPSErrors: true from above
+      },
+    },
+
+    //observe specs open the console
+    {
+      name: 'monitoring',
+      dependencies: ['setup'],
+      testMatch: '**/monitoring/**/*.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/storageState.json',
+        baseURL: process.env.CONSOLE_URL,
       },
     },
 
