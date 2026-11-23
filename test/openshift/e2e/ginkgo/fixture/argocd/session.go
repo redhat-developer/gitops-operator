@@ -85,6 +85,7 @@ func (s *ArgoCDCLISession) runArgoCDCLI(timeout time.Duration, extraEnv []string
 		defer cancel()
 	}
 
+	// #nosec G204 -- intentional argocd CLI invocation with session-scoped args
 	cmd := exec.CommandContext(ctx, "argocd", cmdArgs...)
 	if len(extraEnv) > 0 {
 		cmd.Env = append(os.Environ(), extraEnv...)
