@@ -18,6 +18,7 @@ import (
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
 
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -869,7 +870,7 @@ func TestDeleteRBACsForNamespace(t *testing.T) {
 	assert.NoError(t, err)
 
 	// run deleteRBACsForNamespace
-	assert.NoError(t, deleteRBACsForNamespace(testNameSpace, testClient))
+	assert.NoError(t, deleteRBACsForNamespace(testNameSpace, testClient, a))
 
 	// role with the label should be deleted
 	_, err = testClient.RbacV1().Roles(testNameSpace).Get(context.TODO(), role.Name, metav1.GetOptions{})
@@ -2070,4 +2071,450 @@ func TestGetRepoServerAddressWithCustomDomain(t *testing.T) {
 			assert.Equal(t, tt.expectedAddr, result)
 		})
 	}
+}
+
+func TestHandleArgoCDNamespaceManagementUpdate_PreservesUnrelatedRBAC(t *testing.T) {
+	tenantArgoOld := &argoproj.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd",
+			Namespace: "tenant",
+		},
+		Spec: argoproj.ArgoCDSpec{
+			NamespaceManagement: []argoproj.ManagedNamespaces{
+				{Name: "victim", AllowManagedBy: true},
+			},
+		},
+	}
+	tenantArgoNew := &argoproj.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd",
+			Namespace: "tenant",
+		},
+		Spec: argoproj.ArgoCDSpec{
+			NamespaceManagement: []argoproj.ManagedNamespaces{},
+		},
+	}
+
+	tenantNSObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant"}}
+	victimNSObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "victim"}}
+
+	resObjs := []client.Object{tenantArgoNew, tenantNSObj, victimNSObj}
+	subresObjs := []client.Object{tenantArgoNew, tenantNSObj, victimNSObj}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	k8sClient := testclient.NewSimpleClientset()
+	r := makeTestReconciler(cl, sch, k8sClient)
+
+	// Create victim-argocd-role and victim-argocd-rolebinding (unrelated to tenant, must NOT be deleted)
+	victimRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "victim-argocd-role",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{""},
+				Resources: []string{"pods"},
+				Verbs:     []string{"get", "list"},
+			},
+		},
+	}
+	_, err := k8sClient.RbacV1().Roles("victim").Create(context.TODO(), victimRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	victimRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "victim-argocd-rolebinding",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "default",
+				Namespace: "victim",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "victim-argocd-role",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Create(context.TODO(), victimRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create tenant-owned Role and RoleBinding in victim namespace (belonging to tenant-argocd, SHOULD be deleted)
+	tenantRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd-application-controller",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "tenant-argocd",
+				"argocds.argoproj.io/namespace": "tenant",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("victim").Create(context.TODO(), tenantRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	tenantRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd-application-controller",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "tenant-argocd",
+				"argocds.argoproj.io/namespace": "tenant",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "tenant-argocd-argocd-application-controller",
+				Namespace: "tenant",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "tenant-argocd-application-controller",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Create(context.TODO(), tenantRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create an unrelated unbound Role named "tenant-argocd-readers" (has cr.Name prefix, labeled part-of: argocd,
+	// but without managed-by label / ownership annotations). It must NOT be deleted based on name prefix alone!
+	unrelatedPrefixedRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd-readers",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("victim").Create(context.TODO(), unrelatedPrefixedRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create legacy tenant Role (has managed-by and part-of labels, but NO annotations)
+	// and a tenant RoleBinding referencing it. It SHOULD be cleaned up!
+	tenantLegacyRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-legacy-role",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("victim").Create(context.TODO(), tenantLegacyRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	tenantLegacyRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-legacy-rolebinding",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "tenant-argocd-argocd-application-controller",
+				Namespace: "tenant",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "tenant-legacy-role",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Create(context.TODO(), tenantLegacyRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create tenant Role that is also referenced by an unlabeled user RoleBinding.
+	// It should NOT be deleted because an unlabeled RoleBinding still references it!
+	tenantRoleWithUserBinding := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-bound-by-user-role",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "tenant-argocd",
+				"argocds.argoproj.io/namespace": "tenant",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("victim").Create(context.TODO(), tenantRoleWithUserBinding, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	userUnlabeledRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "user-unlabeled-rolebinding",
+			Namespace: "victim",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "User",
+				Name:      "alice",
+				Namespace: "victim",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "tenant-bound-by-user-role",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Create(context.TODO(), userUnlabeledRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Create a shared Role (labeled with part-of: argocd, but not owned by tenant-argocd)
+	// and a tenant RoleBinding referencing it. The tenant RoleBinding should be deleted on cleanup,
+	// but the shared Role must NOT be deleted.
+	sharedRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "shared-argocd-role",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("victim").Create(context.TODO(), sharedRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	tenantSharedRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-argocd-shared-binding",
+			Namespace: "victim",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "tenant-argocd",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "tenant-argocd-argocd-application-controller",
+				Namespace: "tenant",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "shared-argocd-role",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Create(context.TODO(), tenantSharedRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Trigger handleArgoCDNamespaceManagementUpdate
+	changed := r.handleArgoCDNamespaceManagementUpdate(tenantArgoNew, tenantArgoOld, k8sClient)
+	assert.True(t, changed)
+
+	// Check that victim role and rolebinding survived!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "victim-argocd-role", metav1.GetOptions{})
+	assert.NoError(t, err, "victim-argocd-role should NOT be deleted!")
+
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Get(context.TODO(), "victim-argocd-rolebinding", metav1.GetOptions{})
+	assert.NoError(t, err, "victim-argocd-rolebinding should NOT be deleted!")
+
+	// Check that unrelated role with matching name prefix survived!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "tenant-argocd-readers", metav1.GetOptions{})
+	assert.NoError(t, err, "tenant-argocd-readers should NOT be deleted based on name prefix alone!")
+
+	// Check that shared role survived even though tenant's binding referenced it!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "shared-argocd-role", metav1.GetOptions{})
+	assert.NoError(t, err, "shared-argocd-role should NOT be deleted even though tenant binding referenced it!")
+
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Get(context.TODO(), "tenant-argocd-shared-binding", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	// Check that tenant-owned role and rolebinding were cleaned up!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "tenant-argocd-application-controller", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Get(context.TODO(), "tenant-argocd-application-controller", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	// Check that legacy role and rolebinding were cleaned up!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "tenant-legacy-role", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	_, err = k8sClient.RbacV1().RoleBindings("victim").Get(context.TODO(), "tenant-legacy-rolebinding", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	// Check that tenant role bound by unlabeled user binding was KEPT!
+	_, err = k8sClient.RbacV1().Roles("victim").Get(context.TODO(), "tenant-bound-by-user-role", metav1.GetOptions{})
+	assert.NoError(t, err, "tenant-bound-by-user-role must NOT be deleted because user binding still references it!")
+}
+
+func TestHandleArgoCDNamespaceManagementUpdate_SameNameDifferentNamespaces(t *testing.T) {
+	tenantNSObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "tenant-ns"}}
+	managedNSObj := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "managed-target"}}
+
+	// Instance 1: victim-ns/argocd
+	// Instance 2: tenant-ns/argocd
+	// Both named "argocd", but in different namespaces!
+	tenantArgoOld := &argoproj.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd",
+			Namespace: "tenant-ns",
+		},
+		Spec: argoproj.ArgoCDSpec{
+			NamespaceManagement: []argoproj.ManagedNamespaces{
+				{Name: "managed-target"},
+			},
+		},
+	}
+	tenantArgoNew := &argoproj.ArgoCD{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd",
+			Namespace: "tenant-ns",
+		},
+		Spec: argoproj.ArgoCDSpec{
+			NamespaceManagement: []argoproj.ManagedNamespaces{},
+		},
+	}
+
+	resObjs := []client.Object{tenantArgoNew, tenantNSObj, managedNSObj}
+	subresObjs := []client.Object{tenantArgoNew, tenantNSObj, managedNSObj}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, []runtime.Object{})
+	k8sClient := testclient.NewSimpleClientset()
+	r := makeTestReconciler(cl, sch, k8sClient)
+
+	// In "managed-target", victim-ns/argocd has created a Role and RoleBinding with managed-by=argocd
+	victimRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-application-controller",
+			Namespace: "managed-target",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "argocd",
+				"argocds.argoproj.io/namespace": "victim-ns",
+			},
+		},
+	}
+	_, err := k8sClient.RbacV1().Roles("managed-target").Create(context.TODO(), victimRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	victimRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-application-controller",
+			Namespace: "managed-target",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "argocd",
+				"argocds.argoproj.io/namespace": "victim-ns",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "argocd-application-controller",
+				Namespace: "victim-ns",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "argocd-application-controller",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("managed-target").Create(context.TODO(), victimRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// In "managed-target", tenant-ns/argocd has created a Role and RoleBinding with managed-by=argocd
+	tenantRole := &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-server",
+			Namespace: "managed-target",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "argocd",
+				"argocds.argoproj.io/namespace": "tenant-ns",
+			},
+		},
+	}
+	_, err = k8sClient.RbacV1().Roles("managed-target").Create(context.TODO(), tenantRole, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	tenantRB := &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-server",
+			Namespace: "managed-target",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of":    "argocd",
+				"app.kubernetes.io/managed-by": "argocd",
+			},
+			Annotations: map[string]string{
+				"argocds.argoproj.io/name":      "argocd",
+				"argocds.argoproj.io/namespace": "tenant-ns",
+			},
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "argocd-server",
+				Namespace: "tenant-ns",
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     "argocd-server",
+		},
+	}
+	_, err = k8sClient.RbacV1().RoleBindings("managed-target").Create(context.TODO(), tenantRB, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// Now tenant-ns/argocd removes managed-target from its managed namespaces
+	changed := r.handleArgoCDNamespaceManagementUpdate(tenantArgoNew, tenantArgoOld, k8sClient)
+	assert.True(t, changed)
+
+	// victim-ns/argocd RBAC MUST survive despite having managed-by=argocd!
+	_, err = k8sClient.RbacV1().Roles("managed-target").Get(context.TODO(), "argocd-application-controller", metav1.GetOptions{})
+	assert.NoError(t, err, "victim-ns/argocd role must NOT be deleted!")
+
+	_, err = k8sClient.RbacV1().RoleBindings("managed-target").Get(context.TODO(), "argocd-application-controller", metav1.GetOptions{})
+	assert.NoError(t, err, "victim-ns/argocd rolebinding must NOT be deleted!")
+
+	// tenant-ns/argocd RBAC must be deleted
+	_, err = k8sClient.RbacV1().Roles("managed-target").Get(context.TODO(), "argocd-server", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
+
+	_, err = k8sClient.RbacV1().RoleBindings("managed-target").Get(context.TODO(), "argocd-server", metav1.GetOptions{})
+	assert.ErrorContains(t, err, "not found")
 }

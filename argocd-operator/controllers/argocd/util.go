@@ -1097,7 +1097,8 @@ func (r *ReconcileArgoCD) namespaceFilterPredicate() predicate.Predicate {
 			if valNew, ok := e.ObjectNew.GetLabels()[common.ArgoCDManagedByLabel]; ok {
 				if valOld, ok := e.ObjectOld.GetLabels()[common.ArgoCDManagedByLabel]; ok && valOld != valNew {
 					k8sClient := r.K8sClient
-					if err := deleteRBACsForNamespace(e.ObjectOld.GetName(), k8sClient); err != nil {
+					crOld := &argoproj.ArgoCD{ObjectMeta: metav1.ObjectMeta{Namespace: valOld}}
+					if err := deleteRBACsForNamespace(e.ObjectOld.GetName(), k8sClient, crOld); err != nil {
 						log.Error(err, fmt.Sprintf("failed to delete RBACs for namespace: %s", e.ObjectOld.GetName()))
 					} else {
 						log.Info(fmt.Sprintf("Successfully removed the RBACs for namespace: %s", e.ObjectOld.GetName()))
@@ -1116,7 +1117,8 @@ func (r *ReconcileArgoCD) namespaceFilterPredicate() predicate.Predicate {
 			// which were created when the label was added to the namespace.
 			if ns, ok := e.ObjectOld.GetLabels()[common.ArgoCDManagedByLabel]; ok && ns != "" {
 				k8sClient := r.K8sClient
-				if err := deleteRBACsForNamespace(e.ObjectOld.GetName(), k8sClient); err != nil {
+				crOld := &argoproj.ArgoCD{ObjectMeta: metav1.ObjectMeta{Namespace: ns}}
+				if err := deleteRBACsForNamespace(e.ObjectOld.GetName(), k8sClient, crOld); err != nil {
 					log.Error(err, fmt.Sprintf("failed to delete RBACs for namespace: %s", e.ObjectOld.GetName()))
 				} else {
 					log.Info(fmt.Sprintf("Successfully removed the RBACs for namespace: %s", e.ObjectOld.GetName()))
@@ -1191,43 +1193,98 @@ func (r *ReconcileArgoCD) imagePullSecretFilterPredicate() predicate.Predicate {
 	}
 }
 
-// deleteRBACsForNamespace deletes the RBACs when the label from the namespace is removed.
-func deleteRBACsForNamespace(sourceNS string, k8sClient kubernetes.Interface) error {
+// deleteRBACsForNamespace deletes the RBACs when the label from the namespace is removed,
+// or when an ArgoCD instance stops managing the namespace.
+func deleteRBACsForNamespace(sourceNS string, k8sClient kubernetes.Interface, cr *argoproj.ArgoCD) error {
+	if sourceNS == "" || k8sClient == nil {
+		return nil
+	}
+
 	log.Info(fmt.Sprintf("Removing the RBACs created for the namespace: %s", sourceNS))
 
-	// List all the roles created for ArgoCD using the label selector
-	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{common.ArgoCDKeyPartOf: common.ArgoCDAppName}}
-	roles, err := k8sClient.RbacV1().Roles(sourceNS).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(labelSelector.MatchLabels).String()})
+	// List all RoleBindings in sourceNS (without label filter) to accurately track all roles that are still referenced
+	allRoleBindings, err := k8sClient.RbacV1().RoleBindings(sourceNS).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		message := fmt.Sprintf("failed to list roles for namespace: %s", sourceNS)
-		log.Error(err, message)
-		return fmt.Errorf("%s error: %w", message, err)
-	}
-
-	// Delete all the retrieved roles
-	for _, role := range roles.Items {
-		argoutil.LogResourceDeletion(log, &role)
-		err = k8sClient.RbacV1().Roles(sourceNS).Delete(context.TODO(), role.Name, metav1.DeleteOptions{})
-		if err != nil {
-			log.Error(err, fmt.Sprintf("failed to delete roles for namespace: %s", sourceNS))
+		if apierrors.IsNotFound(err) {
+			return nil
 		}
-	}
-
-	// List all the roles bindings created for ArgoCD using the label selector
-	roleBindings, err := k8sClient.RbacV1().RoleBindings(sourceNS).List(context.TODO(), metav1.ListOptions{LabelSelector: labels.Set(labelSelector.MatchLabels).String()})
-	if err != nil {
 		message := fmt.Sprintf("failed to list role bindings for namespace: %s", sourceNS)
 		log.Error(err, message)
 		return fmt.Errorf("%s error: %w", message, err)
 	}
 
-	// Delete all the retrieved role bindings
-	for _, roleBinding := range roleBindings.Items {
-		argoutil.LogResourceDeletion(log, &roleBinding)
-		err = k8sClient.RbacV1().RoleBindings(sourceNS).Delete(context.TODO(), roleBinding.Name, metav1.DeleteOptions{})
-		if err != nil {
-			log.Error(err, fmt.Sprintf("failed to delete role binding for namespace: %s", sourceNS))
+	candidateRoles := make(map[string]struct{})
+	remainingBoundRoles := make(map[string]struct{})
+	var deletionErrors []error
+
+	for i := range allRoleBindings.Items {
+		rb := &allRoleBindings.Items[i]
+
+		isLabeled := rb.Labels != nil && rb.Labels[common.ArgoCDKeyPartOf] == common.ArgoCDAppName
+		if isLabeled && isRoleBindingOwnedByInstance(rb, cr) {
+			argoutil.LogResourceDeletion(log, rb)
+			deleteOpts := metav1.DeleteOptions{
+				Preconditions: &metav1.Preconditions{UID: &rb.UID},
+			}
+			if err := k8sClient.RbacV1().RoleBindings(sourceNS).Delete(context.TODO(), rb.Name, deleteOpts); err != nil {
+				if !apierrors.IsNotFound(err) && !apierrors.IsConflict(err) {
+					log.Error(err, fmt.Sprintf("failed to delete role binding %s for namespace: %s", rb.Name, sourceNS))
+					deletionErrors = append(deletionErrors, err)
+					// Keep referenced role since binding deletion failed
+					if rb.RoleRef.Kind == "Role" && rb.RoleRef.Name != "" {
+						remainingBoundRoles[rb.RoleRef.Name] = struct{}{}
+					}
+					continue
+				}
+			}
+			// Successfully deleted (or already deleted): record referenced role as candidate for deletion
+			if rb.RoleRef.Kind == "Role" && rb.RoleRef.Name != "" {
+				candidateRoles[rb.RoleRef.Name] = struct{}{}
+			}
+			continue
 		}
+
+		// Retained binding: mark referenced role as still bound
+		if rb.RoleRef.Kind == "Role" && rb.RoleRef.Name != "" {
+			remainingBoundRoles[rb.RoleRef.Name] = struct{}{}
+		}
+	}
+
+	labelSelector := metav1.LabelSelector{MatchLabels: map[string]string{common.ArgoCDKeyPartOf: common.ArgoCDAppName}}
+	listOpts := metav1.ListOptions{LabelSelector: labels.Set(labelSelector.MatchLabels).String()}
+	roles, err := k8sClient.RbacV1().Roles(sourceNS).List(context.TODO(), listOpts)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		message := fmt.Sprintf("failed to list roles for namespace: %s", sourceNS)
+		log.Error(err, message)
+		return fmt.Errorf("%s error: %w", message, err)
+	}
+
+	for i := range roles.Items {
+		role := &roles.Items[i]
+		if _, stillBound := remainingBoundRoles[role.Name]; stillBound {
+			continue
+		}
+		_, referencedByDeletedBinding := candidateRoles[role.Name]
+		if !isRoleOwnedByInstance(role, cr, referencedByDeletedBinding) {
+			continue
+		}
+		argoutil.LogResourceDeletion(log, role)
+		deleteOpts := metav1.DeleteOptions{
+			Preconditions: &metav1.Preconditions{UID: &role.UID},
+		}
+		if err := k8sClient.RbacV1().Roles(sourceNS).Delete(context.TODO(), role.Name, deleteOpts); err != nil {
+			if !apierrors.IsNotFound(err) && !apierrors.IsConflict(err) {
+				log.Error(err, fmt.Sprintf("failed to delete role %s for namespace: %s", role.Name, sourceNS))
+				deletionErrors = append(deletionErrors, err)
+			}
+		}
+	}
+
+	if len(deletionErrors) > 0 {
+		return fmt.Errorf("failed to delete one or more RBAC resources in namespace %s: %v", sourceNS, deletionErrors[0])
 	}
 
 	return nil
@@ -2027,6 +2084,10 @@ func (r *ReconcileArgoCD) argoCDNamespaceManagementFilterPredicate() predicate.P
 }
 
 func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *argoproj.ArgoCD, k8sClient kubernetes.Interface) bool {
+	if valNew == nil || valOld == nil || k8sClient == nil {
+		return true
+	}
+
 	if !reflect.DeepEqual(valOld.Spec.NamespaceManagement, valNew.Spec.NamespaceManagement) {
 		// Fetch all namespaces from the cluster
 		namespaceList := &corev1.NamespaceList{}
@@ -2046,6 +2107,10 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 
 		if len(namespacesToDelete) > 0 {
 			for _, nsEntry := range namespacesToDelete {
+				if nsEntry == "" || nsEntry == valNew.Namespace {
+					continue
+				}
+
 				ns := &corev1.Namespace{}
 				if err := r.Get(context.TODO(), types.NamespacedName{Name: nsEntry}, ns); err != nil {
 					continue // Could not fetch namespace; skip cleanup
@@ -2058,12 +2123,17 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 				}
 
 				log.Info(fmt.Sprintf("Cleaning up RBACs for namespace %s", nsEntry))
-				if err := cleanupRBACsForNamespaceManagement(valOld.Namespace, nsEntry, k8sClient); err != nil {
+				if err := deleteRBACsForNamespace(nsEntry, k8sClient, valNew); err != nil {
+					return false
+				}
+				if err := deleteManagedNamespaceFromClusterSecret(valNew.Namespace, nsEntry, k8sClient); err != nil {
+					log.Error(err, fmt.Sprintf("unable to delete namespace %s from cluster secret", nsEntry))
 					return false
 				}
 			}
 		}
 	}
+
 	return true
 }
 
@@ -2081,7 +2151,7 @@ func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *
 
 	// If `.spec.managedBy` changes, trigger reconciliation
 	if oldNSMgmt.Spec.ManagedBy != newNSMgmt.Spec.ManagedBy {
-		if err := cleanupRBACsForNamespaceManagement(oldNSMgmt.Spec.ManagedBy, oldNSMgmt.Namespace, k8sClient); err != nil {
+		if err := r.cleanupRBACsForNamespaceManagement(oldNSMgmt.Spec.ManagedBy, oldNSMgmt.Namespace, k8sClient); err != nil {
 			return false
 		}
 		return true
@@ -2109,24 +2179,213 @@ func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.Names
 		return false
 	}
 
-	if err := cleanupRBACsForNamespaceManagement(argocdNamespace, nsMgmt.Namespace, k8sClient); err != nil {
+	if err := r.cleanupRBACsForNamespaceManagement(argocdNamespace, nsMgmt.Namespace, k8sClient); err != nil {
 		return false
 	}
 	return false
 }
 
-func cleanupRBACsForNamespaceManagement(argocdNamespace, nms string, k8sClient kubernetes.Interface) error {
-	if err := deleteRBACsForNamespace(nms, k8sClient); err != nil {
-		log.Error(err, fmt.Sprintf("failed to delete RBACs for namespace: %s", nms))
-		return err
+func (r *ReconcileArgoCD) cleanupRBACsForNamespaceManagement(crNamespace, targetNS string, k8sClient kubernetes.Interface) error {
+	if crNamespace == "" || targetNS == "" || targetNS == crNamespace || k8sClient == nil {
+		return nil
+	}
+
+	var cr *argoproj.ArgoCD
+	argoCDList := &argoproj.ArgoCDList{}
+	if err := r.List(context.TODO(), argoCDList, client.InNamespace(crNamespace)); err == nil && len(argoCDList.Items) == 1 {
+		cr = &argoCDList.Items[0]
 	} else {
-		log.Info(fmt.Sprintf("Successfully removed the RBACs for namespace: %s", nms))
+		cr = &argoproj.ArgoCD{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: crNamespace,
+			},
+		}
 	}
-	if err := deleteManagedNamespaceFromClusterSecret(argocdNamespace, nms, k8sClient); err != nil {
-		log.Error(err, fmt.Sprintf("unable to delete namespace %s from cluster secret", nms))
+
+	if err := deleteRBACsForNamespace(targetNS, k8sClient, cr); err != nil {
+		log.Error(err, fmt.Sprintf("failed to cleanup RBACs for namespace: %s", targetNS))
 		return err
 	}
+
+	if err := deleteManagedNamespaceFromClusterSecret(crNamespace, targetNS, k8sClient); err != nil {
+		log.Error(err, fmt.Sprintf("unable to delete namespace %s from cluster secret", targetNS))
+		return err
+	}
+
 	return nil
+}
+
+func hasConflictingNamespaceMetadata(annotations, labels map[string]string, expectedNS string) bool {
+	if expectedNS == "" {
+		return false
+	}
+	if ns, ok := annotations[common.AnnotationNamespace]; ok && ns != "" && ns != expectedNS {
+		return true
+	}
+	if ns, ok := annotations["argocd.argoproj.io/namespace"]; ok && ns != "" && ns != expectedNS {
+		return true
+	}
+	if ns, ok := labels["argocd.argoproj.io/namespace"]; ok && ns != "" && ns != expectedNS {
+		return true
+	}
+	return false
+}
+
+func isRoleBindingOwnedByInstance(rb *v1.RoleBinding, cr *argoproj.ArgoCD) bool {
+	if rb == nil {
+		return false
+	}
+	if cr == nil {
+		return true
+	}
+	if cr.Namespace == "" && cr.Name == "" {
+		return false
+	}
+
+	// Reject any resource with conflicting namespace metadata
+	if hasConflictingNamespaceMetadata(rb.Annotations, rb.Labels, cr.Namespace) {
+		return false
+	}
+
+	// Reject if any ServiceAccount subject belongs to a different namespace
+	if cr.Namespace != "" {
+		for _, subj := range rb.Subjects {
+			if subj.Kind == v1.ServiceAccountKind && subj.Namespace != "" && subj.Namespace != cr.Namespace {
+				return false
+			}
+		}
+	}
+
+	// Check annotations: require namespace-qualified ownership
+	if name, ok := rb.Annotations[common.AnnotationName]; ok && (cr.Name == "" || name == cr.Name) {
+		if ns, ok := rb.Annotations[common.AnnotationNamespace]; ok && ns != "" {
+			if cr.Namespace == "" || ns == cr.Namespace {
+				return true
+			}
+		} else if cr.Namespace == "" {
+			return true
+		}
+	}
+
+	// Check labels: require namespace-qualified ownership
+	if instance, ok := rb.Labels["argocd.argoproj.io/instance"]; ok && (cr.Name == "" || instance == cr.Name) {
+		if ns, ok := rb.Labels["argocd.argoproj.io/namespace"]; ok && ns != "" {
+			if cr.Namespace == "" || ns == cr.Namespace {
+				return true
+			}
+		} else if cr.Namespace == "" {
+			return true
+		}
+	}
+
+	// Managed-by label check
+	if cr.Name != "" {
+		if managedBy, ok := rb.Labels[common.ArgoCDKeyManagedBy]; ok && managedBy == cr.Name {
+			if cr.Namespace == "" {
+				return true
+			}
+			if ns, ok := rb.Annotations[common.AnnotationNamespace]; ok && ns == cr.Namespace {
+				return true
+			}
+			if ns, ok := rb.Labels["argocd.argoproj.io/namespace"]; ok && ns == cr.Namespace {
+				return true
+			}
+			// When matching on managed-by label, verify ServiceAccount subjects match cr.Namespace and instance name
+			if len(rb.Subjects) > 0 {
+				allSubjectsMatch := true
+				for _, subj := range rb.Subjects {
+					if subj.Kind != v1.ServiceAccountKind || subj.Namespace != cr.Namespace ||
+						(!strings.HasPrefix(subj.Name, cr.Name+"-") && subj.Name != cr.Name) {
+						allSubjectsMatch = false
+						break
+					}
+				}
+				if allSubjectsMatch {
+					return true
+				}
+			}
+		}
+	}
+
+	// For legacy bindings created by older operator versions where managed-by may be missing:
+	// only accept if ALL subjects are ServiceAccounts belonging exclusively to this instance in cr.Namespace.
+	if cr.Namespace != "" && len(rb.Subjects) > 0 {
+		allSubjectsMatch := true
+		for _, subj := range rb.Subjects {
+			if subj.Kind != v1.ServiceAccountKind || subj.Namespace != cr.Namespace ||
+				(cr.Name != "" && !strings.HasPrefix(subj.Name, cr.Name+"-") && subj.Name != cr.Name) {
+				allSubjectsMatch = false
+				break
+			}
+		}
+		if allSubjectsMatch {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isRoleOwnedByInstance(role *v1.Role, cr *argoproj.ArgoCD, referencedByDeletedBinding bool) bool {
+	if role == nil {
+		return false
+	}
+	if cr == nil {
+		return true
+	}
+	if cr.Namespace == "" && cr.Name == "" {
+		return false
+	}
+
+	// Reject any resource with conflicting namespace metadata
+	if hasConflictingNamespaceMetadata(role.Annotations, role.Labels, cr.Namespace) {
+		return false
+	}
+
+	// Check annotations: require namespace-qualified ownership
+	if name, ok := role.Annotations[common.AnnotationName]; ok && (cr.Name == "" || name == cr.Name) {
+		if ns, ok := role.Annotations[common.AnnotationNamespace]; ok && ns != "" {
+			if cr.Namespace == "" || ns == cr.Namespace {
+				return true
+			}
+		} else if cr.Namespace == "" {
+			return true
+		}
+	}
+
+	// Check labels: require namespace-qualified ownership
+	if instance, ok := role.Labels["argocd.argoproj.io/instance"]; ok && (cr.Name == "" || instance == cr.Name) {
+		if ns, ok := role.Labels["argocd.argoproj.io/namespace"]; ok && ns != "" {
+			if cr.Namespace == "" || ns == cr.Namespace {
+				return true
+			}
+		} else if cr.Namespace == "" {
+			return true
+		}
+	}
+
+	// Managed-by label check
+	if cr.Name != "" {
+		if managedBy, ok := role.Labels[common.ArgoCDKeyManagedBy]; ok && managedBy == cr.Name {
+			if cr.Namespace == "" {
+				return true
+			}
+			if ns, ok := role.Annotations[common.AnnotationNamespace]; ok && ns == cr.Namespace {
+				return true
+			}
+			if ns, ok := role.Labels["argocd.argoproj.io/namespace"]; ok && ns == cr.Namespace {
+				return true
+			}
+			// Legacy grant fallback: Roles created by older operator versions carry managed-by
+			// but lack namespace annotations. If referenced by an instance-owned deleted binding
+			// and carrying no conflicting annotations, it is verified as part of this instance's grant.
+			if referencedByDeletedBinding {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // updateStatusConditionOfArgoCD calls Set Condition of NamespaceManagement status

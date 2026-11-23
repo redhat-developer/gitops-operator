@@ -241,7 +241,7 @@ func (r *ReconcileArgoCD) disableNamespaceManagement(argocd *argoproj.ArgoCD, k8
 			}
 
 			if allowManaged {
-				if err := deleteRBACsForNamespace(nsName, k8sClient); err != nil {
+				if err := deleteRBACsForNamespace(nsName, k8sClient, argocd); err != nil {
 					log.Error(err, fmt.Sprintf("Failed to delete RBACs for namespace: %s", nsName))
 					return err
 				}

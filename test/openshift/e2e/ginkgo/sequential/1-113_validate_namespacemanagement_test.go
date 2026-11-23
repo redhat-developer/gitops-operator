@@ -468,5 +468,87 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			By("Verify Application and Secret of managed namespace when AllowManagedBy field is false")
 			verifyNamespaceManagementSecretAndApplication(argoCD, nsCustom, false, []string{argoCD.Namespace, nsCustom.Name})
 		})
+
+		It("should not delete unrelated Roles/RoleBindings in managed namespace when NamespaceManagement is removed from ArgoCD", func() {
+			if fixture.EnvLocalRun() {
+				Skip("This test modifies the Subscription/operator deployment env vars, which requires the operator be running on the cluster.")
+				return
+			}
+
+			By("Create ArgoCD with namespaceManagement field set to true")
+			argoCD := deployArgoCD(randomNS.Name, []argov1beta1api.ManagedNamespaces{
+				{Name: nsCustom.Name, AllowManagedBy: true},
+			})
+
+			By("Enabling namespace management via env var")
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES", "true")
+
+			By("Create namespaceManagement CR")
+			nsm := argov1beta1api.NamespaceManagement{
+				ObjectMeta: metav1.ObjectMeta{Name: nmName, Namespace: nsCustom.Name},
+				Spec:       argov1beta1api.NamespaceManagementSpec{ManagedBy: randomNS.Name},
+			}
+			Expect(k8sClient.Create(ctx, &nsm)).To(Succeed())
+
+			By("Roles/Rolebindings should be created for managed namespace if namespaceManagement CR is present")
+			checkRolesBindings(nsCustom.Name, true)
+
+			By("Create unrelated Role and RoleBinding with part-of: argocd label in managed namespace")
+			unrelatedRole := &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unrelated-argocd-role",
+					Namespace: nsCustom.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Rules: []rbacv1.PolicyRule{
+					{
+						APIGroups: []string{""},
+						Resources: []string{"pods"},
+						Verbs:     []string{"get", "list"},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, unrelatedRole)).To(Succeed())
+
+			unrelatedRoleBinding := &rbacv1.RoleBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "unrelated-argocd-rolebinding",
+					Namespace: nsCustom.Name,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Subjects: []rbacv1.Subject{
+					{
+						Kind:      "ServiceAccount",
+						Name:      "default",
+						Namespace: nsCustom.Name,
+					},
+				},
+				RoleRef: rbacv1.RoleRef{
+					APIGroup: "rbac.authorization.k8s.io",
+					Kind:     "Role",
+					Name:     unrelatedRole.Name,
+				},
+			}
+			Expect(k8sClient.Create(ctx, unrelatedRoleBinding)).To(Succeed())
+
+			By("Remove NamespaceManagement from ArgoCD to check cleanup of Roles/Rolebindings")
+			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(argoCD), argoCD)).To(Succeed())
+			k8sFixture.Update(argoCD, func(obj client.Object) {
+				argoCDObj, ok := obj.(*argov1beta1api.ArgoCD)
+				Expect(ok).To(BeTrue())
+				argoCDObj.Spec.NamespaceManagement = nil
+			})
+
+			By("Verify tenant Roles/RoleBindings are deleted from managed namespace")
+			checkRolesBindings(nsCustom.Name, false)
+
+			By("Verify unrelated Role and RoleBinding in managed namespace are preserved")
+			Consistently(unrelatedRole, "15s", "2s").Should(k8sFixture.ExistByName())
+			Consistently(unrelatedRoleBinding, "15s", "2s").Should(k8sFixture.ExistByName())
+		})
 	})
 })
