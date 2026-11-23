@@ -5,9 +5,9 @@ go 1.27.0
 require (
 	github.com/argoproj-labs/argocd-image-updater v1.5.0
 	github.com/argoproj-labs/gitops-promoter v0.49.0
-	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.1
+	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.2
 	// Update in Makefile and run `make update-dependencies`
-	github.com/argoproj/argo-cd/v3 v3.6.1
+	github.com/argoproj/argo-cd/v3 v3.6.2
 	github.com/cert-manager/cert-manager v1.21.3
 	github.com/distribution/reference v0.6.0
 	github.com/go-logr/logr v1.4.4
@@ -65,7 +65,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.21.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/dlclark/regexp2 v1.12.0 // indirect
+	github.com/dlclark/regexp2/v2 v2.13.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.14.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
@@ -203,7 +203,7 @@ require (
 )
 
 replace (
-	// This replace block is from Argo CD v3.6.1 go.mod
+	// This replace block is from Argo CD v3.6.2 go.mod
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	golang.org/x/tools => golang.org/x/tools v0.35.0
