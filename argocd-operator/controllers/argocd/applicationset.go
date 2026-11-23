@@ -340,7 +340,11 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 			existing.Spec.Template.Spec.Containers[0].SecurityContext = deploy.Spec.Template.Spec.Containers[0].SecurityContext
 			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
-			existing.Spec.Replicas = deploy.Spec.Replicas
+			// Only overwrite when the CR explicitly sets replicas (including 0); otherwise
+			// leave the live value alone instead of resetting it via a nil desired value.
+			if deploy.Spec.Replicas != nil {
+				existing.Spec.Replicas = deploy.Spec.Replicas
+			}
 
 			argoutil.LogResourceUpdate(log, existing, "due to difference in", deploymentsDifferent)
 			return r.Update(context.TODO(), existing)
@@ -416,7 +420,12 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 		return "Spec.Template.Spec.AutomountServiceAccountToken"
 	}
 
-	if !reflect.DeepEqual(x.Spec.Replicas, y.Spec.Replicas) {
+	// A nil y.Spec.Replicas means replicas aren't managed by the CR (left for manual
+	// scaling or an HPA), so it's intentionally excluded from the comparison rather
+	// than being treated as a specific value -- otherwise a live replica count left
+	// by the Kubernetes API's defaulting (or external scaling) would always differ
+	// from the unset desired value and trigger an update on every reconcile.
+	if y.Spec.Replicas != nil && !reflect.DeepEqual(x.Spec.Replicas, y.Spec.Replicas) {
 		return "Spec.Replicas"
 	}
 
