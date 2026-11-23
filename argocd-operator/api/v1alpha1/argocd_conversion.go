@@ -294,6 +294,7 @@ func ConvertAlphaToBetaApplicationSet(src *ArgoCDApplicationSet) *v1beta1.ArgoCD
 			LogLevel:         src.LogLevel,
 			WebhookServer:    *ConvertAlphaToBetaWebhookServer(&src.WebhookServer),
 			LogFormat:        src.LogFormat,
+			Replicas:         src.Replicas,
 		}
 	}
 	return dst
@@ -523,6 +524,7 @@ func ConvertBetaToAlphaApplicationSet(src *v1beta1.ArgoCDApplicationSet) *ArgoCD
 			LogLevel:         src.LogLevel,
 			WebhookServer:    *ConvertBetaToAlphaWebhookServer(&src.WebhookServer),
 			LogFormat:        src.LogFormat,
+			Replicas:         src.Replicas,
 		}
 	}
 	return dst
