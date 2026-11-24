@@ -73,12 +73,6 @@ func (r *ReconcileArgoCD) getArgoApplicationSetCommand(cr *argoproj.ArgoCD) ([]s
 	cmd = append(cmd, "--loglevel")
 	cmd = append(cmd, getLogLevel(cr.Spec.ApplicationSet.LogLevel))
 
-	// Running multiple active replicas without leader election would result in concurrent
-	// reconciliation of the same ApplicationSet objects, so enable it whenever scaled beyond 1.
-	if replicas := getArgoCDApplicationSetReplicas(cr); replicas != nil && *replicas > 1 {
-		cmd = append(cmd, "--enable-leader-election")
-	}
-
 	// Higher Preference to the new logFormat field. Fall back to the deprecated logformat field for backward compatibility.
 	logFormat := cr.Spec.ApplicationSet.LogFormat
 	if logFormat == "" {
@@ -307,6 +301,20 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 	if err != nil {
 		return err
 	}
+
+	// Running multiple active replicas without leader election would result in concurrent
+	// reconciliation of the same ApplicationSet objects, so enable it when replica>1
+	// either because the CR says so, or, when the CR
+	// doesn't manage replicas, because the live Deployment was already scaled up (manually or
+	// by an HPA).
+	replicas := getArgoCDApplicationSetReplicas(cr)
+	if replicas == nil && deplExists {
+		replicas = existing.Spec.Replicas
+	}
+	if replicas != nil && *replicas > 1 {
+		appSetContainer.Command = append(appSetContainer.Command, "--enable-leader-election")
+	}
+
 	podSpec.Containers = []corev1.Container{
 		appSetContainer,
 	}
