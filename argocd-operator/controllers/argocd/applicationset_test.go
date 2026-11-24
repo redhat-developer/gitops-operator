@@ -552,7 +552,7 @@ func TestReconcileApplicationSet_Deployments_Replicas_LiveScale(t *testing.T) {
 	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &sa))
 
 	assert.NoError(t, r.Get(context.TODO(), deploymentKey, deployment))
-	assert.Equal(t, 3, deployment.Spec.Replicas)
+	assert.Equal(t, new(int32(3)), deployment.Spec.Replicas)
 
 	gotLeaderElection := slices.Contains(deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
 	assert.True(t, gotLeaderElection, "expected leader election to be enabled based on the live replica count")
