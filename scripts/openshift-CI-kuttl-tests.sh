@@ -30,8 +30,9 @@ cleanup_on_failure() {
 }
 trap cleanup_on_failure EXIT
 
+source "$(dirname "${BASH_SOURCE[0]}")/go-mod-vendor.sh"
 export CI="prow"
-go mod vendor
+go_mod_vendor_with_retry
 
 source $(dirname $0)/e2e-common.sh
 
