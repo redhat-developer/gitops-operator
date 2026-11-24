@@ -246,13 +246,12 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Consistently(guestbook_dev_ServiceAccount).ShouldNot(k8sFixture.ExistByName())
 
 			By("verifying Application contains error message indicating that no matching service account exists in the appproject, which is required for impersonation")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(guestbookDevApplication), guestbookDevApplication)).To(Succeed())
-
-			Eventually(guestbookDevApplication, "4m", "5s").Should(applicationFixture.HaveSyncStatusCode(appv1alpha1.SyncStatusCodeOutOfSync))
-
-			Expect(guestbookDevApplication.Status.OperationState).ToNot(BeNil())
-
-			Expect(guestbookDevApplication.Status.OperationState.Message).To(ContainSubstring("no matching service account found for destination server"))
+			// With Argo CD 3.6+ ServerSideApply→server-side diff, impersonation failures appear on
+			// Application conditions; OperationState often stays nil.
+			Eventually(guestbookDevApplication, "2m", "5s").Should(applicationFixture.HaveConditionMatching(
+				appv1alpha1.ApplicationConditionUnknownError,
+				"no matching service account found for destination server",
+			))
 
 		})
 	})
