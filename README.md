@@ -1,4 +1,6 @@
-# OpenShift GitOps  Operator
+# OpenShift GitOps Operator
+
+[![codecov](https://codecov.io/gh/redhat-developer/gitops-operator/graph/badge.svg?token=UXCZDD2JDI)](https://codecov.io/gh/redhat-developer/gitops-operator)
 
 An operator that gets you an Argo CD for cluster configuration out-of-the-box on OpenShift along with the UI for visualizing environments.
 
