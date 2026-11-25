@@ -7,7 +7,7 @@ replace github.com/redhat-developer/gitops-operator/argocd-operator => ./argocd-
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.10.1-0.20261113233154-b9d5c7863c95
 	github.com/argoproj-labs/argocd-image-updater v1.5.1
-	github.com/argoproj-labs/gitops-promoter v0.49.0
+	github.com/argoproj-labs/gitops-promoter v0.50.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.2
 	github.com/argoproj/argo-cd/v3 v3.6.2
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
@@ -37,12 +37,12 @@ require (
 	k8s.io/client-go v0.37.2
 	k8s.io/kube-aggregator v0.37.0
 	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
-	sigs.k8s.io/controller-runtime v0.25.2
+	sigs.k8s.io/controller-runtime v0.25.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
-	cel.dev/expr v0.25.3 // indirect
+	cel.dev/expr v0.26.0 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cyphar.com/go-pathrs v0.2.5 // indirect
 	dario.cat/mergo v1.0.2 // indirect
@@ -152,7 +152,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.73.1 // indirect
+	github.com/prometheus/common v0.74.0 // indirect
 	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/r3labs/diff/v3 v3.0.2 // indirect
 	github.com/redis/go-redis/v9 v9.22.0 // indirect
@@ -181,13 +181,13 @@ require (
 	go.opentelemetry.io/otel/sdk v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.5 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.48.0 // indirect
@@ -215,7 +215,7 @@ require (
 	k8s.io/kubernetes v1.37.0 // indirect
 	k8s.io/streaming v0.37.2 // indirect
 	oras.land/oras-go/v2 v2.6.2 // indirect
-	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.37.0 // indirect
+	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.37.1 // indirect
 	sigs.k8s.io/gateway-api v1.6.0 // indirect
 	sigs.k8s.io/json v0.0.0-20260909141634-11ed52e25bc5 // indirect
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect

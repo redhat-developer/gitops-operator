@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/argoproj-labs/argocd-image-updater v1.5.1
-	github.com/argoproj-labs/gitops-promoter v0.49.0
+	github.com/argoproj-labs/gitops-promoter v0.50.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.2
 	// Update in Makefile and run `make update-dependencies`
 	github.com/argoproj/argo-cd/v3 v3.6.2
@@ -32,7 +32,7 @@ require (
 	k8s.io/client-go v0.37.2
 	k8s.io/kube-aggregator v0.37.0
 	k8s.io/utils v0.0.0-20261023123148-ca04ba58ecab
-	sigs.k8s.io/controller-runtime v0.25.2
+	sigs.k8s.io/controller-runtime v0.25.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -138,7 +138,7 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.73.1 // indirect
+	github.com/prometheus/common v0.74.0 // indirect
 	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/r3labs/diff/v3 v3.0.2 // indirect
 	github.com/redis/go-redis/v9 v9.22.0 // indirect
@@ -161,13 +161,13 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/atomic v1.12.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.5 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.37.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/term v0.48.0 // indirect
