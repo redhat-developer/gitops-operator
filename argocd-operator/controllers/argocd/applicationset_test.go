@@ -500,14 +500,11 @@ func TestReconcileApplicationSet_Deployments_Replicas(t *testing.T) {
 
 			assert.Equal(t, test.wantReplicas, deployment.Spec.Replicas)
 
-			gotLeaderElection := false
-			for _, arg := range deployment.Spec.Template.Spec.Containers[0].Command {
-				if arg == "--enable-leader-election" {
-					gotLeaderElection = true
-					break
-				}
+			if test.wantLeaderElection {
+				assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
+			} else {
+				assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
 			}
-			assert.Equal(t, test.wantLeaderElection, gotLeaderElection)
 		})
 	}
 }

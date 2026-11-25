@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	amerr "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -433,7 +434,7 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 	// than being treated as a specific value -- otherwise a live replica count left
 	// by the Kubernetes API's defaulting (or external scaling) would always differ
 	// from the unset desired value and trigger an update on every reconcile.
-	if y.Spec.Replicas != nil && !reflect.DeepEqual(x.Spec.Replicas, y.Spec.Replicas) {
+	if y.Spec.Replicas != nil && !ptr.Equal(x.Spec.Replicas, y.Spec.Replicas) {
 		return "Spec.Replicas"
 	}
 
