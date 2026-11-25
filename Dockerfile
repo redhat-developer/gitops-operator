@@ -9,18 +9,30 @@ COPY go.sum go.sum
 COPY argocd-operator/ argocd-operator/
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+# Retry failed dependency downloads with HTTP/2 disabled.
+RUN go mod download && exit 0; \
+    for retry in 1 2 3 4 5; do \
+        echo "go mod download failed. Retrying in 30 seconds (retry ${retry}/5)."; \
+        sleep 30 || exit $?; \
+        GODEBUG=http2client=0 go mod download && exit 0; \
+        status=$?; \
+    done; \
+    exit "$status"
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY common/ common/
+COPY internal/ai/ internal/ai/
 COPY version/ version/
 
 # Build - Use TARGETARCH to build for the correct architecture
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a -o manager ./cmd/main.go
+ARG VERSION=0.0.1
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -a \
+    -ldflags="-X github.com/redhat-developer/gitops-operator/version.Version=${VERSION}" \
+    -o manager ./cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

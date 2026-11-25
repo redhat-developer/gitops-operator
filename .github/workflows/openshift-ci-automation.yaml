@@ -1,6 +1,10 @@
 name: Trigger openshift-ci automation
 on:
   create
+
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,8 +14,8 @@ jobs:
         run: |
           export BRANCH=${{ github.event.ref }}
           echo $BRANCH
-          # check if version starts with v or not
-          if [[ $BRANCH = v* ]];then      
+          # The release branch pattern changed between 1.22 and 1.23
+          if [[ $BRANCH = v* ]] || [[ $BRANCH = release-* ]]; then
             curl -L \
               -H "Accept: application/vnd.github+json" \
               -H "Authorization: Bearer ${{ secrets.ACTIONS_KEY }}" \

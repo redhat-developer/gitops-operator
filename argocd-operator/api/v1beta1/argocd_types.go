@@ -1260,6 +1260,19 @@ type ArgoCDSpec struct {
 
 	// Promoter defines the spec for the GitOps Promoter component
 	Promoter *PromoterSpec `json:"promoter,omitempty"`
+
+	// AI holds configuration for AI-assisted GitOps features.
+	// Requires GITOPS_AI_ENABLED=true or --gitops-ai-enabled on the
+	// gitops-operator manager.
+	AI *ArgoCDAISpec `json:"ai,omitempty"`
+}
+
+// ArgoCDAISpec configures AI-assisted GitOps features for this ArgoCD instance.
+// +k8s:openapi-gen=true
+type ArgoCDAISpec struct {
+	// Troubleshooting enables automatic AI-assisted diagnosis of failing applications
+	// via the gitops-ai-controller notification webhook.
+	Troubleshooting bool `json:"troubleshooting,omitempty"`
 }
 
 // NamespaceManagement defines the namespace management settings

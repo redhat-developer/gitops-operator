@@ -50,6 +50,37 @@ func TestGetClusterVersion(t *testing.T) {
 	})
 }
 
+// GetClusterVersion reads a typed configv1.ClusterVersion. A scheme without the
+// Config API fails the read with an error that is not NotFound, which the
+// caller in cmd/main.go treats as "cannot determine the version" and uses to
+// switch AI features off. DISABLE_CLUSTER_TLS_PROFILE=true skips the earlier
+// configv1 registration, so the AI version check has to register the type
+// itself before reading.
+func TestGetClusterVersion_RequiresConfigAPIInScheme(t *testing.T) {
+	version := "4.19.0"
+
+	withoutConfigAPI := runtime.NewScheme()
+	fakeClient := fake.NewClientBuilder().WithScheme(withoutConfigAPI).Build()
+	if _, err := GetClusterVersion(fakeClient); err == nil {
+		t.Fatal("expected an error when the Config API is absent from the scheme")
+	}
+
+	// What the AI version check now does before reading the version.
+	withConfigAPI := runtime.NewScheme()
+	if err := configv1.AddToScheme(withConfigAPI); err != nil {
+		t.Fatal(err)
+	}
+	fakeClient = fake.NewClientBuilder().
+		WithScheme(withConfigAPI).
+		WithObjects(NewClusterVersion(version)).
+		Build()
+	got, err := GetClusterVersion(fakeClient)
+	assertNoError(t, err)
+	if got != version {
+		t.Fatalf("got %s, want %s", got, version)
+	}
+}
+
 func TestInspectCluster_RouteDetectedWithoutConfigAPI(t *testing.T) {
 	// Save and restore package-level state so this test is hermetic.
 	origRoute := routeAPIFound

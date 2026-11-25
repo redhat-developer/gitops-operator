@@ -61,11 +61,11 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("creating a namespace to contain the Argo CD instance")
 			argoCDNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("appteam-argocd-1-131")
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating a managed namespace where the operator will create RoleBindings")
 			managedNS, cleanupFunc := fixture.CreateManagedNamespaceWithCleanupFunc("appteam-apps-1-131", argoCDNS.Name)
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating an ArgoCD instance carrying tracking annotations, as if deployed by a central Argo CD")
 			argoCD := &argov1beta1api.ArgoCD{

@@ -2,7 +2,8 @@
 
 set -ex
 
-go mod vendor
+source "$(dirname "${BASH_SOURCE[0]}")/go-mod-vendor.sh"
+go_mod_vendor_with_retry
 
 source $(dirname $0)/e2e-common.sh
 

@@ -115,7 +115,7 @@ func buildDexWebTLSConfig(centralTLSConfig tlsProfile.TLSConfigProfile) string {
 			b.WriteString("web:")
 			hasContent = true
 		}
-		b.WriteString(fmt.Sprintf("\n  tlsMinVersion: %q", v))
+		fmt.Fprintf(&b, "\n  tlsMinVersion: %q", v)
 	}
 
 	if ciphers := argoutil.MapCipherSuites(centralTLSConfig.Ciphers); len(ciphers) > 0 {
@@ -146,7 +146,7 @@ func buildDexWebTLSConfig(centralTLSConfig tlsProfile.TLSConfigProfile) string {
 			}
 			b.WriteString("\n  tlsCiphers:")
 			for _, cipher := range ciphers {
-				b.WriteString(fmt.Sprintf("\n    - %q", cipher))
+				fmt.Fprintf(&b, "\n    - %q", cipher)
 			}
 		}
 	}
@@ -165,7 +165,7 @@ func buildDexWebTLSConfig(centralTLSConfig tlsProfile.TLSConfigProfile) string {
 		}
 		b.WriteString("\n  tlsCurvePreferences:")
 		for _, curve := range strings.Split(curves, ":") {
-			b.WriteString(fmt.Sprintf("\n    - %q", curve))
+			fmt.Fprintf(&b, "\n    - %q", curve)
 		}
 	}
 

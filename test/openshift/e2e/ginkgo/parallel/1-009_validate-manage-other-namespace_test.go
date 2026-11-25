@@ -56,10 +56,10 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies that a namespace-scoped Argo CD in one namespace is able to manage another namespace via the managed-by label", func() {
 
 			nsTest_1_9_custom, cleanupFunc1 := fixture.CreateNamespaceWithCleanupFunc("test-1-9-custom")
-			defer cleanupFunc1()
+			DeferCleanup(cleanupFunc1)
 
 			randomNS, cleanupFunc2 := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc2()
+			DeferCleanup(cleanupFunc2)
 
 			By("creating simple namespace-scoped Argo CD")
 			argoCDInRandomNS := &argov1beta1api.ArgoCD{

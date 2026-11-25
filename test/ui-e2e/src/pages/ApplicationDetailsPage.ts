@@ -1,5 +1,8 @@
 import { Page, expect, Locator } from '@playwright/test';
 
+const exactText = (value: string) =>
+  new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+
 export class ApplicationDetailsPage {
   readonly page: Page;
   readonly resourceTreeContainer: Locator;
@@ -32,17 +35,79 @@ export class ApplicationDetailsPage {
   }
 
   async clickResourceNode(kind: string, name: string) {
-    //re-query on tree re-render
+    //kind+title on the node itself so "rollout" must not match rollouts-demo pods
     await expect(async () => {
       const node = this.resourceTreeContainer
-        .locator('div')
-        .filter({ hasText: kind })
-        .filter({ hasText: name })
-        .last();
-      await expect(node).toBeVisible({ timeout: 5000 });
-      await node.click({ timeout: 5000 });
+        .locator('.application-resource-tree__node')
+        .filter({
+          has: this.page.locator('.application-resource-tree__node-kind', {
+            hasText: exactText(kind),
+          }),
+        })
+        .filter({
+          has: this.page.locator('.application-resource-tree__node-title', {
+            hasText: exactText(name),
+          }),
+        })
+        .first();
+      const title = node.locator('.application-resource-tree__node-title').filter({
+        hasText: exactText(name),
+      });
+      await expect(title).toBeVisible({ timeout: 5000 });
+      //force the click cause 3.3–3.6 put onNodeClick on top-part 
+      const top = node.locator('.application-resource-tree__node__top-part');
+      await ((await top.count()) > 0 ? top : title).click({ force: true, timeout: 5000 });
       await expect(this.slideOutPanel).toBeVisible({ timeout: 3000 });
+      await expect(
+        this.slideOutPanel.getByRole('heading', { name: exactText(name) })
+      ).toBeVisible({ timeout: 3000 });
     }).toPass({ timeout: 30000, intervals: [500, 1000, 2000] });
+  }
+
+  //react 19 used to crash extensions-Rollout.js with hasOwnProperty
+  assertNoRolloutExtensionLoadError(errors: string[]) {
+    const hit = errors.find(
+      (e) =>
+        (/failed to load/i.test(e) && /extensions-Rollout\.js/i.test(e)) ||
+        (/hasOwnProperty/i.test(e) && /extension/i.test(e))
+    );
+    expect(hit, `rollouts extension failed to load (GITOPS-11604): ${hit}`).toBeUndefined();
+  }
+
+  async openRolloutExtension(rolloutName: string) {
+    await expect(this.resourceTreeContainer).toBeVisible({ timeout: 20000 });
+    await this.clickResourceNode('Rollout', rolloutName);
+    await expect(
+      this.slideOutPanel.getByRole('heading', { name: exactText(rolloutName) })
+    ).toBeVisible({ timeout: 10000 });
+
+    //argo-ui tabs are <a> in 3.3–3.6 so text isn't exactly "Rollout"
+    const rolloutTab = this.slideOutPanel
+      .locator('.tabs__nav a, .tabs__nav button')
+      .filter({ hasText: /Rollout/i })
+      .first();
+    await expect(rolloutTab).toBeVisible({ timeout: 15000 });
+    await rolloutTab.click();
+
+    await expect(
+      this.slideOutPanel.getByText(/Something went wrong with Extension/i)
+    ).toBeHidden();
+    await expect(this.slideOutPanel.getByText(/Canary/i).first()).toBeVisible({ timeout: 15000 });
+  }
+
+  async assertRolloutActionMenu() {
+    const kebab = this.slideOutPanel
+      .locator('button')
+      .filter({ has: this.page.locator('.fa-ellipsis-v') })
+      .first();
+    await expect(kebab).toBeVisible({ timeout: 15000 });
+    await kebab.click();
+
+    const items = this.page.locator('.application-details__action-menu');
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    for (const name of [/Promote/i, /Abort/i, /Retry/i, /Restart/i, /Pause/i]) {
+      await expect(items.filter({ hasText: name }).first()).toBeVisible();
+    }
   }
 
   async verifyPodLogs(expectedLogText?: string) {
