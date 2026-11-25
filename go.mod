@@ -4,9 +4,9 @@ go 1.25.9
 
 require (
 	github.com/argoproj-labs/argo-rollouts-manager v0.0.8-0.20260224121037-1824164aac67
-	github.com/argoproj-labs/argocd-image-updater v1.1.4
+	github.com/argoproj-labs/argocd-image-updater v1.1.5
 	github.com/argoproj-labs/argocd-operator v0.18.1-0.20261105092420-e3316d88ac59
-	github.com/argoproj/argo-cd/v3 v3.3.19
+	github.com/argoproj/argo-cd/v3 v3.3.20-0.20261116162109-d6de2f779004
 	github.com/argoproj/gitops-engine v0.7.1-0.20251217140045-5baed5604d2d
 	github.com/go-logr/logr v1.4.4
 	github.com/google/go-cmp v0.7.0
@@ -65,7 +65,7 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dlclark/regexp2/v2 v2.13.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
@@ -162,7 +162,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
@@ -171,9 +171,9 @@ require (
 	golang.org/x/tools v0.49.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20240401170217-c3f982113cda // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/grpc v1.80.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
@@ -199,10 +199,11 @@ require (
 )
 
 replace (
-	// argo-cd v3.3.19 declares gitops-engine at a pseudo-version where go.mod
-	// didn't exist yet, then overrides with replace => ./gitops-engine locally.
-	// Downstream consumers must resolve it themselves; pin to the v3.3.19 commit.
-	github.com/argoproj/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261102191642-554529f5d80c
+	// argo-cd v3.3.20-0.20261116162109-d6de2f779004 declares gitops-engine at a
+	// pseudo-version where go.mod didn't exist yet, then overrides with
+	// replace => ./gitops-engine locally. Downstream consumers must resolve it
+	// themselves; pin to the same argo-cd commit (d6de2f779004).
+	github.com/argoproj/gitops-engine => github.com/argoproj/argo-cd/gitops-engine v0.0.0-20261116162109-d6de2f779004
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
