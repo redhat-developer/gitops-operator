@@ -3,7 +3,7 @@ module github.com/redhat-developer/gitops-operator/argocd-operator
 go 1.27.0
 
 require (
-	github.com/argoproj-labs/argocd-image-updater v1.5.0
+	github.com/argoproj-labs/argocd-image-updater v1.5.1
 	github.com/argoproj-labs/gitops-promoter v0.49.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.2
 	// Update in Makefile and run `make update-dependencies`
