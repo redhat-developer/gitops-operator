@@ -1012,6 +1012,12 @@ func (r *ReconcileArgoCD) reconcileImageUpdaterDeployment(cr *argoproj.ArgoCD, s
 		VolumeMounts:    volumeMounts,
 	}}
 
+	imageUpdaterReplicas := int32(1)
+	if isIdled(cr) {
+		imageUpdaterReplicas = 0
+	}
+	desiredDeployment.Spec.Replicas = &imageUpdaterReplicas
+
 	return r.reconcileDeploymentHelper(cr, desiredDeployment, "image updater", cr.Spec.ImageUpdater.Enabled)
 }
 

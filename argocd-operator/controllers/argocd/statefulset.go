@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -98,7 +99,11 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 	redisEnv := proxyEnvVars()
 
 	ss.Spec.PodManagementPolicy = appsv1.OrderedReadyPodManagement
-	ss.Spec.Replicas = argoutil.GetRedisHAReplicas()
+	if isIdled(cr) {
+		ss.Spec.Replicas = ptr.To(int32(0))
+	} else {
+		ss.Spec.Replicas = argoutil.GetRedisHAReplicas()
+	}
 	ss.Spec.Selector = &metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			common.ArgoCDKeyName: nameWithSuffix("redis-ha", cr),
@@ -535,6 +540,10 @@ func (r *ReconcileArgoCD) reconcileRedisStatefulSet(cr *argoproj.ArgoCD) error {
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = ss.Spec.Template.Spec.AutomountServiceAccountToken
 			changes = append(changes, "automountServiceAccountToken")
 		}
+		if !reflect.DeepEqual(ss.Spec.Replicas, existing.Spec.Replicas) {
+			existing.Spec.Replicas = ss.Spec.Replicas
+			changes = append(changes, "replicas")
+		}
 
 		if len(changes) > 0 {
 			argoutil.LogResourceUpdate(log, existing, "updating", strings.Join(changes, ", "))
@@ -626,6 +635,10 @@ func getArgoControllerContainerEnv(cr *argoproj.ArgoCD, replicas int32) []corev1
 }
 
 func (r *ReconcileArgoCD) getApplicationControllerReplicaCount(cr *argoproj.ArgoCD) int32 {
+	if isIdled(cr) {
+		return 0
+	}
+
 	var replicas int32 = common.ArgocdApplicationControllerDefaultReplicas
 	var minShards = cr.Spec.Controller.Sharding.MinShards
 	var maxShards = cr.Spec.Controller.Sharding.MaxShards

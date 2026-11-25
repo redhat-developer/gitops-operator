@@ -44,6 +44,9 @@ import (
 // has been set in argocd CR. Otherwise, nil is returned if the replicas is not set in the argocd CR or
 // replicas value is < 0. If Autoscale is enabled, the value for replicas in the argocd CR will be ignored.
 func getArgoCDServerReplicas(cr *argoproj.ArgoCD) *int32 {
+	if isIdled(cr) {
+		return ptr.To(int32(0))
+	}
 	if !cr.Spec.Server.Autoscale.Enabled && cr.Spec.Server.Replicas != nil && *cr.Spec.Server.Replicas >= 0 {
 		return cr.Spec.Server.Replicas
 	}
@@ -531,6 +534,12 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 		deploy.Spec.Template.Spec.PriorityClassName = cr.Spec.PriorityClassName
 	}
 
+	redisReplicas := int32(1)
+	if isIdled(cr) {
+		redisReplicas = 0
+	}
+	deploy.Spec.Replicas = &redisReplicas
+
 	if err := applyReconcilerHook(cr, deploy, ""); err != nil {
 		return err
 	}
@@ -638,6 +647,10 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
 			changes = append(changes, "automountServiceAccountToken")
 		}
+		if !reflect.DeepEqual(deploy.Spec.Replicas, existing.Spec.Replicas) {
+			existing.Spec.Replicas = deploy.Spec.Replicas
+			changes = append(changes, "replicas")
+		}
 
 		if len(changes) > 0 {
 			argoutil.LogResourceUpdate(log, existing, "updating", strings.Join(changes, ", "))
@@ -678,7 +691,11 @@ func (r *ReconcileArgoCD) reconcileRedisHAProxyDeployment(cr *argoproj.ArgoCD) e
 
 	redisEnv := proxyEnvVars()
 
-	deploy.Spec.Replicas = argoutil.GetRedisHAReplicas()
+	if isIdled(cr) {
+		deploy.Spec.Replicas = ptr.To(int32(0))
+	} else {
+		deploy.Spec.Replicas = argoutil.GetRedisHAReplicas()
+	}
 
 	deploy.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
@@ -1294,7 +1311,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 			changes = append(changes, "additional containers")
 		}
 		if !reflect.DeepEqual(deploy.Spec.Replicas, existing.Spec.Replicas) {
-			if !cr.Spec.Server.Autoscale.Enabled {
+			if !cr.Spec.Server.Autoscale.Enabled || isIdled(cr) {
 				existing.Spec.Replicas = deploy.Spec.Replicas
 				changes = append(changes, "replicas")
 			}

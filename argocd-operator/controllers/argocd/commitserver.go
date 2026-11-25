@@ -180,6 +180,12 @@ func (r *ReconcileArgoCD) reconcileCommitServerDeployment(cr *argoproj.ArgoCD) e
 		deploy.Spec.Template.Spec.InitContainers = append(deploy.Spec.Template.Spec.InitContainers, cr.Spec.CommitServer.InitContainers...)
 	}
 
+	commitServerReplicas := int32(1)
+	if isIdled(cr) {
+		commitServerReplicas = 0
+	}
+	deploy.Spec.Replicas = &commitServerReplicas
+
 	if err := controllerutil.SetControllerReference(cr, deploy, r.Scheme); err != nil {
 		return err
 	}
@@ -264,6 +270,10 @@ func (r *ReconcileArgoCD) reconcileCommitServerDeployment(cr *argoproj.ArgoCD) e
 		if !reflect.DeepEqual(deploy.Spec.Template.Spec.AutomountServiceAccountToken, existing.Spec.Template.Spec.AutomountServiceAccountToken) {
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
 			changes = append(changes, "automountServiceAccountToken")
+		}
+		if !reflect.DeepEqual(deploy.Spec.Replicas, existing.Spec.Replicas) {
+			existing.Spec.Replicas = deploy.Spec.Replicas
+			changes = append(changes, "replicas")
 		}
 
 		if len(changes) > 0 {

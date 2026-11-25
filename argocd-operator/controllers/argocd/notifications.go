@@ -598,6 +598,12 @@ func (r *ReconcileArgoCD) reconcileNotificationsDeployment(cr *argoproj.ArgoCD, 
 		WorkingDir: "/app",
 	}}
 
+	notificationsReplicas := int32(1)
+	if isIdled(cr) {
+		notificationsReplicas = 0
+	}
+	desiredDeployment.Spec.Replicas = &notificationsReplicas
+
 	if !deplExists {
 		markAIOnlyNotificationsResource(cr, desiredDeployment)
 	}

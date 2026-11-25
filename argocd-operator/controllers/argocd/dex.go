@@ -493,6 +493,12 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 		deploy.Spec.Template.Spec.PriorityClassName = cr.Spec.PriorityClassName
 	}
 
+	dexReplicas := int32(1)
+	if isIdled(cr) {
+		dexReplicas = 0
+	}
+	deploy.Spec.Replicas = &dexReplicas
+
 	existing := newDeploymentWithSuffix("dex-server", "dex-server", cr)
 	deplExists, err := argoutil.IsObjectFound(r.Client, cr.Namespace, existing.Name, existing)
 	if err != nil {
@@ -613,6 +619,10 @@ func (r *ReconcileArgoCD) reconcileDexDeployment(cr *argoproj.ArgoCD) error {
 		if !reflect.DeepEqual(deploy.Spec.Template.Labels, existing.Spec.Template.Labels) {
 			existing.Spec.Template.Labels = deploy.Spec.Template.Labels
 			changes = append(changes, "labels")
+		}
+		if !reflect.DeepEqual(deploy.Spec.Replicas, existing.Spec.Replicas) {
+			existing.Spec.Replicas = deploy.Spec.Replicas
+			changes = append(changes, "replicas")
 		}
 
 		if len(changes) > 0 {
