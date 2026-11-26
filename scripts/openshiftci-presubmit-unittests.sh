@@ -5,10 +5,11 @@ set -e
 # show commands
 set -x
 
+source "$(dirname "${BASH_SOURCE[0]}")/go-mod-vendor.sh"
 export PATH=$PATH:$GOPATH/bin
 
 go env
-go mod vendor
+go_mod_vendor_with_retry
 if [[ $(go fmt `go list ./... | grep -v vendor`) ]]; then
     echo "not well formatted sources are found"
     exit 1
@@ -22,7 +23,7 @@ fi
 
 # without vendoring upgrade-rollouts-manager, make manifests runs into an error
 cd hack/upgrade-rollouts-manager
-go mod vendor
+go_mod_vendor_with_retry
 cd ../..
 
 # Run unit

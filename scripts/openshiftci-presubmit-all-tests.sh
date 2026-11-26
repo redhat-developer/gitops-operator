@@ -8,8 +8,9 @@ set +x
 
 # show commands
 set -x
+source "$(dirname "${BASH_SOURCE[0]}")/go-mod-vendor.sh"
 export CI="prow"
-go mod vendor
+go_mod_vendor_with_retry
 # make prepare-test-cluster
 
 export PATH="$PATH:$(pwd)"
@@ -23,7 +24,7 @@ export KUBECONFIG=$TMP_DIR/kubeconfig
 
 # without vendoring upgrade-rollouts-manager, make manifests runs into an error
 cd hack/upgrade-rollouts-manager
-go mod vendor
+go_mod_vendor_with_retry
 cd ../..
 
 

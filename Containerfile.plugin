@@ -27,12 +27,15 @@ COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
-# Retry failed dependency downloads after a delay, bypassing the proxy and HTTP/2.
-RUN go mod download || { \
-    echo "go mod download failed; retrying in 30 seconds with GOPROXY=direct GODEBUG=http2client=0" && \
-    sleep 30 && \
-    GOPROXY=direct GODEBUG=http2client=0 go mod download; \
-    }
+# Retry failed dependency downloads with HTTP/2 disabled.
+RUN go mod download && exit 0; \
+    for retry in 1 2 3 4 5; do \
+        echo "go mod download failed. Retrying in 30 seconds (retry ${retry}/5)."; \
+        sleep 30 || exit $?; \
+        GODEBUG=http2client=0 go mod download && exit 0; \
+        status=$?; \
+    done; \
+    exit "$status"
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
