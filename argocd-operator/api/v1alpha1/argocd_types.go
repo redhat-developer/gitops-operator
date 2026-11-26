@@ -1305,6 +1305,9 @@ type PrincipalSpec struct {
 
 	// PProf defines the profiling options for the Principal component.
 	PProf *ArgoCDAgentPProfSpec `json:"pprof,omitempty"`
+
+	// HA defines the active/passive High Availability configuration for the Principal component.
+	HA *PrincipalHASpec `json:"ha,omitempty"`
 }
 
 // ArgoCDAgentPProfSpec defines the profiling options of an Argo CD Agent component.
@@ -1313,6 +1316,48 @@ type ArgoCDAgentPProfSpec struct {
 	// Applied at runtime: changing this does not restart the component.
 	// Default: false when enabled is nil.
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// +kubebuilder:validation:XValidation:rule="!(has(self.enabled) && self.enabled && has(self.preferredRole) && self.preferredRole == 'replica') || (has(self.peerAddress) && size(self.peerAddress) > 0)",message="peerAddress must be set when preferredRole is replica"
+// PrincipalHASpec defines the active/passive High Availability configuration
+// for the Principal component of ArgoCD Agent.
+type PrincipalHASpec struct {
+	// Enabled enables active/passive High Availability for the principal. (default: false)
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// PreferredRole is the startup role of this principal instance.
+	// "primary" starts in ACTIVE state.
+	// "replica" starts in SYNCING → REPLICATING state.
+	// +kubebuilder:validation:Enum=primary;replica
+	PreferredRole string `json:"preferredRole,omitempty"`
+
+	// PeerAddress is the gRPC address (host:port) of the peer principal.
+	// Required when PreferredRole is "replica".
+	PeerAddress string `json:"peerAddress,omitempty"`
+
+	// PeerTLSSecretName is the name of the TLS secret containing the dedicated
+	// replication client certificate (tls.crt, tls.key).
+	// (default: "argocd-agent-ha-peer-tls")
+	PeerTLSSecretName string `json:"peerTLSSecretName,omitempty"`
+
+	// AllowedReplicationClients is the list of mTLS identities permitted to connect for replication.
+	// When empty, any authenticated peer is allowed.
+	// The dedicated peer client certificate uses CN=argocd-agent-principal-peer.
+	AllowedReplicationClients []string `json:"allowedReplicationClients,omitempty"`
+
+	// AdminPort is the port for the HAAdmin gRPC server used by
+	// argocd-agentctl ha status/promote/demote. Access via kubectl port-forward. (default: 8405)
+	AdminPort *int32 `json:"adminPort,omitempty"`
+
+	// AdminAuth is the authorization policy for the HA admin endpoint.
+	// When TLS is active and this is unset, all admin calls are denied.
+	// Format: "mtls:subject:<regex>" or "mtls:uri:<regex>".
+	// Example: "mtls:subject:CN=ha-admin"
+	AdminAuth string `json:"adminAuth,omitempty"`
+
+	// ReplicationInitialAckTimeout is the duration the primary waits for the replica's
+	// initial acknowledgement after delivering the full snapshot. (default: 5m)
+	ReplicationInitialAckTimeout string `json:"replicationInitialAckTimeout,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!has(self.enabled) || self.enabled == false || (has(self.clientCertSecretName) && self.clientCertSecretName != \"\")",message="clientCertSecretName must be set when self-registration is enabled"

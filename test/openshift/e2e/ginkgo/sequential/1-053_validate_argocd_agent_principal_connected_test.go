@@ -599,20 +599,20 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 		AfterEach(func() {
 
 			fixture.OutputDebugOnFail(namespaceAgentPrincipal, namespaceManagedAgent, namespaceAutonomousAgent, managedAgentClusterName, autonomousAgentClusterName, managedAgentApplicationNamespace, autonomousAgentApplicationNamespace)
+			if k8sClient != nil {
+				By("Cleanup cluster-scoped resources")
+				_ = k8sClient.Delete(ctx, clusterRolePrincipal)
+				_ = k8sClient.Delete(ctx, clusterRoleBindingPrincipal)
 
-			By("Cleanup cluster-scoped resources")
-			_ = k8sClient.Delete(ctx, clusterRolePrincipal)
-			_ = k8sClient.Delete(ctx, clusterRoleBindingPrincipal)
+				_ = k8sClient.Delete(ctx, clusterRoleManagedAgent)
+				_ = k8sClient.Delete(ctx, clusterRoleBindingManagedAgent)
 
-			_ = k8sClient.Delete(ctx, clusterRoleManagedAgent)
-			_ = k8sClient.Delete(ctx, clusterRoleBindingManagedAgent)
+				_ = k8sClient.Delete(ctx, clusterRoleAutonomousAgent)
+				_ = k8sClient.Delete(ctx, clusterRoleBindingAutonomousAgent)
 
-			_ = k8sClient.Delete(ctx, clusterRoleAutonomousAgent)
-			_ = k8sClient.Delete(ctx, clusterRoleBindingAutonomousAgent)
-
-			_ = k8sClient.Delete(ctx, adminCRBManagedAgent)
-			_ = k8sClient.Delete(ctx, adminCRBAutonomousAgent)
-
+				_ = k8sClient.Delete(ctx, adminCRBManagedAgent)
+				_ = k8sClient.Delete(ctx, adminCRBAutonomousAgent)
+			}
 			By("Cleanup namespaces created in this test")
 			for i := len(cleanupFuncs) - 1; i >= 0; i-- {
 				cleanupFuncs[i]()
