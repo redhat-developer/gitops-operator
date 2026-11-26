@@ -2944,7 +2944,7 @@ func Test_getRolloutInitContainer(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			containers := getRolloutInitContainer()
+			containers := getRolloutInitContainer(&argoproj.ArgoCD{})
 
 			assert.Equalf(t, tt.wantImage, containers[0].Image, "Image check")
 			assert.Equalf(t, tt.wantEnv, containers[0].Env, "Env check")

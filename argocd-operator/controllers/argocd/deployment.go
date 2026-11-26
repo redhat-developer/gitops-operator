@@ -554,7 +554,6 @@ func (r *ReconcileArgoCD) reconcileRedisDeployment(cr *argoproj.ArgoCD, useTLS b
 			argoutil.LogResourceDeletion(log, deploy, "redis ha is enabled but non-ha deployment exists")
 			return r.Delete(context.TODO(), deploy)
 		}
-
 		argoutil.SetPodSpecDefaults(&deploy.Spec.Template.Spec)
 		var changes []string
 		actualImage := existing.Spec.Template.Spec.Containers[0].Image
@@ -1137,7 +1136,7 @@ func (r *ReconcileArgoCD) reconcileServerDeployment(cr *argoproj.ArgoCD, useTLSF
 
 	const extensionsVolumeName = "argo-cd-operator-ui-extensions"
 	if rolloutsUIEnabled && !hasRolloutsInitContainer {
-		deploy.Spec.Template.Spec.InitContainers = append(deploy.Spec.Template.Spec.InitContainers, getRolloutInitContainer()...)
+		deploy.Spec.Template.Spec.InitContainers = append(deploy.Spec.Template.Spec.InitContainers, getRolloutInitContainer(cr)...)
 	} else if !rolloutsUIEnabled {
 		deploy.Spec.Template.Spec.InitContainers = removeInitContainer(deploy.Spec.Template.Spec.InitContainers, "rollout-extension")
 	}
@@ -1469,10 +1468,11 @@ func updateNodePlacement(existing *appsv1.Deployment, deploy *appsv1.Deployment)
 	return changes
 }
 
-func getRolloutInitContainer() []corev1.Container {
+func getRolloutInitContainer(cr *argoproj.ArgoCD) []corev1.Container {
 	containers := []corev1.Container{
 		{
-			Name: "rollout-extension",
+			Name:            "rollout-extension",
+			ImagePullPolicy: argoutil.GetImagePullPolicy(cr.Spec.ImagePullPolicy),
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      "argo-cd-operator-ui-extensions",
