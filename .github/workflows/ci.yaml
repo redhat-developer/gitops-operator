@@ -127,7 +127,7 @@ jobs:
         run: make test
       - name: Upload coverage to Codecov
         if: ${{ hashFiles('cover.out') != '' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
           files: cover.out,argocd-operator/cover.out
