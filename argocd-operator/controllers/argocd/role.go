@@ -24,9 +24,10 @@ import (
 func newRole(name string, rules []v1.PolicyRule, cr *argoproj.ArgoCD) *v1.Role {
 	return &v1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      generateResourceName(name, cr),
-			Namespace: cr.Namespace,
-			Labels:    argoutil.LabelsForCluster(cr),
+			Name:        generateResourceName(name, cr),
+			Namespace:   cr.Namespace,
+			Labels:      argoutil.LabelsForCluster(cr),
+			Annotations: argoutil.AnnotationsForCluster(cr),
 		},
 		Rules: rules,
 	}
@@ -35,9 +36,10 @@ func newRole(name string, rules []v1.PolicyRule, cr *argoproj.ArgoCD) *v1.Role {
 func newRoleForApplicationSourceNamespaces(namespace string, rules []v1.PolicyRule, cr *argoproj.ArgoCD) *v1.Role {
 	return &v1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getRoleNameForApplicationSourceNamespaces(namespace, cr),
-			Namespace: namespace,
-			Labels:    argoutil.LabelsForCluster(cr),
+			Name:        getRoleNameForApplicationSourceNamespaces(namespace, cr),
+			Namespace:   namespace,
+			Labels:      argoutil.LabelsForCluster(cr),
+			Annotations: argoutil.AnnotationsForCluster(cr),
 		},
 		Rules: rules,
 	}

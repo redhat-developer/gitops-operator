@@ -361,7 +361,7 @@ func (r *ReconcileArgoCD) internalReconcile(ctx context.Context, request ctrl.Re
 			}
 
 			// Remove roles and rolebindings
-			if err := deleteRBACsForNamespace(nsMgmt.Namespace, k8sClient); err != nil {
+			if err := deleteRBACsForNamespace(nsMgmt.Namespace, k8sClient, argocd); err != nil {
 				log.Error(err, fmt.Sprintf("Failed to delete RBACs for namespace: %s", nsMgmt.Namespace))
 				return reconcile.Result{}, argocd, argoCDStatus, err
 			}
