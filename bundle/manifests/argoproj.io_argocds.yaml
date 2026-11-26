@@ -252,6 +252,11 @@ spec:
                       by the ApplicationSet controller. Defaults to ArgoCDDefaultLogLevel
                       if not set.  Valid options are debug,info, error, and warn.
                     type: string
+                  replicas:
+                    description: Replicas defines the number of replicas for argocd-applicationset-controller.
+                      Value should be greater than or equal to 0. Default is nil.
+                    format: int32
+                    type: integer
                   resources:
                     description: Resources defines the Compute Resources required
                       by the container for ApplicationSet.
@@ -11720,6 +11725,11 @@ spec:
                   logformat:
                     description: 'Deprecated: use LogFormat instead.'
                     type: string
+                  replicas:
+                    description: Replicas defines the number of replicas for argocd-applicationset-controller.
+                      Value should be greater than or equal to 0. Default is nil.
+                    format: int32
+                    type: integer
                   resources:
                     description: Resources defines the Compute Resources required
                       by the container for ApplicationSet.

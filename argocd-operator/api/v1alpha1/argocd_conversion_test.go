@@ -1520,3 +1520,35 @@ func TestPriorityClassNameConversion(t *testing.T) {
 		assert.Equal(t, "high-priority", dst.Spec.PriorityClassName)
 	})
 }
+
+func TestApplicationSetReplicasConversion(t *testing.T) {
+	replicas := int32(3)
+
+	t.Run("alpha to beta", func(t *testing.T) {
+		cr := &ArgoCD{}
+		cr.Spec.ApplicationSet = &ArgoCDApplicationSet{
+			Replicas: &replicas,
+		}
+
+		dst := &v1beta1.ArgoCD{}
+		err := cr.ConvertTo(dst)
+		assert.NoError(t, err)
+		if assert.NotNil(t, dst.Spec.ApplicationSet) {
+			assert.Equal(t, &replicas, dst.Spec.ApplicationSet.Replicas)
+		}
+	})
+
+	t.Run("beta to alpha", func(t *testing.T) {
+		cr := &v1beta1.ArgoCD{}
+		cr.Spec.ApplicationSet = &v1beta1.ArgoCDApplicationSet{
+			Replicas: &replicas,
+		}
+
+		dst := &ArgoCD{}
+		err := dst.ConvertFrom(cr)
+		assert.NoError(t, err)
+		if assert.NotNil(t, dst.Spec.ApplicationSet) {
+			assert.Equal(t, &replicas, dst.Spec.ApplicationSet.Replicas)
+		}
+	})
+}

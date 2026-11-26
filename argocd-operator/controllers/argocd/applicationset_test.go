@@ -18,6 +18,7 @@ package argocd
 import (
 	"context"
 	"os"
+	"slices"
 	"sort"
 	"testing"
 
@@ -434,6 +435,124 @@ func TestReconcileApplicationSet_UpdateExistingDeployments(t *testing.T) {
 
 	// Ensure the updated Deployment has the expected properties
 	checkExpectedDeploymentValues(t, r, deployment, &sa, nil, nil, a)
+}
+
+func TestReconcileApplicationSet_Deployments_Replicas(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	var (
+		oneReplica   int32 = 1
+		threeReplica int32 = 3
+	)
+
+	tests := []struct {
+		name               string
+		replicas           *int32
+		wantReplicas       *int32
+		wantLeaderElection bool
+	}{
+		{
+			name:               "replicas unset, leader election not enabled",
+			replicas:           nil,
+			wantReplicas:       nil,
+			wantLeaderElection: false,
+		},
+		{
+			name:               "replicas set to 1, leader election not enabled",
+			replicas:           &oneReplica,
+			wantReplicas:       &oneReplica,
+			wantLeaderElection: false,
+		},
+		{
+			name:               "replicas scaled above 1, leader election enabled",
+			replicas:           &threeReplica,
+			wantReplicas:       &threeReplica,
+			wantLeaderElection: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+				a.Spec.ApplicationSet = &argoproj.ArgoCDApplicationSet{
+					Replicas: test.replicas,
+				}
+			})
+
+			resObjs := []client.Object{a}
+			subresObjs := []client.Object{a}
+			runtimeObjs := []runtime.Object{}
+			sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+			cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+			r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+			sa := v1.ServiceAccount{}
+			assert.NoError(t, r.reconcileApplicationSetDeployment(a, &sa))
+
+			deployment := &appsv1.Deployment{}
+			assert.NoError(t, r.Get(
+				context.TODO(),
+				types.NamespacedName{
+					Name:      "argocd-applicationset-controller",
+					Namespace: a.Namespace,
+				},
+				deployment))
+
+			assert.Equal(t, test.wantReplicas, deployment.Spec.Replicas)
+
+			if test.wantLeaderElection {
+				assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
+			} else {
+				assert.NotContains(t, deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
+			}
+		})
+	}
+}
+
+// TestReconcileApplicationSet_Deployments_Replicas_LiveScale verifies that leader
+// election gets enabled based on the live replica count already on the Deployment
+// when the CR doesn't set spec.applicationSet.replicas (e.g. the Deployment was
+// scaled manually or by an HPA), rather than being skipped just because the CR
+// itself doesn't manage replicas.
+func TestReconcileApplicationSet_Deployments_Replicas_LiveScale(t *testing.T) {
+	logf.SetLogger(ZapLogger(true))
+
+	a := makeTestArgoCD(func(a *argoproj.ArgoCD) {
+		a.Spec.ApplicationSet = &argoproj.ArgoCDApplicationSet{}
+	})
+
+	resObjs := []client.Object{a}
+	subresObjs := []client.Object{a}
+	runtimeObjs := []runtime.Object{}
+	sch := makeTestReconcilerScheme(argoproj.AddToScheme, promoter.AddToScheme, apiregistrationv1.AddToScheme)
+	cl := makeTestReconcilerClient(sch, resObjs, subresObjs, runtimeObjs)
+	r := makeTestReconciler(cl, sch, testclient.NewSimpleClientset())
+
+	sa := v1.ServiceAccount{}
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &sa))
+
+	deploymentKey := types.NamespacedName{
+		Name:      "argocd-applicationset-controller",
+		Namespace: a.Namespace,
+	}
+
+	deployment := &appsv1.Deployment{}
+	assert.NoError(t, r.Get(context.TODO(), deploymentKey, deployment))
+	assert.Nil(t, deployment.Spec.Replicas)
+
+	// Simulate the Deployment being scaled outside of CR
+	deployment.Spec.Replicas = new(int32(3))
+	assert.NoError(t, r.Update(context.TODO(), deployment))
+
+	// Force a reconcile that must update the Deployment's containers, so the
+	// leader-election decision gets re-evaluated against the live replica count.
+	assert.NoError(t, r.reconcileApplicationSetDeployment(a, &sa))
+
+	assert.NoError(t, r.Get(context.TODO(), deploymentKey, deployment))
+	assert.Equal(t, new(int32(3)), deployment.Spec.Replicas)
+
+	gotLeaderElection := slices.Contains(deployment.Spec.Template.Spec.Containers[0].Command, "--enable-leader-election")
+	assert.True(t, gotLeaderElection, "expected leader election to be enabled based on the live replica count")
 }
 
 func TestReconcileApplicationSet_Deployments_resourceRequirements(t *testing.T) {

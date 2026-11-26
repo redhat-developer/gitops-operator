@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	amerr "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -45,6 +46,16 @@ const (
 	ApplicationSetGitlabSCMTlsCertPath  = "/app/tls/scm/cert"
 	ApplicationSetGitlabSCMTlsMountPath = "/app/tls/scm/"
 )
+
+// getArgoCDApplicationSetReplicas will return the size value for the argocd-applicationset-controller replica
+// count if it has been set in the argocd CR. Otherwise, nil is returned if the replicas is not set in the
+// argocd CR or replicas value is < 0.
+func getArgoCDApplicationSetReplicas(cr *argoproj.ArgoCD) *int32 {
+	if cr.Spec.ApplicationSet != nil && cr.Spec.ApplicationSet.Replicas != nil && *cr.Spec.ApplicationSet.Replicas >= 0 {
+		return cr.Spec.ApplicationSet.Replicas
+	}
+	return nil
+}
 
 // getArgoApplicationSetCommand will return the command for the ArgoCD ApplicationSet component.
 // It returns an error when ApplicationSet source namespaces or apps source namespaces cannot be retrieved
@@ -291,10 +302,28 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 	if err != nil {
 		return err
 	}
+
+	// Running multiple active replicas without leader election would result in concurrent
+	// reconciliation of the same ApplicationSet objects, so enable it when replica>1
+	// either because the CR says so, or, when the CR
+	// doesn't manage replicas, because the live Deployment was already scaled up (manually or
+	// by an HPA).
+	replicas := getArgoCDApplicationSetReplicas(cr)
+	if replicas == nil && deplExists {
+		replicas = existing.Spec.Replicas
+	}
+	if replicas != nil && *replicas > 1 {
+		appSetContainer.Command = append(appSetContainer.Command, "--enable-leader-election")
+	}
+
 	podSpec.Containers = []corev1.Container{
 		appSetContainer,
 	}
 	AddSeccompProfileForOpenShift(r.Client, podSpec)
+
+	if replicas := getArgoCDApplicationSetReplicas(cr); replicas != nil {
+		deploy.Spec.Replicas = replicas
+	}
 
 	if cr.Spec.PriorityClassName != "" {
 		podSpec.PriorityClassName = cr.Spec.PriorityClassName
@@ -320,6 +349,11 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 			existing.Spec.Template.Spec.Containers[0].SecurityContext = deploy.Spec.Template.Spec.Containers[0].SecurityContext
 			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			// Only overwrite when the CR explicitly sets replicas (including 0); otherwise
+			// leave the live value alone instead of resetting it via a nil desired value.
+			if deploy.Spec.Replicas != nil {
+				existing.Spec.Replicas = deploy.Spec.Replicas
+			}
 
 			argoutil.LogResourceUpdate(log, existing, "due to difference in", deploymentsDifferent)
 			return r.Update(context.TODO(), existing)
@@ -393,6 +427,15 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 
 	if !reflect.DeepEqual(xPodSpec.AutomountServiceAccountToken, yPodSpec.AutomountServiceAccountToken) {
 		return "Spec.Template.Spec.AutomountServiceAccountToken"
+	}
+
+	// A nil y.Spec.Replicas means replicas aren't managed by the CR (left for manual
+	// scaling or an HPA), so it's intentionally excluded from the comparison rather
+	// than being treated as a specific value -- otherwise a live replica count left
+	// by the Kubernetes API's defaulting (or external scaling) would always differ
+	// from the unset desired value and trigger an update on every reconcile.
+	if y.Spec.Replicas != nil && !ptr.Equal(x.Spec.Replicas, y.Spec.Replicas) {
+		return "Spec.Replicas"
 	}
 
 	return ""
