@@ -31,10 +31,10 @@ import (
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 // containsNoKindMatch checks if error message indicates API unavailability
@@ -60,7 +60,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("verifies Prometheus CR is NOT created and deleted if it exists", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD instance with prometheus.enabled: true")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -188,7 +188,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("verifies Prometheus Route and Ingress are deleted if they exist", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD instance with prometheus enabled")
 			argoCD := &argov1beta1api.ArgoCD{

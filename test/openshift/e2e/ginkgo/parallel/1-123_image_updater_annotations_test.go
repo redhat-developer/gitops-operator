@@ -31,13 +31,13 @@ import (
 	imageUpdaterApi "github.com/argoproj-labs/argocd-image-updater/api/v1alpha1"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	applicationFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	deplFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/deployment"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	ssFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/statefulset"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	deplFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/deployment"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	ssFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -46,7 +46,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			k8sClient    client.Client
 			ctx          context.Context
 			ns           *corev1.Namespace
-			cleanupFunc  func()
 			imageUpdater *imageUpdaterApi.ImageUpdater
 			argoCD       *argov1beta1api.ArgoCD
 		)
@@ -59,29 +58,24 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		})
 
 		AfterEach(func() {
-			// Cleanup is best-effort. Issue deletes and give some time for controllers
-			// to process, but don't fail the test if cleanup takes too long.
-
-			if imageUpdater != nil {
-				By("deleting ImageUpdater CR")
-				_ = k8sClient.Delete(ctx, imageUpdater)
-			}
-
-			if argoCD != nil {
-				By("deleting ArgoCD CR")
-				_ = k8sClient.Delete(ctx, argoCD)
-			}
-
-			if cleanupFunc != nil {
-				cleanupFunc()
-			}
-
 			fixture.OutputDebugOnFail(ns)
 		})
 
 		It("ensures that Image Updater will update Argo CD Application using argocd (default) policy using legacy annotations", func() {
 			By("creating simple namespace-scoped Argo CD instance with image updater enabled")
+			var cleanupFunc func()
 			ns, cleanupFunc = fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
+			DeferCleanup(func() {
+				if imageUpdater != nil {
+					By("deleting ImageUpdater CR")
+					_ = k8sClient.Delete(ctx, imageUpdater)
+				}
+				if argoCD != nil {
+					By("deleting ArgoCD CR")
+					_ = k8sClient.Delete(ctx, argoCD)
+				}
+			})
 
 			argoCD = &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd", Namespace: ns.Name},

@@ -28,12 +28,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/configmap"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	statefulsetFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/statefulset"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	statefulsetFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/statefulset"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -54,7 +54,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("should set ARGOCD_RECONCILIATION_TIMEOUT with appSync value", func() {
 
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD CR")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -86,8 +86,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(len(ss.Spec.Template.Spec.Containers[0].Env)).To(BeNumerically(">", 1))
 
 			By("Updating appSync to 5 minutes")
-			argoCD.Spec.Controller.AppSync = &metav1.Duration{Duration: time.Minute * 5}
-			Expect(k8sClient.Update(ctx, argoCD)).To(Succeed())
+			argocdFixture.Update(argoCD, func(ac *argov1beta1api.ArgoCD) {
+				ac.Spec.Controller.AppSync = &metav1.Duration{Duration: time.Minute * 5}
+			})
 			Eventually(argoCD, "5m", "5s").Should(argocdFixture.BeAvailable())
 			Eventually(ss).Should(statefulsetFixture.HaveContainerWithEnvVar("ARGOCD_RECONCILIATION_TIMEOUT", "300s", 0))
 
@@ -95,7 +96,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should set environment variable ARGOCD_RECONCILIATION_TIMEOUT with timeout.reconciliation value in configmap", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD CR with timeout.reconciliation value in configmap")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -160,7 +161,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("Validate the precedence of the appSync value over the timeout.reconciliation value in configmap", func() {
 			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
-			defer cleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			By("creating ArgoCD CR with appSync value and timeout.reconciliation value in configmap")
 			argoCD := &argov1beta1api.ArgoCD{

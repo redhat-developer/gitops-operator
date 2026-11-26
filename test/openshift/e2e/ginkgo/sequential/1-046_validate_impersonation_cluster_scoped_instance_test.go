@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package parallel
+package sequential
 
 import (
 	"context"
@@ -28,38 +28,64 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	applicationFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/application"
-	appprojectFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/appproject"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	configmapFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/configmap"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	fixtureUtils "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	applicationFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/application"
+	appprojectFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/appproject"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	configmapFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/configmap"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	fixtureUtils "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
+var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
+	// Sequential: modifies ARGOCD_CLUSTER_CONFIG_NAMESPACES on the shared operator
+	// Subscription/Deployment to create a cluster-scoped Argo CD instance.
 	Context("1-046_validate_impersonation_cluster_scoped_instance", func() {
 
 		var (
-			k8sClient client.Client
-			ctx       context.Context
+			k8sClient   client.Client
+			ctx         context.Context
+			argoCD_NS   *corev1.Namespace
+			guestbookNS *corev1.Namespace
 		)
 
 		BeforeEach(func() {
-			fixture.EnsureParallelCleanSlate()
+			fixture.EnsureSequentialCleanSlate()
 
 			k8sClient, _ = fixtureUtils.GetE2ETestKubeClient()
 			ctx = context.Background()
 		})
 
+		AfterEach(func() {
+			fixture.OutputDebugOnFail(argoCD_NS, guestbookNS)
+		})
+
 		It("creates a cluster-scoped Argo CD instance, then verifies that when impersonation is enabled, that Argo CD is not able to deploy to a Namespace which the appproject does not have access to", func() {
 
-			By("creating simple cluster-scoped Argo CD instance. The namespace should be specified within ARGOCD_CLUSTER_CONFIG_NAMESPACES env var, in order to ensure it is cluster-scoped")
-			argoCD_NS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-test-impersonation-1-046")
-			defer cleanupFunc()
+			if fixture.EnvLocalRun() {
+				Skip("This test modifies ARGOCD_CLUSTER_CONFIG_NAMESPACES on the operator Subscription/Deployment, which is not supported for local runs")
+				return
+			}
+
+			By("creating namespace for cluster-scoped Argo CD instance")
+			var cleanupFunc func()
+			argoCD_NS, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("argocd-test-impersonation-1-046")
+			DeferCleanup(cleanupFunc)
+
+			By("adding the Argo CD namespace to ARGOCD_CLUSTER_CONFIG_NAMESPACES so the instance is cluster-scoped")
+			previous, err := fixture.GetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES")
+			Expect(err).ToNot(HaveOccurred())
+			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", "openshift-gitops, "+argoCD_NS.Name)
+			DeferCleanup(func() {
+				if previous == nil {
+					Expect(fixture.RemoveEnvFromOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES")).To(Succeed())
+				} else {
+					fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_CLUSTER_CONFIG_NAMESPACES", *previous)
+				}
+			})
 
 			By("creating ArgoCD instance with application.sync.impersonation.enabled")
 			argoCD := &argov1beta1api.ArgoCD{
@@ -87,9 +113,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Eventually(argocdCMConfigMap).Should(configmapFixture.HaveStringDataKeyValue("application.sync.impersonation.enabled", "true"))
 
 			By("creating guestbook namespace which we will deploy to")
-
-			guestbookNS, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("guestbook-1-046")
-			defer cleanupFunc()
+			guestbookNS, cleanupFunc = fixture.CreateNamespaceWithCleanupFunc("guestbook-1-046")
+			DeferCleanup(cleanupFunc)
 
 			By("creating ServiceAccount in guestbook NS that Argo CD will deploy with")
 			serviceAccount := &corev1.ServiceAccount{
@@ -179,7 +204,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			By("updating AppProject to allow deployment to a different namespace, but we DON'T add a new serviceaccount within that namespace, as we did previously")
 			appprojectFixture.Update(appProject, func(ap *appv1alpha1.AppProject) {
-				appProject.Spec.Destinations = append(appProject.Spec.Destinations, appv1alpha1.ApplicationDestination{
+				ap.Spec.Destinations = append(ap.Spec.Destinations, appv1alpha1.ApplicationDestination{
 					Namespace: "guestbook-dev-1-046", // yes, this is referencing a NS that doesn't exist
 					Server:    "https://kubernetes.default.svc",
 				})
@@ -228,9 +253,12 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Consistently(guestbook_dev_ServiceAccount).ShouldNot(k8sFixture.ExistByName())
 
 			By("verifying Application contains error message indicating that no matching service account exists in the appproject, which is required for impersonation")
-			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(guestbookDevApplication), guestbookDevApplication)).To(Succeed())
-
-			Expect(guestbookDevApplication.Status.OperationState.Message).To(ContainSubstring("no matching service account found for destination server"))
+			// With Argo CD 3.6+ ServerSideApply→server-side diff, impersonation failures appear on
+			// Application conditions; OperationState often stays nil.
+			Eventually(guestbookDevApplication, "2m", "5s").Should(applicationFixture.HaveConditionMatching(
+				appv1alpha1.ApplicationConditionUnknownError,
+				"no matching service account found for destination server",
+			))
 
 		})
 	})

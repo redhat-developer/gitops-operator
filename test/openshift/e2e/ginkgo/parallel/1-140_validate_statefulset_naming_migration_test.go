@@ -30,10 +30,10 @@ import (
 
 	argov1beta1api "github.com/redhat-developer/gitops-operator/argocd-operator/api/v1beta1"
 	"github.com/redhat-developer/gitops-operator/argocd-operator/controllers/argoutil"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture"
-	argocdFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/argocd"
-	k8sFixture "github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/k8s"
-	"github.com/redhat-developer/gitops-operator/argocd-operator/tests/ginkgo/fixture/utils"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture"
+	argocdFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/argocd"
+	k8sFixture "github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/k8s"
+	"github.com/redhat-developer/gitops-operator/test/openshift/e2e/ginkgo/fixture/utils"
 )
 
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
@@ -54,8 +54,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("should preserve original naming for short CR names (backward compatibility)", func() {
 
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-short-name")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			// Use a short CR name that does not need abbreviation
 			crName := "example-argocd"
@@ -140,8 +140,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 		It("should abbreviate naming only for long CR names", func() {
 
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-long-name")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			// Use a long CR name that will trigger abbreviation
 			crName := "this-name-will-push-the-char-limit"
@@ -213,8 +213,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should preserve Redis HA naming for short CR names (backward compatibility)", func() {
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-redis-short-name")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			crName := "example-argocd"
 
@@ -267,8 +267,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should abbreviate Redis HA naming for long CR names", func() {
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-redis-long-name")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			// Use a CR name long enough that {cr}-redis-ha-server exceeds the 52-char StatefulSet limit
 			crName := "this-is-a-very-long-argocd-cr-name-for-testing"
@@ -333,8 +333,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should migrate existing application controller StatefulSet from old long name to abbreviated name", func() {
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-app-migration")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			crName := "this-name-will-push-the-char-limit"
 
@@ -445,8 +445,8 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 		It("should migrate existing Redis HA StatefulSet from old long name to abbreviated name", func() {
 			By("creating namespace for test")
-			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc("argocd-e2e-redis-migration")
-			defer cleanupFunc()
+			ns, cleanupFunc := fixture.CreateRandomE2ETestNamespaceWithCleanupFunc()
+			DeferCleanup(cleanupFunc)
 
 			crName := "this-is-a-very-long-argocd-cr-name-for-testing"
 
