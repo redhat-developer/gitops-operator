@@ -1,0 +1,31 @@
+# A RolloutManager is only accepted in this namespace because the Subscription lists it
+# in CLUSTER_SCOPED_ARGO_ROLLOUTS_NAMESPACES (see olm_test.go).
+apiVersion: argoproj.io/v1alpha1
+kind: RolloutManager
+metadata:
+  name: rollout-manager
+  namespace: upgrade-rollouts
+spec: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: nginx
+  namespace: upgrade-rollouts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: quay.io/nginx/nginx-unprivileged
+          ports:
+            - containerPort: 8080
+  strategy:
+    canary: {}

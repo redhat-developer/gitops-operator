@@ -1,0 +1,41 @@
+# The "everything on" Argo CD instance. Add a feature here, and a check for it in
+# features_test.go.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: upgrade-argocd
+spec:
+  ha:
+    enabled: true
+  applicationSet: {}
+  notifications:
+    enabled: true
+  server:
+    route:
+      enabled: true
+  sso:
+    provider: dex
+    dex:
+      openShiftOAuth: true
+  rbac:
+    defaultPolicy: role:readonly
+    policy: |
+      g, upgrade-test-admins, role:admin
+    scopes: "[groups]"
+  controller:
+    resources:
+      limits:
+        memory: 2Gi
+      requests:
+        memory: 512Mi
+  kustomizeBuildOptions: --enable-helm
+  extraConfig:
+    upgrade-test.marker: kept
+  resourceHealthChecks:
+    - group: example.com
+      kind: Widget
+      check: |
+        hs = {}
+        hs.status = "Healthy"
+        return hs

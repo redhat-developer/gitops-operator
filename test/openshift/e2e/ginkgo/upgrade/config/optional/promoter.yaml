@@ -1,0 +1,11 @@
+# GitOps Promoter on the second instance. Optional: applied only when the installed ArgoCD
+# CRD has the field. The operator only deploys it into a namespace listed in
+# ARGOCD_CLUSTER_CONFIG_NAMESPACES, which upgrade-argocd is (see olm_test.go).
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: upgrade-argocd
+spec:
+  promoter:
+    enabled: true

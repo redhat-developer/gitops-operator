@@ -1,0 +1,12 @@
+# Source Hydrator, which runs the Commit Server, on the second instance. Optional: applied
+# only when the installed ArgoCD CRD has the fields.
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+  namespace: upgrade-argocd
+spec:
+  sourceHydrator:
+    enabled: true
+  commitServer:
+    logLevel: debug
