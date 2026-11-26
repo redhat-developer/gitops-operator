@@ -78,6 +78,10 @@ func (r *ReconcileArgoCD) reconcileServerHPA(cr *argoproj.ArgoCD) error {
 		return err
 	}
 	if hpaExists {
+		if isIdled(cr) {
+			argoutil.LogResourceDeletion(log, existingHPA, "argocd CR is idled")
+			return r.Delete(context.TODO(), existingHPA) // ArgoCD CR is idled, delete the HPA so it doesn't scale the deployment back up.
+		}
 		if !cr.Spec.Server.Autoscale.Enabled {
 			argoutil.LogResourceDeletion(log, existingHPA, "server autoscaling is disabled")
 			return r.Delete(context.TODO(), existingHPA) // HorizontalPodAutoscaler found but globally disabled, delete it.
@@ -101,8 +105,8 @@ func (r *ReconcileArgoCD) reconcileServerHPA(cr *argoproj.ArgoCD) error {
 		return nil
 	}
 
-	if !cr.Spec.Server.Autoscale.Enabled {
-		return nil // AutoScale not enabled, move along...
+	if isIdled(cr) || !cr.Spec.Server.Autoscale.Enabled {
+		return nil // ArgoCD CR is idled, or autoscale not enabled, move along...
 	}
 
 	// AutoScale enabled, no existing HPA found, create

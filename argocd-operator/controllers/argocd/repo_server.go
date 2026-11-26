@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -47,6 +48,9 @@ import (
 // has been set in argocd CR. Otherwise, nil is returned if the replicas is not set in the argocd CR or
 // replicas value is < 0.
 func getArgoCDRepoServerReplicas(cr *argocdoperatorv1beta1.ArgoCD) *int32 {
+	if isIdled(cr) {
+		return ptr.To(int32(0))
+	}
 	if cr.Spec.Repo.Replicas != nil && *cr.Spec.Repo.Replicas >= 0 {
 		return cr.Spec.Repo.Replicas
 	}

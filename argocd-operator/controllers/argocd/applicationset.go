@@ -199,6 +199,12 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 
 	setAppSetLabels(&deploy.ObjectMeta)
 
+	replicas := int32(1)
+	if isIdled(cr) {
+		replicas = 0
+	}
+	deploy.Spec.Replicas = &replicas
+
 	podSpec := &deploy.Spec.Template.Spec
 	podSpec.AutomountServiceAccountToken = new(true)
 
@@ -320,6 +326,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 			existing.Spec.Template.Spec.Containers[0].SecurityContext = deploy.Spec.Template.Spec.Containers[0].SecurityContext
 			existing.Spec.Template.Annotations = deploy.Spec.Template.Annotations
 			existing.Spec.Template.Spec.AutomountServiceAccountToken = deploy.Spec.Template.Spec.AutomountServiceAccountToken
+			existing.Spec.Replicas = deploy.Spec.Replicas
 
 			argoutil.LogResourceUpdate(log, existing, "due to difference in", deploymentsDifferent)
 			return r.Update(context.TODO(), existing)
@@ -393,6 +400,10 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 
 	if !reflect.DeepEqual(xPodSpec.AutomountServiceAccountToken, yPodSpec.AutomountServiceAccountToken) {
 		return "Spec.Template.Spec.AutomountServiceAccountToken"
+	}
+
+	if !reflect.DeepEqual(x.Spec.Replicas, y.Spec.Replicas) {
+		return ".Spec.Replicas"
 	}
 
 	return ""
