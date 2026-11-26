@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -58,22 +59,47 @@ func NewArgoCDCLISession() (*ArgoCDCLISession, error) {
 // RunArgoCDCLI runs an 'argocd' CLI command using this session's isolated CLI config file, so that it is safe to
 // run concurrently with 'argocd' CLI commands from other ArgoCDCLISessions (for example, from other parallel tests).
 func (s *ArgoCDCLISession) RunArgoCDCLI(args ...string) (string, error) {
+	return s.runArgoCDCLI(0, nil, args...)
+}
 
-	cmdArgs := append([]string{"argocd", "--config", s.configPath}, args...)
+// RunArgoCDCLIWithEnv runs an 'argocd' CLI command with additional environment variables and an optional timeout.
+// A timeout of 0 means no deadline. Extra env entries are appended to the process environment (for example
+// "KUBECONFIG=/path/to/kubeconfig" for core-mode commands).
+func (s *ArgoCDCLISession) RunArgoCDCLIWithEnv(timeout time.Duration, extraEnv []string, args ...string) (string, error) {
+	return s.runArgoCDCLI(timeout, extraEnv, args...)
+}
+
+func (s *ArgoCDCLISession) runArgoCDCLI(timeout time.Duration, extraEnv []string, args ...string) (string, error) {
+	cmdArgs := append([]string{"--config", s.configPath}, args...)
 
 	if len(args) > 0 && args[0] == "login" {
 		GinkgoWriter.Println("executing command: argocd login (...)")
 	} else {
-		GinkgoWriter.Println("executing command", cmdArgs)
+		GinkgoWriter.Println("executing command: argocd", cmdArgs)
 	}
 
-	// #nosec G204
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	ctx := context.Background()
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+	}
 
-	output, err := cmd.CombinedOutput()
-	GinkgoWriter.Println(string(output))
+	// #nosec G204 -- intentional argocd CLI invocation with session-scoped args
+	cmd := exec.CommandContext(ctx, "argocd", cmdArgs...)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 
-	return string(output), err
+	outputBytes, err := cmd.CombinedOutput()
+	output := string(outputBytes)
+	GinkgoWriter.Println(output)
+
+	if timeout > 0 && ctx.Err() == context.DeadlineExceeded {
+		return output, fmt.Errorf("argocd command timed out after %s: %w\noutput: %s", timeout, ctx.Err(), output)
+	}
+
+	return output, err
 }
 
 // LogInToDefaultArgoCDInstance logs in (via this session) to the default 'openshift-gitops' Argo CD instance, via its
