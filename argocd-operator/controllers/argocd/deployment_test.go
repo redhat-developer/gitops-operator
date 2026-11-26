@@ -1996,6 +1996,8 @@ func TestReconcileArgoCD_reconcileServerDeploymentChangedToInsecure(t *testing.T
 		NodeSelector:       common.DefaultNodeSelector(),
 	}
 
+	argoutil.SetPodSpecDefaults(&want)
+	argoutil.SetPodSpecDefaults(&deployment.Spec.Template.Spec)
 	assert.Equal(t, want, deployment.Spec.Template.Spec)
 }
 
@@ -2942,7 +2944,7 @@ func Test_getRolloutInitContainer(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			containers := getRolloutInitContainer()
+			containers := getRolloutInitContainer(&argoproj.ArgoCD{})
 
 			assert.Equalf(t, tt.wantImage, containers[0].Image, "Image check")
 			assert.Equalf(t, tt.wantEnv, containers[0].Env, "Env check")

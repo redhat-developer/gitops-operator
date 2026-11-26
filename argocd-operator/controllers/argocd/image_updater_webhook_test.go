@@ -976,6 +976,7 @@ func TestImageUpdaterWebhook_UpgradeWithoutOptIn(t *testing.T) {
 		// A deployment created by an earlier operator version has no named webhook container port. Declaring the
 		// port must not cause an update, which would restart the pod during the operator upgrade.
 		deployment.Spec.Template.Spec.Containers[0].Ports = nil
+		argoutil.SetPodSpecDefaults(&deployment.Spec.Template.Spec) // a real API server stores these defaults; the fake client doesn't
 		require.NoError(t, r.Update(context.TODO(), deployment))
 		require.NoError(t, r.Get(context.TODO(), deploymentKey, deployment))
 		resourceVersion := deployment.ResourceVersion

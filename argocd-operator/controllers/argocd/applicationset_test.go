@@ -142,6 +142,12 @@ func checkExpectedDeploymentValues(t *testing.T, r *ReconcileArgoCD, deployment 
 	assert.NoError(t, err)
 	want := []v1.Container{containerWant}
 
+	// The update path writes API-server defaults explicitly; normalize both sides so create and update compare alike.
+	argoutil.SetPodSpecDefaults(&deployment.Spec.Template.Spec)
+	wantSpec := v1.PodSpec{Containers: want}
+	argoutil.SetPodSpecDefaults(&wantSpec)
+	want = wantSpec.Containers
+
 	if diff := cmp.Diff(want, deployment.Spec.Template.Spec.Containers); diff != "" {
 		t.Fatalf("failed to reconcile applicationset-controller deployment containers:\n%s", diff)
 	}
@@ -212,6 +218,10 @@ func checkExpectedDeploymentValues(t *testing.T, r *ReconcileArgoCD, deployment 
 	if extraVolumes != nil {
 		volumes = append(volumes, *extraVolumes...)
 	}
+
+	wantSpec.Volumes = volumes
+	argoutil.SetPodSpecDefaults(&wantSpec)
+	volumes = wantSpec.Volumes
 
 	if diff := cmp.Diff(volumes, deployment.Spec.Template.Spec.Volumes); diff != "" {
 		t.Fatalf("failed to reconcile applicationset-controller deployment volumes:\n%s", diff)
@@ -1317,7 +1327,10 @@ func TestArgoCDApplicationSetEnv(t *testing.T) {
 		},
 		deployment))
 
-	assert.Equal(t, defaultEnv, deployment.Spec.Template.Spec.Containers[0].Env)
+	// The update path writes the API-server default fieldRef apiVersion explicitly.
+	wantSpec := v1.PodSpec{Containers: []v1.Container{{Env: defaultEnv}}}
+	argoutil.SetPodSpecDefaults(&wantSpec)
+	assert.Equal(t, wantSpec.Containers[0].Env, deployment.Spec.Template.Spec.Containers[0].Env)
 }
 
 func TestArgoCDApplicationSet_getApplicationSetSourceNamespaces(t *testing.T) {

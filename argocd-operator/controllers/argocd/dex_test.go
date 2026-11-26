@@ -688,6 +688,8 @@ func TestReconcileArgoCD_reconcileDexDeployment_withUpdate(t *testing.T) {
 				},
 				deployment))
 
+			argoutil.SetPodSpecDefaults(&test.wantPodSpec)
+			argoutil.SetPodSpecDefaults(&deployment.Spec.Template.Spec)
 			assert.Equal(t, test.wantPodSpec, deployment.Spec.Template.Spec)
 		})
 	}

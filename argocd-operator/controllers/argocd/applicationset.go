@@ -19,13 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"reflect"
 	"sort"
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -305,6 +305,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetDeployment(cr *argoproj.ArgoCD,
 		addKubernetesData(deploy.Spec.Template.Labels, existing.Spec.Template.Labels)
 		addKubernetesData(deploy.Spec.Template.Annotations, existing.Spec.Template.Annotations)
 
+		argoutil.SetPodSpecDefaults(&deploy.Spec.Template.Spec)
 		// If the Deployment already exists, make sure the values we care about are up-to-date
 		deploymentsDifferent := identifyDeploymentDifference(*existing, *deploy)
 		if len(deploymentsDifferent) > 0 {
@@ -347,11 +348,11 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 	xPodSpec := x.Spec.Template.Spec
 	yPodSpec := y.Spec.Template.Spec
 
-	if !reflect.DeepEqual(xPodSpec.Containers, yPodSpec.Containers) {
+	if !equality.Semantic.DeepEqual(xPodSpec.Containers, yPodSpec.Containers) {
 		return ".Spec.Template.Spec.Containers"
 	}
 
-	if !reflect.DeepEqual(xPodSpec.Volumes, yPodSpec.Volumes) {
+	if !equality.Semantic.DeepEqual(xPodSpec.Volumes, yPodSpec.Volumes) {
 		return ".Spec.Template.Spec.Volumes"
 	}
 
@@ -359,27 +360,27 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 		return "ServiceAccountName"
 	}
 
-	if !reflect.DeepEqual(x.Labels, y.Labels) {
+	if !equality.Semantic.DeepEqual(x.Labels, y.Labels) {
 		return "Labels"
 	}
 
-	if !reflect.DeepEqual(x.Spec.Template.Labels, y.Spec.Template.Labels) {
+	if !equality.Semantic.DeepEqual(x.Spec.Template.Labels, y.Spec.Template.Labels) {
 		return ".Spec.Template.Labels"
 	}
 
-	if !reflect.DeepEqual(x.Spec.Selector, y.Spec.Selector) {
+	if !equality.Semantic.DeepEqual(x.Spec.Selector, y.Spec.Selector) {
 		return ".Spec.Selector"
 	}
 
-	if !reflect.DeepEqual(xPodSpec.NodeSelector, yPodSpec.NodeSelector) {
+	if !equality.Semantic.DeepEqual(xPodSpec.NodeSelector, yPodSpec.NodeSelector) {
 		return "Spec.Template.Spec.NodeSelector"
 	}
 
-	if !reflect.DeepEqual(xPodSpec.Tolerations, yPodSpec.Tolerations) {
+	if !equality.Semantic.DeepEqual(xPodSpec.Tolerations, yPodSpec.Tolerations) {
 		return "Spec.Template.Spec.Tolerations"
 	}
 
-	if !reflect.DeepEqual(xPodSpec.Containers[0].SecurityContext, yPodSpec.Containers[0].SecurityContext) {
+	if !equality.Semantic.DeepEqual(xPodSpec.Containers[0].SecurityContext, yPodSpec.Containers[0].SecurityContext) {
 		return "Spec.Template.Spec..Containers[0].SecurityContext"
 	}
 
@@ -387,11 +388,11 @@ func identifyDeploymentDifference(x appsv1.Deployment, y appsv1.Deployment) stri
 		return "Spec.Template.Spec.PriorityClassName"
 	}
 
-	if !reflect.DeepEqual(x.Spec.Template.Annotations, y.Spec.Template.Annotations) {
+	if !equality.Semantic.DeepEqual(x.Spec.Template.Annotations, y.Spec.Template.Annotations) {
 		return ".Spec.Template.Annotations"
 	}
 
-	if !reflect.DeepEqual(xPodSpec.AutomountServiceAccountToken, yPodSpec.AutomountServiceAccountToken) {
+	if !equality.Semantic.DeepEqual(xPodSpec.AutomountServiceAccountToken, yPodSpec.AutomountServiceAccountToken) {
 		return "Spec.Template.Spec.AutomountServiceAccountToken"
 	}
 
@@ -549,7 +550,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetServiceAccount(cr *argoproj.Arg
 		if existing == nil {
 			existing = []corev1.LocalObjectReference{}
 		}
-		if !reflect.DeepEqual(existing, desired) {
+		if !equality.Semantic.DeepEqual(existing, desired) {
 			sa.ImagePullSecrets = desired
 			argoutil.LogResourceUpdate(log, sa, "imagePullSecrets changed")
 			if err := r.Update(context.TODO(), sa); err != nil {
@@ -698,7 +699,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetClusterRole(cr *argoproj.ArgoCD
 	}
 
 	// if the Rules differ, update the Role
-	if !reflect.DeepEqual(existingClusterRole.Rules, clusterRole.Rules) {
+	if !equality.Semantic.DeepEqual(existingClusterRole.Rules, clusterRole.Rules) {
 		existingClusterRole.Rules = clusterRole.Rules
 		argoutil.LogResourceUpdate(log, existingClusterRole, "updating rules")
 		if err := r.Update(context.TODO(), existingClusterRole); err != nil {
@@ -765,13 +766,13 @@ func (r *ReconcileArgoCD) reconcileApplicationSetClusterRoleBinding(cr *argoproj
 	}
 
 	// if subj differ, update the rolebinding
-	if !reflect.DeepEqual(existingClusterRB.Subjects, clusterRB.Subjects) {
+	if !equality.Semantic.DeepEqual(existingClusterRB.Subjects, clusterRB.Subjects) {
 		existingClusterRB.Subjects = clusterRB.Subjects
 		argoutil.LogResourceUpdate(log, existingClusterRB, "updating subjects")
 		if err := r.Update(context.TODO(), existingClusterRB); err != nil {
 			return err
 		}
-	} else if !reflect.DeepEqual(existingClusterRB.RoleRef, clusterRB.RoleRef) {
+	} else if !equality.Semantic.DeepEqual(existingClusterRB.RoleRef, clusterRB.RoleRef) {
 		// RoleRef can't be updated, delete the rolebinding so that it gets recreated
 		argoutil.LogResourceDeletion(log, existingClusterRB, "roleref changed, deleting rolebinding so it gets recreated")
 		_ = r.Delete(context.TODO(), existingClusterRB)
@@ -943,11 +944,15 @@ func (r *ReconcileArgoCD) reconcileApplicationSetRole(cr *argoproj.ArgoCD) (*v1.
 		return role, nil
 	}
 
+	orig := role.DeepCopy()
 	role.Rules = policyRules
 	if err = controllerutil.SetControllerReference(cr, role, r.Scheme); err != nil {
 		return role, err
 	}
 	if exists {
+		if equality.Semantic.DeepEqual(orig, role) {
+			return role, nil
+		}
 		argoutil.LogResourceUpdate(log, role)
 		return role, r.Update(context.TODO(), role)
 	} else {
@@ -981,6 +986,7 @@ func (r *ReconcileArgoCD) reconcileApplicationSetRoleBinding(cr *argoproj.ArgoCD
 		return nil
 	}
 
+	orig := roleBinding.DeepCopy()
 	setAppSetLabels(&roleBinding.ObjectMeta)
 
 	roleBinding.RoleRef = v1.RoleRef{
@@ -1002,6 +1008,9 @@ func (r *ReconcileArgoCD) reconcileApplicationSetRoleBinding(cr *argoproj.ArgoCD
 	}
 
 	if roleBindingExists {
+		if equality.Semantic.DeepEqual(orig, roleBinding) {
+			return nil
+		}
 		argoutil.LogResourceUpdate(log, roleBinding)
 		return r.Update(context.TODO(), roleBinding)
 	}
@@ -1269,7 +1278,7 @@ func (r *ReconcileArgoCD) reconcileSourceNamespaceRole(role v1.Role, cr *argopro
 	}
 
 	// if the Rules differ, update the Role, ignore if role is just created.
-	if !reflect.DeepEqual(existingRole.Rules, role.Rules) {
+	if !equality.Semantic.DeepEqual(existingRole.Rules, role.Rules) {
 		existingRole.Rules = role.Rules
 		argoutil.LogResourceUpdate(log, &existingRole, "updating rules")
 		if err := r.Update(context.TODO(), &existingRole); err != nil {
@@ -1305,14 +1314,14 @@ func (r *ReconcileArgoCD) reconcileSourceNamespaceRoleBinding(roleBinding v1.Rol
 	}
 
 	// if the RoleRef changes, delete the existing role binding and create a new one
-	if !reflect.DeepEqual(roleBinding.RoleRef, existingRoleBinding.RoleRef) {
+	if !equality.Semantic.DeepEqual(roleBinding.RoleRef, existingRoleBinding.RoleRef) {
 		argoutil.LogResourceDeletion(log, &existingRoleBinding, "roleref changed, deleting rolebinding so it gets recreated")
 		if err = r.Delete(context.TODO(), &existingRoleBinding); err != nil {
 			return err
 		}
 	} else {
 		// if the Subjects differ, update the role bindings
-		if !reflect.DeepEqual(roleBinding.Subjects, existingRoleBinding.Subjects) {
+		if !equality.Semantic.DeepEqual(roleBinding.Subjects, existingRoleBinding.Subjects) {
 			existingRoleBinding.Subjects = roleBinding.Subjects
 			argoutil.LogResourceUpdate(log, &existingRoleBinding, "updating subjects")
 			if err = r.Update(context.TODO(), &existingRoleBinding); err != nil {
