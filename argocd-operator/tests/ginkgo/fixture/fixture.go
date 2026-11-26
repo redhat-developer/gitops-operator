@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -469,6 +470,31 @@ func ensureTestNamespacesDeleted(ctx context.Context, k8sClient client.Client) e
 	return nil
 }
 
+const loadBalancerCleanupFinalizer = "service.kubernetes.io/load-balancer-cleanup"
+
+//strip load-balancer-cleanup so agent/principal LB services don't pin the ns forever
+func removeLoadBalancerCleanupFinalizers(ctx context.Context, namespace string, k8sClient client.Client) {
+	svcList := &corev1.ServiceList{}
+	if err := k8sClient.List(ctx, svcList, client.InNamespace(namespace)); err != nil {
+		GinkgoWriter.Printf("Unable to list services in '%s': %v\n", namespace, err)
+		return
+	}
+	for i := range svcList.Items {
+		svc := &svcList.Items[i]
+		if !slices.Contains(svc.Finalizers, loadBalancerCleanupFinalizer) {
+			continue
+		}
+		updated := svc.DeepCopy()
+		updated.Finalizers = slices.DeleteFunc(updated.Finalizers, func(f string) bool {
+			return f == loadBalancerCleanupFinalizer
+		})
+		GinkgoWriter.Printf("Removing load-balancer-cleanup finalizer from %s/%s\n", svc.Namespace, svc.Name)
+		if err := k8sClient.Patch(ctx, updated, client.MergeFrom(svc)); err != nil && !apierr.IsNotFound(err) {
+			GinkgoWriter.Printf("Unable to patch service %s/%s: %v\n", svc.Namespace, svc.Name, err)
+		}
+	}
+}
+
 // deleteNamespaceAndVerify deletes a namespace, and waits for it to be reported as deleted.
 func deleteNamespaceAndVerify(ctx context.Context, namespaceParam string, k8sClient client.Client) error {
 
@@ -476,6 +502,7 @@ func deleteNamespaceAndVerify(ctx context.Context, namespaceParam string, k8sCli
 
 	// Delete the namespace:
 	// - Issue a request to Delete the namespace
+	// - Strip stuck LB service finalisers that block ns deletion on cloud OCP
 	// - Finally, we check if it has been deleted.
 	if err := wait.PollUntilContextTimeout(ctx, time.Second*5, time.Minute*6, true, func(ctx context.Context) (done bool, err error) {
 		// Delete the namespace, if it exists
@@ -490,6 +517,8 @@ func deleteNamespaceAndVerify(ctx context.Context, namespaceParam string, k8sCli
 				return false, nil
 			}
 		}
+
+		removeLoadBalancerCleanupFinalizers(ctx, namespaceParam, k8sClient)
 
 		if err := k8sClient.Get(ctx, client.ObjectKeyFromObject(&namespace), &namespace); err != nil {
 			if apierr.IsNotFound(err) {
