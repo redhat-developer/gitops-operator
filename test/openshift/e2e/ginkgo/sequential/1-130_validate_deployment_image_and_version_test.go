@@ -69,6 +69,24 @@ func assertDeploymentImages(deploys *appsv1.DeploymentList, expected map[string]
 	}
 }
 
+func operatorManagerArgoCDImage(ctx context.Context, c client.Client) (string, bool, error) {
+	depl := &appsv1.Deployment{}
+	if err := c.Get(ctx, types.NamespacedName{Name: controllerManagerName, Namespace: controllerManagerNamespace}, depl); err != nil {
+		return "", false, err
+	}
+	for _, container := range depl.Spec.Template.Spec.Containers {
+		if container.Name != "manager" {
+			continue
+		}
+		for _, env := range container.Env {
+			if env.Name == "ARGOCD_IMAGE" {
+				return env.Value, true, nil
+			}
+		}
+	}
+	return "", false, nil
+}
+
 func assertStatefulSetImage(ctx context.Context, c client.Client, ns, name, expected string) {
 	sts := &appsv1.StatefulSet{}
 	Expect(c.Get(ctx, types.NamespacedName{Name: name, Namespace: ns}, sts)).To(Succeed())
@@ -104,10 +122,41 @@ var _ = Describe("Validate deployment image and version", func() {
 			Expect(defaultImage).To(Not(Equal(fmt.Sprintf("%s:%s", common.ArgoCDDefaultArgoImage, common.ArgoCDDefaultArgoVersion))))
 
 			By("ensuring operator env variable ARGOCD_IMAGE is set")
+			priorImage, err := fixture.GetEnvInOperatorSubscriptionOrDeployment("ARGOCD_IMAGE")
+			Expect(err).ToNot(HaveOccurred())
+			wasSet := priorImage != nil
+			priorValue := ""
+			if wasSet {
+				priorValue = *priorImage
+			}
+			managerImage, managerHadImage, err := operatorManagerArgoCDImage(ctx, c)
+			Expect(err).ToNot(HaveOccurred())
 			fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_IMAGE", defaultImage)
 
 			By("creating namespace-scoped ArgoCD without image/version")
 			ns, cleanupFunc := fixture.CreateNamespaceWithCleanupFunc(argocdNamespace)
+			defer func() {
+				cleanupFunc()
+				fixture.RestoreSubscriptionToDefault()
+				if wasSet {
+					fixture.SetEnvInOperatorSubscriptionOrDeployment("ARGOCD_IMAGE", priorValue)
+				} else {
+					Expect(fixture.RemoveEnvFromOperatorSubscriptionOrDeployment("ARGOCD_IMAGE")).To(Succeed())
+				}
+				Eventually(func() bool {
+					value, found, err := operatorManagerArgoCDImage(ctx, c)
+					if err != nil {
+						return false
+					}
+					if wasSet {
+						return found && value == priorValue
+					}
+					if managerHadImage {
+						return found && value == managerImage
+					}
+					return !found
+				}, "3m", "1s").Should(BeTrue())
+			}()
 
 			argo := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: argocdInstanceName, Namespace: argocdNamespace},
@@ -115,11 +164,6 @@ var _ = Describe("Validate deployment image and version", func() {
 			}
 			Expect(c.Create(ctx, argo)).To(Succeed())
 			Eventually(argo, "2m", "5s").Should(argocdFixture.BeAvailable())
-
-			defer func() {
-				cleanupFunc()
-				fixture.RestoreSubscriptionToDefault()
-			}()
 
 			checkImages := func(expected map[string]string, stsExpected string) {
 				deploys := waitForDeployments(ctx, c, ns.Name, 4)
