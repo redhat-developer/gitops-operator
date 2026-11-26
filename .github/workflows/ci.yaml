@@ -20,7 +20,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: 'go.mod'
       - name: Download all Go modules
@@ -45,7 +45,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: 'go.mod'
       - name: Run make bundle
@@ -80,7 +80,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: 'go.mod'
 
@@ -101,7 +101,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: "go.mod"
       - name: "Call update dependencies Makefile target"
@@ -120,7 +120,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Golang
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: 'go.mod'
       - name: Run unit tests
