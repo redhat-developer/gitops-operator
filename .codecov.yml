@@ -11,6 +11,7 @@ coverage:
         threshold: 2
 ignore:
   - "**/*_test.go"
+  - "**/test/**/*"
+  - "**/tests/**/*"
   - "**/mocks/*"
-  - "test/**/*"
-  - "vendor/**/*"
+  - "**/vendor/**/*"
