@@ -44,6 +44,11 @@ const (
 	// E2ETestLabelsKey and E2ETestLabelsValue are added to cluster-scoped resources (e.g. Namespaces) created by E2E tests (where possible). On startup (and before each test for sequential tests), any resources with this label will be deleted.
 	E2ETestLabelsKey   = "app"
 	E2ETestLabelsValue = "test-argo-app"
+
+	// SidecarImage is the off-the-shelf image the sidecar tests run (1-070 runs argocd-cmp-server in it).
+	// Pinned by digest so that an image rebuild cannot change test results. It is UBI 9 to match the base
+	// the Argo CD binaries are built on, which also matters on FIPS clusters. ubi-minimal 9.8, 2026-11-05.
+	SidecarImage = "registry.access.redhat.com/ubi9/ubi-minimal@sha256:4b79c93106c14ad1c234907f83441ff0e4f8d24e78426a36e159098e9f7e6fa5"
 )
 
 var NamespaceLabels = map[string]string{E2ETestLabelsKey: E2ETestLabelsValue}
