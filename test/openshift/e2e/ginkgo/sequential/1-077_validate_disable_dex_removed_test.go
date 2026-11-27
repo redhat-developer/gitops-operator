@@ -46,6 +46,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
+		// TODO: skipped on xKS, check if this can be ported for xKS testing
 		It("verifies that DISABLE_DEX is not specified in the Subscription/CSV that was used to install the operator", func() {
 
 			if fixture.EnvNonOLM() || fixture.EnvLocalRun() {

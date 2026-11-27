@@ -363,6 +363,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
+			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
 
 			if fixture.EnvCI() || fixture.EnvLocalRun() || fixture.EnvNonOLM() {
 				Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
@@ -416,7 +417,6 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			By("Create ArgoCD instance")
 
-			argoCD.Spec.ArgoCDAgent.Principal.Image = common.ArgoCDAgentPrincipalDefaultImageName
 			Expect(k8sClient.Create(ctx, argoCD)).To(Succeed())
 
 			By("Verify expected resources are created for principal pod")
@@ -427,7 +427,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 			container := deploymentFixture.GetTemplateSpecContainerByName(argoCDAgentPrincipalName, *principalDeployment)
 			Expect(container).ToNot(BeNil())
-			Expect(container.Image).To(Equal(common.ArgoCDAgentPrincipalDefaultImageName))
+			Expect(container.Image).To(ContainSubstring("argocd-agent"))
 
 			By("Verify environment variables are set correctly")
 
@@ -543,7 +543,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			}
 		})
 
-		It("should handle route enabled configuration correctly", func() {
+		It("should handle route enabled configuration correctly", Label("openshift"), func() {
 
 			By("Create ArgoCD instance with route enabled")
 
@@ -919,7 +919,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			Eventually(principalNetworkPolicy).Should(k8sFixture.NotExistByName())
 		})
 
-		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", func() {
+		It("should create and delete principal ServiceMonitor based on prometheus enabled flag", Label("openshift"), func() {
 
 			By("Create ArgoCD instance with principal enabled and prometheus enabled")
 

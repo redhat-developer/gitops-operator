@@ -53,7 +53,7 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", func() {
+		It("validates that namespace-scoped resources do not delete a ClusterRole or ClusterRoleBinding with a matching generated name", Label("openshift"), func() {
 
 			By("checking that the default ClusterRole and clusterroleBinding for the ArgoCD Application Controller and Server exists")
 			defaultControllerClusterRole := &rbacv1.ClusterRole{

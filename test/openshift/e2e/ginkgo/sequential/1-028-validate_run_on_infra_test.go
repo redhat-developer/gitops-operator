@@ -23,7 +23,6 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-028-validate_run_on_infra_test", func() {
-
 		var (
 			ctx       context.Context
 			k8sClient client.Client
@@ -35,7 +34,7 @@ var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("validates that Argo CD runs on infra nodes", func() {
+		It("validates that Argo CD runs on infra nodes", Label("openshift"), func() {
 
 			By("enabling run on infra on GitOpsService CR")
 			gitopsService := &gitopsoperatorv1alpha1.GitopsService{
