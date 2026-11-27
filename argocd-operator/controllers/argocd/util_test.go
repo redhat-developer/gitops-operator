@@ -1783,7 +1783,7 @@ func TestNamespaceManagementHandlers(t *testing.T) {
 		secretName := setupRBACAndSecret(t, client, argoCD, testNamespace)
 
 		changed := r.handleNamespaceManagementDelete(nsMgmt, client)
-		assert.False(t, changed)
+		assert.True(t, changed, "deleting the CR must enqueue the instance it named")
 
 		_, err := client.RbacV1().Roles(testNamespace).Get(context.TODO(), "test-role", metav1.GetOptions{})
 		assert.ErrorContains(t, err, "not found")

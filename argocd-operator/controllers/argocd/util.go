@@ -2067,40 +2067,36 @@ func (r *ReconcileArgoCD) handleArgoCDNamespaceManagementUpdate(valNew, valOld *
 	return true
 }
 
+// handleNamespaceManagementUpdate cleans up after a NamespaceManagement CR is pointed at another
+// instance and reports whether the event must be enqueued. It is enqueued whenever .spec.managedBy
+// changes, even if the cleanup here is skipped or fails: the reconcile rebuilds consent and prunes
+// the grants the previous instance no longer has (e.g. Image Updater RBAC).
 func (r *ReconcileArgoCD) handleNamespaceManagementUpdate(oldNSMgmt, newNSMgmt *argoproj.NamespaceManagement, k8sClient kubernetes.Interface) bool {
+	// Status-only updates come from our own reconcile; enqueuing them would loop.
+	if oldNSMgmt.Spec.ManagedBy == newNSMgmt.Spec.ManagedBy {
+		return false
+	}
+
 	ns := &corev1.Namespace{}
 	if err := r.Get(context.TODO(), types.NamespacedName{Name: oldNSMgmt.Spec.ManagedBy}, ns); err != nil {
-		return false
+		return true
 	}
 
 	// Skip Update if managed-by label exists and matches .spec.managedBy
 	if isNamespaceLabelledManagedBy(ns, oldNSMgmt.Spec.ManagedBy) {
 		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping update cleanup", oldNSMgmt.Namespace))
-		return false
-	}
-
-	// If `.spec.managedBy` changes, trigger reconciliation
-	if oldNSMgmt.Spec.ManagedBy != newNSMgmt.Spec.ManagedBy {
-		if err := cleanupRBACsForNamespaceManagement(oldNSMgmt.Spec.ManagedBy, oldNSMgmt.Namespace, k8sClient); err != nil {
-			return false
-		}
 		return true
 	}
-	return false
+
+	_ = cleanupRBACsForNamespaceManagement(oldNSMgmt.Spec.ManagedBy, oldNSMgmt.Namespace, k8sClient) // logged inside
+	return true
 }
 
+// handleNamespaceManagementDelete cleans up after a NamespaceManagement CR is deleted and reports
+// whether the event must be enqueued. It is enqueued whenever the CR named a managing instance,
+// even if the cleanup here is skipped or fails, so that instance's reconcile prunes the grants
+// that lost their consent.
 func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.NamespaceManagement, k8sClient kubernetes.Interface) bool {
-	ns := &corev1.Namespace{}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: nsMgmt.Spec.ManagedBy}, ns); err != nil {
-		return false
-	}
-
-	// Skip cleanup if managed-by label exists and matches .spec.managedBy
-	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
-		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
-		return false
-	}
-
 	// Retrieve the ArgoCD instance that was managing this namespace
 	argocdNamespace := nsMgmt.Spec.ManagedBy
 	if argocdNamespace == "" {
@@ -2109,10 +2105,19 @@ func (r *ReconcileArgoCD) handleNamespaceManagementDelete(nsMgmt *argoproj.Names
 		return false
 	}
 
-	if err := cleanupRBACsForNamespaceManagement(argocdNamespace, nsMgmt.Namespace, k8sClient); err != nil {
-		return false
+	ns := &corev1.Namespace{}
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: nsMgmt.Spec.ManagedBy}, ns); err != nil {
+		return true
 	}
-	return false
+
+	// Skip cleanup if managed-by label exists and matches .spec.managedBy
+	if isNamespaceLabelledManagedBy(ns, nsMgmt.Spec.ManagedBy) {
+		log.Info(fmt.Sprintf("Namespace %s still managed by same ArgoCD instance via label, skipping delete cleanup", nsMgmt.Namespace))
+		return true
+	}
+
+	_ = cleanupRBACsForNamespaceManagement(argocdNamespace, nsMgmt.Namespace, k8sClient) // logged inside
+	return true
 }
 
 func cleanupRBACsForNamespaceManagement(argocdNamespace, nms string, k8sClient kubernetes.Interface) error {
