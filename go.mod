@@ -21,7 +21,7 @@ require (
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift/api v0.0.0-20260619095050-5346161d1bf2
 	github.com/openshift/controller-runtime-common v0.0.0-20260428152732-64ee174f5e2e
-	github.com/operator-framework/api v0.17.5
+	github.com/operator-framework/api v0.47.1
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.95.2
 	// Internalized from a separate repo
 	github.com/redhat-developer/gitops-operator/argocd-operator v0.20.0-rc1
