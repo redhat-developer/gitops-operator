@@ -20,7 +20,6 @@ import (
 var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 	Context("1-086_validate_default_argocd_role", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
 
 		var (
 			ctx       context.Context
@@ -34,7 +33,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			ctx = context.Background()
 		})
 
-		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", Label("openshift"), func() {
+		// Uses the default openshift-gitops instance on purpose: it verifies the RBAC values that instance is
+		// created with. It only reads the instance, so it can run in parallel.
+		It("verifies that the default openshift-gitops instance defines the expected roles in argocd-rbac-cm", Label("openshift"), func() {
 
 			By("verifying default ArgoCD in openshift-gitops is running and has defined expected RBAC values in ConfigMap argocd-rbac-cm")
 
@@ -55,6 +56,9 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 			Expect(strings.TrimSpace(configMap.Data["policy.csv"])).To(Equal("g, system:cluster-admins, role:admin\ng, cluster-admins, role:admin"))
 			Expect(configMap.Data["policy.default"]).To(Equal(""))
 			Expect(configMap.Data["scopes"]).To(Equal("[groups]"))
+		})
+
+		It("verifies that Argo CD roles are defined as expected in argocd-rbac-cm, based on values in ArgoCD .spec.rbac.defaultPolicy", func() {
 
 			By("creating 3 ArgoCD instances in 3 different namespaces, with different RBAC policies")
 

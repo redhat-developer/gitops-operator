@@ -39,7 +39,8 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-010_validate-ootb-manage-other-namespace", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
+		// Cannot be parallelized: it verifies that the default openshift-gitops instance can manage another
+		// namespace out of the box, through the managed-by label.
 
 		var (
 			ctx                context.Context
