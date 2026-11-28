@@ -37,7 +37,8 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-018_validate_disable_default_instance", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
+		// Cannot be parallelized: it deletes and disables the default openshift-gitops instance, and modifies
+		// the operator Subscription.
 
 		BeforeEach(func() {
 			fixture.EnsureSequentialCleanSlate()

@@ -37,7 +37,9 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-114_validate_imagepullpolicy", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
+		// Cannot be parallelized: most specs modify the operator Subscription env vars
+		// (ARGOCD_CLUSTER_CONFIG_NAMESPACES, IMAGE_PULL_POLICY). The specs use their own Argo CD instances, not
+		// the default one.
 
 		var (
 			k8sClient client.Client

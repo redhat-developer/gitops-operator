@@ -23,7 +23,8 @@ import (
 var _ = Describe("GitOps Operator Sequential E2E Tests", func() {
 
 	Context("1-071_validate_node_selectors", func() {
-		// TODO: check if this test can use a new ArgoCD instance instead of the default openshift-gitops instance
+		// Cannot be parallelized: GitopsService nodeSelector, tolerations and runOnInfra only apply to the
+		// default openshift-gitops instance, so the test modifies resources of that instance.
 
 		var (
 			ctx       context.Context
