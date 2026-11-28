@@ -71,13 +71,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 
 			argoCD_default_policy := &argov1beta1api.ArgoCD{
 				ObjectMeta: metav1.ObjectMeta{Name: "argocd-default-policy", Namespace: test_1_086_customNS.Name},
-				Spec: argov1beta1api.ArgoCDSpec{
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
-					},
-				},
 			}
 			Expect(k8sClient.Create(ctx, argoCD_default_policy)).To(Succeed())
 
@@ -86,11 +79,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
 						DefaultPolicy: new(""),
-					},
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
 					},
 				},
 			}
@@ -101,11 +89,6 @@ var _ = Describe("GitOps Operator Parallel E2E Tests", func() {
 				Spec: argov1beta1api.ArgoCDSpec{
 					RBAC: argov1beta1api.ArgoCDRBACSpec{
 						DefaultPolicy: new("role:admin"),
-					},
-					Server: argov1beta1api.ArgoCDServerSpec{
-						Route: argov1beta1api.ArgoCDRouteSpec{
-							Enabled: true,
-						},
 					},
 				},
 			}
